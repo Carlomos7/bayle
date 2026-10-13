@@ -4,6 +4,13 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mods: a first look at the new design. A new button on the Mods page, Open new Mods window, opens the redesigned
+  Mods page in a window of its own: the mods in the order me3 loads them, switched on and off in place with Undo,
+  dragged into a new order (a move me3's load-after rules would undo is refused and says why), Mod options, Profile
+  settings, Versions, the Parameters card and the Load order panel. The Mods page you know stays as it is.
+- Mods: removing an entry that only points at a folder of mods no longer fails when another mod must load after
+  it; deleting a profile now waits until the running job finishes; a mod's rebuild tool is asked about again when
+  its program or script changes. Wording: refusing to delete a profile an installer manages names that profile.
 - Combine and overhaul builds are much faster: merged archives are compressed at Oodle level 4 instead of 6. The large
   effects archive takes about 5 seconds instead of nearly 2 minutes, for about 3% more disk; checked in game with the
   same effects and load time.

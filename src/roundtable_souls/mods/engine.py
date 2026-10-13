@@ -539,6 +539,9 @@ def _hook_step(steps, label, setup, inputs, mod, sources, report, log) -> None:
     broken = lua_check.check(f"{folder}/{name}", base, base_from, fragments, composed)
     if broken is not None:  # the game would not load it: refused here, the previous build stays
         raise EngineError(f"{broken} The previous build is kept.")
+    for said in lua_check.havok_syntax(f"{folder}/{name}", composed):
+        report.append(f"warning: {said}")
+        log(f"  warning: {said}")
     entry.parent.mkdir(parents=True, exist_ok=True)
     entry.write_text(composed.text, encoding="utf-8", newline="\n")
     for layer in inputs:

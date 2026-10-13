@@ -675,3 +675,13 @@ def test_a_build_the_mods_installer_made_is_checked_as_before(world):
     m = {"version": "0.1.33-rc3", "sources": [], "refreshProtocol": 1}
     recipe, _version, _ = engine.match(world.setup)
     assert engine.input_reasons(m, recipe, er()) == []
+
+
+def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
+    (world.setup / "installer/revive.hks").write_text("local mask = 0x10hi\n")
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert (
+        "uses Havok Script syntax (hi-hl numbers) that this check can't read; the rest of the script was checked"
+        in report
+    )

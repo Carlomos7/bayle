@@ -30,6 +30,10 @@ class SelfTestHost:
     busy = False
     game_running = False
     locations = None
+    profile = None  # no profile: a page shows its empty state, nothing is read
+    settings = None
+    game = None
+    setup = None
 
     def run_job(self, job, status: str) -> None:
         raise RuntimeError("the self-test runs no jobs")
@@ -39,6 +43,21 @@ class SelfTestHost:
 
     def run_in_background(self, work, on_result) -> None:
         on_result(work())
+
+    def profile_changed(self, note: str) -> None:
+        pass
+
+    def profile_deleted(self, profile, moved_to) -> None:
+        pass
+
+    def install(self, from_folder: bool) -> None:
+        pass
+
+    def install_paths(self, paths) -> None:
+        pass
+
+    def open_path(self, path) -> None:
+        pass
 
 
 class Report:

@@ -44,6 +44,36 @@ def test_a_permission_kept_under_the_older_key_counts_once_and_moves(tmp_path):
     assert not rebuild.approved(tool(tmp_path))  # and the next version asks
 
 
+def test_a_changed_script_is_asked_about_again_though_the_interpreter_is_the_same(tmp_path):
+    script = tmp_path / "tool.py"
+    script.write_text("print('version 1')\n", encoding="utf-8")
+
+    def scripted() -> Tool:
+        t = tool(tmp_path, program="python")
+        t.recipe.command = ["python", "tool.py", "--refresh"]
+        return t
+
+    rebuild.approve(scripted())
+    assert rebuild.approved(scripted())
+    script.write_text("print('version 2, which does something else')\n", encoding="utf-8")
+    assert not rebuild.approved(scripted())
+
+
+def test_the_data_a_tool_is_given_does_not_count_as_the_tool(tmp_path):
+    (tmp_path / "tool.py").write_text("print('v1')\n", encoding="utf-8")
+    data = tmp_path / "p.me3"
+    data.write_text("profileVersion = 'v1'\n", encoding="utf-8")
+
+    def scripted() -> Tool:
+        t = tool(tmp_path, program="python")
+        t.recipe.command = ["python", "tool.py", str(data)]
+        return t
+
+    rebuild.approve(scripted())
+    data.write_text("profileVersion = 'v1'\n# every rebuild writes the profile\n", encoding="utf-8")
+    assert rebuild.approved(scripted())
+
+
 def test_a_program_that_is_not_a_file_has_no_fingerprint(tmp_path):
     assert program_fingerprint("python", tmp_path) == ""
     assert program_fingerprint("", tmp_path) == ""

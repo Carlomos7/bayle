@@ -85,6 +85,19 @@ def program_fingerprint(program: str, cwd: Path | str = "") -> str:
     return _file_sha256(str(path.resolve()), st.st_size, st.st_mtime_ns)
 
 
+PROGRAM_SUFFIXES = frozenset(
+    {".exe", ".com", ".bat", ".cmd", ".ps1", ".psm1", ".vbs", ".js", ".py", ".pyw", ".sh", ".jar", ".dll", ".lua"}
+)  # files a command runs (a program, or a script an interpreter runs), as opposed to the data it is given
+
+
+def command_fingerprint(command: list[str], cwd: Path | str = "") -> str:
+    """The fingerprints of the program and of every element of the command that is a program or script file
+    (PROGRAM_SUFFIXES; relative to cwd, or absolute), in order and joined. Data the command is given (the profile,
+    the files it merges) is left out: it changes with every rebuild and is not the tool."""
+    parts = [p for i, p in enumerate(command) if i == 0 or Path(p).suffix.lower() in PROGRAM_SUFFIXES]
+    return "|".join(f for f in (program_fingerprint(part, cwd) for part in parts) if f)
+
+
 @lru_cache(maxsize=64)
 def _file_sha256(path: str, size: int, mtime_ns: int) -> str:
     digest = hashlib.sha256()
@@ -160,11 +173,12 @@ class Tool:
 
     def approval_key(self) -> str:
         """What the user's permission is kept under: the recipe's approval text, the program and its folder, and the
-        program file's own fingerprint, so a new version of the tool is asked about again (once per tool version)."""
+        fingerprint of every file the command names (the program, and a script an interpreter runs: python tool.py,
+        a .bat, powershell -File x.ps1), so a new version of the tool is asked about again (once per tool version)."""
         r = self.recipe
         program = r.command[0] if r.command else ""
         return hashlib.sha256(
-            f"{r.approval}|{program}|{r.cwd}|{program_fingerprint(program, r.cwd)}".lower().encode()
+            f"{r.approval}|{program}|{r.cwd}|{command_fingerprint(r.command, r.cwd)}".lower().encode()
         ).hexdigest()
 
     def legacy_approval_key(self) -> str:

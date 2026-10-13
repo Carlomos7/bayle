@@ -247,14 +247,57 @@ def delete_profile(path) -> Path:
 # inside a logged job and leave the undo record Activity offers (mods.undo).
 
 
+def installable_overhauls(game: str) -> list[str]:
+    """The overhauls and editions the launcher can install for this game (a config's build with an install
+    description), in plain words: the overhaul's name, the values its download must have (its edition) and the
+    versions the build was written for."""
+    from roundtable_souls import overhauls
+
+    out: list[str] = []
+    for config in overhauls.load(game):
+        for b in config.builds:
+            if b.install is None:
+                continue
+            edition = " ".join(str(j.equals) for j in b.match.json_ if isinstance(j.equals, str))
+            words = " ".join(w for w in (config.label, edition, " or ".join(b.match.versions)) if w)
+            if words not in out:
+                out.append(words)
+    return out
+
+
+def overhaul_library_folder(game: str) -> str:
+    """The name of the game's library folder in me3's profiles folder, where the launcher keeps its files."""
+    from roundtable_souls.mods import library
+
+    return library.ModLibrary.at(Path(), game).root.name
+
+
+def overhaul_switch_text(game: str) -> str:
+    """The line under the Settings switch: what it covers for this game, and where the launcher keeps its files."""
+    names = installable_overhauls(game)
+    covered = ", ".join(names) if names else "none for this game yet"
+    return (
+        "Adds an Overhaul button to the Mods page: install an overhaul into a profile from the folder you unpacked "
+        "its download into, without running its installer, and remove it again. It covers only the overhauls the "
+        f"launcher has an install description for ({covered}); others aren't offered, so use their own installer. "
+        f"The launcher keeps its copy of the download in {overhaul_library_folder(game)}, in me3's profiles folder."
+    )
+
+
+def overhaul_button_tip(game: str) -> str:
+    """The Overhaul button's tooltip on the Mods page."""
+    names = installable_overhauls(game)
+    return (
+        "Install an overhaul with the launcher, remove one, or clean up what its own installer left. Only overhauls "
+        f"the launcher has an install description for: {', '.join(names) if names else 'none for this game yet'}. "
+        "A preview: Tools > Play session turns it on and off."
+    )
+
+
 def overhaul_preview_on(loc: Locations) -> bool:
     """The Settings switch "Install overhauls with the launcher (preview)" is on and the game has an overhaul the
     launcher can install."""
-    from roundtable_souls import overhauls
-
-    if not load_settings().overhaul_install:
-        return False
-    return any(b.install is not None for c in overhauls.load(loc.game.key) for b in c.builds)
+    return bool(load_settings().overhaul_install) and bool(installable_overhauls(loc.game.key))
 
 
 def preview_overhaul_install(profile, download, *, loc: Locations):

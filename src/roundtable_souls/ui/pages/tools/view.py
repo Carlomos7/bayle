@@ -34,6 +34,7 @@ from qfluentwidgets import FluentIcon as FI
 
 from roundtable_souls.config.settings import FROZEN, appimage, is_installed, is_portable
 from roundtable_souls.platform import desktop
+from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import play as play_service
 from roundtable_souls.services.mods import (
     me3_facts,
@@ -245,12 +246,11 @@ class ToolsView:
             (
                 "overhaul_install",
                 "Install overhauls with the launcher (preview)",
-                "Adds an Overhaul button to the Mods page: install the overhaul LITE 0.1.33 into a profile from "
-                "the folder you unpacked its download into, without running its installer, and remove it again.",
+                mod_service.overhaul_switch_text(self.game.key),
                 "Every change is shown before it happens, and each install or removal can be undone from Activity. "
-                "The launcher keeps a copy of the download and its notes in rs-eldenring, in me3's profiles folder; "
-                "the overhaul's own folder stays beside your profile. A the overhaul its own installer set up isn't changed: "
-                "remove it first. Off: the button is hidden; nothing installed with it changes.",
+                "The launcher keeps a copy of the download and its notes in its own folder in me3's profiles folder; "
+                "the overhaul's own folder stays beside your profile. An overhaul its own installer set up isn't "
+                "changed: remove it first. Off: the button is hidden; nothing installed with it changes.",
             ),
             (
                 "play_boot_boost",
@@ -877,6 +877,19 @@ class ToolsView:
             self._on_shells(dead_shells_count(loc=self.ctx.locations))
         if key == "overhaul_install":
             self._sync_overhaul_button()
+
+    def _sync_overhaul_switch(self):
+        """The overhaul switch shows for a game with an overhaul the launcher can install, saying which."""
+        row = self.play_rows["overhaul_install"]
+        try:
+            names = mod_service.installable_overhauls(self.game.key)
+            text = mod_service.overhaul_switch_text(self.game.key)
+        except Exception:
+            names, text = [], ""
+        row.setVisible(bool(names))
+        if row.d is not None and text:
+            row.d.setText(text)
+        self._sync_overhaul_button()
 
     def _on_theme(self, dark):
         save_settings(theme="dark" if dark else "light")

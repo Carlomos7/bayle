@@ -258,10 +258,13 @@ def build(
     game_dir: Path | None = None,
     *,
     loc: Locations,
+    swap: bool = True,
 ) -> dict:
     """Build the output of `recipe` for the package in target_folder (its mod folder) from the packages before it,
     swap it in, and return {output, previous, restore, sources, seconds}. loc: the game's locations; game_dir, when
-    given, is used instead of loc's game folder. Raises EngineError; the output in place is then unchanged."""
+    given, is used instead of loc's game folder. swap=False: the build is left staged beside its place and returned
+    as output (previous and restore None), nothing live changes; the caller puts it in place (an install's
+    operation, mods.overhaul_install) or removes it. Raises EngineError; the output in place is then unchanged."""
     from roundtable_souls import __version__
 
     started = time.time()
@@ -361,6 +364,10 @@ def build(
         (stage / out_cfg.get("manifest", "installation.json")).write_text(
             json.dumps(manifest, indent=2), encoding="utf-8", newline="\n"
         )
+        if not swap:
+            seconds = time.time() - started
+            log(f"engine: {recipe['label']} built in {seconds:.0f}s, staged")
+            return {"output": stage, "previous": None, "restore": None, "sources": sources, "seconds": seconds}
         previous, restore = _swap(own, stage, log)
     except BaseException:
         shutil.rmtree(stage, ignore_errors=True)

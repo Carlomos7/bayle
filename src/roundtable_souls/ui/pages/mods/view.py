@@ -43,6 +43,7 @@ from roundtable_souls.mods import install as mod_install
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.platform import desktop
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import play as core
 from roundtable_souls.services import profile_mods
 from roundtable_souls.services.mods import (
@@ -116,6 +117,9 @@ class ModsView:
             "A .zip, .7z or .rar, or a folder. Roundtable Souls works out whether it is a package or a DLL and adds it at the end of the load order."
         )
         self.mods_install.clicked.connect(self._install_mod)
+        self.mods_overhaul = ghost_btn("Overhaul", FI.APPLICATION)
+        self.mods_overhaul.clicked.connect(self._overhaul_menu)
+        self.mods_overhaul.hide()
         self.prof_new = ghost_btn("New profile", FI.ADD)
         self.prof_new.setToolTip("A fresh .me3 in me3's profile folder, empty or copied from the current one.")
         self.prof_new.clicked.connect(self._new_profile)
@@ -126,6 +130,7 @@ class ModsView:
             self._folder_btn("profile", "Profile folder", FI.FOLDER, "The folder holding this .me3 and its mods.")
         )
         al.addWidget(self.mods_install)
+        al.addWidget(self.mods_overhaul)
         al.addWidget(self.prof_new)
         al.addWidget(self.prof_del)
         al.addWidget(self.mods_refresh)
@@ -1444,6 +1449,190 @@ class ModsView:
                 raise SystemExit(1) from e
 
         self.start(job, f"Installing {plan['name']}...", need_setup=False)
+
+    # ---------------------------------------------------------------- overhauls with the launcher (preview)
+    def _sync_overhaul_button(self):
+        """The Overhaul button shows while "Install overhauls with the launcher (preview)" is on for this game."""
+        b = getattr(self, "mods_overhaul", None)
+        if b is None:
+            return
+        try:
+            on = mod_service.overhaul_preview_on(self.ctx.locations)
+            b.setToolTip(mod_service.overhaul_button_tip(self.game.key))
+        except Exception:
+            on = False
+        b.setVisible(on)
+
+    def _overhaul_menu(self):
+        if self._mods_locked():
+            return
+        prof = Path(self.setup.profile)
+        loc = self.ctx.locations
+        has = mod_service.profile_overhaul(prof, loc=loc)
+        menu = style_menu(RoundMenu(parent=self))
+        menu.addAction(Action(FI.FOLDER, "Install with the launcher (preview)...", triggered=self._overhaul_install))
+        remove = Action(
+            FI.DELETE,
+            f"Remove {has['label']}..." if has else "Remove overhaul...",
+            triggered=lambda: self._overhaul_remove(has),
+        )
+        remove.setEnabled(has is not None)
+        menu.addAction(remove)
+        clean = Action(FI.BROOM, "Clean up installer leftovers...", triggered=self._overhaul_leftovers)
+        clean.setEnabled(bool(mod_service.overhaul_leftovers(prof, loc=loc)))
+        menu.addAction(clean)
+        b = self.mods_overhaul
+        menu.exec(b.mapToGlobal(QPoint(0, b.height() + 4)))
+
+    def _overhaul_install(self):
+        if self._mods_locked():
+            return
+        src = QFileDialog.getExistingDirectory(self, "Install an overhaul: pick the folder you unpacked it into", "")
+        if not src:
+            return
+        prof = Path(self.setup.profile)
+        loc = self.ctx.locations
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            preview = mod_service.preview_overhaul_install(prof, src, loc=loc)
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            self._toast(f"Can't install from {Path(src).name}", str(e), error=True)
+            return
+        QApplication.restoreOverrideCursor()
+        if not preview.ok:
+            self._toast(f"{preview.label} can't be installed here", " ".join(preview.refusals), error=True)
+            return
+        verb = "Update" if preview.update else "Install"
+        if not confirm(
+            self,
+            f"{verb} {preview.label} in {prof.name}",
+            changes=[*preview.lines, *preview.notes],
+            safety="It's one step: if anything fails, nothing changes, and you can undo it from Activity. Nothing "
+            "of the overhaul's own installer runs.",
+            apply_text=verb,
+        ):
+            return
+
+        def job(_setup, _loc):
+            run_logging.start_log(f"launcher: {verb.lower()} overhaul {preview.label}", loc.game.key)
+            try:
+                mod_service.install_overhaul(preview, loc=loc)
+            except Exception as e:
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        self.start(job, f"{'Updating' if preview.update else 'Installing'} {preview.label}...", need_setup=False)
+
+    def _overhaul_remove(self, has):
+        if not has or self._mods_locked():
+            return
+        prof = Path(self.setup.profile)
+        loc = self.ctx.locations
+        chosen = []
+        if has["legacy"]:
+            choices = mod_service.legacy_overhaul_choices(prof, loc=loc)
+            if choices:
+                pick = ChoiceListDialog(
+                    f"Put back what {has['label']}'s installer changed?",
+                    "Its installer changed these in your profile (compared with its oldest backup of it). Tick the "
+                    "ones to put back; the others stay as they are now.",
+                    [text for text, _ in choices],
+                    self,
+                    apply_text="Put back",
+                    allow_none=True,
+                    none_text="Leave them",
+                )
+                if not pick.exec():
+                    return
+                chosen = [choices[i][1] for i in pick.selected()]
+        try:
+            preview = mod_service.preview_overhaul_removal(prof, loc=loc, legacy_choices=chosen)
+        except Exception as e:
+            self._toast(f"Can't remove {has['label']}", str(e), error=True)
+            return
+        if not preview.ok:
+            self._toast(f"Can't remove {has['label']}", " ".join(preview.refusals), error=True)
+            return
+        asked = ", ".join(str(e.entry) for e in preview.asked)
+        dlg = ConfirmDialog(
+            f"Remove {has['label']} from {prof.name}",
+            self,
+            changes=list(preview.lines),
+            safety="It's one step, and Restore in Activity puts it all back. Folders go to the Recycle Bin.",
+            apply_text="Remove",
+            option=f"Also switch {asked} back off, as it was before the install" if asked else None,
+            option_checked=False,
+        )
+        if not dlg.exec():
+            return
+        if dlg.option_on():
+            preview = mod_service.preview_overhaul_removal(prof, loc=loc, revert_asked=True, legacy_choices=chosen)
+            if not preview.ok:
+                self._toast(f"Can't remove {has['label']}", " ".join(preview.refusals), error=True)
+                return
+
+        def job(_setup, _loc):
+            run_logging.start_log(f"launcher: remove overhaul {has['label']}", loc.game.key)
+            try:
+                mod_service.remove_overhaul(preview)
+            except Exception as e:
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        self.start(job, f"Removing {has['label']}...", need_setup=False)
+        if has["legacy"]:
+            self._toast(
+                f"{has['label']}'s installer left folders behind",
+                "Overhaul > Clean up installer leftovers shows them with their sizes once the removal is done.",
+                info=True,
+            )
+
+    def _overhaul_leftovers(self):
+        if self._mods_locked():
+            return
+        prof = Path(self.setup.profile)
+        left = mod_service.overhaul_leftovers(prof, loc=self.ctx.locations)
+        folders = [x for x in left if not x.backups]
+        backups = [x for x in left if x.backups]
+        picked = []
+        if folders:
+            pick = ChoiceListDialog(
+                "Clean up installer leftovers",
+                "What an overhaul's own installer left beside your profile, which no profile there uses any more. "
+                "The ticked ones go to the Recycle Bin.",
+                [x.label for x in folders],
+                self,
+                apply_text="Move to Recycle Bin",
+                allow_none=bool(backups),
+                none_text="Next",
+            )
+            if not pick.exec():
+                return
+            picked = [folders[i].path for i in pick.selected()]
+        for x in backups:  # last, and one at a time: the only copy of the profile from before the overhaul
+            if ConfirmDialog(
+                f"Also remove {x.path.name}?",
+                self,
+                changes=[f"{x.label} goes to the Recycle Bin"],
+                warning="These are its installer's backups of your profiles: the only copy from before the overhaul "
+                "was installed. Keep them unless you're sure you don't need them.",
+                apply_text="Move to Recycle Bin",
+                cancel_text="Keep it",
+            ).exec():
+                picked.append(x.path)
+        if not picked:
+            return
+
+        def job(_setup, loc):
+            run_logging.start_log("launcher: clean up overhaul installer leftovers", loc.game.key)
+            try:
+                mod_service.remove_overhaul_leftovers(picked)
+            except Exception as e:
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        self.start(job, "Moving leftovers to the Recycle Bin...", need_setup=False)
 
     def eventFilter(self, obj, e):
         # A drag entering the Mods page (or anything on it, such as the profile editor, which would take the file

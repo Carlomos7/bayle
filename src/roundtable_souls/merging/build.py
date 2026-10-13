@@ -267,18 +267,20 @@ class Operation:
         self.steps.append({"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")})
         self._save()
 
-    def write_file(self, live: Path, data: bytes, expect: str | None = None) -> None:
-        """live gets these bytes; the bytes it had (if any) are kept in the operation's folder. expect: the sha256
-        of the bytes the caller read (or "missing": the file was not there): commit() checks the file still holds
-        them right before this step and refuses the operation otherwise, so an edit made to the file outside the
-        launcher meanwhile is never overwritten."""
+    def write_file(self, live: Path, data: bytes | None, expect: str | None = None) -> None:
+        """live gets these bytes (None: live is removed); the bytes it had (if any) are kept in the operation's
+        folder. expect: the sha256 of the bytes the caller read (or "missing": the file was not there): commit()
+        checks the file still holds them right before this step and refuses the operation otherwise, so an edit made
+        to the file outside the launcher meanwhile is never overwritten."""
         live = Path(live)
         n = len(self.steps)
-        (self.dir / f"{n}.after").write_bytes(data)
+        if data is not None:
+            (self.dir / f"{n}.after").write_bytes(data)
         had = live.is_file()
         if had:
             shutil.copy2(live, self.dir / f"{n}.before")
-        step = {"type": "file", "live": str(live), "before": f"{n}.before" if had else "", "after": f"{n}.after"}
+        after = f"{n}.after" if data is not None else ""
+        step = {"type": "file", "live": str(live), "before": f"{n}.before" if had else "", "after": after}
         if expect:
             step["expect"] = expect
         self.steps.append(step)
@@ -328,9 +330,12 @@ class Operation:
                     if step.get("expect") and _fingerprint(live) != step["expect"]:
                         self.untouched = True  # this step was not started: nothing of it to put back
                         raise BuildError(f"{live.name} changed outside the launcher; reload and try again")
-                    tmp = live.with_name(live.name + ".tmp")
-                    shutil.copyfile(self.dir / step["after"], tmp)
-                    os.replace(tmp, live)
+                    if not step["after"]:  # a file the operation removes (its bytes are kept: before)
+                        live.unlink(missing_ok=True)
+                    else:
+                        tmp = live.with_name(live.name + ".tmp")
+                        shutil.copyfile(self.dir / step["after"], tmp)
+                        os.replace(tmp, live)
                 else:
                     next(builds).activate(operation=self)  # marks the operation done itself
                     return

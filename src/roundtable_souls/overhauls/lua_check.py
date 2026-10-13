@@ -69,6 +69,11 @@ def _havok(text: str) -> tuple[str, list[HavokLine]]:
     return _HAVOK_LITERAL.sub("0", text), found
 
 
+def plain_lua(text: str) -> str:
+    """The text with Havok Script's integer literals (0x...hi, 0x...hl) read as 0, so Lua 5.1 can compile the rest."""
+    return _havok(text)[0]
+
+
 def _lua_or_havok(text: str) -> tuple[SyntaxProblem | None, list[HavokLine]]:
     """(a real syntax error, or None; the Havok-only lines). A failure at or after the first line using hstructure or
     hmake is not counted: this check cannot read those; the lines before it compiled."""

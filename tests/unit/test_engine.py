@@ -171,9 +171,16 @@ def test_the_bundled_recipe_is_valid_and_fits_the_download(world):
 
 
 def test_a_newer_version_is_not_built_and_says_why(world):
-    (world.setup / "revive-maintenance.json").write_text('{"protocol": 1, "version": "0.2.0"}')
+    (world.setup / "edition.json").write_text('{"version": "0.2.0", "edition": "LITE"}')
     recipe, version, why = engine.match(world.setup)
     assert recipe is None and version == "0.2.0" and "newer than the launcher knows" in why
+
+
+def test_a_download_straight_from_its_archive_is_recognised(world):
+    """Only the mod's installer writes revive-maintenance.json: the download itself says its version in edition.json."""
+    (world.setup / "revive-maintenance.json").unlink()
+    recipe, version, why = engine.match(world.setup)
+    assert recipe is not None and version == "0.1.33-rc3" and why is None
 
 
 def test_another_edition_is_not_matched(world):
@@ -259,6 +266,21 @@ def test_the_previous_build_is_kept_and_undo_swaps_it_back(world):
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
     undo.run({**u, "redo": True}, lambda s: None, loc=er())
     assert (world.own / "mod/regulation.bin").read_bytes() != b"OLD BUILD"
+
+
+def test_a_build_can_be_left_staged_for_an_operation_to_put_in_place(world):
+    """swap=False (an overhaul install's operation): built and checked beside its place, nothing live changes, and
+    the kept previous build for Undo rebuild is not touched."""
+    recipe, version, _ = engine.match(world.setup)
+    work = world.base / engine.WORK
+    out = engine.build(
+        world.profile, world.own / "mod", world.setup, recipe, version, lambda s: None, loc=er(), swap=False
+    )
+    staged = out["output"]
+    assert staged != world.own and staged.parent == world.base and (staged / "mod/regulation.bin").is_file()
+    assert out["previous"] is None and out["restore"] is None and not work.exists()
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+    assert (staged / "RevivePrototype.ini").read_text().startswith("[Coop]\nEnabled=0\n")  # the player's value
 
 
 def test_a_failed_merge_leaves_the_build_in_place_and_no_staging(world, monkeypatch):

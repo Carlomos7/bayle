@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Nightreign Revive: the launcher now reads a download's edition and version from its edition.json, which every
+  download has, instead of the file only Revive's installer writes. So it recognises a download straight from its
+  archive. If you use "Build Nightreign Revive in the launcher (preview)", this counts as a change: the next Play
+  rebuilds Revive once (or asks first, if you turned off automatic rebuilds before Play).
 - Mods: a first look at the new design. A new button on the Mods page, Open new Mods window, opens the redesigned
   Mods page in a window of its own: the mods in the order me3 loads them, switched on and off in place with Undo,
   dragged into a new order (a move me3's load-after rules would undo is refused and says why), Mod options, Profile

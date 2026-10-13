@@ -22,6 +22,8 @@ folder = "MyOverhaul"            # its own folder beside the me3 profile (or in 
 manifest = "installation.json"   # its installer's manifest in that folder
 mod_ids = ["my-overhaul", "myoverhaul.dll"]  # profile entries meaning a setup includes it
 profile_marks = ["myoverhaul"]   # text marking its profile entries (case aside)
+installer_folders = [".myoverhaul-setup"]  # what its own installer keeps beside the profile (optional)
+installer_backups = "MyOverhaul Backups"   # its installer's backups of the profile (optional)
 
 [[builds]]                       # one per edition the launcher builds itself; none is fine
 id = "my-overhaul-lite"          # written into the build's manifest as "recipe"

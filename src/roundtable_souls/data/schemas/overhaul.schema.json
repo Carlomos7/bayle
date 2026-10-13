@@ -682,6 +682,25 @@
      },
      "title": "Profile Marks",
      "type": "array"
+    },
+    "installer_folders": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Installer Folders",
+     "type": "array"
+    },
+    "installer_backups": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Installer Backups"
     }
    },
    "required": [

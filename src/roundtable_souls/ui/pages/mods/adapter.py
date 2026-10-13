@@ -76,6 +76,9 @@ class ModsHost(Protocol):
     def install_paths(self, paths: list[Path]) -> None:
         """Install dropped files through the launcher's install flow, in turn."""
 
+    def attach_config(self, entry: dict) -> None:
+        """Open the launcher's dialog for a DLL's config files (until Mod Configs, S7)."""
+
     def profile_deleted(self, profile: Path, moved_to: Path) -> None:
         """The page deleted the profile: the host forgets it and picks another."""
 
@@ -526,8 +529,198 @@ class ModsAdapter(QObject):
 
     @Slot(int)
     def attachConfig(self, index: int) -> None:
-        if self._entry(index) is not None:
-            self.dialogRequested.emit("attach", index)
+        """A DLL's config files: today's dialog for them (attach, open, edit), until Mod Configs (S7)."""
+        entry = self._entry(index)
+        if entry is not None and self._profile() is not None:
+            self.host.attach_config(entry)
+
+    # ---- Mod options
+    @Slot(int, result=dict)
+    def optionsFor(self, index: int) -> dict:
+        """What the Mod options dialog shows for one entry (empty when the entry is gone)."""
+        entry, profile = self._entry(index), self.host.profile
+        if entry is None or profile is None:
+            return {}
+        facts = profile_mods.options_facts(profile, entry)
+        init = entry.get("initializer") or {}
+        delay = init.get("delay") if isinstance(init.get("delay"), dict) else None
+        return {
+            "index": index,
+            "name": entry["name"],
+            "kind": entry["kind"],
+            "enabled": entry.get("enabled", True) is not False,
+            "id": entry.get("id") or "",
+            "loadAfter": [
+                {"id": str(d["id"]), "optional": bool(d.get("optional"))} for d in entry.get("load_after") or []
+            ],
+            "loadBefore": [
+                {"id": str(d["id"]), "optional": bool(d.get("optional"))} for d in entry.get("load_before") or []
+            ],
+            "optional": bool(entry.get("optional")),
+            "loadEarly": bool(entry.get("load_early")),
+            "initKind": 1 if init.get("function") else 2 if delay is not None else 0,
+            "initValue": str(init.get("function") or (delay or {}).get("ms", "") or ""),
+            "finalizer": str(entry.get("finalizer") or ""),
+            "others": list(facts.others),
+            "overlay": -1 if facts.overlay is None else int(facts.overlay),
+            "rebuildFile": facts.rebuild_file,
+            "configs": list(self._facts.configs.get(index, ())) if self._facts else [],
+        }
+
+    @Slot(int, dict)
+    def saveOptions(self, index: int, chosen: dict) -> None:
+        profile, entry = self._profile(), self._entry(index)
+        if profile is None or entry is None:
+            return
+        opts: dict = {
+            "enabled": bool(chosen.get("enabled", True)),
+            "load_after": [{"id": d["id"], "optional": bool(d.get("optional"))} for d in chosen.get("loadAfter") or []],
+            "load_before": [
+                {"id": d["id"], "optional": bool(d.get("optional"))} for d in chosen.get("loadBefore") or []
+            ],
+        }
+        if entry["kind"] == "package":
+            opts["id"] = str(chosen.get("id") or "").strip()
+        else:
+            opts["optional"] = bool(chosen.get("optional"))
+            opts["load_early"] = bool(chosen.get("loadEarly"))
+            opts["finalizer"] = str(chosen.get("finalizer") or "").strip()
+            kind, value = int(chosen.get("initKind") or 0), str(chosen.get("initValue") or "").strip()
+            if kind == 2 and value and not value.isdigit():
+                self.notifier.toast(tr("The wait is a number of milliseconds."), error=True)
+                return
+            opts["initializer"] = (
+                {"function": value}
+                if kind == 1 and value
+                else {"delay": {"ms": int(value)}}
+                if kind == 2 and value
+                else None
+            )
+        overlay = chosen.get("overlay")
+        try:
+            profile_mods.save_options(
+                profile,
+                index,
+                entry,
+                opts,
+                loc=self.host.locations,
+                overlay=None if overlay in (None, -1) else bool(overlay),
+                rebuild_file=str(chosen.get("rebuildFile") or "").strip(),
+            )
+        except Exception as e:
+            self.notifier.toast(tr("Could not save the options: {why}").format(why=e), error=True)
+            self.refresh()
+            return
+        self._changed(
+            f"profile: options saved for {entry['name']}", tr("{name}: options saved").format(name=entry["name"])
+        )
+
+    # ---- Profile settings
+    @Slot(result=dict)
+    def settingsFor(self) -> dict:
+        profile = self.host.profile
+        if profile is None:
+            return {}
+        vals = mod_service.read_profile_settings(profile)
+
+        def tri(value) -> int:  # 0 me3 default, 1 on, 2 off
+            return {True: 1, False: 2}.get(value, 0)
+
+        return {
+            "savefile": str(vals.get("savefile") or ""),
+            "start_online": tri(vals.get("start_online")),
+            "disable_arxan": tri(vals.get("disable_arxan")),
+            "mem_patch": tri(vals.get("mem_patch")),
+            "mem_patch_heap_size": int(vals.get("mem_patch_heap_size") or 0),
+            "heapApplies": profile_mods.heap_size_applies(vals),
+        }
+
+    @Slot(str, "QVariant")
+    def setSetting(self, key: str, value) -> None:
+        """One me3 option; the three-way ones come as 0 (me3 default) / 1 (on) / 2 (off)."""
+        profile = self._profile()
+        if profile is None:
+            return
+        if key in ("start_online", "disable_arxan", "mem_patch"):
+            value = {1: True, 2: False}.get(int(value))
+        elif key == "mem_patch_heap_size":
+            value = int(value) or None
+        else:
+            value = str(value or "").strip() or None
+
+        def write() -> None:
+            try:
+                changed = mod_service.write_profile_setting(profile, key, value)
+            except Exception as e:
+                self.notifier.toast(tr("Could not write the profile: {why}").format(why=e), error=True)
+                return
+            if changed:
+                from roundtable_souls.mods.profile import SETTING_TEXT
+
+                self._changed(
+                    f"profile: {key} = {value if value not in (None, '') else 'me3 default'}",
+                    tr("{setting} changed: it applies at the next launch").format(setting=tr(SETTING_TEXT[key][0])),
+                )
+
+        if profile_mods.setting_needs_confirmation(key, value):
+            self.notifier.ask(self.presenter.online(), lambda ok, _o: write() if ok else self.refresh())
+        else:
+            write()
+
+    # ---- Versions
+    @Slot(result=list)
+    def versionsList(self) -> list:
+        profile = self.host.profile
+        if profile is None:
+            return []
+        return [
+            {"path": str(v["path"]), "when": v["when"].strftime("%Y-%m-%d %H:%M"), "why": str(v.get("why") or "")}
+            for v in profile_mods.versions(profile)
+        ]
+
+    @Slot(str)
+    def restoreVersion(self, path: str) -> None:
+        profile = self._profile()
+        if profile is None:
+            return
+        try:
+            before = profile_mods.restore_version(profile, path)
+        except Exception as e:
+            self.notifier.toast(tr("Could not restore: {why}").format(why=e), error=True)
+            return
+        self.host.profile_changed("profile: restored an earlier version")
+        self.refresh()
+        if before is not None:
+
+            def undo() -> None:
+                profile_mods.restore_version(profile, before)
+                self.host.profile_changed("profile: undid a restore")
+                self.refresh()
+
+            self.notifier.toast_action(tr("The earlier version is back"), self._words["undo"], undo)
+
+    # ---- Add existing
+    @Slot(str, result=list)
+    def unlistedFor(self, kind: str) -> list:
+        profile = self.host.profile
+        if profile is None:
+            return []
+        return [{"label": label, "path": str(path)} for label, path in profile_mods.unlisted(profile, kind)]
+
+    @Slot(str, list)
+    def addPaths(self, kind: str, paths: list) -> None:
+        profile = self._profile()
+        if profile is None or not paths:
+            return
+        try:
+            names = profile_mods.add_existing(profile, [Path(p) for p in paths], kind, loc=self.host.locations)
+        except Exception as e:
+            self.notifier.toast(tr("Could not add: {why}").format(why=e), error=True)
+            return
+        self._changed(
+            f"profile: added {', '.join(names)}",
+            tr("Added {names}: they load at the next launch").format(names=", ".join(names)),
+        )
 
     @Slot()
     def deleteProfile(self) -> None:

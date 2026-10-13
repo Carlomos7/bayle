@@ -447,3 +447,89 @@ def undo_last_change(profile) -> Path | None:
     prof = Path(profile)
     copy = mod_history.latest(prof)
     return mod_history.restore(prof, copy) if copy is not None else None
+
+
+# ----------------------------------------------------------------------------- Mod options
+@dataclass(frozen=True)
+class OptionsFacts:
+    """What the Mod options dialog offers for one entry: the other entries it can depend on (same kind; a package is
+    named by its id), and for an Elden Ring package whether it is the parameter overlay (the mod that must stay last,
+    set by hand) with its rebuild-tool file; overlay None when that does not apply."""
+
+    others: tuple[str, ...]
+    overlay: bool | None
+    rebuild_file: str
+
+
+def options_facts(profile, entry: dict) -> OptionsFacts:
+    prof = Path(profile)
+    others = tuple(
+        profile_edit.entry_ref(e)
+        for e in profile_entries(prof)
+        if e["index"] != entry["index"] and e["kind"] == entry["kind"] and (e["kind"] == "native" or e.get("id"))
+    )
+    folder = profile_edit.resolve(prof, entry["path"]) if entry.get("path") else None
+    overlay, rebuild_file = None, ""
+    if entry["kind"] == "package" and folder is not None and mod_merge.is_elden_ring(prof):
+        mark = mod_merge.overlay_mark(prof)
+        overlay = mark is not None and mod_checks.same_folder(mark["package"], folder)
+        rebuild_file = str(mark["rebuild"]) if overlay and mark and mark["rebuild"] else ""
+    return OptionsFacts(others, overlay, rebuild_file)
+
+
+def save_options(
+    profile, index: int, entry: dict, opts: dict, *, loc: Locations, overlay: bool | None = None, rebuild_file: str = ""
+) -> None:
+    """Write the entry's me3 options (opts: the keys set_mod_options takes) and, for a package where it applies, the
+    parameter overlay set by hand (overlay True/False; None leaves it as it is)."""
+    prof = Path(profile)
+    if overlay is not None:
+        facts = options_facts(prof, entry)
+        if facts.overlay is not None and (overlay != facts.overlay or rebuild_file != facts.rebuild_file):
+            folder = profile_edit.resolve(prof, entry["path"])
+            mod_merge.set_overlay_override(
+                prof, folder if overlay else None, Path(rebuild_file) if overlay and rebuild_file else None
+            )
+    set_mod_options(prof, index, opts, loc=loc)
+
+
+# ----------------------------------------------------------------------------- folders no entry loads
+def unlisted(profile, kind: str) -> list[tuple[str, Path]]:
+    """The mod folders (packages) or DLLs (natives) in the profile no entry loads: (label relative to their root,
+    path), for Add existing."""
+    prof = Path(profile)
+    entries = profile_entries(prof)
+    overview = mod_checks.folder_overview(prof, entries)
+    part = overview.get("packages" if kind == "package" else "natives") or {}
+    root = part.get("root")
+    out = []
+    for f in part.get("unlisted") or []:
+        try:
+            label = Path(f).relative_to(root).as_posix() if root else str(f)
+        except ValueError:
+            label = str(f)
+        out.append((label, Path(f)))
+    return out
+
+
+def add_existing(profile, paths: list[Path], kind: str, *, loc: Locations) -> list[str]:
+    """List folders (or DLLs) that already sit in place as entries, last in the load order; the names added."""
+    from roundtable_souls.mods import install as mod_install
+
+    out = mod_install.add_existing(Path(profile), list(paths), kind=kind, loc=loc)
+    return [r.get("id") or Path(r["path"]).name for r in out["entries"]]
+
+
+# ----------------------------------------------------------------------------- versions
+def versions(profile) -> list[dict]:
+    """The copies kept of the profile, newest first: {path, when, why} (mods.history)."""
+    from roundtable_souls.mods import history as mod_history
+
+    return mod_history.versions(Path(profile))
+
+
+def restore_version(profile, copy) -> Path | None:
+    """Put a copy back as the profile; the copy of the profile as it was (so the restore can be undone)."""
+    from roundtable_souls.mods import history as mod_history
+
+    return mod_history.restore(Path(profile), Path(copy))

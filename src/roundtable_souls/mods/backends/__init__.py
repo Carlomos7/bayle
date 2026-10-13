@@ -20,6 +20,7 @@ import json
 import subprocess
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -65,6 +66,45 @@ def read_sources(file: Path) -> list[dict] | None:
         if isinstance(s, dict) and s.get("path") and s.get("sha256")
     ]
     return out or None
+
+
+def program_fingerprint(program: str, cwd: Path | str = "") -> str:
+    """The sha256 of the tool's program file (relative to cwd when not absolute), or "" when it is not a file (a
+    command on PATH, an interpreter's name). Cached by path, size and modification time."""
+    if not program:
+        return ""
+    path = Path(program)
+    if not path.is_absolute() and cwd:
+        path = Path(cwd) / path
+    try:
+        st = path.stat()
+    except OSError:
+        return ""
+    if not path.is_file():
+        return ""
+    return _file_sha256(str(path.resolve()), st.st_size, st.st_mtime_ns)
+
+
+PROGRAM_SUFFIXES = frozenset(
+    {".exe", ".com", ".bat", ".cmd", ".ps1", ".psm1", ".vbs", ".js", ".py", ".pyw", ".sh", ".jar", ".dll", ".lua"}
+)  # files a command runs (a program, or a script an interpreter runs), as opposed to the data it is given
+
+
+def command_fingerprint(command: list[str], cwd: Path | str = "") -> str:
+    """The fingerprints of the program and of every element of the command that is a program or script file
+    (PROGRAM_SUFFIXES; relative to cwd, or absolute), in order and joined. Data the command is given (the profile,
+    the files it merges) is left out: it changes with every rebuild and is not the tool."""
+    parts = [p for i, p in enumerate(command) if i == 0 or Path(p).suffix.lower() in PROGRAM_SUFFIXES]
+    return "|".join(f for f in (program_fingerprint(part, cwd) for part in parts) if f)
+
+
+@lru_cache(maxsize=64)
+def _file_sha256(path: str, size: int, mtime_ns: int) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 @dataclass
@@ -132,6 +172,17 @@ class Tool:
         return self.recipe.problem
 
     def approval_key(self) -> str:
+        """What the user's permission is kept under: the recipe's approval text, the program and its folder, and the
+        fingerprint of every file the command names (the program, and a script an interpreter runs: python tool.py,
+        a .bat, powershell -File x.ps1), so a new version of the tool is asked about again (once per tool version)."""
+        r = self.recipe
+        program = r.command[0] if r.command else ""
+        return hashlib.sha256(
+            f"{r.approval}|{program}|{r.cwd}|{command_fingerprint(r.command, r.cwd)}".lower().encode()
+        ).hexdigest()
+
+    def legacy_approval_key(self) -> str:
+        """The key permissions were kept under before 3.22 (no program fingerprint); read once, then replaced."""
         r = self.recipe
         return hashlib.sha256(f"{r.approval}|{r.command[0] if r.command else ''}|{r.cwd}".lower().encode()).hexdigest()
 

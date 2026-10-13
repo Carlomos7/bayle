@@ -273,15 +273,30 @@ def approved(tool) -> bool:
 
     if getattr(tool, "builtin", False) or getattr(getattr(tool, "recipe", None), "engine", None) is not None:
         return True
-    return tool.approval_key() in load_settings().rebuild_approved
+    keys = list(load_settings().rebuild_approved)
+    if tool.approval_key() in keys:
+        return True
+    # Read-both: a permission kept before the key included the program's fingerprint counts once and is moved to the
+    # new key, so a later version of the tool is asked about again.
+    legacy = getattr(tool, "legacy_approval_key", None)
+    if legacy is not None and legacy() in keys:
+        _keep_approval(tool.approval_key(), [k for k in keys if k != legacy()])
+        return True
+    return False
 
 
 def approve(tool) -> None:
-    from roundtable_souls.config.settings import load_settings, save_settings
+    from roundtable_souls.config.settings import load_settings
 
     keys = list(load_settings().rebuild_approved)
     if tool.approval_key() not in keys:
-        save_settings(rebuild_approved=[*keys, tool.approval_key()][-50:])
+        _keep_approval(tool.approval_key(), keys)
+
+
+def _keep_approval(key: str, keys: list[str]) -> None:
+    from roundtable_souls.config.settings import save_settings
+
+    save_settings(rebuild_approved=[*keys, key][-50:])
 
 
 def overlay(profile: Path, all_layers: list[dict] | None = None, *, loc: Locations) -> tuple[dict | None, object, bool]:

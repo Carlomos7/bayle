@@ -967,6 +967,35 @@ def test_the_play_pages_log_links_to_activity(sandbox):
     assert w.stackedWidget.currentWidget() is w.activity_page
 
 
+def test_the_mods_page_opens_the_new_mods_window(sandbox, app):
+    from PySide6.QtCore import QEventLoop, QTimer
+    from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+
+    from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
+
+    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)  # offscreen: the software scene graph
+    w = sandbox
+    w.switchTo(w.mods_page)
+    text = ModsPresenter().open_window_text
+    button = next(b for b in w.mods_page.findChildren(QPushButton) if b.text() == text)
+    QTest.mouseClick(button, Qt.LeftButton)
+    loop = QEventLoop()
+    QTimer.singleShot(400, loop.quit)
+    loop.exec()
+    try:
+        win = w.mods_window.window
+        assert win is not None and win.isVisible()
+        assert w.mods_window.warnings == []
+        state = w.mods_window.adapter.state()
+        assert state.title == "sandbox"  # the profile the window shows is the launcher's own
+        QTest.mouseClick(button, Qt.LeftButton)  # a second click brings the same window forward
+        assert w.mods_window.window is win
+    finally:
+        w.mods_window.dispose()
+        w.mods_window = None
+        app.processEvents()
+
+
 def test_the_activity_page_opens_the_new_activity_window(sandbox, app):
     from PySide6.QtCore import QEventLoop, QTimer
     from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
@@ -1119,7 +1148,9 @@ def test_removing_a_merged_package_says_play_rebuilds_first(sandbox, monkeypatch
     prof.write_text(
         prof.read_text(encoding="utf-8") + "\n[[packages]]\nid = \"near\"\npath = 'mod/near'\n", encoding="utf-8"
     )
-    monkeypatch.setattr(ui.Launcher, "_merged_from", lambda self, p, e: ["regulation.bin"])
+    from roundtable_souls.services import profile_mods
+
+    monkeypatch.setattr(profile_mods, "merged_from", lambda p, e, **k: ["regulation.bin"])
     patch_ui(monkeypatch, "notice", lambda *a, **k: type("B", (), {"close": lambda s: None})())
     rebuilt, shown = [], []
     monkeypatch.setattr(ui.core.mod_merge, "rebuild", lambda p, log, **k: rebuilt.append(p) or {"backend": "t"})

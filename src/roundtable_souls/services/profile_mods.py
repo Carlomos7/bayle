@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
-from roundtable_souls.mods import profile_edit
+from roundtable_souls.mods import order as mod_order
+from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services.mods import install_mod, profile_entries, set_mod_options, uninstall_mod
@@ -147,7 +148,10 @@ def remove_holder(profile, index: int, entry: dict, needs: list[str], *, loc: Lo
     """Take out an entry that points at a folder of mods (it loaded nothing, so the game does not change): the entry
     goes, the folder and its mods stay, and the dependency on it is taken out of the packages in needs. The
     dependencies go first: the profile writer refuses a profile in which a package must load after an entry that is
-    not there."""
+    not there.
+
+    TODO(after 3.22-A): one write instead of several (the dependencies, then the entry), as a single ProfileWriter
+    edit inside an S3i operation; today a failure between them leaves the profile valid but only half changed."""
     ref = profile_edit.entry_ref(entry).lower()
 
     def keep(deps: list) -> list:
@@ -235,9 +239,30 @@ def allow_tool(tool) -> None:
     mod_merge.approve(tool)
 
 
+# ----------------------------------------------------------------------------- the load order (drag)
+def plan_move(profile, kind: str, index: int, to: int, *, loc: Locations) -> mod_order.Move:
+    """Where a dragged entry would go (mods.order.move): the new text, or why me3 would not keep it there."""
+    prof = Path(profile)
+    text = profile_edit.read_text(prof)
+    return mod_order.move(prof, text, kind, index, to, mod_order.target(prof, loc))
+
+
+def move_entry(profile, kind: str, index: int, to: int, *, loc: Locations) -> mod_order.Move:
+    """Move the entry to position `to` among its kind as the page shows them, through the profile writer (a .bak,
+    a Version, refused when the file changed outside the launcher since it was read). The plan, written or not."""
+    prof = Path(profile)
+    plan = plan_move(prof, kind, index, to, loc=loc)
+    if plan.text is None:
+        return plan
+    writer = profile_writer.ProfileWriter(prof, loc)
+    writer.replace_text(plan.text)
+    writer.write("before moving an entry in the load order")
+    return plan
+
+
 # ----------------------------------------------------------------------------- profiles and their me3 options
 DELETE_NO_PROFILE = "no-profile"
-DELETE_MANAGED = "managed"  # a profile another installer manages (Revive's): delete it there
+DELETE_MANAGED = "managed"  # the profile belongs to an installer that manages it: delete it there
 DELETE_BUSY = "busy"
 
 

@@ -561,3 +561,113 @@ def fix(profile: Path, *, loc: Locations) -> str | None:
         return plan.notes["order_problem"]
     w.commit(plan)
     return None
+
+
+# ----------------------------------------------------------------------------- moving an entry (the Mods page's drag)
+@dataclass(frozen=True)
+class Move:
+    """A planned move of one entry: the profile's new text (None when it is refused), why it is refused, and the
+    entry whose options decide (the page offers "Edit options" on it)."""
+
+    text: str | None
+    problem: str = ""
+    decided_by: str = ""
+
+
+def display_order(profile: Path, text: str, kind: str) -> list[dict]:
+    """One kind's entries in the order the Mods page shows them: me3's order with switched-off entries kept in their
+    place (me3 orders them, then leaves them out), every entry whether or not its folder is there. File order when
+    me3 would refuse the profile."""
+    rows = _rows(_items(Path(profile), text), kind)
+    base = Path(profile).parent
+    items = [Item(r.get("me3_id") or me3_path_id(base, r["path"]), r["after"], r["before"], r) for r in rows]
+    try:
+        return [item.value for item in sort_dependencies(items)]
+    except OrderError:
+        return rows
+
+
+def move(profile: Path, text: str, kind: str, index: int, to: int, tgt: dict | None = None) -> Move:
+    """Move entry `index` (a block index) to position `to` among its kind as the page shows them (display_order).
+    The block moves in the file with its own comments, next to its new neighbour; the move is refused when me3 would
+    not keep it there (a load_after / load_before decides its place) or when it would put anything below the mod
+    that must stay last (tgt: target(); that mod is never moved)."""
+    profile = Path(profile)
+    rows = display_order(profile, text, kind)
+    names = {e["index"]: e["name"] for e in _items(profile, text)}
+    current = [r["index"] for r in rows]
+    if index not in current:
+        return Move(None, f"entry {index + 1} is not a {kind} of this profile")
+    wanted = [i for i in current if i != index]
+    to = max(0, min(to, len(wanted)))
+    wanted.insert(to, index)
+    if wanted == current:
+        return Move(None)
+    if tgt is not None:
+        pkg, last, _mine = _roles(profile, _items(profile, text), tgt)
+        locked = [e["index"] for e in ([pkg] if pkg and kind == "package" else last if kind == "native" else [])]
+        if index in locked:
+            return Move(None, f"{names[index]} stays last: it cannot be moved")
+        if locked and any(wanted.index(i) < wanted.index(j) for i in locked for j in wanted if j not in locked):
+            return Move(None, f"{names[locked[0]]} stays last; nothing can load after it")
+    new_text = _move_block(text, index, wanted, to)
+    after = display_order(profile, new_text, kind)
+    refs = {r["index"]: r["id"].lower() for r in rows}
+    if [r["id"].lower() for r in after] != [refs[i] for i in wanted]:
+        problem, by = _why_not(rows, wanted, index, names)
+        return Move(None, problem, by)
+    return Move(new_text)
+
+
+def _move_block(text: str, index: int, wanted: list[int], to: int) -> str:
+    """The text with block `index` taken out (with its comments) and put back before its new next neighbour, or after
+    its new previous one when it goes last."""
+    nl = "\r\n" if "\r\n" in text else "\n"
+    rest, chunk, _where = mod_manage.remove_entry(text, index)
+    if not chunk.endswith(("\n", "\r\n")):
+        chunk += nl
+
+    def shifted(i: int) -> int:  # block indexes after the removed one move up by one
+        return i - 1 if i > index else i
+
+    lines = rest.splitlines(keepends=True)
+    if to + 1 < len(wanted):
+        start, _end = mod_manage.entry_span(rest, shifted(wanted[to + 1]))
+        lines[start:start] = [chunk, nl]
+    else:
+        _start, end = mod_manage.entry_span(rest, shifted(wanted[to - 1]))
+        if end and not lines[end - 1].endswith(("\n", "\r\n")):
+            lines[end - 1] += nl
+        lines[end:end] = [nl, chunk]
+    return "".join(lines)
+
+
+def _why_not(rows: list[dict], wanted: list[int], index: int, names: dict[int, str]) -> tuple[str, str]:
+    """Why me3 would not keep entry `index` where it was dropped: the dependency that decides its place."""
+    by_id = {key.lower(): r for r in rows for key in (r["id"], r.get("me3_id")) if key}  # either name a dependency uses
+    pos = {i: wanted.index(i) for i in wanted}
+    moved = next(r for r in rows if r["index"] == index)
+    me = names[index]
+    mine = {key.lower() for key in (moved["id"], moved.get("me3_id")) if key}
+
+    def place(dep_id: str) -> int | None:
+        r = by_id.get(dep_id.lower())
+        return pos.get(r["index"]) if r else None
+
+    for dep in moved["after"]:
+        p = place(dep.id)
+        if p is not None and p > pos[index]:
+            return f"{me} must load after {names[by_id[dep.id.lower()]['index']]} (set in its options)", me
+    for dep in moved["before"]:
+        p = place(dep.id)
+        if p is not None and p < pos[index]:
+            return f"{me} must load before {names[by_id[dep.id.lower()]['index']]} (set in its options)", me
+    for r in rows:
+        if r["index"] == index:
+            continue
+        other = names[r["index"]]
+        if any(d.id.lower() in mine for d in r["after"]) and pos[r["index"]] < pos[index]:
+            return f"{other} must load after {me} (set in its options)", other
+        if any(d.id.lower() in mine for d in r["before"]) and pos[r["index"]] > pos[index]:
+            return f"{other} must load before {me} (set in its options)", other
+    return f"me3 would put {me} back: another entry's options decide its place", me

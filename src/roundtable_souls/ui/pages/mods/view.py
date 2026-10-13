@@ -44,10 +44,10 @@ from roundtable_souls.mods import order as mod_order
 from roundtable_souls.platform import desktop
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import play as core
+from roundtable_souls.services import profile_mods
 from roundtable_souls.services.mods import (
     create_profile,
     delete_profile,
-    install_mod,
     plan_mod_install,
     profile_entries,
     read_profile_settings,
@@ -55,7 +55,6 @@ from roundtable_souls.services.mods import (
     replan_mod_install,
     save_profile_text,
     set_mod_options,
-    uninstall_mod,
     write_profile_setting,
 )
 from roundtable_souls.services.play import (
@@ -250,8 +249,10 @@ class ModsView:
         brow, bbar = action_row()
         self.backups_note = hint("")
         self.backups_note.setWordWrap(True)
-        self.trim_btn = ghost_btn("Keep the newest 3", FI.DELETE)
-        self.trim_btn.setToolTip("Move older rebuild backups to the Recycle Bin. The newest 3 stay for Undo.")
+        self.trim_btn = ghost_btn(f"Keep the newest {profile_mods.KEEP_TOOL_BACKUPS}", FI.DELETE)
+        self.trim_btn.setToolTip(
+            f"Move older rebuild backups to the Recycle Bin. The newest {profile_mods.KEEP_TOOL_BACKUPS} stay for Undo."
+        )
         self.trim_btn.clicked.connect(self._trim_tool_backups)
         bbar.addWidget(self.trim_btn)
         pl.addWidget(self.backups_note)
@@ -340,8 +341,8 @@ class ModsView:
         sp.blockSignals(True)
         sp.setValue(int(vals.get("mem_patch_heap_size") or 0))
         sp.blockSignals(False)
-        sp.setEnabled(vals.get("mem_patch") is not False)  # me3 only uses it with the memory patch on
-        sp.setToolTip("" if vals.get("mem_patch") is not False else "Turn the memory patch on to use this.")
+        sp.setEnabled(profile_mods.heap_size_applies(vals))
+        sp.setToolTip("" if profile_mods.heap_size_applies(vals) else "Turn the memory patch on to use this.")
         le = self.ps["savefile"]
         le.blockSignals(True)
         le.setText(str(vals.get("savefile") or ""))
@@ -367,7 +368,7 @@ class ModsView:
             )
             self._load_profile_settings()
             return
-        if key == "start_online" and value is True:
+        if profile_mods.setting_needs_confirmation(key, value):
             if not confirm(
                 self,
                 "Turn online matchmaking on",
@@ -509,7 +510,7 @@ class ModsView:
             f"({total / 1048576:,.0f} MB) in the profile's folder; it never removes them itself."
         )
         self.backups_note.setVisible(bool(backups))
-        self.backups_row.setVisible(len(backups) > 3)
+        self.backups_row.setVisible(len(backups) > profile_mods.KEEP_TOOL_BACKUPS)
         rows = r.get("rows") or []
         self.merge_rows_note.setText(
             "\n".join(rows[:13]) + (f"\n  and {len(rows) - 13} more in the rebuild's log" if len(rows) > 13 else "")
@@ -920,16 +921,7 @@ class ModsView:
         """Take out an entry that points at a folder of mods. It loaded nothing, so the game does not change."""
         if self._mods_locked():
             return
-        ref = core.mod_manage.entry_ref(entry).lower()
-        needs = [
-            o["name"]
-            for o in profile_entries(self.setup.profile)
-            if o["kind"] == "package"
-            and any(
-                str(d["id"]).lower() == ref and not d.get("optional")
-                for d in (o.get("load_after") or []) + (o.get("load_before") or [])
-            )
-        ]
+        needs = profile_mods.holder_dependents(self.setup.profile, entry)
         if not confirm(
             self,
             f"Remove '{entry['name']}' from the profile",
@@ -947,20 +939,7 @@ class ModsView:
             fresh = self._fresh_entry(entry)
             if fresh is None:
                 return
-            uninstall_mod(self.setup.profile, fresh["index"], delete_folder=False, loc=self.ctx.locations)
-            if needs:
-                for o in profile_entries(self.setup.profile):
-                    if o["name"] in needs:
-                        keep = lambda ds: [d for d in ds if str(d["id"]).lower() != ref]  # noqa: E731
-                        set_mod_options(
-                            self.setup.profile,
-                            o["index"],
-                            {
-                                "load_after": keep(o.get("load_after") or []),
-                                "load_before": keep(o.get("load_before") or []),
-                            },
-                            loc=self.ctx.locations,
-                        )
+            profile_mods.remove_holder(self.setup.profile, fresh["index"], entry, needs, loc=self.ctx.locations)
         except Exception as e:
             self._toast("Could not remove", str(e), error=True)
             return
@@ -1283,17 +1262,8 @@ class ModsView:
         if self._mods_locked():
             return
         prof = Path(self.setup.profile)
-        where = core.mod_manage.resolve(prof, entry["path"]) if entry.get("path") else None
-        folder = (where if entry["kind"] == "package" else where.parent) if where else None
-        users = []
-        if folder is not None:
-            for o in profile_entries(self.setup.profile):
-                if o["index"] == entry["index"] or not o.get("path"):
-                    continue
-                other = core.mod_manage.resolve(prof, o["path"])
-                if other == folder or folder in other.parents:
-                    users.append(o["name"])
-        merged = self._merged_from(prof, entry)
+        plan = profile_mods.removal(prof, entry, loc=self.ctx.locations, scan=self._conf_result)
+        folder, users, merged = plan.folder, list(plan.users), list(plan.merged)
         changes = [
             f"The [[{'packages' if entry['kind'] == 'package' else 'natives'}]] entry and its own comments are "
             f"deleted from {prof.name}"
@@ -1317,11 +1287,7 @@ class ModsView:
             warning="me3 stops loading it at the next launch. Removing a mod other entries load_after may leave them waiting on a missing id.",
             safety="Activity can restore it: the entry goes back where it was, and a folder moved to the Recycle Bin "
             "comes back with it. Edit profile > Versions keeps the profile as it was too.",
-            option=(
-                f"Also move the folder {folder.name} to the Recycle Bin"
-                if folder and folder.is_dir() and not users
-                else None
-            ),
+            option=(f"Also move the folder {folder.name} to the Recycle Bin" if folder and plan.can_recycle else None),
             option_checked=False,
             apply_text="Remove",
         )
@@ -1334,36 +1300,7 @@ class ModsView:
 
         def job(_setup, loc):
             run_logging.start_log(f"launcher: remove {name}", loc.game.key)
-            out = uninstall_mod(prof, index, delete_folder=delete, loc=self.ctx.locations)
-            core.run_logging.set_undo(
-                {
-                    "type": "remove",
-                    "profile": str(prof),
-                    "name": name,
-                    "path": out["path"],
-                    "entry_text": out["entry_text"],
-                    "where": out["where"],
-                    "trash": out.get("trash"),
-                    "merged": bool(merged),
-                }
-            )
-            gone = out.get("trash") and out["trash"].get("kind") == "gone"
-            run_logging.log(
-                f"done: removed {name}"
-                + (
-                    ""
-                    if not out["removed_folder"]
-                    else "; its folder was deleted (the Recycle Bin could not take it)"
-                    if gone
-                    else "; its folder is in the Recycle Bin"
-                )
-            )
-            if delete and not out["removed_folder"] and not users:
-                run_logging.log("warning: the folder was kept (the Recycle Bin did not take it)")
-            if merged:
-                run_logging.log(
-                    f"note: the merged mods still hold {name}'s files; Play rebuilds them before the game starts"
-                )
+            profile_mods.remove_entry(prof, index, plan, delete_folder=delete, loc=self.ctx.locations)
 
         self.start(job, f"Removing {name}...", need_setup=False)
 
@@ -1371,8 +1308,7 @@ class ModsView:
         if self._mods_locked():
             return
         prof = Path(self.setup.profile)
-        backups = core.mod_merge.tool_backups(prof)
-        extra = backups[3:]
+        extra = profile_mods.tool_backups_to_trim(prof)
         if not extra:
             return
         size = sum(b["size"] for b in extra)
@@ -1381,41 +1317,23 @@ class ModsView:
             f"Move {len(extra)} older rebuild backup{'s' if len(extra) != 1 else ''} to the Recycle Bin",
             changes=[f"{b['folder'].name}  ·  {b['size'] / 1048576:,.0f} MB" for b in extra],
             safety=f"Frees {size / 1048576:,.0f} MB once the bin is emptied; until then they can be restored from it. "
-            "The newest 3 stay, so the latest rebuilds can still be undone.",
+            f"The newest {profile_mods.KEEP_TOOL_BACKUPS} stay, so the latest rebuilds can still be undone.",
             apply_text="Move to the Recycle Bin",
         ):
             return
-        moved = core.mod_merge.trim_tool_backups(prof, keep=3)
+        moved = profile_mods.trim_tool_backups(prof)
         self._log(f"mods: moved {len(moved)} older rebuild backup(s) to the Recycle Bin")
         self._toast("Older rebuild backups moved", f"{len(moved)} to the Recycle Bin.")
         self._scan_conflicts()
-
-    def _merged_from(self, prof, entry) -> list:
-        """The files of a package that a combined result was built from (from the Load order scan the page already
-        has, when it is for this profile)."""
-        if entry.get("kind") != "package" or not core.mod_merge.is_elden_ring(prof):
-            return []
-        ov = self._conf_result
-        if not ov or ov.get("error") or not mod_checks.same_folder(Path(ov.get("profile") or ""), prof):
-            ov = None
-        try:
-            return mod_overview.merged_from(prof, entry["name"], ov, loc=self.ctx.locations)
-        except Exception:
-            return []
 
     def _offer_tool_approval(self, prof: Path) -> None:
         """A mod's rebuild tool the user has not allowed yet: ask on the Mods page, once a session, so a rebuild
         (before Play, or after a change) does not stop in the middle to ask."""
         # Only while the Mods page is shown: a notice over another page would take its keyboard focus.
-        if self.game is not games.ELDEN_RING or self.stackedWidget.currentWidget() is not self.mods_page:
+        if self.stackedWidget.currentWidget() is not self.mods_page:
             return
-        try:
-            tool: Any = core.mod_merge.find_backend(
-                prof, loc=self.ctx.locations
-            )  # a rebuild tool (mods.backends), or None
-            if tool is None or tool.problem() or core.mod_merge.approved(tool):
-                return
-        except Exception:
+        tool: Any = profile_mods.tool_to_offer(prof, self.game, loc=self.ctx.locations)
+        if tool is None:
             return
         key = (str(prof), tool.label)
         offered = getattr(self, "_approval_offered", set())
@@ -1444,13 +1362,14 @@ class ModsView:
     def _tool_ready(self, prof) -> bool:
         """The profile's rebuild tool can run: found, nothing stopping it, and allowed by the user (asked once per
         version of the tool). True when there is no tool (the launcher's own combine needs no permission)."""
-        tool = core.mod_merge.find_backend(prof, loc=self.ctx.locations)
+        state = profile_mods.tool_state(prof, loc=self.ctx.locations)
+        tool = state.tool
         if tool is None:
             return True
-        if tool.problem():
-            self._toast(f"{tool.label} cannot run", tool.problem(), error=True)
+        if state.problem:
+            self._toast(f"{tool.label} cannot run", state.problem, error=True)
             return False
-        if core.mod_merge.approved(tool):
+        if state.allowed:
             return True
         ok = confirm(
             self,
@@ -1461,7 +1380,7 @@ class ModsView:
             apply_text="Allow and run",
         )
         if ok:
-            core.mod_merge.approve(tool)
+            profile_mods.allow_tool(tool)
         return ok
 
     def _run_undo(self, rec):
@@ -1571,22 +1490,7 @@ class ModsView:
         def job(_setup, loc):
             run_logging.start_log(f"launcher: install mod {plan['name']}", loc.game.key)
             try:
-                out = install_mod(
-                    prof,
-                    plan,
-                    overwrite=bool(plan.get("exists")),
-                    rebuild=bool(plan.get("merge")),
-                    loc=self.ctx.locations,
-                )
-                core.run_logging.set_undo(
-                    {
-                        "type": "update" if out["update"] else "install",
-                        "profile": str(prof),
-                        "name": plan["name"],
-                        "operation": out["operation"],
-                        "rebuild": bool(plan.get("merge")),
-                    }
-                )
+                out = profile_mods.install_and_record(prof, plan, loc=self.ctx.locations)
                 run_logging.log(f"done: {'updated' if out['update'] else 'installed'} {plan['name']}")
             except Exception as e:
                 run_logging.log(f"error: {e}")
@@ -1645,11 +1549,15 @@ class ModsView:
         self._toast("Profile created", f"{p.name} is now the setup on Play.")
 
     def _delete_profile(self):
-        if not self.setup or not Path(self.setup.profile).is_file():
+        refusal = profile_mods.delete_refusal(self.setup, self.busy)
+        if refusal == profile_mods.DELETE_NO_PROFILE:
             self._toast("No profile", "Pick a setup on Play first.", error=True)
             return
-        if self.setup.kind == "overhaul":
+        if refusal == profile_mods.DELETE_MANAGED:
             self._toast("Not this one", "the overhaul's profile is managed by its installer; delete it there.", error=True)
+            return
+        if refusal == profile_mods.DELETE_BUSY:
+            self._toast("Wait for the current job", "The profile can be deleted when it finishes.", error=True)
             return
         p = Path(self.setup.profile)
         if not confirm(

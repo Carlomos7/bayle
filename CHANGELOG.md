@@ -11,6 +11,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Combine and overhaul builds now say when a mod's copy of a merged archive lacks inner files the current game has:
   "Sekiro Animations lacks 58 animations the current game uses (they won't play)". A notice in the build's report and
   log, not a stop.
+- the overhaul (launcher build): a character script using Havok Script's own syntax (`hstructure`, `hmake`,
+  `0x…hi`/`0x…hl` numbers) is no longer refused as a syntax error; the build's report names the line the check
+  can't read. Real syntax errors are still refused.
 - Mods: a first look at the new design. A new button on the Mods page, Open new Mods window, opens the redesigned
   Mods page in a window of its own: the mods in the order me3 loads them, switched on and off in place with Undo,
   dragged into a new order (a move me3's load-after rules would undo is refused and says why), Mod options, Profile

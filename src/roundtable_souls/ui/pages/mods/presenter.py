@@ -200,7 +200,54 @@ class ModsPresenter:
                 "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
             ),
             "undo": tr("Undo"),
+            **self.dialog_words(),
         }
+
+    def dialog_words(self) -> dict[str, str]:
+        """The dialogs' labels: Mod options, Profile settings, Versions, Add existing."""
+        from roundtable_souls.mods.profile import SETTING_TEXT
+
+        words = {
+            "optionsTitle": tr("Mod options: {name}"),
+            "enabled": tr("Enabled"),
+            "packageId": tr("Package id"),
+            "loadAfter": tr("Load after"),
+            "loadBefore": tr("Load before"),
+            "optional": tr("Optional"),
+            "optionalDep": tr("optional"),
+            "optionalNative": tr("Optional (the game starts without it)"),
+            "loadEarly": tr("Load early"),
+            "initializer": tr("Initializer"),
+            "initNone": tr("None"),
+            "initFunction": tr("Call a function"),
+            "initDelay": tr("Wait (ms)"),
+            "finalizer": tr("Finalizer"),
+            "staysLastOption": tr("This mod must stay last"),
+            "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
+            "rebuildFile": tr("Rebuild-tool file"),
+            "configFiles": tr("Config files"),
+            "noDeps": tr("No other entry of this kind to depend on."),
+            "settingsTitle": tr("Profile settings"),
+            "meDefault": tr("me3 default"),
+            "on": tr("On"),
+            "off": tr("Off"),
+            "versionsTitle": tr("Versions"),
+            "versionsBody": tr("The copies kept before each change to the profile, newest first."),
+            "noVersions": tr("No earlier copies yet."),
+            "restore": tr("Restore"),
+            "addPackagesTitle": tr("Mod folders that are not loaded"),
+            "addNativesTitle": tr("DLLs that are not loaded"),
+            "addBody": tr(
+                "Tick the ones to add; each gets its own entry, last in the load order. Nothing is copied or moved. "
+                "Leave alternates you keep switched off unticked."
+            ),
+            "add": tr("Add"),
+            "nothingToAdd": tr("Every folder here is loaded already."),
+        }
+        for key, (label, help_text) in SETTING_TEXT.items():
+            words[f"setting_{key}"] = tr(label)
+            words[f"setting_{key}_help"] = tr(help_text)
+        return words
 
     def page(
         self,

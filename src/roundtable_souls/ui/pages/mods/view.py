@@ -1214,36 +1214,20 @@ class ModsView:
     def _mod_options(self, entry):
         if self._mods_locked():
             return
-        others = [
-            core.mod_manage.entry_ref(e)
-            for e in profile_entries(self.setup.profile)
-            if e["index"] != entry["index"]
-            and e["kind"] == entry["kind"]
-            and (e["kind"] == "native" or e.get("id"))  # a package is named by its id
-        ]
         prof = Path(self.setup.profile)
-        folder = core.mod_manage.resolve(prof, entry["path"]) if entry.get("path") else None
-        mark = core.mod_merge.overlay_mark(prof)
-        overlay = None
-        rebuild_file = ""
-        if entry["kind"] == "package" and folder is not None and core.mod_merge.is_elden_ring(prof):
-            overlay = mark is not None and mod_checks.same_folder(mark["package"], folder)
-            rebuild_file = str(mark["rebuild"]) if overlay and mark["rebuild"] else ""
-        dlg = ModOptionsDialog(entry, others, self, overlay=overlay, rebuild_file=rebuild_file)
+        facts = profile_mods.options_facts(prof, entry)
+        dlg = ModOptionsDialog(entry, list(facts.others), self, overlay=facts.overlay, rebuild_file=facts.rebuild_file)
         if not dlg.exec():
             return
         try:
             fresh = self._fresh_entry(entry)
             if fresh is None:
                 return
-            if dlg.overlay is not None:
-                picked = dlg.rebuild_file.text().strip() if dlg.rebuild_file is not None else ""
-                if dlg.overlay.isChecked() != overlay or picked != rebuild_file:
-                    on = dlg.overlay.isChecked()
-                    core.mod_merge.set_overlay_override(
-                        prof, folder if on else None, Path(picked) if on and picked else None
-                    )
-            set_mod_options(self.setup.profile, fresh["index"], dlg.options(), loc=self.ctx.locations)
+            overlay = dlg.overlay.isChecked() if dlg.overlay is not None else None
+            picked = dlg.rebuild_file.text().strip() if dlg.rebuild_file is not None else ""
+            profile_mods.save_options(
+                prof, fresh["index"], entry, dlg.options(), loc=self.ctx.locations, overlay=overlay, rebuild_file=picked
+            )
             self._after_profile_change(f"profile: options saved for {entry['name']}")
             self._undo_notice(f"{entry['name']}: options saved", "They apply at the next launch.")
         except Exception as e:

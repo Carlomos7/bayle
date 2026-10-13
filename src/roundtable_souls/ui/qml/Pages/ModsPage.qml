@@ -29,9 +29,38 @@ PageScroll {
         function onOptionsRequested(index) {
             page.adapter.openOptions(index);
         }
+        function onDialogRequested(which, index) {
+            if (which === "options")
+                modOptions.openFor(index);
+            else if (which === "profile-settings")
+                profileSettings.openNow();
+            else if (which === "versions")
+                versions.openNow();
+            else if (which === "add-existing-package" || which === "add-existing-native")
+                addExisting.openFor(which.slice("add-existing-".length));
+        }
 
         target: page.adapter
-        ignoreUnknownSignals: true
+    }
+    ModOptionsDialog {
+        id: modOptions
+
+        adapter: page.adapter
+    }
+    ProfileSettingsDialog {
+        id: profileSettings
+
+        adapter: page.adapter
+    }
+    VersionsDialog {
+        id: versions
+
+        adapter: page.adapter
+    }
+    AddExistingDialog {
+        id: addExisting
+
+        adapter: page.adapter
     }
     Item {  // the lifted row floats here, outside what the page clips
         id: dragLayer

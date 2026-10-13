@@ -6,7 +6,7 @@ through the profile writer."""
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QEventLoop, QPoint, Qt, QTimer
+from PySide6.QtCore import QEventLoop, QObject, QPoint, Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -100,12 +100,16 @@ def closed(w: PageWindow) -> None:
 def find(w: PageWindow, name: str):
     win = w.window
     assert win is not None
-    todo = [win.contentItem()]
+    root = win.contentItem()
+    todo = [root.parentItem() or root]  # from the window's root: dialogs live in its overlay layer
     while todo:
         item = todo.pop()
         if item.objectName() == name:
             return item
         todo.extend(item.childItems())
+    popup = win.findChild(QObject, name)  # a dialog itself is a QObject, not an item
+    if popup is not None:
+        return popup
     raise AssertionError(f"no item named {name}")
 
 
@@ -200,5 +204,47 @@ def test_edit_as_text_saves_through_the_profile_writer(qt_app, profile):
         settle()
         assert "# a note" in profile.read_text(encoding="utf-8")
         assert not w.adapter.textDirty and host.changes == ["profile: saved as text"]
+    finally:
+        closed(w)
+
+
+def test_mod_options_open_from_the_gear_and_save_the_entry(qt_app, profile):
+    host = Host(profile)
+    w = opened(host)
+    try:
+        click(w, find(w, "options_cloud"))
+        save = find(w, "saveOptions")  # in the window's overlay layer only while the dialog is open
+        data = w.adapter.optionsFor(next(e["index"] for e in profile_entries(profile) if e["name"] == "cloud"))
+        assert data["loadAfter"] == [{"id": "flora", "optional": False}] and data["others"] == ["flora"]
+        click(w, save)
+        assert host.changes == ["profile: options saved for cloud"]
+        assert next(e for e in profile_entries(profile) if e["name"] == "cloud")["load_after"] == [
+            {"id": "flora", "optional": False}
+        ]
+    finally:
+        closed(w)
+
+
+def test_profile_settings_versions_and_add_existing(qt_app, profile):
+    host = Host(profile)
+    (profile.parent / "mod" / "extra" / "parts").mkdir(parents=True)
+    (profile.parent / "mod" / "extra" / "parts" / "x.partsbnd.dcx").write_bytes(b"x")
+    w = opened(host)
+    try:
+        w.adapter.setSetting("disable_arxan", 1)
+        settle()
+        assert "disable_arxan = true" in profile.read_text(encoding="utf-8")
+        assert w.adapter.settingsFor()["disable_arxan"] == 1
+        asked = []
+        w.notifier.confirmFullRequested.connect(lambda token, words: asked.append(words["title"]))
+        w.adapter.setSetting("start_online", 1)  # online asks first
+        assert asked == ["Turn online matchmaking on"]
+        versions = w.adapter.versionsList()
+        assert versions and versions[0]["path"]
+        unlisted = w.adapter.unlistedFor("package")
+        assert [u["label"] for u in unlisted] == ["extra"]
+        w.adapter.addPaths("package", [unlisted[0]["path"]])
+        settle()
+        assert "extra" in [e["name"] for e in profile_entries(profile)]
     finally:
         closed(w)

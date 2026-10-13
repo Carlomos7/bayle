@@ -17,9 +17,10 @@ from roundtable_souls.formats import FormatError
 
 DCX_DATA_OFFSET = 0x4C
 # The layouts written, each loaded in game (Elden Ring; data/games/eldenring.json lists them and a test keeps the two
-# the same). Kraken: level 6 in the payload and in the header (the "6/6" layout). DFLT fallback: zlib level 9. ZSTD: a
+# the same). Kraken: level 4 in the payload and in the header (the "4/4" layout; decision 0007: the game only range-
+# checks the level, and level 4 compresses ~20x faster for ~3% more size). DFLT fallback: zlib level 9. ZSTD: a
 # 64 KB window and no content size in the frame (the game's decoder keeps 64 KB of history: zstd's defaults crash it).
-KRAKEN_LEVEL = 6
+KRAKEN_LEVEL = 4
 DFLT_FALLBACK_LEVEL = 9
 ZSTD_LEVEL = 9
 ZSTD_WINDOW_LOG = 16

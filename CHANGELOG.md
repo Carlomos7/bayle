@@ -4,6 +4,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Combine and overhaul builds are much faster: merged archives are compressed at Oodle level 4 instead of 6. The large
+  effects archive takes about 5 seconds instead of nearly 2 minutes, for about 3% more disk; checked in game with the
+  same effects and load time.
+- Linux and Steam Deck: without the game's Oodle library, any merged file can now be written in the zlib format the
+  game also reads (it was limited to text, animation and effect archives; another file type was checked in game).
 - Play: with no profile for a game yet, a Get started card creates one in one click, in its own <game>-mods folder,
   and offers to bring in Seamless Co-op from the game folder (its launcher is removed, with a warning).
 - Mods: New profile puts each game's profiles in its own <game>-mods folder with its own mod and natives folders (they

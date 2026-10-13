@@ -159,8 +159,9 @@ per-language fallback copies (`payload/settings/vanilla/`) are left out: the gam
 ## Installing it into a profile
 
 A build may also say what installing that edition does to the player's me3 profile (`[builds.install]`). The
-launcher works the changes out from it without writing anything (`overhauls/install_plan.py`); applying them is a
-later step, through the launcher's journaled install and its profile writer. Editions the mod's installer knows but
+launcher works the changes out from it without writing anything (`overhauls/install_plan.py`), and, with Tools >
+Play session > "Install overhauls with the launcher (preview)" on, applies them itself (`mods/overhaul_install.py`;
+see *Installing and removing with the launcher* below). Editions the mod's installer knows but
 the launcher does not install are listed with the reason in `install_unsupported` (edition -> why) at the top.
 
 ```toml
@@ -202,3 +203,30 @@ into it stops ("This profile already has Nightreign Revive. A profile can have o
 It stops for a profile me3 cannot use (two enabled packages with one id, a circle of `load_after`), an enabled
 package whose folder is missing, or an unreadable profile. Nightreign Revive's LITE description is the one its own
 installer (0.1.33-rc3) applies; the plan gives the same profile as that installer on the profiles compared.
+
+## Installing and removing with the launcher (preview)
+
+With the switch on, the Mods page's Overhaul button installs a download the launcher recognises (a build with
+`[builds.install]`, at a listed version) into the profile, removes it again, and cleans up what the overhaul's own
+installer left. Nothing in it knows a particular overhaul; everything comes from the config.
+
+- **Install** is one journaled operation (undo from Activity; a failure, or an interruption found on the next start,
+  puts the previous state back): the install plan written by the profile writer, with paths relative to the profile;
+  the launcher's build (`mods/engine.py`) made against the profile as the install leaves it, keeping the player's
+  settings file, into the overhaul's own folder beside the profile (`recognise.folder`, where its installer puts it,
+  so Play and the rebuild before Play find it as before); its manifest gets `installedBy`, so the launcher always
+  builds it itself. Installing again is an update; a profile with another overhaul, or a setup its own installer
+  made, is refused (remove that first; taking one over comes later).
+- **The launcher's own files** go in the game's library in me3's profiles folder (`rs-<game>/`, made on first use):
+  `sources/<id>/` holds the download's files its build reads, at their download paths, with `roundtable.json`
+  (where each came from); `overhauls/<id>/roundtable.json` records the install (its build, the download's
+  fingerprint, when, from where); `builds/<id>/<profile>/roundtable.json` records its **side effects** on that
+  profile: each change to a setting or to an entry it doesn't own, with the value before and after.
+- **Remove** is one operation too (Restore in Activity): its owned entries leave the profile; each side effect is put
+  back only where the value is still what the install set, anything else is left and said; switching a shared
+  dependency (the game's co-op DLL) back off is asked, and Seamless Co-op is never removed. Its folder, the launcher's
+  copy of its download and the build kept for Undo rebuild go to the Recycle Bin only when no other profile uses them.
+- **A setup its own installer made** (its folder and manifest per `[recognise]`, no `installedBy`) is removed the same
+  way; its side effects are worked out from the oldest of its installer's profile backups (`installer_backups`) and
+  offered as choices, none ticked. Its leftovers (`installer_folders`, its folder when no profile uses it) are then
+  offered with their sizes, its backups last and one at a time.

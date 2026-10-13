@@ -710,3 +710,21 @@ def test_a_regulation_the_game_could_not_read_is_refused_and_the_build_kept(worl
     with pytest.raises(engine.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+
+
+def test_the_composed_scripts_calls_are_checked_against_the_game(world, monkeypatch):
+    """3.22-B H2: a call defined nowhere the game looks is a warning in the build's report; the build goes ahead."""
+    from test_hks_check import hks_bytecode
+
+    from roundtable_souls.overhauls import hks_check
+
+    real = hks_check.gamearchive.read
+    shared = hks_bytecode("ExecTalk")
+    monkeypatch.setattr(
+        hks_check.gamearchive, "read", lambda d, rel: shared if rel.startswith("action/script/") else real(d, rel)
+    )
+    (world.setup / "installer/overhaul.hks").write_text("ExecTalk()\nNotAnywhere()\n")
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert "warning: action/script/c0000.hks calls a function defined nowhere the game looks" in report
+    assert "NotAnywhere (line " in report and "ExecTalk (line" not in report

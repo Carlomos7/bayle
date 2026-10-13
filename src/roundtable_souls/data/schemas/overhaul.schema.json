@@ -283,6 +283,13 @@
      ],
      "default": null,
      "title": "Refuse Text"
+    },
+    "natives": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Natives",
+     "type": "array"
     }
    },
    "required": [

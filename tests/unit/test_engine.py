@@ -200,7 +200,14 @@ def test_the_launcher_merges_the_mods_files_with_the_packages_before_it(world):
     # no package ships the grace menu: the mod's own copy
     talk = world.setup / "payload/settings/m00_00_00_00.talkesdbnd.dcx"
     assert (own / f"mod/{TALK}").read_bytes() == talk.read_bytes()
-    assert (own / "merge-report.txt").read_text().splitlines()[-1] == "No clashes."
+    report = (own / "merge-report.txt").read_text()
+    assert report.splitlines()[-1] == "No clashes."
+    # the animation mod's copy lacks one of the game's clips: a notice, not a clash
+    anims = (world.base / "mod/anims/chr/c0000_a00_hi.anibnd.dcx").as_posix()
+    assert (
+        "notice: chr/c0000_a00_hi.anibnd.dcx (the player character's animations): "
+        f"{anims} lacks 1 animation the current game uses (they won't play)"
+    ) in report
     assert (own / "audio/overhaul.wav").is_file() and (own / "ui/base.png").is_file()
     assert (own / "OverhaulPrototype.dll").read_bytes() == b"stock payload/OverhaulPrototype.dll"
 

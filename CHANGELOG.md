@@ -4,6 +4,13 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Combine and overhaul builds match a merged archive's inner files the way the game finds them: by ID in part,
+  character and texture archives (where a mod may rename every inner file and still work), by name where the ID is
+  only a position. Two mods changing the same part now meet on it instead of being listed under different names.
+  Merged builds are rebuilt once.
+- Combine and overhaul builds now say when a mod's copy of a merged archive lacks inner files the current game has:
+  "Sekiro Animations lacks 58 animations the current game uses (they won't play)". A notice in the build's report and
+  log, not a stop.
 - Mods: a first look at the new design. A new button on the Mods page, Open new Mods window, opens the redesigned
   Mods page in a window of its own: the mods in the order me3 loads them, switched on and off in place with Undo,
   dragged into a new order (a move me3's load-after rules would undo is refused and says why), Mod options, Profile

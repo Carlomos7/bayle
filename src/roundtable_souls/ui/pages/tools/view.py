@@ -34,6 +34,7 @@ from qfluentwidgets import FluentIcon as FI
 
 from roundtable_souls.config.settings import FROZEN, appimage, is_installed, is_portable
 from roundtable_souls.platform import desktop
+from roundtable_souls.services import play as play_service
 from roundtable_souls.services.mods import (
     me3_facts,
 )
@@ -274,8 +275,8 @@ class ToolsView:
             (
                 "play_repair_after",
                 "Repair saves after quitting",
-                "Puts the regulation section back in order after me3. Elden Ring copies regulation.bin in; Nightreign re-signs its encrypted sections.",
-                "The game does not mind a dirty block; save editors do. Nightreign never writes Game\\regulation.bin into the save (that file is a different encoding). Turn this off if you never use editors.",
+                "After me3, puts the save's regulation section back in order. Elden Ring: only save editors need this (the game never reads that section back), so it is off unless you use one. Nightreign: re-signs its encrypted sections; leave it on.",
+                "Each game keeps its own setting. Elden Ring copies regulation.bin into the save so editors can read it; Nightreign never writes Game\\regulation.bin into the save (that file is a different encoding).",
             ),
             (
                 "play_clear_after",
@@ -858,6 +859,8 @@ class ToolsView:
         self._update_plan()
 
     def _remember_play(self, key, checked):
+        if key == "play_repair_after":
+            key = play_service.repair_key(self.game)  # one switch on screen, a setting per game
         save_settings(**{key: bool(checked)})
         setattr(self.settings, key, bool(checked))
         if key == "warn_dead_shells":

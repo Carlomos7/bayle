@@ -78,6 +78,7 @@ from roundtable_souls.ui.dialogs.common import (
 from roundtable_souls.ui.dialogs.config_files import ConfigFilesDialog
 from roundtable_souls.ui.dialogs.install import InstallDialog
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter, Refusal
+from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
 from roundtable_souls.ui.theme import (
     ghost_btn,
     hint,
@@ -91,6 +92,9 @@ from roundtable_souls.ui.widgets.notices import DropOverlay, StatusPill, notice
 from roundtable_souls.ui.widgets.panels import EditorPanel
 
 ROW_ACTION_W = 156  # the action button on each Mods row
+
+
+WORDS = ModsPresenter()  # the confirmation and refusal words, shared with the Qt Quick Mods page
 
 
 class ModsView:
@@ -369,14 +373,7 @@ class ModsView:
             self._load_profile_settings()
             return
         if profile_mods.setting_needs_confirmation(key, value):
-            if not confirm(
-                self,
-                "Turn online matchmaking on",
-                changes=["This profile starts the game with the official servers reachable"],
-                warning="me3 blocks matchmaking by default because playing online with modded data can get the account banned.",
-                safety="Nothing else in the profile changes; a .bak of the file is kept.",
-                apply_text="Turn on",
-            ):
+            if not self._ask(WORDS.online()):
                 self._load_profile_settings()
                 return
         try:
@@ -922,18 +919,7 @@ class ModsView:
         if self._mods_locked():
             return
         needs = profile_mods.holder_dependents(self.setup.profile, entry)
-        if not confirm(
-            self,
-            f"Remove '{entry['name']}' from the profile",
-            changes=[
-                f"Its [[packages]] entry is deleted from {Path(self.setup.profile).name}",
-                "Nothing changes in the game: it loaded no files of its own",
-                "The folder and every mod in it stay, and so do their entries",
-            ]
-            + ([f"{', '.join(needs)} must load after it: that setting is taken out too"] if needs else []),
-            safety="The profile keeps a .bak.",
-            apply_text="Remove",
-        ):
+        if not self._ask(WORDS.holder(self.setup.profile, entry["name"], needs)):
             return
         try:
             fresh = self._fresh_entry(entry)
@@ -994,6 +980,18 @@ class ModsView:
         )
         dlg.exec()
         self._fill_mods()  # the row's tooltip names the files
+
+    def _ask(self, words) -> bool:
+        """A confirmation in the presenter's words (ui/pages/mods/presenter.Confirm)."""
+        return confirm(
+            self,
+            words.title,
+            changes=list(words.changes),
+            safety=words.safety,
+            warning=words.warning,
+            detail=words.detail,
+            apply_text=words.apply,
+        )
 
     def _mods_locked(self) -> bool:
         if self.busy:
@@ -1263,33 +1261,16 @@ class ModsView:
             return
         prof = Path(self.setup.profile)
         plan = profile_mods.removal(prof, entry, loc=self.ctx.locations, scan=self._conf_result)
-        folder, users, merged = plan.folder, list(plan.users), list(plan.merged)
-        changes = [
-            f"The [[{'packages' if entry['kind'] == 'package' else 'natives'}]] entry and its own comments are "
-            f"deleted from {prof.name}"
-        ]
-        if users:
-            changes.append(
-                f"The folder {folder.name} stays: {', '.join(users[:4])}{' ...' if len(users) > 4 else ''} still load from it"
-            )
-        if merged:
-            files = ", ".join(Path(f).name for f in merged[:3]) + (
-                f" and {len(merged) - 3} more" if len(merged) > 3 else ""
-            )
-            changes.append(
-                f"Its {files} {'is' if len(merged) == 1 else 'are'} still inside the merged mods: Play rebuilds them "
-                "before the game starts (or Rebuild on the Mods page), so the game does not run with them"
-            )
+        words = WORDS.removal(prof, plan)
         dlg = ConfirmDialog(
-            f"Remove {entry['name']} from the profile",
+            words.title,
             self,
-            changes=changes,
-            warning="me3 stops loading it at the next launch. Removing a mod other entries load_after may leave them waiting on a missing id.",
-            safety="Activity can restore it: the entry goes back where it was, and a folder moved to the Recycle Bin "
-            "comes back with it. Edit profile > Versions keeps the profile as it was too.",
-            option=(f"Also move the folder {folder.name} to the Recycle Bin" if folder and plan.can_recycle else None),
-            option_checked=False,
-            apply_text="Remove",
+            changes=list(words.changes),
+            warning=words.warning,
+            safety=words.safety,
+            option=words.option or None,
+            option_checked=words.option_checked,
+            apply_text=words.apply,
         )
         if not dlg.exec():
             return
@@ -1311,15 +1292,7 @@ class ModsView:
         extra = profile_mods.tool_backups_to_trim(prof)
         if not extra:
             return
-        size = sum(b["size"] for b in extra)
-        if not confirm(
-            self,
-            f"Move {len(extra)} older rebuild backup{'s' if len(extra) != 1 else ''} to the Recycle Bin",
-            changes=[f"{b['folder'].name}  ·  {b['size'] / 1048576:,.0f} MB" for b in extra],
-            safety=f"Frees {size / 1048576:,.0f} MB once the bin is emptied; until then they can be restored from it. "
-            f"The newest {profile_mods.KEEP_TOOL_BACKUPS} stay, so the latest rebuilds can still be undone.",
-            apply_text="Move to the Recycle Bin",
-        ):
+        if not self._ask(WORDS.trim(extra)):
             return
         moved = profile_mods.trim_tool_backups(prof)
         self._log(f"mods: moved {len(moved)} older rebuild backup(s) to the Recycle Bin")
@@ -1371,14 +1344,7 @@ class ModsView:
             return False
         if state.allowed:
             return True
-        ok = confirm(
-            self,
-            f"Run {tool.label}?",
-            detail=f"It comes with {tool.package['name']} and runs:\n\n{tool.describe()}",
-            warning="It is a program from a mod: allow it only for mods you trust. You are asked again when "
-            "the tool changes.",
-            apply_text="Allow and run",
-        )
+        ok = self._ask(WORDS.tool(tool))
         if ok:
             profile_mods.allow_tool(tool)
         return ok
@@ -1553,11 +1519,9 @@ class ModsView:
         if refusal == profile_mods.DELETE_NO_PROFILE:
             self._toast("No profile", "Pick a setup on Play first.", error=True)
             return
-        if refusal == profile_mods.DELETE_MANAGED:
-            self._toast("Not this one", "the overhaul's profile is managed by its installer; delete it there.", error=True)
-            return
-        if refusal == profile_mods.DELETE_BUSY:
-            self._toast("Wait for the current job", "The profile can be deleted when it finishes.", error=True)
+        said = WORDS.delete_refusal(refusal, Path(self.setup.profile).stem)
+        if said is not None:
+            self._toast(said.title, said.body, error=True)
             return
         p = Path(self.setup.profile)
         if not confirm(

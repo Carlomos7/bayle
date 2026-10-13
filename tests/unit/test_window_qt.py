@@ -1119,7 +1119,9 @@ def test_removing_a_merged_package_says_play_rebuilds_first(sandbox, monkeypatch
     prof.write_text(
         prof.read_text(encoding="utf-8") + "\n[[packages]]\nid = \"near\"\npath = 'mod/near'\n", encoding="utf-8"
     )
-    monkeypatch.setattr(ui.Launcher, "_merged_from", lambda self, p, e: ["regulation.bin"])
+    from roundtable_souls.services import profile_mods
+
+    monkeypatch.setattr(profile_mods, "merged_from", lambda p, e, **k: ["regulation.bin"])
     patch_ui(monkeypatch, "notice", lambda *a, **k: type("B", (), {"close": lambda s: None})())
     rebuilt, shown = [], []
     monkeypatch.setattr(ui.core.mod_merge, "rebuild", lambda p, log, **k: rebuilt.append(p) or {"backend": "t"})

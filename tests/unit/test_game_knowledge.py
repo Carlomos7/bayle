@@ -73,3 +73,9 @@ def test_binder_kinds_come_from_the_table():
     assert knowledge.binder_identity("unheardofbnd") is None
     omission = knowledge.binder_omission("anibnd")
     assert omission is not None and omission.many == "animations" and omission.effect == "they won't play"
+
+
+def test_lists_for_a_game_folder(tmp_path):
+    assert knowledge.lists_for(tmp_path, "nightreign") is None  # no lists for that game
+    assert "could not be read" in (knowledge.lists_for(tmp_path) or knowledge.exe_lists(None)).caveat
+    assert "could not be read" in (knowledge.lists_for(None) or knowledge.exe_lists(None)).caveat

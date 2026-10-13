@@ -51,10 +51,13 @@ def merge(
     compressor=None,
     dflt_fallback: bool = False,
     name: str = "",
+    lists: knowledge.Lists | None = None,
 ) -> Result:
     """Merge the mods' copies of one file (as stored: DCX-compressed or not), in load order, against the game's own
     copy (None when the game has no such file: the first mod's copy is then the base). name: the file's game path
-    ("parts/bd_m_1000.partsbnd.dcx"); an archive's kind, which says how the game finds its inner files, comes from it."""
+    ("parts/bd_m_1000.partsbnd.dcx"); an archive's kind, which says how the game finds its inner files, comes from it.
+    lists: the installed game's exe-derived lists (game.knowledge.exe_lists); given, each mod's changed or added talk
+    script is checked against them and what the game doesn't have is a warning (none when None)."""
     if not layers:
         raise ValueError("nothing to merge")
     if vanilla is None:
@@ -71,7 +74,7 @@ def merge(
         except damaged as e:
             raise formats.FormatError(f"{label}'s copy is damaged or not in the format it claims ({e})") from e
     try:
-        result = _merge_body(base, bodies, "", name)
+        result = _merge_body(base, bodies, "", name, _inspector(lists))
     except formats.FormatError:
         raise
     except damaged as e:
@@ -91,14 +94,16 @@ def merge(
     return result
 
 
-def _nested(base: bytes, bodies: list[tuple[str, bytes]], where: str) -> Result | None:
-    """An inner file several mods changed: merged the same way when it is itself a format with a rule, else None."""
-    return _merge_body(base, bodies, where) if mergeable(base) else None
-
-
-def _merge_body(base: bytes, bodies: list[tuple[str, bytes]], where: str, name: str = "") -> Result:
+def _merge_body(
+    base: bytes, bodies: list[tuple[str, bytes]], where: str, name: str = "", inspect: bnd4_rule.Inspect | None = None
+) -> Result:
     if formats.bnd4.is_bnd4(base) and all(formats.bnd4.is_bnd4(b) for _, b in bodies):
-        return bnd4_rule.merge(base, bodies, where, _nested, knowledge.binder_kind(where or name))
+
+        def nested(base: bytes, bodies: list[tuple[str, bytes]], where: str) -> Result | None:
+            """An inner file several mods changed: merged the same way when it is itself a format with a rule."""
+            return _merge_body(base, bodies, where, inspect=inspect) if mergeable(base) else None
+
+        return bnd4_rule.merge(base, bodies, where, nested, knowledge.binder_kind(where or name), inspect)
     if formats.fmg.is_fmg(base) and all(formats.fmg.is_fmg(b) for _, b in bodies):
         return fmg_rule.merge(base, bodies, where)
     if ESD_MERGING and esd_rule.is_esd(base) and all(esd_rule.is_esd(b) for _, b in bodies):
@@ -112,3 +117,39 @@ def _merge_body(base: bytes, bodies: list[tuple[str, bytes]], where: str, name: 
         if len({b for _, b in changed}) > 1:
             out.clashes[where or "/"] = [label for label, _ in changed]
     return out
+
+
+EXAMPLES = 3  # IDs named in a warning; the rest are counted
+
+
+def _inspector(lists: knowledge.Lists | None) -> bnd4_rule.Inspect | None:
+    """The game-level checks run on each mod's changed or added inner file: talk scripts' command and function IDs
+    against the game's (backlog E1)."""
+    if lists is None:
+        return None
+    commands, functions = set(lists.lists.talk_command_ids), set(lists.lists.talk_function_ids)
+    caveat = f" ({lists.caveat})" if lists.caveat else ""
+
+    def inspect(path: str, mod: str, data: bytes) -> list[str]:
+        if not esd_rule.is_esd(data):
+            return []
+        try:
+            found = esd_rule.unknown_ids(data, commands, functions)
+        except esd_rule.Unsupported, formats.FormatError, struct.error, ValueError, IndexError:
+            return []  # a script the launcher can't read is reported by the merge itself
+        out = []
+        for kind, said in (
+            ("command", "talk commands the game doesn't have, which do nothing in game"),
+            ("function", "talk functions the game doesn't have, so what those tests give is unknown"),
+        ):
+            hits = [
+                f"{what.split(' ', 1)[1]} (machine {m}, state {s})" for m, s, what in found if what.startswith(kind)
+            ]
+            if hits:
+                shown = ", ".join(hits[:EXAMPLES]) + (
+                    f" and {len(hits) - EXAMPLES} more" if len(hits) > EXAMPLES else ""
+                )
+                out.append(f"{mod} uses {said}: {shown}{caveat}")
+        return out
+
+    return inspect

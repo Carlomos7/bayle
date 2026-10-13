@@ -325,7 +325,11 @@ def build(
                 names = _each(step, setup)
                 for each in names:
                     try:
-                        made.append(_launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log))
+                        made.append(
+                            _launcher_step(
+                                step, each, setup, inputs, game_dir, mod, sources, report, log, game=loc.game.key
+                            )
+                        )
                     except FormatError as e:
                         where = _fill(step["file"], {"each": each or ""})
                         raise EngineError(f"{where} could not be merged: {e}") from e
@@ -426,8 +430,9 @@ def _codecs(game_dir: Path):
     return _oodle[key]
 
 
-def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log) -> Path:
+def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log, game: str = "eldenring") -> Path:
     from roundtable_souls.game import archives as gamearchive
+    from roundtable_souls.game import knowledge
     from roundtable_souls.merging import merger
     from roundtable_souls.merging.rules import fmg as fmg_rule
     from roundtable_souls.merging.rules import param as param_merge
@@ -478,7 +483,8 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         layers.append((Path(source).as_posix(), source.read_bytes()))
     layers.append(("the mod", patch))
     log(f"  merging {rel}")
-    result = merger.merge(vanilla, layers, dec, comp, game_config.load().dflt_fallback_for(rel), name=rel)
+    lists = knowledge.lists_for(game_dir, game)
+    result = merger.merge(vanilla, layers, dec, comp, game_config.load().dflt_fallback_for(rel), name=rel, lists=lists)
     for where, said in result.omission_notices(rel):
         line = f"notice: {_named(where) if where == rel else where}: {said}"
         report.append(line)

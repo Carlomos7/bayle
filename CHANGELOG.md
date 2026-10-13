@@ -4,6 +4,22 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- the overhaul, a preview you turn on (Tools > Play session > "Install overhauls with the launcher (preview)"):
+  the launcher can install the overhaul LITE 0.1.33 into a profile itself, from the folder you unpacked its download into,
+  without running its installer. The Mods page's new Overhaul button shows everything that will change first: the
+  profile's new entries (with paths relative to the profile), the settings it changes (start_online), and the copy of
+  the download it keeps. It's one step you can undo from Activity; if anything fails, nothing changes. Installing again
+  is an update (Activity can roll it back), a profile that already has another overhaul is refused, and a the overhaul that
+  its own installer set up isn't touched: remove it first. The launcher keeps its copy of the download and its notes
+  in its own folder, rs-eldenring, in me3's profiles folder; the overhaul's own folder stays beside your profile as before.
+- Remove overhaul (same preview): one action takes the overhaul out of a profile. Its entries go, and each setting its
+  install changed is put back, but only where it's still what the install set; anything you changed since stays, and
+  the preview says so. Its folder, its build and the launcher's copy of its download go to the Recycle Bin when no
+  other profile uses them. Seamless Co-op is never removed. Restore in Activity puts it all back. For a the overhaul that
+  its own installer set up, the launcher compares your profile with the installer's oldest backup and lets you pick
+  which of its changes to put back. Then Clean up installer leftovers offers its leftover folders with their sizes:
+  the setup copy first, and its "the overhaul Backups" separately at the end, since that's the only copy of your profile
+  from before the overhaul.
 - the overhaul: the launcher now reads a download's edition and version from its edition.json, which every
   download has, instead of the file only the overhaul's installer writes. So it recognises a download straight from its
   archive. If you use "Build the overhaul in the launcher (preview)", this counts as a change: the next Play

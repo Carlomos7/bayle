@@ -160,3 +160,25 @@ def test_me3_option_rules():
 def test_the_service_does_not_touch_profile_edit_rules_it_reuses():
     # the entry reference a holder is matched by is the profile editor's own
     assert pm.profile_edit is profile_edit
+
+
+def test_the_page_facts_read_in_one_pass(profile):
+    from roundtable_souls.config.settings import LauncherSettings
+
+    (profile.parent / "natives" / "other" / "other.dll").unlink()  # its DLL went missing
+    (profile.parent / "mod" / "flora" / "parts").rmdir()  # flora's folder is empty now
+    facts = pm.page_facts(profile, loc=er(), settings=LauncherSettings())
+    by_name = {e["name"]: e["index"] for e in facts.entries}
+    assert facts.error == ""
+    assert facts.loads_nothing == (by_name["bundle"],)  # mod/ only holds other mods
+    assert by_name["other.dll"] in facts.missing
+    assert facts.empty.get(by_name["flora"]) == "empty"  # an empty package folder: "Empty for now"
+    assert set(facts.display["native"]) == {by_name["ersc.dll"], by_name["second.dll"], by_name["other.dll"]}
+    assert facts.outside == () and facts.shared == {}  # not a library profile
+
+
+def test_unreadable_page_facts_say_why(tmp_path):
+    from roundtable_souls.config.settings import LauncherSettings
+
+    facts = pm.page_facts(tmp_path / "gone.me3", loc=er(), settings=LauncherSettings())
+    assert facts.error and facts.entries == ()

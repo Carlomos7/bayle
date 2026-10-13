@@ -671,3 +671,12 @@ def _why_not(rows: list[dict], wanted: list[int], index: int, names: dict[int, s
         if any(d.id.lower() in mine for d in r["before"]) and pos[r["index"]] > pos[index]:
             return f"{other} must load before {me} (set in its options)", other
     return f"me3 would put {me} back: another entry's options decide its place", me
+
+
+def stays_last_entries(profile: Path, text: str, tgt: dict | None) -> set[int]:
+    """The block indexes of the mod that must stay last (its package, and its DLLs that load last): the rows the
+    Mods page locks. Empty when the profile has no such mod (tgt: target())."""
+    if tgt is None:
+        return set()
+    pkg, last, _mine = _roles(Path(profile), _items(Path(profile), text), tgt)
+    return {e["index"] for e in ([pkg] if pkg else []) + last}

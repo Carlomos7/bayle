@@ -285,3 +285,93 @@ def setting_needs_confirmation(key: str, value) -> bool:
 def heap_size_applies(settings: dict) -> bool:
     """me3 uses the heap size only with the memory patch on (unset counts as on: me3's default)."""
     return settings.get("mem_patch") is not False
+
+
+# ----------------------------------------------------------------------------- what the page shows, read in one pass
+@dataclass(frozen=True)
+class PageFacts:
+    """Everything the Mods page shows about one profile, read from disk at once (run it off the UI thread); the
+    presenter turns it into rows and words. Indexes are the profile's block indexes."""
+
+    profile: Path
+    entries: tuple[dict, ...]
+    display: dict[str, tuple[int, ...]]  # kind -> indexes in the order the page shows (mods.order.display_order)
+    problems: dict[int, tuple[str, ...]]  # what makes me3 refuse or skip an entry (mods.checks.entry_problems)
+    loads_nothing: tuple[int, ...]  # entries for a folder of mods or the profile folder (shown as a line, not a row)
+    outside: tuple[int, ...]  # entries of a library profile pointing outside the library
+    shared: dict[int, int]  # entries other profiles of the library also use: how many profiles use it
+    stays_last: tuple[int, ...]  # the locked rows
+    missing: tuple[int, ...]  # the folder or DLL is not there
+    empty: dict[int, str]  # package folders with no game files of their own: "empty" or "no-game-folders"
+    configs: dict[int, tuple[str, ...]]  # a DLL's config files (found beside it or attached)
+    not_loaded: dict[str, int]  # kind -> mod folders (or DLLs) in the profile no entry loads
+    error: str = ""  # why the profile could not be read ("" when it was)
+
+
+def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
+    """The page's facts for profile. settings: the launcher settings (attached config files); None reads them."""
+    from roundtable_souls.mods import configs as mod_configs
+    from roundtable_souls.mods.library import ModLibrary
+
+    prof = Path(profile)
+    empty_facts = PageFacts(prof, (), {"package": (), "native": ()}, {}, (), (), {}, (), (), {}, {}, {})
+    try:
+        text = profile_edit.read_text(prof)
+        entries = profile_entries(prof)
+        tree = mod_checks.package_tree(prof, entries)
+        problems = mod_checks.entry_problems(prof, entries)
+        folders = mod_checks.folder_overview(prof, entries, tree)
+    except (OSError, ValueError) as e:
+        return PageFacts(**{**empty_facts.__dict__, "error": str(e)})
+    display = {
+        kind: tuple(r["index"] for r in mod_order.display_order(prof, text, kind)) for kind in ("package", "native")
+    }
+    library = ModLibrary.for_game(loc)
+    shared: dict[int, int] = {}
+    if library is not None and mod_checks.same_folder(prof.parent, library.profiles):  # only a library profile
+        try:
+            contents = library.scan()
+            for e in entries:
+                place = library.place_of(profile_edit.resolve(prof, e["path"])) if e.get("path") else None
+                if place is not None:
+                    users = len(contents.used_by(*place))
+                    if users > 1:
+                        shared[e["index"]] = users
+        except OSError:
+            shared = {}
+    try:
+        tgt = mod_order.target(prof, loc)
+    except Exception:
+        tgt = None
+    if settings is None:
+        from roundtable_souls.config.settings import load_settings
+
+        settings = load_settings()
+    missing, empty, configs = [], {}, {}
+    for e in entries:
+        where = profile_edit.resolve(prof, e["path"]) if e.get("path") else None
+        if where is None or not where.exists():
+            missing.append(e["index"])
+            continue
+        node = tree.get(e["index"])
+        if node and node["folder"].is_dir() and not node["own_files"] and not node["holder"]:
+            empty[e["index"]] = "empty" if not any(node["folder"].iterdir()) else "no-game-folders"
+        if e["kind"] == "native":
+            files = mod_configs.files_for(settings, where)
+            if files:
+                configs[e["index"]] = tuple(Path(f["path"]).name for f in files)
+    pk, nt = folders.get("packages") or {}, folders.get("natives") or {}
+    return PageFacts(
+        profile=prof,
+        entries=tuple(entries),
+        display=display,
+        problems={i: tuple(p) for i, p in problems.items() if p},
+        loads_nothing=tuple(mod_checks.loads_nothing(prof, entries, tree)),
+        outside=tuple(mod_checks.outside_library(prof, entries, library.root if library else None)),
+        shared=shared,
+        stays_last=tuple(sorted(mod_order.stays_last_entries(prof, text, tgt))),
+        missing=tuple(missing),
+        empty=empty,
+        configs=configs,
+        not_loaded={"package": len(pk.get("unlisted") or []), "native": len(nt.get("unlisted") or [])},
+    )

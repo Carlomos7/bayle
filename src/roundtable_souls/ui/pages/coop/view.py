@@ -30,6 +30,7 @@ from qfluentwidgets import (
 )
 from qfluentwidgets import FluentIcon as FI
 
+from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services.coop import (
     CUSTOM,
     SAVE_KINDS,
@@ -62,10 +63,12 @@ from roundtable_souls.ui.theme import (
     ACCENT_LIGHT,
     HINT,
     HINT_ON_LIGHT,
+    ghost_btn,
     hint,
 )
 from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard, SettingRow, card, count_label
 from roundtable_souls.ui.widgets.layout import page, titled
+from roundtable_souls.ui.widgets.notices import notice
 from roundtable_souls.ui.widgets.panels import ActionBar, EditorPanel
 
 
@@ -98,6 +101,26 @@ class CoopView:
         self.coop_scroll, lay = page("coopScroll")
         lay.setContentsMargins(40, 12, 40, 16)
         outer.addWidget(self.coop_scroll, 1)
+        # Seamless Co-op left in the game folder (its own installer's place): move it into the setup, or clean up
+        self.coop_relocate, rl = card("Seamless Co-op in the game folder", FI.FOLDER)
+        self.coop_relocate_text = hint()
+        self.coop_relocate_text.setWordWrap(True)
+        rl.addWidget(self.coop_relocate_text)
+        row = QHBoxLayout()
+        self.coop_relocate_go = ghost_btn("Move it into this setup", FI.MOVE, role="action")
+        self.coop_relocate_go.clicked.connect(self._coop_relocate_apply)
+        later = ghost_btn("Not now")
+        later.clicked.connect(self._coop_relocate_later)
+        never = ghost_btn("Don't ask again")
+        never.clicked.connect(self._coop_relocate_never)
+        for b in (self.coop_relocate_go, later, never):
+            row.addWidget(b)
+        row.addStretch(1)
+        rl.addLayout(row)
+        lay.addWidget(self.coop_relocate)
+        self.coop_relocate.hide()
+        self._coop_relocate_found = None
+        self._coop_relocate_snoozed: set[str] = set()
         off, offl = card("No co-op in this setup", FI.PEOPLE)
         offl.addWidget(
             hint(
@@ -222,6 +245,7 @@ class CoopView:
 
     # ---------------------------------------------------------------- co-op
     def _load_coop(self):
+        self._coop_relocate_refresh()
         ini = self.ini
         on = ini is not None
         self._coop_ready = True  # the co-op form now reflects self.ini, so pending-change detection is valid
@@ -266,6 +290,118 @@ class CoopView:
             self._on_scaling_edit()
         self.share_fill()
         self._fill_all_settings()
+
+    # ---------------------------------------------------------------- Seamless Co-op in the game folder
+    def _coop_relocate_key(self):
+        f, s = self._coop_relocate_found, self.setup
+        return f.key(s.game.key, s.profile) if f is not None and s is not None else ""
+
+    def _coop_relocate_refresh(self):
+        """Show the notice when Seamless Co-op sits in the game folder: not loaded by this profile (offer to move it
+        in) or left over beside the profile's own copy (offer to clean up). Each visit to the page shows it again
+        until it is done, put off for this run, or turned off for good."""
+        found = None
+        try:
+            if self.setup is not None:
+                found = coop_service.game_folder_seamless(self.setup)
+        except OSError:
+            found = None
+        self._coop_relocate_found = found
+        key = self._coop_relocate_key()
+        if found is None or key in self._coop_relocate_snoozed or coop_service.relocate_dismissed(key):
+            self.coop_relocate.hide()
+            return
+        game = self.setup.game
+        launcher = f" Its launcher, {found.launcher.name}, will be removed." if found.launcher else ""
+        if found.kind == "move":
+            self.coop_relocate_text.setText(
+                f"Seamless Co-op ({game.coop_dll}) is installed in the game folder, but this setup's profile doesn't "
+                f"load it. Move it into this setup so me3 loads it with your other mods; its settings, password "
+                f"included, move with it.{launcher}"
+            )
+            self.coop_relocate_go.setText("Move it into this setup")
+        else:
+            what = ", ".join(p.name for p in found.files) or "nothing but the launcher"
+            differ = (
+                f" The game folder's {game.coop_ini} differs from the one this setup uses; the setup's is kept."
+                if found.settings_differ
+                else ""
+            )
+            self.coop_relocate_text.setText(
+                f"This setup loads its own Seamless Co-op, but an older install is still in the game folder "
+                f"({what}).{launcher}{differ} Clean it up? Everything goes to the Recycle Bin."
+            )
+            self.coop_relocate_go.setText("Clean up the game folder")
+        self.coop_relocate.show()
+
+    def _coop_relocate_apply(self):
+        found, s = self._coop_relocate_found, self.setup
+        if found is None or s is None:
+            return
+        if self.game_running:
+            notice(self, "warning", "Close the game first", "Seamless Co-op's files are in use while it runs.")
+            return
+        game = s.game
+        launcher_warning = (
+            f"{found.launcher.name}, Seamless Co-op's own launcher, goes to the Recycle Bin: starting the game "
+            "with it will no longer work. Play from here (me3) instead."
+            if found.launcher
+            else ""
+        )
+        if found.kind == "move":
+            ok = confirm(
+                self,
+                "Move Seamless Co-op into this setup",
+                changes=[
+                    f"{found.folder} → this setup's DLL folder ({len(found.files)} file(s), settings included)",
+                    f"{Path(s.profile).name}: {game.coop_dll} added, loading early",
+                ],
+                warning=launcher_warning,
+                safety="The profile is saved to its history first.",
+                apply_text="Move it",
+            )
+            if not ok:
+                return
+            try:
+                dest = coop_service.move_seamless_into_setup(s, found, self._log)
+            except Exception as e:  # noqa: BLE001 - reported to the player; nothing was left half-moved
+                notice(self, "error", "Seamless Co-op was not moved", str(e))
+                return
+            notice(self, "success", "Seamless Co-op moved into this setup", str(dest), duration=6000)
+        else:
+            ok = confirm(
+                self,
+                "Clean up the game folder",
+                changes=[f"{p}" for p in found.files] + ([str(found.launcher)] if found.launcher else []),
+                warning=launcher_warning,
+                safety="Everything goes to the Recycle Bin; this setup's own Seamless Co-op is untouched.",
+                apply_text="Clean up",
+            )
+            if not ok:
+                return
+            try:
+                coop_service.clean_up_game_folder_seamless(s, found, self._log)
+            except Exception as e:  # noqa: BLE001 - reported to the player
+                notice(self, "error", "The game folder was not cleaned up", str(e))
+                return
+            notice(self, "success", "Old Seamless Co-op files sent to the Recycle Bin", duration=6000)
+        s._ini = None  # the profile may load a different ini now
+        self.ini = s.ini
+        self._load_coop()
+        if hasattr(self, "_fill_mods"):
+            self._fill_mods()
+
+    def _coop_relocate_later(self):
+        key = self._coop_relocate_key()
+        if key:
+            self._coop_relocate_snoozed.add(key)
+        self.coop_relocate.hide()
+
+    def _coop_relocate_never(self):
+        key = self._coop_relocate_key()
+        if key:
+            coop_service.dismiss_relocate(key)
+        self.coop_relocate.hide()
 
     def _fill_all_settings(self):
         """Rebuild the section expanders from the file. Sections the quick cards already cover are skipped."""

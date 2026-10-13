@@ -4,6 +4,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Co-op: when Seamless Co-op is installed in the game folder (where its own installer puts it) and your profile
+  doesn't load it, the Co-op page offers to move it into your setup and add it to the profile, settings and password
+  included. When your profile already has its own copy, it offers to clean up the old one instead. Seamless Co-op's
+  own launcher (ersc_launcher.exe / nrsc_launcher.exe) is removed either way, with a warning; everything removed goes
+  to the Recycle Bin. "Not now" hides it until next time, "Don't ask again" for good. Elden Ring and Nightreign.
 - Activity: a first look at the new design. A new button on the Activity page, Open new Activity window, opens the
   redesigned Activity page in a window of its own: the last Play, install and failure at the top, the jobs by day,
   each job's log one click away, and Undo, which asks before it changes anything. The Activity page you know stays

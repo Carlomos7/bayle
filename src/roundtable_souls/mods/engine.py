@@ -448,7 +448,11 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         packs = [] if source is None else [(Path(source).parent.name, source.read_bytes())]
         packs.append(("the mod", (setup / _fill(step["patch"], values)).read_bytes()))
         log(f"  combining {rel}")
-        data, _report = param_merge.combine(base.read_bytes(), packs, dec)
+        data, combined = param_merge.combine(base.read_bytes(), packs, dec)
+        for pack in combined.packs:
+            for said in pack.warnings:
+                report.append(f"warning: {said}")
+                log(f"  warning: {said}")
         out.write_bytes(data)
         return out
     vanilla = gamearchive.read(game_dir, rel)

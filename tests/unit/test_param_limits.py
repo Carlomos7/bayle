@@ -34,16 +34,20 @@ def test_rows_with_negative_ids_are_reported():
     ]
 
 
-def test_more_rows_than_the_game_can_count_is_refused():
+def test_more_rows_than_the_game_can_count_is_refused(monkeypatch):
+    assert pm.MAX_ROWS == 65_535  # the game's row count is 16 bits
+    monkeypatch.setattr(pm, "MAX_ROWS", 4)  # the limit, made small: adding 65,536 rows here takes minutes
+
     def grow(first):
         def fn(p):
-            p.rows += [formats.param.Row(first + i, row(i), "") for i in range(33_000)]
+            p.rows += [formats.param.Row(first + i, row(i), "") for i in range(2)]
 
         return fn
 
     packs = [("a", pack({"SpEffectParam": grow(100_000)})), ("b", pack({"SpEffectParam": grow(200_000)}))]
-    with pytest.raises(pm.TableLimit, match=r"SpEffectParam would have 66,001 rows; the game reads at most 65,535"):
+    with pytest.raises(pm.TableLimit, match=r"SpEffectParam would have 5 rows; the game reads at most 4 per table"):
         pm.combine(vanilla(), packs)
+    pm.combine(vanilla(), packs[:1])  # 3 rows: within the limit
 
 
 def test_a_result_missing_one_of_the_games_tables_is_refused(monkeypatch):

@@ -4,6 +4,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Play: with no profile for a game yet, a Get started card creates one in one click, in its own <game>-mods folder,
+  and offers to bring in Seamless Co-op from the game folder (its launcher is removed, with a warning).
+- Mods: New profile puts each game's profiles in its own <game>-mods folder with its own mod and natives folders (they
+  were shared between games). A profile made as a copy now sits beside the original, so its mods keep working (the
+  copy's paths pointed at the wrong folder before).
 - Play session: Elden Ring's "Repair saves after quitting" is now off by default and has its own setting. The game
   never reads the save's regulation section back, so only save editors need it; turn it on under Tools > Play session
   if you use one. Nightreign's repair, which re-signs its save sections, stays on.

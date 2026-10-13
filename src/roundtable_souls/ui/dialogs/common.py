@@ -389,10 +389,13 @@ WRITE_SAFETY = "A backup of the file as it is now is taken first. Undo appears a
 
 
 class ChoiceListDialog(Dialog):
-    """Pick any of a list, all unticked to start. selected() gives the ticked indexes."""
+    """Pick any of a list, all unticked to start. selected() gives the ticked indexes. allow_none: the main button
+    goes ahead with none ticked too (none_text on it then)."""
 
-    def __init__(self, title, blurb, labels, parent, apply_text="Continue"):
+    def __init__(self, title, blurb, labels, parent, apply_text="Continue", allow_none=False, none_text=None):
         super().__init__(parent)
+        self._allow_none = allow_none
+        self._none_text = none_text or apply_text
         self.widget.setMinimumWidth(min(640, max(460, (parent.width() - 200) if parent else 540)))
         self.viewLayout.setSpacing(8)
         self.viewLayout.addWidget(SubtitleLabel(title))
@@ -433,8 +436,8 @@ class ChoiceListDialog(Dialog):
 
     def _count(self, *_):
         n = len(self.selected())
-        self.yesButton.setText(f"{self._apply_text} {n}" if n else self._apply_text)
-        self.yesButton.setEnabled(bool(n))
+        self.yesButton.setText(f"{self._apply_text} {n}" if n else self._none_text)
+        self.yesButton.setEnabled(bool(n) or self._allow_none)
 
     def selected(self) -> list[int]:
         return [i for i, cb in enumerate(self.boxes) if cb.isChecked()]

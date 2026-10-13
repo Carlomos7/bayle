@@ -284,6 +284,64 @@ def undo_install(op_dir: Path, log=lambda s: None) -> str:
     return f"took back the install of {name}" + (f" ({'; '.join(notes)})" if notes else "")
 
 
+def take_back(op_dir: Path, log=lambda s: None) -> str:
+    """Take back a finished operation of several folders and files (an overhaul's install or update, mods.
+    overhaul_install), as one new operation: a folder it replaced comes back (the version before an update); a
+    folder it created goes, except the files in it changed or added since, which stay and are said; the profile gets
+    its exact earlier bytes when it has not changed since, else only the entries it added leave it; the other files
+    it wrote get their earlier bytes back, or go when it made them. Shared dependencies are never removed."""
+    op = build.Operation.load(op_dir)
+    profile = Path(op.info["profile"])
+    made = op.info.get("made") or {}
+    notes: list[str] = []
+    emptied: list[Path] = []
+    profile_step = _profile_step(op)
+    with lock(profile):
+        new = _new_op(op, f"undo of the {op.what}")
+        try:
+            for step in op.steps:
+                live = Path(step["live"])
+                if step["type"] == "folder":
+                    previous = Path(step["previous"]) if step["previous"] else None
+                    if previous is not None and previous.is_dir():
+                        new.replace_folder(live, previous)
+                    elif live.is_dir() and not _shared_folder(live):
+                        created = made.get(str(live)) or {}
+                        staged = live.with_name(f".{live.name}.staging-{new.id}")
+                        staged.mkdir()
+                        left = []
+                        for rel in manifest(live):
+                            if rel in created and _unchanged(live / rel, created[rel]):
+                                continue
+                            (staged / rel).parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(live / rel, staged / rel)
+                            left.append(rel)
+                        new.replace_folder(live, staged)
+                        emptied.append(live)
+                        if left:
+                            notes.append(f"kept in {live.name}, changed or added since: {', '.join(left[:5])}")
+                elif step is profile_step:
+                    back = _profile_back(op, profile, notes)
+                    if back is not None:
+                        new.write_file(profile, back[0], expect=back[1])
+                elif step["type"] == "file":
+                    now = hashlib.sha256(live.read_bytes()).hexdigest() if live.is_file() else "missing"
+                    before = (op.dir / step["before"]).read_bytes() if step["before"] else None
+                    new.write_file(live, before, expect=now)
+        except BaseException:
+            new.discard()
+            raise
+        new.commit()
+        new.release()  # an undo is final
+        for folder in emptied:
+            if folder.is_dir() and not any(folder.iterdir()):
+                folder.rmdir()
+        op.release()
+    for n in notes:
+        log(f"undo: {n}")
+    return f"took back the {op.what}" + (f" ({'; '.join(notes)})" if notes else "")
+
+
 def rollback(op_dir: Path, log=lambda s: None, then=None) -> str:
     """Put the version an update replaced back, as a set (folder and profile). The version rolled back is kept aside
     (a rollback is an operation too, kept until keep()). then(): a rebuild for the restored version; when it fails

@@ -52,11 +52,19 @@ def recipe(profile: Path, layer: dict, relaxed: bool = False, *, loc: Locations)
     return None
 
 
+INSTALLED_BY = "installedBy"  # in the manifest: the launcher installed it (mods.overhaul_install), not its installer
+
+
+def launcher_installed(data: dict) -> bool:
+    """The manifest is of an install the launcher made: its download copy has no installer, the launcher builds it."""
+    return bool(data.get(INSTALLED_BY))
+
+
 def _find_setup(profile: Path, data: dict) -> Path | None:
     written = data.get("maintenance")
     if written:
         here = local_path(written, profile)
-        if _setup_ok(here):
+        if _setup_ok(here) or (launcher_installed(data) and here.is_dir()):
             return here
     kids = sorted((c for c in profile.parent.iterdir() if c.is_dir()), key=lambda x: x.name.lower())
     for c in kids:  # its folder, found by content
@@ -84,7 +92,12 @@ def _recipe(profile: Path, layer: dict, manifest: Path, data: dict, loc: Locatio
     written_here = all(Path(str(data.get(k) or "")).exists() for k in ("maintenance", "game"))
     problem = None
     command: list[str] = []
-    if setup is None:
+    if setup is None and launcher_installed(data):
+        problem = (
+            f"The launcher's copy of {layer['name']}'s download is gone, so it can't be rebuilt. Install it again "
+            "with the launcher, or remove it."
+        )
+    elif setup is None:
         problem = missing_text(layer["name"], ["its setup folder (an installer and the Python that runs it)"])
     else:
         py, script = setup / "tools" / "python" / "python.exe", setup / "installer" / "installer.py"
@@ -108,7 +121,12 @@ def _recipe(profile: Path, layer: dict, manifest: Path, data: dict, loc: Locatio
         tool = hashlib.sha256((setup / "installer" / "installer.py").read_bytes()).hexdigest() if setup else ""
     except OSError:
         tool = ""
-    built = _engine(profile, layer, setup, loc)
+    built = _engine(profile, layer, setup, loc, launcher_installed(data))
+    if built is None and setup is not None and launcher_installed(data):
+        problem = (
+            f"{layer['name']} was installed by the launcher, but none of the launcher's overhaul configs fits its "
+            "download any more. Install it again with the launcher, or remove it."
+        )
     if built is not None:
         engine_problem, run, approval = built
         return Recipe(
@@ -161,13 +179,14 @@ class _Build:
         return engine.input_reasons(manifest, self.recipe, self.loc)
 
 
-def _engine(profile: Path, layer: dict, setup: Path | None, loc: Locations):
+def _engine(profile: Path, layer: dict, setup: Path | None, loc: Locations, installed: bool = False):
     """(problem, the build to run, approval key) when the launcher builds this mod itself: the switch on Settings is
-    on and a recipe fits its download. None otherwise (its own installer runs)."""
+    on (or the launcher installed it: installed) and a recipe fits its download. None otherwise (its own installer
+    runs)."""
     from roundtable_souls.config.settings import load_settings
     from roundtable_souls.mods import engine
 
-    if setup is None or not load_settings().build_merges:
+    if setup is None or not (installed or load_settings().build_merges):
         return None
     recipe, version, _why = engine.match(setup)
     if recipe is None:

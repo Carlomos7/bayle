@@ -175,3 +175,26 @@ def test_a_fresh_folder_is_taken_back_out(setup, monkeypatch):
     assert (root / "mod" / "grass").is_dir()
     B.recover_operations(root)
     assert snapshot(root) == before and not (root / "mod" / "grass").exists()
+
+
+def test_a_file_step_can_remove_a_file_and_an_undo_puts_it_back(setup):
+    root, _mod, combined, profile = setup
+    record = combined / RECORD
+    op = B.Operation(root, "removal of a record")
+    op.write_file(profile, b"new profile")
+    op.write_file(record, None)
+    op.commit()
+    assert not record.exists() and profile.read_bytes() == b"new profile"
+    before = snapshot(root)
+    op = B.Operation(root, "a removal that is refused")
+    op.write_file(record.with_name("other.json"), b"{}")
+    op.write_file(profile, None, expect="not what is there")
+    with pytest.raises(B.BuildError, match="changed outside the launcher"):
+        op.commit()
+    assert snapshot(root) == before
+    op = B.Operation(root, "a removal undone")
+    op.write_file(profile, None)
+    op.commit()
+    assert not profile.exists()
+    B._undo(op)
+    assert snapshot(root) == before

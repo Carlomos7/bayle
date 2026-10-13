@@ -1551,8 +1551,10 @@ def test_the_overhaul_button_shows_only_with_the_preview_switch_on(sandbox):
     w = sandbox
     assert w.game is ui.games.ELDEN_RING and not w.play_rows["overhaul_install"].isHidden()
     assert w.mods_overhaul.isHidden()  # off by default
+    assert "install description for (Nightreign Revive LITE" in w.play_rows["overhaul_install"].d.text()
     w.play_sw["overhaul_install"].setChecked(True)
     assert not w.mods_overhaul.isHidden() and w.settings.overhaul_install
+    assert "install description for: Nightreign Revive LITE" in w.mods_overhaul.toolTip()
     w.play_sw["overhaul_install"].setChecked(False)
     assert w.mods_overhaul.isHidden()
 

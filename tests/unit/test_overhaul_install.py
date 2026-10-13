@@ -582,3 +582,15 @@ def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
     assert [x.backups for x in left] == [False, True]
     service.remove_overhaul_leftovers([x.path for x in left])
     assert service.overhaul_leftovers(world.profile, loc=world.loc) == []
+
+
+def test_the_switch_and_button_words_come_from_the_configs(world):
+    from roundtable_souls.services import mods as service
+
+    assert service.installable_overhauls("eldenring") == ["Nightreign Revive LITE 0.1.33-rc3"]
+    assert service.installable_overhauls("nightreign") == []
+    assert service.overhaul_library_folder("eldenring") == "rs-eldenring"
+    text = service.overhaul_switch_text("eldenring")
+    assert "only the overhauls the launcher has an install description for (Nightreign Revive LITE 0.1.33-rc3)" in text
+    assert "in rs-eldenring, in me3's profiles folder" in text
+    assert "install description for: Nightreign Revive LITE 0.1.33-rc3." in service.overhaul_button_tip("eldenring")

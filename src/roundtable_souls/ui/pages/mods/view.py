@@ -118,10 +118,6 @@ class ModsView:
         )
         self.mods_install.clicked.connect(self._install_mod)
         self.mods_overhaul = ghost_btn("Overhaul", FI.APPLICATION)
-        self.mods_overhaul.setToolTip(
-            "Install an overhaul (Nightreign Revive) with the launcher, remove one, or clean up what its own "
-            "installer left. A preview: Tools > Play session turns it on and off."
-        )
         self.mods_overhaul.clicked.connect(self._overhaul_menu)
         self.mods_overhaul.hide()
         self.prof_new = ghost_btn("New profile", FI.ADD)
@@ -1462,6 +1458,7 @@ class ModsView:
             return
         try:
             on = mod_service.overhaul_preview_on(self.ctx.locations)
+            b.setToolTip(mod_service.overhaul_button_tip(self.game.key))
         except Exception:
             on = False
         b.setVisible(on)

@@ -61,7 +61,7 @@ class GameConfig(BaseModel):
     archives: dict[str, str]  # archive name -> PEM public key of its header
     oodle_library: str  # a glob in the game folder
     dcx_writer: DcxWriter
-    dflt_fallback: list[str]  # file name endings, lower-case
+    dflt_fallback: list[str]  # file name endings, lower-case; "*" = every type
     mod_folders: list[str]  # top-level folders of a package that me3 serves game files from, lower-case
     file_categories: list[FileCategory]  # in order: the first rule that matches a path names it
     ignored_dlls: list[str]  # DLLs in a mod download that are not mods (loaders, runtimes), lower-case
@@ -69,7 +69,7 @@ class GameConfig(BaseModel):
     def dflt_fallback_for(self, rel: str) -> bool:
         """Whether rel may be written as DFLT when the game's Oodle library is not available."""
         low = rel.replace("\\", "/").lower()
-        return any(low.endswith(end) for end in self.dflt_fallback)
+        return any(end == "*" or low.endswith(end) for end in self.dflt_fallback)
 
     def category_of(self, rel: str) -> str | None:
         """What the game file at rel is, in plain words, from the first rule that matches it; None when none does.

@@ -145,6 +145,63 @@ class ModsPresenter:
     )
     move_menu = property(lambda self: (tr("Move up"), tr("Move down"), tr("Move to top"), tr("Move to bottom")))
 
+    def words(self) -> dict[str, str]:
+        """Every fixed label the page shows, by key, for the view (nothing is typed into the QML)."""
+        install_file, install_folder = self.install_menu
+        settings, versions, delete = self.gear_menu
+        up, down, top, bottom = self.move_menu
+        return {
+            "install": self.install_text,
+            "installFile": install_file,
+            "installFolder": install_folder,
+            "profileFolder": self.profile_folder_text,
+            "editAsText": self.edit_as_text_text,
+            "profileSettings": settings,
+            "versions": versions,
+            "deleteProfile": delete,
+            "rescan": tr("Rescan"),
+            "addExisting": tr("Add existing..."),
+            "more": tr("More"),
+            "gearTip": tr("Profile: settings, versions, delete"),
+            "healthTip": tr("Opens the Parameters card and the Load order panel"),
+            "moveUp": up,
+            "moveDown": down,
+            "moveTop": top,
+            "moveBottom": bottom,
+            "lockedTip": tr("Locked: stays last"),
+            "optionsTip": tr("Mod options (how me3 loads it)"),
+            "configsTip": tr("has config files"),
+            "attachTip": tr("Attach a config file to this DLL"),
+            "removeTip": tr("Remove from the profile"),
+            "loadsNothing": tr("Loads nothing"),
+            "dropToInstall": tr("Drop to install"),
+            "parameters": tr("Parameters"),
+            "undoRebuild": tr("Undo rebuild"),
+            "redoRebuild": tr("Redo rebuild"),
+            "keepNewest": tr("Keep the newest {n} backups").format(n=profile_mods.KEEP_TOOL_BACKUPS),
+            "openRebuildLog": tr("Open rebuild log"),
+            "allowTool": tr("Allow rebuild tool"),
+            "details": tr("Details"),
+            "loadOrder": tr("Load order"),
+            "staysLast": tr("Stays last"),
+            "fixOrder": tr("Fix order"),
+            "sharedFiles": tr("Files two packages both ship"),
+            "showAll": tr("Show all"),
+            "showFewer": tr("Show fewer"),
+            "refused": tr("Entries me3 would refuse"),
+            "nothingRefused": tr("None: me3 starts with this profile."),
+            "saved": tr("Saved"),
+            "unsaved": tr("Unsaved changes"),
+            "save": tr("Save"),
+            "discard": tr("Discard"),
+            "cancel": tr("Cancel"),
+            "unsavedTitle": tr("Unsaved changes"),
+            "unsavedBody": tr(
+                "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
+            ),
+            "undo": tr("Undo"),
+        }
+
     def page(
         self,
         facts: PageFacts | None,

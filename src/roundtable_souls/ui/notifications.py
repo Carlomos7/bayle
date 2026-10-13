@@ -19,12 +19,16 @@ class Notifier(QObject):
     toastRequested = Signal(str, bool)  # text, is an error
     # token, title, the changes (one per line), the safety line, the apply button's text, destructive
     confirmRequested = Signal(int, str, list, str, str, bool)
+    toastActionRequested = Signal(str, bool, str, int)  # text, is an error, the action's words, token
+    confirmFullRequested = Signal(int, dict)  # token, the words (see ask)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self._status = ""
         self._info = ("", "info")
         self._waiting: dict[int, Callable[[bool], None]] = {}
+        self._full: dict[int, Callable[[bool, bool], None]] = {}
+        self._actions: dict[int, Callable[[], None]] = {}
         self._next = 0
 
     # ---- the status text
@@ -53,6 +57,47 @@ class Notifier(QObject):
     def toast(self, text: str, error: bool = False) -> None:
         self.toastRequested.emit(text, error)
 
+    def toast_action(self, text: str, action: str, on_action: Callable[[], None], error: bool = False) -> int:
+        """A toast with one action (Undo, Edit options): on_action() runs when it is clicked."""
+        self._next += 1
+        self._actions[self._next] = on_action
+        self.toastActionRequested.emit(text, error, action, self._next)
+        return self._next
+
+    @Slot(int)
+    def toastAction(self, token: int) -> None:
+        call = self._actions.pop(token, None)
+        if call is not None:
+            call()
+
+    # ---- the confirmation dialog, all its parts (ui/pages/mods/presenter.Confirm and the like)
+    def ask(self, words, on_answer: Callable[[bool, bool], None], destructive: bool = False) -> int:
+        """Ask before a change in the words given (title, changes, apply, warning, safety, detail, option,
+        option_checked); on_answer(applied, option ticked)."""
+        self._next += 1
+        self._full[self._next] = on_answer
+        self.confirmFullRequested.emit(
+            self._next,
+            {
+                "title": words.title,
+                "changes": list(words.changes),
+                "apply": words.apply,
+                "warning": getattr(words, "warning", ""),
+                "safety": getattr(words, "safety", ""),
+                "detail": getattr(words, "detail", ""),
+                "option": getattr(words, "option", ""),
+                "optionChecked": bool(getattr(words, "option_checked", False)),
+                "destructive": destructive,
+            },
+        )
+        return self._next
+
+    @Slot(int, bool, bool)
+    def answerWith(self, token: int, ok: bool, option_on: bool) -> None:
+        call = self._full.pop(token, None)
+        if call is not None:
+            call(ok, option_on)
+
     # ---- the confirmation dialog
     def confirm(
         self,
@@ -77,4 +122,4 @@ class Notifier(QObject):
 
     def waiting(self) -> int:
         """How many confirmations are still unanswered."""
-        return len(self._waiting)
+        return len(self._waiting) + len(self._full)

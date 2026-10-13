@@ -368,6 +368,8 @@ class CoopView:
                 notice(self, "error", "Seamless Co-op was not moved", str(e))
                 return
             notice(self, "success", "Seamless Co-op moved into this setup", str(dest), duration=6000)
+            if found.launcher_left:
+                notice(self, "warning", "The old launcher is still there", found.launcher_left)
         else:
             ok = confirm(
                 self,
@@ -385,6 +387,8 @@ class CoopView:
                 notice(self, "error", "The game folder was not cleaned up", str(e))
                 return
             notice(self, "success", "Old Seamless Co-op files sent to the Recycle Bin", duration=6000)
+            if found.launcher_left:
+                notice(self, "warning", "The old launcher is still there", found.launcher_left)
         s._ini = None  # the profile may load a different ini now
         self.ini = s.ini
         self._load_coop()

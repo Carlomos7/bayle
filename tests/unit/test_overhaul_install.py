@@ -536,3 +536,49 @@ def test_without_choices_an_installer_setups_side_effects_stay(world):
     r = overhaul_install.preview_remove(world.profile, loc=world.loc)
     overhaul_install.remove(r)
     assert world.data()["start_online"] is False
+
+
+# ----------------------------------------------------------------------------- the services the pages call
+def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch):
+    from roundtable_souls.config import settings
+    from roundtable_souls.platform import logging as run_logging
+    from roundtable_souls.services import mods as service
+
+    assert not service.overhaul_preview_on(world.loc)  # the switch is off by default
+    settings.save_settings(overhaul_install=True)
+    assert service.overhaul_preview_on(world.loc)
+    undos = []
+    monkeypatch.setattr(run_logging, "set_undo", lambda d: undos.append(d))
+    p = service.preview_overhaul_install(world.profile, world.download, loc=world.loc)
+    out = service.install_overhaul(p, loc=world.loc)
+    assert undos[-1] == {
+        "type": "overhaul-install",
+        "profile": str(world.profile),
+        "name": "Nightreign Revive",
+        "operation": out["operation"],
+    }
+    assert undo.available(undos[-1])
+    assert service.profile_overhaul(world.profile, loc=world.loc) == {
+        "label": "Nightreign Revive",
+        "short_label": "Revive",
+        "legacy": False,
+    }
+    r = service.preview_overhaul_removal(world.profile, loc=world.loc)
+    service.remove_overhaul(r)
+    assert undos[-1]["type"] == "overhaul-remove" and len(undos[-1]["trash"]) == 2
+    assert undo.available(undos[-1]) and service.profile_overhaul(world.profile, loc=world.loc) is None
+
+
+def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
+    from roundtable_souls.services import mods as service
+
+    legacy(world)
+    assert service.profile_overhaul(world.profile, loc=world.loc)["legacy"] is True
+    [(text, effect)] = service.legacy_overhaul_choices(world.profile, loc=world.loc)
+    assert text == "start_online: back to on (its installer made it off)"
+    r = service.preview_overhaul_removal(world.profile, loc=world.loc, legacy_choices=[effect])
+    service.remove_overhaul(r)
+    left = service.overhaul_leftovers(world.profile, loc=world.loc)
+    assert [x.backups for x in left] == [False, True]
+    service.remove_overhaul_leftovers([x.path for x in left])
+    assert service.overhaul_leftovers(world.profile, loc=world.loc) == []

@@ -239,3 +239,115 @@ def create_first_profile(name: str, include_seamless: bool, *, loc: Locations, l
 
 def delete_profile(path) -> Path:
     return mod_manage.delete_profile(Path(path))
+
+
+# ----------------------------------------------------------------------------- overhauls with the launcher (preview)
+# The Mods page's Overhaul button (Widgets) and the Qt Quick page share these; the decisions and every word shown are
+# in mods.overhaul_install. Previews read only; install_overhaul, remove_overhaul and remove_overhaul_leftovers run
+# inside a logged job and leave the undo record Activity offers (mods.undo).
+
+
+def overhaul_preview_on(loc: Locations) -> bool:
+    """The Settings switch "Install overhauls with the launcher (preview)" is on and the game has an overhaul the
+    launcher can install."""
+    from roundtable_souls import overhauls
+
+    if not load_settings().overhaul_install:
+        return False
+    return any(b.install is not None for c in overhauls.load(loc.game.key) for b in c.builds)
+
+
+def preview_overhaul_install(profile, download, *, loc: Locations):
+    """What installing the download into the profile does (overhaul_install.InstallPreview: lines, notes,
+    refusals). Raises overhaul_install.OverhaulError when the download is not one the launcher installs."""
+    from roundtable_souls.mods import overhaul_install
+
+    return overhaul_install.preview_install(Path(profile), Path(download), loc=loc)
+
+
+def install_overhaul(preview, *, loc: Locations) -> dict:
+    """Install as previewed, as one operation, and leave its undo record (Undo install, or Roll back for an
+    update)."""
+    from roundtable_souls.mods import overhaul_install
+
+    out = overhaul_install.install(preview, loc=loc, log=run_logging.log)
+    run_logging.set_undo(
+        {
+            "type": "overhaul-update" if out["update"] else "overhaul-install",
+            "profile": str(preview.profile),
+            "name": out["name"],
+            "operation": out["operation"],
+        }
+    )
+    run_logging.log(f"done: {'updated' if out['update'] else 'installed'} {preview.label} in {preview.profile.name}")
+    return out
+
+
+def profile_overhaul(profile, *, loc: Locations) -> dict | None:
+    """The overhaul the profile has, for the Overhaul menu: {label, short_label, legacy} (legacy: its own installer
+    set it up), or None."""
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+
+    hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
+    if hit is None:
+        return None
+    config = hit[0]
+    return {
+        "label": config.label,
+        "short_label": config.short_label,
+        "legacy": overhaul_install.installer_setup(Path(profile), config) is not None,
+    }
+
+
+def legacy_overhaul_choices(profile, *, loc: Locations) -> list[tuple[str, object]]:
+    """For a setup an overhaul's own installer made: the changes it made that can be put back, each (text, the
+    change to pass to preview_overhaul_removal). Empty when there is nothing to compare with."""
+    from roundtable_souls.mods import overhaul_install
+
+    return [(overhaul_install.choice_text(e), e) for e in overhaul_install.legacy_effects(Path(profile), loc=loc)]
+
+
+def preview_overhaul_removal(profile, *, loc: Locations, revert_asked: bool = False, legacy_choices=()):
+    """What Remove overhaul does (overhaul_install.RemovePreview: lines, asked, refusals). Raises
+    overhaul_install.OverhaulError when the profile has no overhaul the launcher knows."""
+    from roundtable_souls.mods import overhaul_install
+
+    return overhaul_install.preview_remove(
+        Path(profile), loc=loc, revert_asked=revert_asked, legacy_choices=list(legacy_choices)
+    )
+
+
+def remove_overhaul(preview) -> dict:
+    """Remove as previewed, as one operation, and leave its undo record (Restore)."""
+    from roundtable_souls.mods import overhaul_install
+
+    out = overhaul_install.remove(preview, log=run_logging.log)
+    run_logging.set_undo(
+        {
+            "type": "overhaul-remove",
+            "profile": str(preview.profile),
+            "name": out["name"],
+            "operation": out["operation"],
+            "trash": out["trash"],
+        }
+    )
+    run_logging.log(f"done: removed {out['name']} from {preview.profile.name}")
+    return out
+
+
+def overhaul_leftovers(profile, *, loc: Locations) -> list:
+    """What overhauls' own installers left beside the profile that no profile there uses (overhaul_install.Leftover:
+    path, size, label, backups), the installers' profile backups last."""
+    from roundtable_souls.mods import overhaul_install
+
+    return overhaul_install.leftovers(Path(profile), loc=loc)
+
+
+def remove_overhaul_leftovers(paths) -> list[dict]:
+    """Send the chosen leftovers to the Recycle Bin (run inside a logged job)."""
+    from roundtable_souls.mods import overhaul_install
+
+    out = overhaul_install.remove_leftovers([Path(p) for p in paths], log=run_logging.log)
+    run_logging.log(f"done: {len(out)} folder(s) moved to the Recycle Bin")
+    return out

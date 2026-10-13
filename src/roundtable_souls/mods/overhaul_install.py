@@ -505,6 +505,13 @@ def _effect_line(e: records.SideEffect) -> str:
     return f"{what}: {was} becomes {_shown(e.after)} (put back when you remove it, if you haven't changed it)"
 
 
+def choice_text(e: records.SideEffect) -> str:
+    """A change an overhaul's own installer made, as a choice to put back (legacy_effects)."""
+    what = f"{e.entry}'s {e.setting}" if e.entry else e.setting
+    was = _shown(e.before) if e.before_set else "not set"
+    return f"{what}: back to {was} (its installer made it {_shown(e.after)})"
+
+
 def _install_lines(p: InstallPreview, plan: install_plan.Plan) -> list[str]:
     cfg = p.found.config
     assert p.places is not None

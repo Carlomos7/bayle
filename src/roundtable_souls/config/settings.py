@@ -173,7 +173,10 @@ class LauncherSettings(BaseModel):
     # Co-op page notices about Seamless Co-op left in the game folder, turned off for good: "<game>|<profile>|<kind>"
     coop_relocate_dismissed: list[str] = Field(default_factory=list)
     play_backup_before: bool = False
-    play_repair_after: bool = True
+    play_repair_after: bool = True  # Nightreign: re-sign the save's sections me3 can leave unsigned
+    # Elden Ring: restore the save's regulation copy after me3. The game never reads it back (game model,
+    # 2026-10-13); only save editors do, so it is off unless the player turns it on.
+    play_repair_after_eldenring: bool = False
     play_clear_before: bool = True
     play_clear_after: bool = True
     warn_dead_shells: bool = True

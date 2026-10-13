@@ -221,5 +221,21 @@ def create_profile(name: str, copy_from=None, *, loc: Locations) -> Path:
     return mod_manage.create_profile(folder, name, game=loc.game.key, copy_from=copy_from)
 
 
+def create_first_profile(name: str, include_seamless: bool, *, loc: Locations, log=lambda s: None) -> Path:
+    """The Play page's "Get started": a new profile for loc's game (create_profile), and, when asked and Seamless
+    Co-op sits in the game folder, Seamless Co-op moved into it (services.coop). Returns the profile."""
+    from roundtable_souls.services import coop as coop_service
+    from roundtable_souls.services import play as play_service
+
+    path = create_profile(name, loc=loc)
+    log(f"profile: created {path}")
+    if include_seamless:
+        setup = play_service.Setup("me3", path, loc=loc)
+        found = coop_service.game_folder_seamless(setup)
+        if found is not None and found.kind == "move":
+            coop_service.move_seamless_into_setup(setup, found, log)
+    return path
+
+
 def delete_profile(path) -> Path:
     return mod_manage.delete_profile(Path(path))

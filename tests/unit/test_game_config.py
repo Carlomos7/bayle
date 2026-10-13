@@ -43,11 +43,13 @@ def test_the_writer_writes_exactly_the_layouts_the_config_records():
     assert (w.zstd.level, w.zstd.window_log, w.zstd.content_size) == (dcx.ZSTD_LEVEL, dcx.ZSTD_WINDOW_LOG, False)
 
 
-def test_dflt_fallback_only_for_file_types_the_game_loaded_so():
+def test_dflt_fallback_covers_every_file_type():
+    """The game reads DFLT for any file type: its codec layer has no per-type condition, and an unlisted type loaded
+    in game (evidence E-023)."""
     er = config.load()
     assert er.dflt_fallback_for("msg/engus/menu_dlc02.msgbnd.dcx")
-    assert er.dflt_fallback_for("chr\\c0000_a00_hi.anibnd.dcx")
-    assert not er.dflt_fallback_for("chr/c0000.behbnd.dcx")
+    assert er.dflt_fallback_for("chr\\c0000.behbnd.dcx")
+    assert er.dflt_fallback_for("menu/hi/02_title.tpf.dcx")
 
 
 def test_the_file_category_map_loads_with_plain_labels():

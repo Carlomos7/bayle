@@ -202,6 +202,7 @@ def play(monkeypatch, me3):
         "play_clear_before": True,
         "play_clear_after": True,
         "play_repair_after": True,
+        "play_repair_after_eldenring": True,
         "play_boot_boost": True,
     }
     monkeypatch.setattr(core, "play_options", lambda settings=None: opts)
@@ -237,7 +238,9 @@ def test_play_runs_every_step_in_order_and_records_a_finished_job(play):
 
 
 def test_play_options_that_are_off_are_skipped_and_said(play, lines):
-    play["opts"].update(play_clear_before=False, play_clear_after=False, play_repair_after=False)
+    play["opts"].update(
+        play_clear_before=False, play_clear_after=False, play_repair_after=False, play_repair_after_eldenring=False
+    )
     _run(core.job_play, play["setup"])
     assert "shells killed" not in play["host"].happened() and play["repaired"] == []
     assert any("repair after quitting is off" in line for line in lines)

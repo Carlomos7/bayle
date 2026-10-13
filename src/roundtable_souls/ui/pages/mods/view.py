@@ -1619,7 +1619,7 @@ class ModsView:
         cur = self.setup.profile if self.setup and Path(self.setup.profile).is_file() else None
         dlg = TextDialog(
             "New me3 profile",
-            "Created in me3's profile folder with empty mod and natives folders beside it.",
+            f"Created in me3's profile folder, in {self.game.key}-mods with its own mod and natives folders. A copy goes beside the profile it copies, so its mods keep working.",
             self,
             placeholder="name, e.g. vanilla-plus",
             option=(f"Start from a copy of {Path(cur).name}" if cur else None),

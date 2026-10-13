@@ -104,6 +104,20 @@ Users: download from [Releases](https://github.com/Carlomos7/roundtable-souls/re
 
 See [docs/How to use.txt](docs/How%20to%20use.txt) for the full guide.
 
+**If Windows Defender blocks the install or an update.** The launcher isn't code-signed yet, so Windows Defender can
+wrongly flag it. Setup then says *"Install Partially Succeeded"* or *"the file contains a virus or potentially unwanted
+software (os error -2147024671)"*. To fix it:
+
+1. Open **Windows Security → Virus & threat protection → Protection history**, find the Roundtable Souls entry, and
+   choose **Actions → Restore** (or **Allow on device**).
+2. Still under **Virus & threat protection**, open **Manage settings → Exclusions → Add or remove exclusions → Add an
+   exclusion → Folder**, and add `%LOCALAPPDATA%\Carlomos7.RoundtableSouls`. (Or, in an admin terminal:
+   `Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Carlomos7.RoundtableSouls"`.)
+3. Run `RoundtableSouls-Setup.exe` again and choose **Repair**. Your settings and data are kept.
+
+Exclude only that folder. If you can, tell us the detection name shown in Protection history (for example
+`Trojan:Win32/…`), so we can report the false positive to Microsoft.
+
 Developers:
 
 ```bash

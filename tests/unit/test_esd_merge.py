@@ -190,3 +190,42 @@ def test_in_an_archive_scripts_are_merged_and_switched_off_the_later_mods_is_use
     assert off.clashes and files_of(off.data)["t000001000.esd"] == b  # as before ESD merging: the later mod's script
     assert not on.clashes and options(files_of(on.data)["t000001000.esd"]) == [(1, 2), (2, 3), (10, 4), (20, 5)]
     assert files_of(on.data)["other.esd"] == GAME
+
+
+def _with_unknown_ids(esd: ESD) -> ESD:
+    """A new state using talk command 1:999 and testing function 300, which a game's list below lacks."""
+    menu = esd.state_machines[1]
+    test = num(300) + b"\x84" + num(1) + b"\x95" + END  # f300() == 1
+    menu[4] = State(4, [Condition(0, test)], [call(999), Command(6, 7777, [])])  # bank 6: a machine call, not checked
+    return esd
+
+
+COMMANDS, FUNCTIONS = {19, 110}, {16, 23}
+
+
+def test_talk_commands_and_functions_the_game_lacks_are_found_by_machine_and_state():
+    assert rule.unknown_ids(GAME, COMMANDS, FUNCTIONS) == []
+    found = rule.unknown_ids(write_esd(_with_unknown_ids(game_script())), COMMANDS, FUNCTIONS)
+    assert found == [(1, 4, "command 1:999"), (1, 4, "function 300")]
+
+
+def test_the_merge_warns_about_a_mods_unknown_talk_ids(tmp_path):
+    from roundtable_souls.game import knowledge
+
+    shipped = knowledge._exe_lists("eldenring").versions["2.7.1.0"]
+    lists = knowledge.Lists(
+        shipped.model_copy(update={"talk_command_ids": sorted(COMMANDS), "talk_function_ids": sorted(FUNCTIONS)}),
+        "2.7.1.0",
+        "the game (9.9.9.9) is newer or other than the launcher knows; lists of 1.17.1 used, so this may be out of date",
+    )
+    game = dcx(bnd({"t000001000.esd": GAME}))
+    mod = dcx(bnd({"t000001000.esd": write_esd(_with_unknown_ids(game_script()))}))
+    r = merger.merge(game, [("Talky", mod)], name="script/talk/m00_00_00_00.talkesdbnd.dcx", lists=lists)
+    (warned,) = r.warnings.values()  # under the inner file's path
+    assert warned == [
+        "Talky uses talk commands the game doesn't have, which do nothing in game: 1:999 (machine 1, state 4) "
+        f"({lists.caveat})",
+        "Talky uses talk functions the game doesn't have, so what those tests give is unknown: 300 (machine 1, "
+        f"state 4) ({lists.caveat})",
+    ]
+    assert not merger.merge(game, [("Talky", mod)], name="script/talk/m00_00_00_00.talkesdbnd.dcx").warnings

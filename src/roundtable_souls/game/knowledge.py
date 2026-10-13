@@ -23,6 +23,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from roundtable_souls.game import catalog
 from roundtable_souls.game import exe as game_exe
 from roundtable_souls.resources import DATA_DIR
 
@@ -118,6 +119,17 @@ def exe_lists(exe: Path | str | None, game: str = "eldenring") -> Lists:
     if sha is not None and sha != lists.exe_sha256:
         return Lists(lists, version, f"an unverified build of {lists.game} (its exe differs from the one checked)")
     return Lists(lists, version)
+
+
+def lists_for(game_dir: Path | str | None, game: str = "eldenring") -> Lists | None:
+    """The lists for the game installed in `game_dir` (its exe named by the game catalog); None for a game the
+    launcher has no lists for. No folder: the newest known, with a caveat."""
+    if not (GAMES_DIR / f"{game}-exe-lists.json").is_file():
+        return None
+    known = {g.key: g for g in catalog.GAMES}.get(game)
+    if game_dir is None or known is None:
+        return exe_lists(None, game)
+    return exe_lists(Path(game_dir) / known.exe, game)
 
 
 def binder_identity(kind: str, game: str = "eldenring") -> Identity | None:

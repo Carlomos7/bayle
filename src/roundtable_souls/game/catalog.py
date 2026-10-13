@@ -23,6 +23,7 @@ class Game:
     save_stem: str  # save file name without extension
     coop_dll: str | None = None  # Seamless Co-op dll for this game, if one exists
     coop_ini: str | None = None
+    coop_launcher: str | None = None  # Seamless Co-op's own launcher, which its installer puts in the game folder
     regulation: str = "regulation.bin"  # the parameter file in the game folder, which a package may replace
     save_reader: str | None = None  # "eldenring": characters; "nightreign": checksums; "container": structure only
     save_sections: int | None = None  # sections the game writes into a save, for the structure check
@@ -47,6 +48,7 @@ ELDEN_RING = Game(
     save_stem="ER0000",
     coop_dll="ersc.dll",
     coop_ini="ersc_settings.ini",
+    coop_launcher="ersc_launcher.exe",
     save_reader="eldenring",
     tint="#F9C043",
     regulation_repair=True,
@@ -64,6 +66,7 @@ NIGHTREIGN = Game(
     save_stem="NR0000",
     coop_dll="nrsc.dll",
     coop_ini="nrsc_settings.ini",
+    coop_launcher="nrsc_launcher.exe",
     save_reader="nightreign",
     save_sections=14,
     regulation_repair=True,

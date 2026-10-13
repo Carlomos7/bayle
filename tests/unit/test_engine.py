@@ -685,3 +685,28 @@ def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
         "uses Havok Script syntax (hi-hl numbers) that this check can't read; the rest of the script was checked"
         in report
     )
+
+
+def test_the_parameter_checks_reach_the_builds_report(world):
+    """A row the game's lookup never finds is a warning in the report (3.22-B, P2); the build goes ahead."""
+    from roundtable_souls import formats
+
+    def negative(p):
+        p.rows.append(formats.param.Row(0xFFFFFFFF, p.rows[0].data, ""))
+
+    (world.setup / "payload/mod/regulation.bin").write_bytes(pack({"EquipParamWeapon": negative}))
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert (
+        "warning: the mod sets 1 row of EquipParamWeapon with a negative ID (-1), which the game's lookup never finds"
+        in report
+    )
+
+
+def test_a_regulation_the_game_could_not_read_is_refused_and_the_build_kept(world, monkeypatch):
+    from roundtable_souls.merging.rules import param as param_merge
+
+    monkeypatch.setattr(param_merge, "MAX_ROWS", 1)
+    with pytest.raises(engine.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"):
+        world.build()
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"

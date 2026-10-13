@@ -8,9 +8,14 @@ For every table, each pack is compared with the game's copy and only what it cha
 - a row a pack lacks is kept: packs made from older game data often lack newer rows, and dropping them would undo
   the game's own additions
 - a table whose rows have another size than the game's is skipped for that pack (made for another game version)
-- a table the game does not have is taken from the last pack that has it
+- a table the game does not have is taken from the last pack that has it, and reported: the game matches tables by
+  name and does not read one it doesn't know (the names known are the game's own regulation's)
 
 Rows are matched by ID and, for the few tables that repeat an ID, by which occurrence it is.
+
+What the game cannot take is refused (TableLimit): a table of more than 65,535 rows (its row count is 16 bits), and a
+result missing a table the game's own regulation has (the game reads some tables without checking they exist). Rows
+with negative IDs are reported: the game's lookup by ID never finds them.
 """
 
 from __future__ import annotations
@@ -21,6 +26,13 @@ from dataclasses import dataclass, field
 from roundtable_souls import formats
 
 WORD = 4
+MAX_ROWS = 0xFFFF  # the game's row count is 16 bits
+NEGATIVE = 0x80000000  # IDs from here are negative as the game reads them (signed)
+EXAMPLES = 3
+
+
+class TableLimit(formats.FormatError):
+    """A combined regulation the game could not read: refused, the previous result stays."""
 
 
 @dataclass
@@ -31,6 +43,7 @@ class PackReport:
     changed: int = 0
     added: int = 0
     skipped: list[str] = field(default_factory=list)  # "Table: why"
+    warnings: list[str] = field(default_factory=list)  # what the game will make of this pack's changes
 
 
 @dataclass
@@ -48,6 +61,7 @@ class Report:
                 what += f" (made for regulation {p.version}; the game has {self.base_version})"
             out.append(what)
             out += [f"  skipped {s}" for s in p.skipped]
+            out += [f"  warning: {w}" for w in p.warnings]
         if self.conflicts:
             out.append(
                 f"{len(self.conflicts)} rows changed by more than one pack; the later pack won where they overlap:"
@@ -95,10 +109,14 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
     report = Report(base.version, [PackReport(name, r.version) for name, r in regs])
     names = [e.name or "" for e in base.bnd.entries]
     extra: dict[str, formats.bnd4.Entry] = {}
-    for _name, r in regs:
+    for i, (_name, r) in enumerate(regs):
         for f in r.bnd.entries:
-            if base.bnd.get(_short(f.name or "")) is None:
-                extra[_short(f.name or "").lower()] = f  # a table the game does not have: the last pack's
+            short = _short(f.name or "")
+            if base.bnd.get(short) is None:
+                extra[short.lower()] = f  # a table the game does not have: the last pack's
+                report.packs[i].warnings.append(
+                    f"{report.packs[i].name} adds {short.rsplit('.', 1)[0]}, which the game does not read"
+                )
     for full in names:
         short = _short(full)
         vfile = base.bnd.get(short)
@@ -128,6 +146,20 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
                 )
                 continue
             did = False
+            negative = [
+                row.id
+                for key, row in _keyed(p.rows).items()
+                if row.id >= NEGATIVE and (key not in vkeyed or vkeyed[key].data != row.data)
+            ]
+            if negative:
+                shown = ", ".join(str(n - (1 << 32)) for n in negative[:EXAMPLES]) + (
+                    ", ..." if len(negative) > EXAMPLES else ""
+                )
+                rows = "row" if len(negative) == 1 else "rows"
+                rep.warnings.append(
+                    f"{pname} sets {len(negative)} {rows} of {short.rsplit('.', 1)[0]} with a negative ID ({shown}), "
+                    "which the game's lookup never finds"
+                )
             for key, row in _keyed(p.rows).items():
                 if key in vkeyed:
                     vrow = vkeyed[key]
@@ -164,6 +196,11 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
             if len(changers.get(key, [])) > 1:
                 report.conflicts.append((short.rsplit(".", 1)[0], key[0], changers[key]))
         if table_changed:
+            if len(out_rows) > MAX_ROWS:
+                raise TableLimit(
+                    f"{short.rsplit('.', 1)[0]} would have {len(out_rows):,} rows; the game reads at most "
+                    f"{MAX_ROWS:,} per table"
+                )
             v.rows = out_rows
             vfile.data = formats.param.write_param(v)
             report.tables += 1
@@ -171,4 +208,17 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
         new_id = max((x.id for x in base.bnd.entries), default=-1) + 1
         base.bnd.entries.append(formats.bnd4.Entry(f.name, new_id, f.data, f.flags))
         report.tables += 1
+    lacking = missing_tables(names, base.bnd)
+    if lacking:
+        raise TableLimit(
+            f"the result lacks {', '.join(lacking)}, which the game's own regulation has; the game would crash "
+            "reading it"
+        )
     return formats.regulation.write_regulation(base), report
+
+
+def missing_tables(game_names: list[str], built: formats.bnd4.Bnd4) -> list[str]:
+    """Tables (short names, no extension) the game's own regulation has (game_names: its entries' names) that the
+    built regulation lacks."""
+    have = {_short(e.name or "").lower() for e in built.entries}
+    return [_short(n).rsplit(".", 1)[0] for n in game_names if _short(n).lower() not in have]

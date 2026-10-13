@@ -143,6 +143,13 @@ def game_folder_seamless(setup) -> GameFolderSeamless | None:
     return GameFolderSeamless("cleanup", folder, files, launcher, differ)
 
 
+def seamless_in_game_folder(loc) -> bool:
+    """Whether Seamless Co-op's DLL is in loc's game folder (its own installer's place), with or without a profile."""
+    game = loc.game
+    gdir = loc.game_dir()
+    return bool(game.coop_dll and gdir and (Path(gdir) / "SeamlessCoop" / game.coop_dll).is_file())
+
+
 def move_seamless_into_setup(setup, found: GameFolderSeamless, log=lambda s: None) -> Path:
     """Move Seamless Co-op from the game folder into the setup's DLL folder (natives/SeamlessCoop, or -2…), add it to
     the profile as an early-loading DLL (a switched-off entry for it is replaced), and send its own launcher to the

@@ -380,7 +380,14 @@ def entries(profile: Path) -> list[dict]:
 
 # ----------------------------------------------------------------------------- profiles
 def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: Path | None = None) -> Path:
+    """A new profile in me3's profiles folder `folder`, in its game's own `<game>-mods` folder with its own mod and
+    natives folders (me3's usual layout; games never share mod folders). A copy of another profile goes beside that
+    profile instead, so its relative entry paths keep pointing at the same mods."""
     folder = Path(folder)
+    if copy_from and Path(copy_from).is_file():
+        folder = Path(copy_from).parent
+    else:
+        folder = folder / f"{game}-mods"
     folder.mkdir(parents=True, exist_ok=True)
     stem = slug(name)
     if stem.lower().endswith(".me3"):

@@ -349,12 +349,14 @@ def test_create_and_delete_profile(tmp_path):
     assert p.name == "My-Setup.me3" and tomllib.loads(p.read_text(encoding="utf-8"))["supports"] == [
         {"game": "eldenring"}
     ]
-    assert (tmp_path / "profiles" / "mod").is_dir() and (tmp_path / "profiles" / "natives").is_dir()
+    game_dir = tmp_path / "profiles" / "eldenring-mods"  # each game in its own folder, with its own mods
+    assert p.parent == game_dir and (game_dir / "mod").is_dir() and (game_dir / "natives").is_dir()
     with pytest.raises(M.ModError):
         M.create_profile(tmp_path / "profiles", "My Setup")
     src = _profile(tmp_path / "src")
     c = M.create_profile(tmp_path / "profiles", "copy.me3", copy_from=src)
     assert c.name == "copy.me3" and "flora" in c.read_text(encoding="utf-8")
+    assert c.parent == src.parent  # beside the original, so its relative paths still point at the mods
     gone = M.delete_profile(c)
     from roundtable_souls.platform import data_folder
 

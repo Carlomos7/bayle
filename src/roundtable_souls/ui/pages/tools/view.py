@@ -243,6 +243,16 @@ class ToolsView:
                 "versions still use their own installer. Off: the installer runs, as before.",
             ),
             (
+                "overhaul_install",
+                "Install overhauls with the launcher (preview)",
+                "Adds an Overhaul button to the Mods page: install Nightreign Revive LITE 0.1.33 into a profile from "
+                "the folder you unpacked its download into, without running its installer, and remove it again.",
+                "Every change is shown before it happens, and each install or removal can be undone from Activity. "
+                "The launcher keeps a copy of the download and its notes in rs-eldenring, in me3's profiles folder; "
+                "Revive's own folder stays beside your profile. A Revive its own installer set up isn't changed: "
+                "remove it first. Off: the button is hidden; nothing installed with it changes.",
+            ),
+            (
                 "play_boot_boost",
                 "Boot boost",
                 "me3 caches the decrypted game archives so the game starts faster.",
@@ -865,6 +875,8 @@ class ToolsView:
         setattr(self.settings, key, bool(checked))
         if key == "warn_dead_shells":
             self._on_shells(dead_shells_count(loc=self.ctx.locations))
+        if key == "overhaul_install":
+            self._sync_overhaul_button()
 
     def _on_theme(self, dark):
         save_settings(theme="dark" if dark else "light")

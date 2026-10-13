@@ -1100,36 +1100,29 @@ class ModsView:
         prof = Path(profile or (self.setup.profile if self.setup else ""))
         if self.busy or not prof.is_file():
             return
-        if self.game_running:
-            self._toast("Close the game first", "The rebuild rewrites files the game has open.", error=True)
-            return
-        blocked = core.mod_merge.setup_problem(prof, loc=self.ctx.locations)
-        if blocked:
-            self._toast("It cannot be rebuilt now", blocked, error=True)
-            return
-        tool = core.mod_merge.find_backend(prof, loc=self.ctx.locations)
-        h = core.mod_merge.health(prof, loc=self.ctx.locations)
-        if tool is None and not (h.get("combine") or h.get("can_combine") or combine):
-            self._toast(
-                "Nothing to rebuild", "Fewer than two packs ship parameters and there is no rebuild tool.", error=True
-            )
+        refusal = profile_mods.rebuild_refusal(
+            prof, loc=self.ctx.locations, game_running=self.game_running, combine=combine
+        )
+        if refusal is not None:
+            code, detail = refusal
+            if code == profile_mods.REBUILD_GAME_RUNNING:
+                self._toast("Close the game first", "The rebuild rewrites files the game has open.", error=True)
+            elif code == profile_mods.REBUILD_BLOCKED:
+                self._toast("It cannot be rebuilt now", detail, error=True)
+            else:
+                self._toast(
+                    "Nothing to rebuild",
+                    "Fewer than two packs ship parameters and there is no rebuild tool.",
+                    error=True,
+                )
             return
         if not self._tool_ready(prof):
             return
-
-        def job(_setup, loc):
-            run_logging.start_log("launcher: rebuild combined parameters", loc.game.key)
-            try:
-                out = core.mod_merge.rebuild(prof, run_logging.log, combine=combine, loc=loc)
-                core.run_logging.set_undo(out.get("undo"))
-                run_logging.log(f"done: combined parameters rebuilt by {out['backend']}; {out['profile_note']}")
-            except core.mod_merge.MergeError as e:
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-
         self.start(
-            job,
-            "Rebuilding combined parameters..." if tool is not None or h.get("combine") else "Combining parameters...",
+            profile_mods.rebuild_job(prof, combine),
+            "Rebuilding combined parameters..."
+            if profile_mods.rebuild_uses_tool(prof, loc=self.ctx.locations)
+            else "Combining parameters...",
             need_setup=False,
         )
 

@@ -375,3 +375,75 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         configs=configs,
         not_loaded={"package": len(pk.get("unlisted") or []), "native": len(nt.get("unlisted") or [])},
     )
+
+
+# ----------------------------------------------------------------------------- rebuilding the combined parameters
+REBUILD_GAME_RUNNING = "game-running"
+REBUILD_BLOCKED = "blocked"
+REBUILD_NOTHING = "nothing"
+
+
+def rebuild_refusal(
+    profile, *, loc: Locations, game_running: bool, combine: bool | None = None
+) -> tuple[str, str] | None:
+    """Why the combined parameters cannot be rebuilt now: (one of the REBUILD_* codes, the detail), or None."""
+    prof = Path(profile)
+    if game_running:
+        return REBUILD_GAME_RUNNING, ""
+    blocked = mod_merge.setup_problem(prof, loc=loc)
+    if blocked:
+        return REBUILD_BLOCKED, str(blocked)
+    tool = mod_merge.find_backend(prof, loc=loc)
+    health = mod_merge.health(prof, loc=loc)
+    if tool is None and not (health.get("combine") or health.get("can_combine") or combine):
+        return REBUILD_NOTHING, ""
+    return None
+
+
+def rebuild_uses_tool(profile, *, loc: Locations) -> bool:
+    """A rebuild tool (or the launcher's own combine already set up) does it, rather than a first combine."""
+    prof = Path(profile)
+    return mod_merge.find_backend(prof, loc=loc) is not None or bool(mod_merge.health(prof, loc=loc).get("combine"))
+
+
+def rebuild_job(profile, combine: bool | None = None):
+    """The logged job that rebuilds (or combines) the parameters and leaves the rebuild's undo record."""
+    prof = Path(profile)
+
+    def job(_setup, loc):
+        run_logging.start_log("launcher: rebuild combined parameters", loc.game.key)
+        try:
+            out = mod_merge.rebuild(prof, run_logging.log, combine=combine, loc=loc)
+            run_logging.set_undo(out.get("undo"))
+            run_logging.log(f"done: combined parameters rebuilt by {out['backend']}; {out['profile_note']}")
+        except mod_merge.MergeError as e:
+            run_logging.log(f"error: {e}")
+            raise SystemExit(1) from e
+
+    return job
+
+
+def last_rebuild_undo(profile) -> dict | None:
+    """The newest finished rebuild of this profile that can still be taken back (its job record), or None."""
+    from roundtable_souls.mods import undo as mod_undo
+
+    prof = Path(profile)
+    for rec in run_logging.read_jobs():
+        undo = rec.get("undo") or {}
+        if undo.get("type") != "rebuild" or rec.get("outcome") not in ("done", "warnings"):
+            continue
+        if not mod_checks.same_folder(Path(undo.get("profile") or ""), prof):
+            continue
+        return rec if mod_undo.available(undo) else None
+    return None
+
+
+# ----------------------------------------------------------------------------- the profile's own history
+def undo_last_change(profile) -> Path | None:
+    """Put back the copy kept just before the last change to the profile (mods.history); the copy of the profile as
+    it was (so this can be undone too), or None when there is no copy."""
+    from roundtable_souls.mods import history as mod_history
+
+    prof = Path(profile)
+    copy = mod_history.latest(prof)
+    return mod_history.restore(prof, copy) if copy is not None else None

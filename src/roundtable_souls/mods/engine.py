@@ -346,7 +346,8 @@ def build(
             log(f"engine: {name} kept beside the mod's DLLs")
         (stage / out_cfg.get("report", "merge-report.txt")).write_text(
             f"{recipe['label']} {version}, built by Roundtable Souls {__version__} from {len(inputs)} package(s).\n"
-            + ("".join(f"{line}\n" for line in report) or "No clashes.\n"),
+            + "".join(f"{line}\n" for line in report)
+            + ("" if any(line.startswith("clash:") for line in report) else "No clashes.\n"),
             encoding="utf-8",
             newline="\n",
         )
@@ -473,7 +474,16 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         layers.append((Path(source).as_posix(), source.read_bytes()))
     layers.append(("the mod", patch))
     log(f"  merging {rel}")
-    result = merger.merge(vanilla, layers, dec, comp, game_config.load().dflt_fallback_for(rel))
+    result = merger.merge(vanilla, layers, dec, comp, game_config.load().dflt_fallback_for(rel), name=rel)
+    for where, said in result.omission_notices(rel):
+        line = f"notice: {_named(where) if where == rel else where}: {said}"
+        report.append(line)
+        log(f"  {line}")
+    for where, said in sorted(result.warnings.items()):
+        for text in said:
+            line = f"warning: {rel}{'' if where == '/' else ' ' + where}: {text}"
+            report.append(line)
+            log(f"  {line}")
     if result.clashes:
         log(f"  {rel}: {result.summary()}")
         for where, who in sorted(result.clashes.items()):

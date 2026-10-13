@@ -431,7 +431,7 @@ class CombineTool:
                 else:
                     layers_ = [(o["name"], (Path(o["folder"]) / o["rel"]).read_bytes()) for o in owners]
                     fallback = game_config.load().dflt_fallback_for(rel)
-                    result = merger.merge(vanilla, layers_, dec, comp, fallback)
+                    result = merger.merge(vanilla, layers_, dec, comp, fallback, name=rel)
                     if not result.merged:
                         entry["skipped"] = "not an archive or a text table the launcher can merge yet"
                     else:
@@ -442,10 +442,17 @@ class CombineTool:
                             "clashes": result.clashes,
                             "removed": result.removed,
                             "notes": result.notes,
+                            "warnings": result.warnings,
+                            "omissions": [{"path": p, "notice": n} for p, n in result.omission_notices(rel)],
                         }
                         log(f"  merged {rel} from {' and '.join(o['name'] for o in owners)}: {result.summary()}")
                         if result.removed:
                             log(f"    {len(result.removed)} part(s) left out by a mod's copy are left out")
+                        for path, said in result.omission_notices(rel):
+                            log(f"    notice: {path}: {said}")
+                        for part, warned in result.warnings.items():
+                            for text in warned:
+                                log(f"    warning: {part}: {text}")
                         for part, who in list(result.clashes.items())[:5]:
                             log(f"    {part}: changed by {', '.join(who)}; {who[-1]}'s is used")
             except (OSError, formats.FormatError, gamearchive.ArchiveError) as e:

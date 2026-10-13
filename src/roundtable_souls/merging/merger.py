@@ -18,6 +18,7 @@ import struct
 import zlib
 
 from roundtable_souls import formats
+from roundtable_souls.game import knowledge
 from roundtable_souls.merging.changes import Result
 from roundtable_souls.merging.rules import bnd4 as bnd4_rule
 from roundtable_souls.merging.rules import esd as esd_rule
@@ -44,10 +45,16 @@ def mergeable(body: bytes) -> bool:
 
 
 def merge(
-    vanilla: bytes | None, layers: list[tuple[str, bytes]], oodle=None, compressor=None, dflt_fallback: bool = False
+    vanilla: bytes | None,
+    layers: list[tuple[str, bytes]],
+    oodle=None,
+    compressor=None,
+    dflt_fallback: bool = False,
+    name: str = "",
 ) -> Result:
     """Merge the mods' copies of one file (as stored: DCX-compressed or not), in load order, against the game's own
-    copy (None when the game has no such file: the first mod's copy is then the base)."""
+    copy (None when the game has no such file: the first mod's copy is then the base). name: the file's game path
+    ("parts/bd_m_1000.partsbnd.dcx"); an archive's kind, which says how the game finds its inner files, comes from it."""
     if not layers:
         raise ValueError("nothing to merge")
     if vanilla is None:
@@ -64,13 +71,22 @@ def merge(
         except damaged as e:
             raise formats.FormatError(f"{label}'s copy is damaged or not in the format it claims ({e})") from e
     try:
-        result = _merge_body(base, bodies, "")
+        result = _merge_body(base, bodies, "", name)
     except formats.FormatError:
         raise
     except damaged as e:
         raise formats.FormatError(f"a copy is damaged or not in the format it claims ({e})") from e
     if not result.merged:
-        return Result(layers[-1][1], result.changed, result.clashes, False, result.removed, result.notes)
+        return Result(
+            layers[-1][1],
+            result.changed,
+            result.clashes,
+            False,
+            result.removed,
+            result.notes,
+            result.warnings,
+            result.omissions,
+        )
     result.data = formats.dcx.pack(result.data, how, compressor, dflt_fallback) if result.data != base else vanilla
     return result
 
@@ -80,9 +96,9 @@ def _nested(base: bytes, bodies: list[tuple[str, bytes]], where: str) -> Result 
     return _merge_body(base, bodies, where) if mergeable(base) else None
 
 
-def _merge_body(base: bytes, bodies: list[tuple[str, bytes]], where: str) -> Result:
+def _merge_body(base: bytes, bodies: list[tuple[str, bytes]], where: str, name: str = "") -> Result:
     if formats.bnd4.is_bnd4(base) and all(formats.bnd4.is_bnd4(b) for _, b in bodies):
-        return bnd4_rule.merge(base, bodies, where, _nested)
+        return bnd4_rule.merge(base, bodies, where, _nested, knowledge.binder_kind(where or name))
     if formats.fmg.is_fmg(base) and all(formats.fmg.is_fmg(b) for _, b in bodies):
         return fmg_rule.merge(base, bodies, where)
     if ESD_MERGING and esd_rule.is_esd(base) and all(esd_rule.is_esd(b) for _, b in bodies):

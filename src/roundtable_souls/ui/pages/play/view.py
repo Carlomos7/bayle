@@ -20,13 +20,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (
+    CheckBox,
     ComboBox,
+    LineEdit,
 )
 from qfluentwidgets import FluentIcon as FI
 
 from roundtable_souls.config.settings import exe_dir
 from roundtable_souls.game import catalog as games
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.services import coop as coop_service
+from roundtable_souls.services import mods as mods_service
 from roundtable_souls.services import play as core
 from roundtable_souls.services.play import (
     job_play,
@@ -54,7 +58,7 @@ from roundtable_souls.ui.theme import (
     hint,
     tone_label,
 )
-from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard
+from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard, card
 from roundtable_souls.ui.widgets.hero import HeroBanner
 from roundtable_souls.ui.widgets.layout import page
 from roundtable_souls.ui.widgets.log import LogPane, short_problem
@@ -80,6 +84,27 @@ class PlayView:
         lay.addWidget(self.hero)
         self.plan = hint("")
         lay.addWidget(self.plan)
+        # Get started: shown instead of an empty setup when the game has no profile yet
+        self.start_card, sl = card("Get started", FI.ADD)
+        self.start_text = hint()
+        self.start_text.setWordWrap(True)
+        sl.addWidget(self.start_text)
+        row = QHBoxLayout()
+        self.start_name = LineEdit()
+        self.start_name.setMinimumWidth(160)
+        row.addWidget(self.start_name, 1)
+        self.start_go = ghost_btn("Create a profile", FI.ADD, role="action")
+        self.start_go.clicked.connect(self._get_started)
+        row.addWidget(self.start_go)
+        browse = ghost_btn("I already have one…", FI.FOLDER)
+        browse.clicked.connect(self.browse)
+        row.addWidget(browse)
+        sl.addLayout(row)
+        self.start_seamless = CheckBox("Include Seamless Co-op from the game folder (moved into the new profile)")
+        self.start_seamless.setChecked(True)
+        sl.addWidget(self.start_seamless)
+        lay.addWidget(self.start_card)
+        self.start_card.hide()
         self.setup_exp = ExpandGroupSettingCard(FI.SETTING, "Setup", "The profile Play launches.")
         body = QWidget()
         cl = QVBoxLayout(body)
@@ -114,6 +139,58 @@ class PlayView:
         lay.addWidget(self.log_exp)
         lay.addStretch(1)
 
+    # ---------------------------------------------------------------- get started (no profile yet)
+    def _show_get_started(self, show: bool):
+        if not show:
+            self.start_card.hide()
+            return
+        g, loc = self.game, self.ctx.locations
+        try:
+            starter = (loc.me3_profiles_dir() or Path()).joinpath(f"{g.key}-default.me3").is_file()
+            seamless = bool(g.coop_dll) and coop_service.seamless_in_game_folder(loc)
+        except OSError:
+            starter = seamless = False
+        text = f"There's no me3 profile for {g.name} yet. Create one to start adding mods; Play then launches it."
+        if starter:
+            text += (
+                f" (me3's own {g.key}-default.me3 loads a whole folder as one mod, so the launcher can't manage mods "
+                "in it; a profile of your own works with everything here.)"
+            )
+        self.start_text.setText(text)
+        if not self.start_name.text().strip():
+            self.start_name.setText(f"{g.name} mods")
+        self.start_seamless.setVisible(seamless)
+        self.start_card.show()
+
+    def _get_started(self):
+        name = self.start_name.text().strip() or f"{self.game.name} mods"
+        loc = self.ctx.locations
+        include = self.start_seamless.isVisible() and self.start_seamless.isChecked()
+        if include and self.game.coop_launcher and (Path(loc.game_dir() or "") / self.game.coop_launcher).is_file():
+            if not confirm(
+                self,
+                "Move Seamless Co-op into the new profile",
+                changes=[f"Seamless Co-op moves from the game folder into the new {name} profile, settings included"],
+                warning=(
+                    f"{self.game.coop_launcher}, Seamless Co-op's own launcher, goes to the Recycle Bin: starting "
+                    "the game with it will no longer work. Play from here (me3) instead."
+                ),
+                apply_text="Create and move",
+            ):
+                return
+        try:
+            p = mods_service.create_first_profile(name, include, loc=loc, log=self._log)
+        except Exception as e:  # noqa: BLE001 - reported to the player
+            notice(self, "error", "The profile was not created", str(e))
+            return
+        self.setups = core.discover(str(p), loc)
+        remember_setup(str(p), self.game)
+        self.settings = load_settings()
+        self._fill_setups(select=str(p))
+        notice(
+            self, "success", "Profile created", f"{p.name} is your setup now. Add mods on the Mods page.", duration=6000
+        )
+
     # ---------------------------------------------------------------- setups
     def _fill_setups(self, select=None):
         self._loading_setups = True
@@ -135,6 +212,7 @@ class PlayView:
     def _on_setup(self, *_):
         s = self.setups[self.setup_box.currentIndex()] if self.setups and self.setup_box.currentIndex() >= 0 else None
         self.setup = s
+        self._show_get_started(s is None)
         if not s:
             self.setup_hint.setText(
                 f"No me3 profile for {self.game.name} yet. Create one on the Mods page, or Browse to a .me3 profile"

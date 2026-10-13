@@ -4,6 +4,19 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Combine and overhaul builds are much faster: merged archives are compressed at Oodle level 4 instead of 6. The large
+  effects archive takes about 5 seconds instead of nearly 2 minutes, for about 3% more disk; checked in game with the
+  same effects and load time.
+- Linux and Steam Deck: without the game's Oodle library, any merged file can now be written in the zlib format the
+  game also reads (it was limited to text, animation and effect archives; another file type was checked in game).
+- Play: with no profile for a game yet, a Get started card creates one in one click, in its own <game>-mods folder,
+  and offers to bring in Seamless Co-op from the game folder (its launcher is removed, with a warning).
+- Mods: New profile puts each game's profiles in its own <game>-mods folder with its own mod and natives folders (they
+  were shared between games). A profile made as a copy now sits beside the original, so its mods keep working (the
+  copy's paths pointed at the wrong folder before).
+- Play session: Elden Ring's "Repair saves after quitting" is now off by default and has its own setting. The game
+  never reads the save's regulation section back, so only save editors need it; turn it on under Tools > Play session
+  if you use one. Nightreign's repair, which re-signs its save sections, stays on.
 - Co-op: when Seamless Co-op is installed in the game folder (where its own installer puts it) and your profile
   doesn't load it, the Co-op page offers to move it into your setup and add it to the profile, settings and password
   included. When your profile already has its own copy, it offers to clean up the old one instead. Seamless Co-op's

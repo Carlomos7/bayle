@@ -108,6 +108,7 @@ class GameFolderSeamless:
     files: list[Path] = field(default_factory=list)  # what would move or go: everything in folder but crash dumps
     launcher: Path | None = None  # Seamless Co-op's own launcher in the game folder, removed either way
     settings_differ: bool = False  # cleanup: the game folder's ini differs from the profile's (the profile's is kept)
+    launcher_left: str = ""  # after an action: why the launcher could not be removed (it stays)
 
     def key(self, game: str, profile: str) -> str:
         return f"{game}|{Path(profile).name.lower()}|{self.kind}"
@@ -140,6 +141,13 @@ def game_folder_seamless(setup) -> GameFolderSeamless | None:
     mine = folder / game.coop_ini if game.coop_ini else None
     differ = bool(mine and mine.is_file() and mine.read_bytes() != Path(loaded).read_bytes())
     return GameFolderSeamless("cleanup", folder, files, launcher, differ)
+
+
+def seamless_in_game_folder(loc) -> bool:
+    """Whether Seamless Co-op's DLL is in loc's game folder (its own installer's place), with or without a profile."""
+    game = loc.game
+    gdir = loc.game_dir()
+    return bool(game.coop_dll and gdir and (Path(gdir) / "SeamlessCoop" / game.coop_dll).is_file())
 
 
 def move_seamless_into_setup(setup, found: GameFolderSeamless, log=lambda s: None) -> Path:
@@ -200,11 +208,18 @@ def clean_up_game_folder_seamless(setup, found: GameFolderSeamless, log=lambda s
 
 
 def _trash_launcher(found: GameFolderSeamless, log) -> list[Path]:
+    """Send Seamless Co-op's own launcher to the Recycle Bin. A failure (the folder refuses deletes without admin
+    rights) is logged and leaves the launcher where it is: the move or clean-up itself already happened."""
     from roundtable_souls.platform import trash
 
     if found.launcher is None or not found.launcher.is_file():
         return []
-    trash.send(found.launcher)
+    try:
+        trash.send(found.launcher)
+    except OSError as e:
+        found.launcher_left = f"{found.launcher.name} could not be removed ({e}); delete it by hand if you like"
+        log(found.launcher_left)
+        return []
     log(f"{found.launcher.name} sent to the Recycle Bin")
     return [found.launcher]
 

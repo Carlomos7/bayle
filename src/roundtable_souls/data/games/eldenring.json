@@ -1,6 +1,6 @@
 {
  "game": "eldenring",
- "note": "What the launcher knows about the game's files. archives: RSA public keys of the game's archive headers (Data0-3.bhd, DLC.bhd), as published by the modding community (UXM). dcx_writer: the layouts the launcher writes, each loaded in game (docs/decisions). dflt_fallback: file types the game has loaded as DFLT in place of KRAK, written so only when the game's Oodle library is not there. mod_folders: the top-level folders of a package that me3 serves game files from. file_categories: a short plain name for what a game file is, by its path (lower-case, forward slashes; * matches anything, the first rule that matches wins), shown beside files two mods both change. ignored_dlls: DLLs a mod download may carry that are not mods (mod loaders and runtimes).",
+ "note": "What the launcher knows about the game's files. archives: RSA public keys of the game's archive headers (Data0-3.bhd, DLC.bhd), as published by the modding community (UXM). dcx_writer: the layouts the launcher writes, each loaded in game (docs/decisions). dflt_fallback: file types the game loads as DFLT in place of KRAK, written so only when the game's Oodle library is not there; \"*\" = every type (the game's codec layer has no per-type condition, and an unlisted type loaded in game, 2026-10-13). mod_folders: the top-level folders of a package that me3 serves game files from. file_categories: a short plain name for what a game file is, by its path (lower-case, forward slashes; * matches anything, the first rule that matches wins), shown beside files two mods both change. ignored_dlls: DLLs a mod download may carry that are not mods (mod loaders and runtimes).",
  "archive_names": [
   "Data0",
   "Data1",
@@ -18,8 +18,8 @@
  "oodle_library": "oo2core_*_win64.dll",
  "dcx_writer": {
   "krak": {
-   "level": 6,
-   "header_level": 6
+   "level": 4,
+   "header_level": 4
   },
   "dflt": {
    "level": 9,
@@ -32,9 +32,7 @@
   }
  },
  "dflt_fallback": [
-  ".msgbnd.dcx",
-  ".anibnd.dcx",
-  ".ffxbnd.dcx"
+  "*"
  ],
  "mod_folders": [
   "action",

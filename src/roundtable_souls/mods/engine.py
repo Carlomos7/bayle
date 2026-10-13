@@ -20,7 +20,8 @@ was written for) and the steps that build its output folder from the packages be
                        package has one), several in step order, each wrapping the one before (overhauls.hooks);
                        refused when that already holds a fragment's markers or is compiled (bytecode), or when the
                        result does not compile as Lua 5.1 (overhauls.lua_check; never run), and packages shipping
-                       different entry files are a clash, recorded
+                       different entry files are a clash, recorded; calls and env/act IDs the game can't resolve
+                       are warnings in the report (overhauls.hks_check)
     remove             leftovers (a glob below the output's mod folder)
 
 `each` repeats a merge, text or params step per folder. Files a format rule does not cover (behaviour and animation
@@ -51,8 +52,9 @@ from roundtable_souls import formats, overhauls
 from roundtable_souls.formats import FormatError
 from roundtable_souls.game import catalog as games
 from roundtable_souls.game import config as game_config
+from roundtable_souls.game import knowledge
 from roundtable_souls.game import oodle as game_oodle
-from roundtable_souls.overhauls import hooks, lua_check
+from roundtable_souls.overhauls import hks_check, hooks, lua_check
 
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
@@ -328,7 +330,11 @@ def build(
                 names = _each(step, setup)
                 for each in names:
                     try:
-                        made.append(_launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log))
+                        made.append(
+                            _launcher_step(
+                                step, each, setup, inputs, game_dir, mod, sources, report, log, game=loc.game.key
+                            )
+                        )
                     except FormatError as e:
                         where = _fill(step["file"], {"each": each or ""})
                         raise EngineError(f"{where} could not be merged: {e}") from e
@@ -337,7 +343,7 @@ def build(
                 if target not in hooked:  # every hook step for this entry, composed at the first one
                     hooked.add(target)
                     same = [h for h in recipe["steps"] if h["do"] == "hook" and (h["folder"], h["entry"]) == target]
-                    _hook_step(same, recipe["label"], setup, inputs, mod, sources, report, log)
+                    _hook_step(same, recipe["label"], setup, inputs, mod, sources, report, log, game_dir, loc.game.key)
                     made.append(mod / step["folder"] / step["entry"])
             elif kind == "remove":
                 for p in sorted(mod.glob(step["glob"]), reverse=True):
@@ -349,7 +355,8 @@ def build(
             log(f"engine: {name} kept beside the mod's DLLs")
         (stage / out_cfg.get("report", "merge-report.txt")).write_text(
             f"{recipe['label']} {version}, built by Roundtable Souls {__version__} from {len(inputs)} package(s).\n"
-            + ("".join(f"{line}\n" for line in report) or "No clashes.\n"),
+            + "".join(f"{line}\n" for line in report)
+            + ("" if any(line.startswith("clash:") for line in report) else "No clashes.\n"),
             encoding="utf-8",
             newline="\n",
         )
@@ -432,7 +439,7 @@ def _codecs(game_dir: Path):
     return _oodle[key]
 
 
-def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log) -> Path:
+def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log, game: str = "eldenring") -> Path:
     from roundtable_souls.game import archives as gamearchive
     from roundtable_souls.merging import merger
     from roundtable_souls.merging.rules import fmg as fmg_rule
@@ -454,7 +461,11 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         packs = [] if source is None else [(Path(source).parent.name, source.read_bytes())]
         packs.append(("the mod", (setup / _fill(step["patch"], values)).read_bytes()))
         log(f"  combining {rel}")
-        data, _report = param_merge.combine(base.read_bytes(), packs, dec)
+        data, combined = param_merge.combine(base.read_bytes(), packs, dec)
+        for pack in combined.packs:
+            for said in pack.warnings:
+                report.append(f"warning: {said}")
+                log(f"  warning: {said}")
         out.write_bytes(data)
         return out
     vanilla = gamearchive.read(game_dir, rel)
@@ -480,7 +491,17 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         layers.append((Path(source).as_posix(), source.read_bytes()))
     layers.append(("the mod", patch))
     log(f"  merging {rel}")
-    result = merger.merge(vanilla, layers, dec, comp, game_config.load().dflt_fallback_for(rel))
+    lists = knowledge.lists_for(game_dir, game)
+    result = merger.merge(vanilla, layers, dec, comp, game_config.load().dflt_fallback_for(rel), name=rel, lists=lists)
+    for where, said in result.omission_notices(rel):
+        line = f"notice: {_named(where) if where == rel else where}: {said}"
+        report.append(line)
+        log(f"  {line}")
+    for where, said in sorted(result.warnings.items()):
+        for text in said:
+            line = f"warning: {rel}{'' if where == '/' else ' ' + where}: {text}"
+            report.append(line)
+            log(f"  {line}")
     if result.clashes:
         log(f"  {rel}: {result.summary()}")
         for where, who in sorted(result.clashes.items()):
@@ -495,7 +516,7 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
     return out
 
 
-def _hook_step(steps, label, setup, inputs, mod, sources, report, log) -> None:
+def _hook_step(steps, label, setup, inputs, mod, sources, report, log, game_dir=None, game="eldenring") -> None:
     """The packages' script folder in load order (a later file of the same name replaces an earlier one), then each
     hook step's fragment appended to the entry script: the last package's copy, else the download's base."""
     first = steps[0]
@@ -536,6 +557,16 @@ def _hook_step(steps, label, setup, inputs, mod, sources, report, log) -> None:
     broken = lua_check.check(f"{folder}/{name}", base, base_from, fragments, composed)
     if broken is not None:  # the game would not load it: refused here, the previous build stays
         raise EngineError(f"{broken} The previous build is kept.")
+    for said in lua_check.havok_syntax(f"{folder}/{name}", composed):
+        report.append(f"warning: {said}")
+        log(f"  warning: {said}")
+    lists = knowledge.lists_for(game_dir, game)
+    if lists is not None:  # the game-level check (calls and env/act IDs): warnings only
+        shared = hks_check.shared_functions(game_dir, folder, dest)
+        natives = [n for s in steps for n in s.get("natives") or []]
+        for said in hks_check.check(f"{folder}/{name}", composed, lists, shared, natives):
+            report.append(f"warning: {said}")
+            log(f"  warning: {said}")
     entry.parent.mkdir(parents=True, exist_ok=True)
     entry.write_text(composed.text, encoding="utf-8", newline="\n")
     for layer in inputs:

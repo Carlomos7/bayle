@@ -207,7 +207,14 @@ def test_the_launcher_merges_the_mods_files_with_the_packages_before_it(world):
     # no package ships the grace menu: the mod's own copy
     talk = world.setup / "payload/settings/m00_00_00_00.talkesdbnd.dcx"
     assert (own / f"mod/{TALK}").read_bytes() == talk.read_bytes()
-    assert (own / "merge-report.txt").read_text().splitlines()[-1] == "No clashes."
+    report = (own / "merge-report.txt").read_text()
+    assert report.splitlines()[-1] == "No clashes."
+    # the animation mod's copy lacks one of the game's clips: a notice, not a clash
+    anims = (world.base / "mod/anims/chr/c0000_a00_hi.anibnd.dcx").as_posix()
+    assert (
+        "notice: chr/c0000_a00_hi.anibnd.dcx (the player character's animations): "
+        f"{anims} lacks 1 animation the current game uses (they won't play)"
+    ) in report
     assert (own / "audio/revive.wav").is_file() and (own / "ui/base.png").is_file()
     assert (own / "RevivePrototype.dll").read_bytes() == b"stock payload/RevivePrototype.dll"
 
@@ -690,3 +697,56 @@ def test_a_build_the_mods_installer_made_is_checked_as_before(world):
     m = {"version": "0.1.33-rc3", "sources": [], "refreshProtocol": 1}
     recipe, _version, _ = engine.match(world.setup)
     assert engine.input_reasons(m, recipe, er()) == []
+
+
+def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
+    (world.setup / "installer/revive.hks").write_text("local mask = 0x10hi\n")
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert (
+        "uses Havok Script syntax (hi-hl numbers) that this check can't read; the rest of the script was checked"
+        in report
+    )
+
+
+def test_the_parameter_checks_reach_the_builds_report(world):
+    """A row the game's lookup never finds is a warning in the report (3.22-B, P2); the build goes ahead."""
+    from roundtable_souls import formats
+
+    def negative(p):
+        p.rows.append(formats.param.Row(0xFFFFFFFF, p.rows[0].data, ""))
+
+    (world.setup / "payload/mod/regulation.bin").write_bytes(pack({"EquipParamWeapon": negative}))
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert (
+        "warning: the mod sets 1 row of EquipParamWeapon with a negative ID (-1), which the game's lookup never finds"
+        in report
+    )
+
+
+def test_a_regulation_the_game_could_not_read_is_refused_and_the_build_kept(world, monkeypatch):
+    from roundtable_souls.merging.rules import param as param_merge
+
+    monkeypatch.setattr(param_merge, "MAX_ROWS", 1)
+    with pytest.raises(engine.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"):
+        world.build()
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+
+
+def test_the_composed_scripts_calls_are_checked_against_the_game(world, monkeypatch):
+    """3.22-B H2: a call defined nowhere the game looks is a warning in the build's report; the build goes ahead."""
+    from test_hks_check import hks_bytecode
+
+    from roundtable_souls.overhauls import hks_check
+
+    real = hks_check.gamearchive.read
+    shared = hks_bytecode("ExecTalk")
+    monkeypatch.setattr(
+        hks_check.gamearchive, "read", lambda d, rel: shared if rel.startswith("action/script/") else real(d, rel)
+    )
+    (world.setup / "installer/revive.hks").write_text("ExecTalk()\nNotAnywhere()\n")
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert "warning: action/script/c0000.hks calls a function defined nowhere the game looks" in report
+    assert "NotAnywhere (line " in report and "ExecTalk (line" not in report

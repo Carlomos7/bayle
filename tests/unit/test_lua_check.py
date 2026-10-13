@@ -67,3 +67,38 @@ def test_syntax_errors_carry_the_line():
     ]:
         found = lua_check.syntax_error(text)
         assert found is not None and found.line == line, (text, found)
+
+
+def test_havok_integer_literals_are_read_as_numbers_and_the_rest_is_still_checked():
+    hooks = [Hook("First", "local mask = 0x10hi\nlocal big = 0x100HL\n")]
+    composed = compose(BASE, "c0000.hks from anims", hooks)
+    assert checked(BASE, hooks) is None
+    assert lua_check.havok_syntax(ENTRY, composed) == [
+        "action/script/c0000.hks line 6 (in what First added) uses Havok Script syntax (hi-hl numbers) that this "
+        "check can't read; the rest of the script was checked.",
+        "action/script/c0000.hks line 7 (in what First added) uses Havok Script syntax (hi-hl numbers) that this "
+        "check can't read; the rest of the script was checked.",
+    ]
+    broken = [Hook("First", "local mask = 0x10hi\nlocal = 2\n")]  # a real error after a literal is still refused
+    said = checked(BASE, broken)
+    assert said is not None and "First's script has a syntax error at its line 2" in said
+
+
+def test_hstructure_and_hmake_are_warned_about_not_refused():
+    text = "hstructure Point\n  x : number\nend\nlocal p = hmake Point { x = 1 }\n"
+    hooks = [Hook("First", text)]
+    assert checked(BASE, hooks) is None
+    (warning,) = lua_check.havok_syntax(ENTRY, compose(BASE, "c0000.hks from anims", hooks))
+    assert warning == (
+        "action/script/c0000.hks line 6 (in what First added) uses Havok Script syntax (hstructure) that this check "
+        "can't read; the lines before it were checked."
+    )
+
+
+def test_a_real_error_before_any_havok_form_is_still_refused():
+    said = checked("local = 1\nhstructure Point\nend\n", [])
+    assert said is not None and "has a syntax error at line 1" in said
+
+
+def test_a_plain_script_has_no_havok_warning():
+    assert lua_check.havok_syntax(ENTRY, compose(BASE, "c0000.hks from anims", [Hook("First", GOOD)])) == []

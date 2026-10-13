@@ -33,6 +33,7 @@ States no mod changed are the game's own.
 from __future__ import annotations
 
 import struct
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from roundtable_souls import formats
@@ -489,4 +490,73 @@ def _with_added(items: list, adds: dict[int, list[tuple[str, object, tuple]]]) -
         out += [item for _, item, _ in adds.get(at, [])]
         if at < len(items):
             out.append(items[at])
+    return out
+
+
+# ----------------------------------------------------------------------------- IDs the game doesn't have (E1)
+GAME_COMMAND_BANKS = (1, 5)  # banks the game's talk commands are in (6 calls a machine, 7 returns)
+
+
+def unknown_ids(body: bytes, commands: Collection[int], functions: Collection[int]) -> list[tuple[int, int, str]]:
+    """(machine, state, what) for each talk command in a game bank whose index is not in `commands`, and each function
+    call whose (constant) ID is not in `functions`: "command 1:999", "function 300". The game does nothing for such a
+    command. Expressions the launcher cannot read are passed over."""
+    script = read_esd(body)
+    found: list[tuple[int, int, str]] = []
+    for m, states in script.state_machines.items():
+        for s, state in states.items():
+            seen: list[str] = []
+            for c in _all_commands(state):
+                if c.bank in GAME_COMMAND_BANKS and c.index not in commands:
+                    seen.append(f"command {c.bank}:{c.index}")
+                for a in c.args:
+                    seen += _unknown_functions(bytes(a), functions)
+            for code in _all_tests(state.conditions):
+                seen += _unknown_functions(code, functions)
+            found += [(m, s, what) for what in dict.fromkeys(seen)]
+    return found
+
+
+def _all_commands(state: State):
+    yield from state.enter_commands
+    yield from state.exit_commands
+    yield from state.ongoing_commands
+
+    def walk(conditions: list[Condition]):
+        for c in conditions:
+            yield from c.pass_commands
+            yield from walk(c.subconditions)
+
+    yield from walk(state.conditions)
+
+
+def _all_tests(conditions: list[Condition]):
+    for c in conditions:
+        yield c.test_ezl
+        yield from _all_tests(c.subconditions)
+
+
+def _unknown_functions(code: bytes, functions: Collection[int]) -> list[str]:
+    try:
+        tree = _expression(code, {})
+    except Unsupported:
+        return []
+    out: list[str] = []
+
+    def walk(e):
+        if not isinstance(e, tuple) or not e:
+            return
+        if e[0] == "call":
+            target = e[1]
+            if target[0] == "n" and float(target[1]).is_integer() and int(target[1]) not in functions:
+                out.append(f"function {int(target[1])}")
+            for a in e[2]:
+                walk(a)
+        elif e[0] == "op":
+            walk(e[2])
+            walk(e[3])
+        elif e[0] in ("neg", "machine argument"):
+            walk(e[1])
+
+    walk(tree)
     return out

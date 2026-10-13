@@ -324,3 +324,20 @@ def test_the_job_index_line_is_readable_json(play):
     _run(core.job_play, play["setup"])
     lines_in_index = (run_logging.log_dir() / run_logging.JOBS_INDEX).read_text(encoding="utf-8").splitlines()
     assert lines_in_index and all(isinstance(json.loads(x), dict) for x in lines_in_index)
+
+
+def test_play_online_with_changed_parameters_is_warned_about_before_launching(play, lines, monkeypatch):
+    monkeypatch.setattr(core.game_checks, "online_warning", lambda profile, loc: "this profile goes online")
+    _run(core.job_play, play["setup"])
+    assert "warning: this profile goes online" in lines
+
+
+def test_after_play_me3s_failed_dlc_loading_is_said(play, lines, monkeypatch, tmp_path):
+    log = tmp_path / "me3.log"
+    log.write_text("trampoline returned null key=-----BEGIN RSA PUBLIC KEY-----", encoding="utf-8")
+    monkeypatch.setattr(core.me3_session, "me3_log_path", lambda: log)
+    monkeypatch.setattr(core.game_checks, "me3_mount_failures", lambda text: [f"said about {len(text)} characters"])
+    core._me3_said()
+    assert "warning: said about 59 characters" in lines
+    log.unlink()
+    core._me3_said()  # no log: nothing said, nothing raised

@@ -139,6 +139,9 @@ class Hook(_Strict):
     fragment: str  # the download's file appended
     markers: list[str] = Field(default_factory=list)  # text meaning a script already contains the fragment
     refuse_text: str | None = None  # the refusal then
+    # functions the mod's own DLL gives the script ("NrrNative", or a prefix "Nrr*"): its calls of them are not
+    # reported as undefined (overhauls.hks_check); only a mod's own config names them
+    natives: list[str] = Field(default_factory=list)
 
 
 class Remove(_Strict):

@@ -24,6 +24,27 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   download has, instead of the file only Revive's installer writes. So it recognises a download straight from its
   archive. If you use "Build Nightreign Revive in the launcher (preview)", this counts as a change: the next Play
   rebuilds Revive once (or asks first, if you turned off automatic rebuilds before Play).
+- Combine and overhaul builds match a merged archive's inner files the way the game finds them: by ID in part,
+  character and texture archives (where a mod may rename every inner file and still work), by name where the ID is
+  only a position. Two mods changing the same part now meet on it instead of being listed under different names.
+  Merged builds are rebuilt once.
+- Combine and overhaul builds now say when a mod's copy of a merged archive lacks inner files the current game has:
+  "Sekiro Animations lacks 58 animations the current game uses (they won't play)". A notice in the build's report and
+  log, not a stop.
+- Nightreign Revive (launcher build): a character script using Havok Script's own syntax (`hstructure`, `hmake`,
+  `0x…hi`/`0x…hl` numbers) is no longer refused as a syntax error; the build's report names the line the check
+  can't read. Real syntax errors are still refused.
+- Combine and overhaul builds check parameters the way the game reads them: a result with more than 65,535 rows in a
+  table, or missing a table the game's own regulation has, is refused (the previous build stays); a table the game
+  doesn't know and rows with negative IDs are warnings in the build's report.
+- Merged talk scripts: a mod's talk commands and functions the game doesn't have are warnings in the build's report,
+  naming the mod, the state machine and the state.
+- Nightreign Revive (launcher build): the build's report warns about calls of functions defined nowhere the game
+  looks and `env`/`act` IDs the game doesn't handle. Functions a mod's own DLL provides can't be seen by the
+  launcher, so the warning says so.
+- Play: going online with a mod's parameters is warned about before the game starts. After Play, when me3's fast DLC
+  loading failed, the log says so in plain words: "me3's fast DLC loading failed this launch; if your DLC was
+  missing, that's why; Play again."
 - Mods: a first look at the new design. A new button on the Mods page, Open new Mods window, opens the redesigned
   Mods page in a window of its own: the mods in the order me3 loads them, switched on and off in place with Undo,
   dragged into a new order (a move me3's load-after rules would undo is refused and says why), Mod options, Profile

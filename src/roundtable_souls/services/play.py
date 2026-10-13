@@ -297,6 +297,7 @@ PLAY_KEYS = (
     "build_merges",
     "play_backup_before",
     "play_repair_after",
+    "play_repair_after_eldenring",
     "play_clear_before",
     "play_clear_after",
     "warn_dead_shells",
@@ -421,10 +422,17 @@ def route_logs(sink):
     run_logging.attach_sink(sink)
 
 
+def repair_key(game) -> str:
+    """The setting that turns the after-Play save repair on for this game. Elden Ring's has its own key (off by
+    default: the game never reads the save's regulation copy back; only save editors do); Nightreign's re-signs
+    sections me3 can leave unsigned and stays on by default."""
+    return "play_repair_after_eldenring" if game is games.ELDEN_RING else "play_repair_after"
+
+
 def _after_play(opts, loc: Locations):
     if not loc.game.regulation_repair:
         pass  # this game has no regulation block me3 leaves dirty
-    elif opts["play_repair_after"]:
+    elif opts[repair_key(loc.game)]:
         save_repair.repair_all(loc)
     else:
         run_logging.log("repair after quitting is off (Tools > Play session)")

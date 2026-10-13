@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Play session: Elden Ring's "Repair saves after quitting" is now off by default and has its own setting. The game
+  never reads the save's regulation section back, so only save editors need it; turn it on under Tools > Play session
+  if you use one. Nightreign's repair, which re-signs its save sections, stays on.
 - Co-op: when Seamless Co-op is installed in the game folder (where its own installer puts it) and your profile
   doesn't load it, the Co-op page offers to move it into your setup and add it to the profile, settings and password
   included. When your profile already has its own copy, it offers to clean up the old one instead. Seamless Co-op's

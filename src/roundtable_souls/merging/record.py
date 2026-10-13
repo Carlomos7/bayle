@@ -30,8 +30,10 @@ from roundtable_souls.game import config as game_config
 # Raised whenever what merging produces from the same inputs changes. 2: removals listed, colliding inner names refused,
 # stored sizes from the data, ZSTD frames with a 64 KB window (2026-10-01). 3: talk scripts (ESD) merged state by
 # state (2026-10-02). 4: animation events (TAE) merged animation by animation (2026-10-05). 5: an archive the game
-# lists by ID keeps that order with added inner files placed by ID, not appended (2026-10-06).
-MERGER_REVISION = 5
+# lists by ID keeps that order with added inner files placed by ID, not appended (2026-10-06). 6: inner files of
+# archives the game reads by ID (part, character, texture archives...) are matched by ID, not by name
+# (game.knowledge.binder_identity; 2026-10-13).
+MERGER_REVISION = 6
 ORDERING = "me3 sort_dependencies, me3 9b1e080 (me3 0.11.0 to 0.13.0)"
 # How an inner file that a mod's copy leaves out is treated. Until a policy is chosen (see docs/decisions), the rule
 # the launcher has always used: it is removed. Every such removal is listed in the record, file by file.

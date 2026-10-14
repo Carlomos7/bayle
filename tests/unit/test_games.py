@@ -232,6 +232,20 @@ def test_nightreign_copies_and_restore(tmp_path, monkeypatch):
         saves.restore_backup(junk, co2, loc=Locations(NR))
 
 
+def test_the_save_lock_waits_until_a_just_written_save_has_settled(tmp_path, monkeypatch):
+    monkeypatch.setattr(common, "exe_running", lambda _exe: False)
+    monkeypatch.setattr(saves, "SETTLE_SECONDS", 4.0)
+    waited = []
+    monkeypatch.setattr(saves.time, "sleep", waited.append)
+    save = tmp_path / "ER0000.sl2"
+    save.write_bytes(b"x")
+    saves.assert_writable(save, loc=Locations(games.ELDEN_RING))
+    assert len(waited) == 1 and 3.0 < waited[0] <= 4.0
+    os.utime(save, (1_700_000_000, 1_700_000_000))
+    saves.assert_writable(save, loc=Locations(games.ELDEN_RING))
+    assert len(waited) == 1  # settled long ago: no wait
+
+
 def test_placeholder_games_cannot_play():
     s = LauncherSettings.from_raw({})
     assert core.play_headless(s, Locations(games.DARK_SOULS_3)) == 1

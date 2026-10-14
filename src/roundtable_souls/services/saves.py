@@ -551,9 +551,14 @@ def repair_save(path: Path, *, loc: Locations) -> bool:
     return bool(repair_regulation.repair(path, reg, header))
 
 
-def assert_writable(path: Path, settle_seconds: float = 4.0, *, loc: Locations) -> None:
+SETTLE_SECONDS = 4.0  # how long a save must be unchanged before the launcher writes it
+
+
+def assert_writable(path: Path, settle_seconds: float | None = None, *, loc: Locations) -> None:
     """The lock every write goes through: the game must be closed, and the file must not have changed in the
     last few seconds (the game flushes saves for a moment after quitting)."""
+    if settle_seconds is None:
+        settle_seconds = SETTLE_SECONDS
     if loc.game_running():
         raise RuntimeError(f"{loc.game.name} is running. Close it before changing saves.")
     path = Path(path)

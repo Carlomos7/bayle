@@ -70,18 +70,28 @@ def test_syntax_errors_carry_the_line():
 
 
 def test_havok_integer_literals_are_read_as_numbers_and_the_rest_is_still_checked():
-    hooks = [Hook("First", "local mask = 0x10hi\nlocal big = 0x100HL\n")]
+    hooks = [Hook("First", "local mask = 0x10hi\nlocal big = 0x100HI -- not 0x100hl\n")]
     composed = compose(BASE, "c0000.hks from anims", hooks)
     assert checked(BASE, hooks) is None
     assert lua_check.havok_syntax(ENTRY, composed) == [
-        "action/script/c0000.hks line 6 (in what First added) uses Havok Script syntax (hi-hl numbers) that this "
+        "action/script/c0000.hks line 6 (in what First added) uses Havok Script syntax (hi numbers) that this "
         "check can't read; the rest of the script was checked.",
-        "action/script/c0000.hks line 7 (in what First added) uses Havok Script syntax (hi-hl numbers) that this "
+        "action/script/c0000.hks line 7 (in what First added) uses Havok Script syntax (hi numbers) that this "
         "check can't read; the rest of the script was checked.",
     ]
     broken = [Hook("First", "local mask = 0x10hi\nlocal = 2\n")]  # a real error after a literal is still refused
     said = checked(BASE, broken)
     assert said is not None and "First's script has a syntax error at its line 2" in said
+
+
+def test_hl_numbers_are_refused_since_the_game_never_compiles_them():
+    said = checked(BASE, [Hook("First", "local ok = 1\nlocal big = 0x100HL\n")])
+    assert said == (
+        "action/script/c0000.hks would not load in game: First's script uses a 0x...hl number, which the game never "
+        "compiles (60-bit numbers aren't supported in this game) at its line 2."
+    )
+    said = checked("local big = 0x10hl\n" + BASE, [])
+    assert said is not None and "c0000.hks from anims uses a 0x...hl number" in said and "at line 1." in said
 
 
 def test_hstructure_and_hmake_are_warned_about_not_refused():

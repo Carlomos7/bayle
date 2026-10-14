@@ -32,8 +32,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   "Sekiro Animations lacks 58 animations the current game uses (they won't play)". A notice in the build's report and
   log, not a stop.
 - the overhaul (launcher build): a character script using Havok Script's own syntax (`hstructure`, `hmake`,
-  `0x…hi`/`0x…hl` numbers) is no longer refused as a syntax error; the build's report names the line the check
-  can't read. Real syntax errors are still refused.
+  `0x…hi` numbers) is no longer refused as a syntax error; the build's report names the line the check can't read.
+  Real syntax errors are still refused, and so are `0x…hl` numbers, which the game never compiles.
 - Combine and overhaul builds check parameters the way the game reads them: a result with more than 65,535 rows in a
   table, or missing a table the game's own regulation has, is refused (the previous build stays); a table the game
   doesn't know and rows with negative IDs are warnings in the build's report.
@@ -41,7 +41,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   naming the mod, the state machine and the state.
 - the overhaul (launcher build): the build's report warns about calls of functions defined nowhere the game
   looks and `env`/`act` IDs the game doesn't handle. Functions a mod's own DLL provides can't be seen by the
-  launcher, so the warning says so.
+  launcher, so the warning says so; the overhaul's config names its own (OverhaulNative), and a call the script makes only after
+  checking the function is there (the overhaul's use of Nightreign Movement's) isn't reported.
 - Play: going online with a mod's parameters is warned about before the game starts. After Play, when me3's fast DLC
   loading failed, the log says so in plain words: "me3's fast DLC loading failed this launch; if your DLC was
   missing, that's why; Play again."

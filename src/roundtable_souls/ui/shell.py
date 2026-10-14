@@ -61,6 +61,7 @@ from roundtable_souls.services.play import (
     TITLE,
     VERSION,
     discover,
+    forget_setup,
     job_clear,
     logo_path,
     play_command,
@@ -153,6 +154,47 @@ class LauncherHost:
     def run_in_background(self, work, on_result) -> None:
         self._w.jobs.start(lambda _progress: work(), on_result=on_result)
 
+    # ---- the Mods page
+    @property
+    def setup(self):
+        return self._w.setup
+
+    @property
+    def profile(self) -> Path | None:
+        s = self._w.setup
+        return Path(s.profile) if s and Path(s.profile).is_file() else None
+
+    @property
+    def settings(self):
+        return self._w.settings
+
+    @property
+    def game(self):
+        return self._w.game
+
+    def profile_changed(self, note: str) -> None:
+        self._w._after_profile_change(note)
+
+    def profile_deleted(self, profile: Path, moved_to: Path) -> None:
+        w = self._w
+        w._log(f"profile: moved {profile.name} to {moved_to}")
+        forget_setup(w.game)
+        w.settings = load_settings()
+        w.setups = discover(None, w.ctx.locations)
+        w._fill_setups()
+
+    def install(self, from_folder: bool) -> None:
+        (self._w._install_from_folder if from_folder else self._w._install_from_file)()
+
+    def install_paths(self, paths: list[Path]) -> None:
+        self._w._install_paths(paths)
+
+    def attach_config(self, entry: dict) -> None:
+        self._w._native_settings(entry)
+
+    def open_path(self, path: Path) -> None:
+        desktop.open_path(str(path))
+
 
 # ----------------------------------------------------------------------------- window
 class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow):
@@ -166,6 +208,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.bus = Bus()
         self.jobs = Jobs(self)
         self.activity_window: PageWindow | None = None  # the QML Activity trial (S5)
+        self.mods_window: PageWindow | None = None  # the QML Mods page (S6)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -394,6 +437,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         sw.blockSignals(False)
         self.play_rows["play_update_merge"].setVisible(g is games.ELDEN_RING)
         self.play_rows["build_merges"].setVisible(g is games.ELDEN_RING)
+        self._sync_overhaul_switch()
         self.off_overhaul_row.setVisible(g is games.ELDEN_RING)
         target, options = play_command(g)
         self.shortcut_fields["Target"].setText(target)
@@ -656,6 +700,22 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
             for line in self.activity_window.warnings:
                 core.run_logging.log_line(line)
 
+    def _open_mods_window(self):
+        """The new Mods page in a window of its own (owner, D1; the button goes when the QML shell lands)."""
+        if self.mods_window is None:
+            self.mods_window = PageWindow(qml_pages.page("mods"), LauncherHost(self), load_settings().theme)
+            self.mods_window.notifier.status(self._job_label if self.busy else tr("Ready"))
+        if not self.mods_window.show():
+            self._toast("The new Mods window did not open", "The details are in launcher.log.", error=True)
+            for line in self.mods_window.warnings:
+                core.run_logging.log_line(line)
+
+    def _page_windows(self) -> list[PageWindow]:
+        """The QML page windows open now (Activity, Mods): the hooks below keep them in step with this window."""
+        return [
+            w for w in (getattr(self, "activity_window", None), getattr(self, "mods_window", None)) if w is not None
+        ]
+
     def _mark_activity_seen(self):
         save_settings(activity_seen=time.time())
         self.settings = load_settings()
@@ -749,8 +809,8 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
             self._ws_recount()
         if status:
             self.status.setText(status)
-        if self.activity_window is not None:
-            self.activity_window.notifier.status(status if busy and status else tr("Ready"))
+        for page_window in self._page_windows():
+            page_window.notifier.status(status if busy and status else tr("Ready"))
         if getattr(self, "game_btn", None) is not None:
             self.game_btn.setEnabled(not busy)  # never switch games under a running job
         self.setWindowTitle(self._base_title() + (f" - {status}" if busy and status else ""))
@@ -817,8 +877,8 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
             self.activity.refresh()
             self._mark_activity_seen()
         self._update_activity_badge()
-        if self.activity_window is not None:
-            self.activity_window.adapter.refresh()
+        for page_window in self._page_windows():
+            page_window.adapter.refresh()
 
     def start(self, job, status, need_setup=True):
         if self.busy:
@@ -949,8 +1009,8 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
             self.logo_preview.setPixmap(QPixmap(str(path)).scaled(56, 56, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
     def _restyle(self):
-        if getattr(self, "activity_window", None) is not None:
-            self.activity_window.set_theme("dark" if isDarkTheme() else "light")
+        for page_window in self._page_windows():
+            page_window.set_theme("dark" if isDarkTheme() else "light")
         for b in self.findChildren(QPushBtn):
             if b.objectName() == "cta" or b.property("role"):
                 style_button(b)
@@ -1024,8 +1084,8 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         if not self._settle_unsaved("closing"):
             e.ignore()
             return
-        if self.activity_window is not None:
-            self.activity_window.close()
+        for page_window in self._page_windows():
+            page_window.close()
         e.accept()
 
     def _unsaved(self) -> list[str]:

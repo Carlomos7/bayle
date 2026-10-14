@@ -171,9 +171,16 @@ def test_the_bundled_recipe_is_valid_and_fits_the_download(world):
 
 
 def test_a_newer_version_is_not_built_and_says_why(world):
-    (world.setup / "overhaul-maintenance.json").write_text('{"protocol": 1, "version": "0.2.0"}')
+    (world.setup / "edition.json").write_text('{"version": "0.2.0", "edition": "LITE"}')
     recipe, version, why = engine.match(world.setup)
     assert recipe is None and version == "0.2.0" and "newer than the launcher knows" in why
+
+
+def test_a_download_straight_from_its_archive_is_recognised(world):
+    """Only the mod's installer writes overhaul-maintenance.json: the download itself says its version in edition.json."""
+    (world.setup / "overhaul-maintenance.json").unlink()
+    recipe, version, why = engine.match(world.setup)
+    assert recipe is not None and version == "0.1.33-rc3" and why is None
 
 
 def test_another_edition_is_not_matched(world):
@@ -200,7 +207,14 @@ def test_the_launcher_merges_the_mods_files_with_the_packages_before_it(world):
     # no package ships the grace menu: the mod's own copy
     talk = world.setup / "payload/settings/m00_00_00_00.talkesdbnd.dcx"
     assert (own / f"mod/{TALK}").read_bytes() == talk.read_bytes()
-    assert (own / "merge-report.txt").read_text().splitlines()[-1] == "No clashes."
+    report = (own / "merge-report.txt").read_text()
+    assert report.splitlines()[-1] == "No clashes."
+    # the animation mod's copy lacks one of the game's clips: a notice, not a clash
+    anims = (world.base / "mod/anims/chr/c0000_a00_hi.anibnd.dcx").as_posix()
+    assert (
+        "notice: chr/c0000_a00_hi.anibnd.dcx (the player character's animations): "
+        f"{anims} lacks 1 animation the current game uses (they won't play)"
+    ) in report
     assert (own / "audio/overhaul.wav").is_file() and (own / "ui/base.png").is_file()
     assert (own / "OverhaulPrototype.dll").read_bytes() == b"stock payload/OverhaulPrototype.dll"
 
@@ -259,6 +273,21 @@ def test_the_previous_build_is_kept_and_undo_swaps_it_back(world):
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
     undo.run({**u, "redo": True}, lambda s: None, loc=er())
     assert (world.own / "mod/regulation.bin").read_bytes() != b"OLD BUILD"
+
+
+def test_a_build_can_be_left_staged_for_an_operation_to_put_in_place(world):
+    """swap=False (an overhaul install's operation): built and checked beside its place, nothing live changes, and
+    the kept previous build for Undo rebuild is not touched."""
+    recipe, version, _ = engine.match(world.setup)
+    work = world.base / engine.WORK
+    out = engine.build(
+        world.profile, world.own / "mod", world.setup, recipe, version, lambda s: None, loc=er(), swap=False
+    )
+    staged = out["output"]
+    assert staged != world.own and staged.parent == world.base and (staged / "mod/regulation.bin").is_file()
+    assert out["previous"] is None and out["restore"] is None and not work.exists()
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+    assert (staged / "OverhaulPrototype.ini").read_text().startswith("[Coop]\nEnabled=0\n")  # the player's value
 
 
 def test_a_failed_merge_leaves_the_build_in_place_and_no_staging(world, monkeypatch):
@@ -668,3 +697,55 @@ def test_a_build_the_mods_installer_made_is_checked_as_before(world):
     m = {"version": "0.1.33-rc3", "sources": [], "refreshProtocol": 1}
     recipe, _version, _ = engine.match(world.setup)
     assert engine.input_reasons(m, recipe, er()) == []
+
+
+def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
+    (world.setup / "installer/overhaul.hks").write_text("local mask = 0x10hi\n")
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert (
+        "uses Havok Script syntax (hi numbers) that this check can't read; the rest of the script was checked" in report
+    )
+
+
+def test_the_parameter_checks_reach_the_builds_report(world):
+    """A row the game's lookup never finds is a warning in the report (3.22-B, P2); the build goes ahead."""
+    from roundtable_souls import formats
+
+    def negative(p):
+        p.rows.append(formats.param.Row(0xFFFFFFFF, p.rows[0].data, ""))
+
+    (world.setup / "payload/mod/regulation.bin").write_bytes(pack({"EquipParamWeapon": negative}))
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert (
+        "warning: the mod sets 1 row of EquipParamWeapon with a negative ID (-1), which the game's lookup never finds"
+        in report
+    )
+
+
+def test_a_regulation_the_game_could_not_read_is_refused_and_the_build_kept(world, monkeypatch):
+    from roundtable_souls.merging.rules import param as param_merge
+
+    monkeypatch.setattr(param_merge, "MAX_ROWS", 1)
+    with pytest.raises(engine.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"):
+        world.build()
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+
+
+def test_the_composed_scripts_calls_are_checked_against_the_game(world, monkeypatch):
+    """3.22-B H2: a call defined nowhere the game looks is a warning in the build's report; the build goes ahead."""
+    from test_hks_check import hks_bytecode
+
+    from roundtable_souls.overhauls import hks_check
+
+    real = hks_check.gamearchive.read
+    shared = hks_bytecode("ExecTalk")
+    monkeypatch.setattr(
+        hks_check.gamearchive, "read", lambda d, rel: shared if rel.startswith("action/script/") else real(d, rel)
+    )
+    (world.setup / "installer/overhaul.hks").write_text("ExecTalk()\nNotAnywhere()\n")
+    world.build()
+    report = (world.own / "merge-report.txt").read_text()
+    assert "warning: action/script/c0000.hks calls a function defined nowhere the game looks" in report
+    assert "NotAnywhere (line " in report and "ExecTalk (line" not in report

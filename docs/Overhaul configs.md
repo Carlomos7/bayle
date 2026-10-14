@@ -22,6 +22,8 @@ folder = "MyOverhaul"            # its own folder beside the me3 profile (or in 
 manifest = "installation.json"   # its installer's manifest in that folder
 mod_ids = ["my-overhaul", "myoverhaul.dll"]  # profile entries meaning a setup includes it
 profile_marks = ["myoverhaul"]   # text marking its profile entries (case aside)
+installer_folders = [".myoverhaul-setup"]  # what its own installer keeps beside the profile (optional)
+installer_backups = "MyOverhaul Backups"   # its installer's backups of the profile (optional)
 
 [[builds]]                       # one per edition the launcher builds itself; none is fine
 id = "my-overhaul-lite"          # written into the build's manifest as "recipe"
@@ -93,7 +95,9 @@ folder. Steps, in order:
 | `merge` | One file merged by the launcher: the last package before it that ships `file`, then the mod's copy (`patch`), against the game's copy (archives file by file, text entry by entry); with no package shipping it, the mod's copy as it is. |
 | `text` | A text archive: the mod's strings (`texts`, a JSON object of text ID to string, by `each` folder, `*` for the rest) set in its `table` of the game's copy (or `vanilla` from the download), then merged like `merge`. |
 | `params` | `regulation.bin`: the launcher's row-by-row combine of that package's copy and the mod's (`patch`) against the game's. |
-| `hook` | A script fragment: the packages' own `folder` (for example `action/script`) copied in load order, then `fragment` appended to `entry` (the last package's copy, or `base` up to `base_until` when no package has one). Several `hook` steps for one entry are appended in their order, each wrapping the one before (a fragment that keeps the current `Update` and defines its own wraps the previous hook's). `markers` lists text that means the script already contains the fragment, which is refused (`refuse_text` says why). A compiled entry script (Lua bytecode) is refused, and so is a result that does not compile as Lua 5.1 (checked, never run; the message names the file, the line and the mod whose part it is); packages shipping different entry scripts are a clash, recorded in the report. Code is never merged. Part of a mod's config (advanced), not a player setting. Before 3.20 this was `script_append` (`append` is now `fragment`, `refuse` is `markers`). |
+| `hook` | A script fragment: the packages' own `folder` (for example `action/script`) copied in load order, then `fragment` appended to `entry` (the last package's copy, or `base` up to `base_until` when no package has one). Several `hook` steps for one entry are appended in their order, each wrapping the one before (a fragment that keeps the current `Update` and defines its own wraps the previous hook's). `markers` lists text that means the script already contains the fragment, which is refused (`refuse_text` says why). A compiled entry script (Lua bytecode) is refused, and so is a result that does not compile as Lua 5.1 (checked, never run; the message names the file, the line and the mod whose part it is); packages shipping different entry scripts are a clash, recorded in the report. The report also warns about calls of functions defined nowhere the game looks (the script, the game's shared scripts, the game's own functions) and `env`/`act` IDs the game doesn't handle; `natives` lists the functions the mod's own DLL gives the script (`"OverhaulNative"`, or a prefix `"ovh*"`), which are then not reported; nor are calls the script makes only after testing the function is there
+(`type(F) == "function"`, `F ~= nil`). A `0x…hl` number is refused: the game never compiles one. Code is never
+merged. Part of a mod's config (advanced), not a player setting. Before 3.20 this was `script_append` (`append` is now `fragment`, `refuse` is `markers`). |
 | `remove` | Leftovers, a `glob` below the output's `mod` folder. |
 
 `merge`, `text` and `params` take `each = { folders_in, except }` to repeat per folder (`{each}` in their paths).
@@ -157,8 +161,9 @@ per-language fallback copies (`payload/settings/vanilla/`) are left out: the gam
 ## Installing it into a profile
 
 A build may also say what installing that edition does to the player's me3 profile (`[builds.install]`). The
-launcher works the changes out from it without writing anything (`overhauls/install_plan.py`); applying them is a
-later step, through the launcher's journaled install and its profile writer. Editions the mod's installer knows but
+launcher works the changes out from it without writing anything (`overhauls/install_plan.py`), and, with Tools >
+Play session > "Install overhauls with the launcher (preview)" on, applies them itself (`mods/overhaul_install.py`;
+see *Installing and removing with the launcher* below). Editions the mod's installer knows but
 the launcher does not install are listed with the reason in `install_unsupported` (edition -> why) at the top.
 
 ```toml
@@ -200,3 +205,30 @@ into it stops ("This profile already has the overhaul. A profile can have one ov
 It stops for a profile me3 cannot use (two enabled packages with one id, a circle of `load_after`), an enabled
 package whose folder is missing, or an unreadable profile. the overhaul's LITE description is the one its own
 installer (0.1.33-rc3) applies; the plan gives the same profile as that installer on the profiles compared.
+
+## Installing and removing with the launcher (preview)
+
+With the switch on, the Mods page's Overhaul button installs a download the launcher recognises (a build with
+`[builds.install]`, at a listed version) into the profile, removes it again, and cleans up what the overhaul's own
+installer left. Nothing in it knows a particular overhaul; everything comes from the config.
+
+- **Install** is one journaled operation (undo from Activity; a failure, or an interruption found on the next start,
+  puts the previous state back): the install plan written by the profile writer, with paths relative to the profile;
+  the launcher's build (`mods/engine.py`) made against the profile as the install leaves it, keeping the player's
+  settings file, into the overhaul's own folder beside the profile (`recognise.folder`, where its installer puts it,
+  so Play and the rebuild before Play find it as before); its manifest gets `installedBy`, so the launcher always
+  builds it itself. Installing again is an update; a profile with another overhaul, or a setup its own installer
+  made, is refused (remove that first; taking one over comes later).
+- **The launcher's own files** go in the game's library in me3's profiles folder (`rs-<game>/`, made on first use):
+  `sources/<id>/` holds the download's files its build reads, at their download paths, with `roundtable.json`
+  (where each came from); `overhauls/<id>/roundtable.json` records the install (its build, the download's
+  fingerprint, when, from where); `builds/<id>/<profile>/roundtable.json` records its **side effects** on that
+  profile: each change to a setting or to an entry it doesn't own, with the value before and after.
+- **Remove** is one operation too (Restore in Activity): its owned entries leave the profile; each side effect is put
+  back only where the value is still what the install set, anything else is left and said; switching a shared
+  dependency (the game's co-op DLL) back off is asked, and Seamless Co-op is never removed. Its folder, the launcher's
+  copy of its download and the build kept for Undo rebuild go to the Recycle Bin only when no other profile uses them.
+- **A setup its own installer made** (its folder and manifest per `[recognise]`, no `installedBy`) is removed the same
+  way; its side effects are worked out from the oldest of its installer's profile backups (`installer_backups`) and
+  offered as choices, none ticked. Its leftovers (`installer_folders`, its folder when no profile uses it) are then
+  offered with their sizes, its backups last and one at a time.

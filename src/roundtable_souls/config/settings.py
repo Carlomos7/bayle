@@ -170,6 +170,7 @@ class LauncherSettings(BaseModel):
 
     play_update_merge: bool = True  # rebuild out-of-date merged mods before Play by itself; off: ask first
     build_merges: bool = False
+    overhaul_install: bool = False  # the Mods page's Overhaul button: install and remove overhauls itself (preview)
     # Co-op page notices about Seamless Co-op left in the game folder, turned off for good: "<game>|<profile>|<kind>"
     coop_relocate_dismissed: list[str] = Field(default_factory=list)
     play_backup_before: bool = False

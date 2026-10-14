@@ -37,6 +37,7 @@
     "QtQuick.Controls.Basic",
     "QtQuick.Controls.impl",
     "QtQuick.Effects",
+    "QtQuick.Layouts",
     "QtQuick.Window",
     "Theme"
   ],

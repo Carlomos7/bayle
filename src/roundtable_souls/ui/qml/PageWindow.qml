@@ -114,6 +114,25 @@ ApplicationWindow {
                 "isError": isError
             });
         }
+        function onToastActionRequested(text, isError, actionLabel, token) {
+            if (win.toastItem)
+                win.toastItem.dismiss();
+            win.toastItem = toastComponent.createObject(overlay, {
+                "text": text,
+                "isError": isError,
+                "actionLabel": actionLabel,
+                "action": function () {
+                    win.notifier.toastAction(token);
+                }
+            });
+        }
+        function onConfirmFullRequested(token, words) {
+            full.token = token;
+            full.applied = false;
+            full.words = words;
+            full.optionOn = words.optionChecked;
+            full.open();
+        }
         function onConfirmRequested(token, title, changes, safety, applyText, destructive) {
             win.confirmToken = token;
             win.confirmed = false;
@@ -134,6 +153,85 @@ ApplicationWindow {
         onClosed: win.notifier.answer(win.confirmToken, win.confirmed)
         onConfirm: function () {
             win.confirmed = true;
+        }
+    }
+    ModalDialog {  // a confirmation with every part: what changes, the risk, the way back, a detail, an option
+        id: full
+
+        property bool applied: false
+        property bool optionOn: false
+        property int token: 0
+        property var words: ({})
+
+        preferredWidth: 520
+        title: words.title || ""
+
+        footerRow: [
+            PrimaryButton {
+                danger: !!full.words.destructive
+                text: full.words.apply || ""
+
+                onClicked: {
+                    full.applied = true;
+                    full.close();
+                }
+            },
+            GhostButton {
+                text: qsTr("Cancel")
+
+                onClicked: full.close()
+            }
+        ]
+
+        onClosed: win.notifier.answerWith(full.token, full.applied, full.optionOn)
+
+        Column {
+            spacing: Theme.sp8
+            width: parent.width
+
+            Repeater {
+                model: full.words.changes || []
+
+                Txt {
+                    required property string modelData
+
+                    elide: Text.ElideNone
+                    text: "• " + modelData
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+            }
+            Txt {
+                elide: Text.ElideNone
+                font.family: "Consolas"
+                text: full.words.detail || ""
+                visible: text !== ""
+                width: parent.width
+                wrapMode: Text.WrapAnywhere
+            }
+            Txt {
+                color: Theme.statusDanger
+                elide: Text.ElideNone
+                text: full.words.warning || ""
+                visible: text !== ""
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
+            Txt {
+                elide: Text.ElideNone
+                kind: "hint"
+                text: full.words.safety || ""
+                visible: text !== ""
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
+            CheckRow {
+                checked: full.optionOn
+                text: full.words.option || ""
+                visible: text !== ""
+
+                onToggled: full.optionOn = checked
+            }
         }
     }
 }

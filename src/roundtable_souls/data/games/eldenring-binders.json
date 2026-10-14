@@ -1,0 +1,76 @@
+{
+ "note": "How the game finds an inner file of each binder kind (the file name's last extension before .dcx), from the game-model session's survey of about 1,400 vanilla binders across 30 kinds (Elden Ring 1.17.1, 2026-10-12; game-model/missing-files.md). id: the entry ID is a fixed role slot, so inner files are matched by ID (observed in game for partsbnd: renamed mods work; inferred for the others from the same structure). name: the ID is a position (0, 1, 2... or a per-type base plus a position), so adding a file shifts the rest and inner files are matched by name. both: name and ID agree in every vanilla binder (matched by name; a mod whose two disagree is reported). A kind not listed falls back to the game's copy: IDs 0..n-1 in order, or a per-type base plus a position, mean name; anything else means ID. omission: how the build report calls the inner files a mod's copy lacks, and what that does in game. Checked 2026-10-13 against the installed game (read-only, a few binders each): cutscenebnd IDs are cutNNNN x 10,000 plus the clip (they follow the inner path: both) and nvmhktbnd IDs are a per-type base plus a position (name), where the survey's table had ID for both.",
+ "kinds": {
+  "anibnd": {
+   "identity": "both",
+   "omission": {
+    "one": "animation",
+    "many": "animations",
+    "effect": "they won't play"
+   }
+  },
+  "behbnd": {
+   "identity": "id"
+  },
+  "chrbnd": {
+   "identity": "id"
+  },
+  "cutscenebnd": {
+   "identity": "both"
+  },
+  "ffxbnd": {
+   "identity": "name"
+  },
+  "geombnd": {
+   "identity": "id"
+  },
+  "geomhkxbnd": {
+   "identity": "id"
+  },
+  "ivinfobnd": {
+   "identity": "name"
+  },
+  "luabnd": {
+   "identity": "name"
+  },
+  "mapbnd": {
+   "identity": "id"
+  },
+  "mapinfotexbnd": {
+   "identity": "name"
+  },
+  "matbinbnd": {
+   "identity": "name"
+  },
+  "moaeibnd": {
+   "identity": "name"
+  },
+  "msgbnd": {
+   "identity": "both"
+  },
+  "nvmhktbnd": {
+   "identity": "name"
+  },
+  "partsbnd": {
+   "identity": "id"
+  },
+  "relationinfobnd": {
+   "identity": "name"
+  },
+  "shaderbdlebnd": {
+   "identity": "name"
+  },
+  "shaderbnd": {
+   "identity": "name"
+  },
+  "talkesdbnd": {
+   "identity": "name"
+  },
+  "texbnd": {
+   "identity": "id"
+  },
+  "tpfbnd": {
+   "identity": "name"
+  }
+ }
+}

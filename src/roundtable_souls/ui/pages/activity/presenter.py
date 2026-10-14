@@ -120,7 +120,7 @@ class UndoPlan:
                 f"launcher: {'redo' if u.get('redo') else 'undo'} the rebuild"
                 if u.get("type") == "rebuild"
                 else f"launcher: {mod_undo.label(u).lower()} {name}"
-                if u.get("type") in mod_undo.OPERATIONS
+                if u.get("type") in mod_undo.OPERATIONS or u.get("type") in mod_undo.OVERHAUL
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -426,6 +426,8 @@ class ActivityPresenter:
                 job_id,
                 "the rebuild",
             )
+        if u.get("type") in mod_undo.OVERHAUL:
+            return self._overhaul_undo_plan(u, prof, job_id)
         if u.get("type") in mod_undo.OPERATIONS:
             name = u.get("name") or tr("the mod")
             fresh = u.get("type") == "install"
@@ -464,6 +466,62 @@ class ActivityPresenter:
             tuple(c for c in changes if c),
             tr("The profile as it is now is kept in its versions."),
             tr("Restore"),
+            tr("Restoring {name}...").format(name=name),
+            u,
+            job_id,
+            name,
+        )
+
+    @staticmethod
+    def _overhaul_undo_plan(u: dict, prof: Path, job_id: str) -> UndoPlan:
+        """An overhaul installed, updated or removed with the launcher (mods.overhaul_install)."""
+        name = u.get("name") or tr("the overhaul")
+        kind = u.get("type")
+        if kind == "overhaul-remove":
+            back = any(trash.exists(t) for t in u.get("trash") or [])
+            return UndoPlan(
+                tr("Restore {name}").format(name=name),
+                tuple(
+                    c
+                    for c in (
+                        tr("{profile} goes back to exactly what it was before the removal").format(profile=prof.name),
+                        tr("Its folders come back from the Recycle Bin") if back else "",
+                        tr("The launcher's notes on it come back"),
+                    )
+                    if c
+                ),
+                tr(
+                    "If {profile} changed since the removal, nothing is changed: install {name} again instead. "
+                    "Seamless Co-op and your other mods are not touched."
+                ).format(profile=prof.name, name=name),
+                tr("Restore"),
+                tr("Restoring {name}...").format(name=name),
+                u,
+                job_id,
+                name,
+            )
+        fresh = kind == "overhaul-install"
+        changes = (
+            tr("{profile} goes back to exactly what it was before the install").format(profile=prof.name)
+            if fresh
+            else tr(
+                "{name}'s folder, its entries and the launcher's copy of its download go back to the version before"
+            ).format(name=name),
+            tr(
+                "{name}'s folder and the launcher's copy of its download are removed; files you changed or added "
+                "since stay, and are listed"
+            ).format(name=name)
+            if fresh
+            else "",
+        )
+        return UndoPlan(
+            (tr("Undo the install of {name}") if fresh else tr("Roll {name} back")).format(name=name),
+            tuple(c for c in changes if c),
+            tr(
+                "Seamless Co-op and your other mods are not touched. If the profile changed since, only {name}'s "
+                "entries are taken out of it."
+            ).format(name=name),
+            tr("Undo install") if fresh else tr("Roll back"),
             tr("Restoring {name}...").format(name=name),
             u,
             job_id,

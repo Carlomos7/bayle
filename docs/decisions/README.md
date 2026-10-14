@@ -11,6 +11,7 @@ records are not rewritten afterwards.
 | 0003 | [Release feeds are signed with minisign](0003-signed-releases.md) | in use from the release after 3.13.2 |
 | 0004 | [Velopack installs and applies updates; the launcher decides what to trust and undoes failed starts](0004-velopack.md) | in use from the release after 3.13.2 |
 | 0005 | [The launcher's own records go into one SQLite database, through SQLAlchemy and Alembic](0005-storage.md) | in use since 3.16.0 |
-| 0006 | [Composed character scripts are checked with Lua 5.1 itself (lupa) before a build is used](0006-lua-parser.md) | in use from 3.20.0 |
+| 0006 | [Composed character scripts are checked with Lua 5.1 itself (lupa) before a build is used](0006-lua-parser.md) | in use from 3.20.0; its Havok-syntax rule superseded by 0009 |
 | 0007 | [Merged Oodle files are written at level 4 (4/4)](0007-kraken-level-4.md) | in use from the release after 3.21.0-beta.2 |
 | 0008 | [The 64 KB zstd rule is about how far back the data reaches](0008-zstd-window-reason.md) | in use (corrects 0001's reason) |
+| 0009 | [Havok Script's own syntax is a warning, not a refusal, in the character-script check](0009-havok-script-syntax.md) | in use from the release after 3.21.0-beta.3 |

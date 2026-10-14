@@ -54,7 +54,7 @@ def lists(caveat: str = "") -> knowledge.Lists:
                 "hks_env_ids": [105],
                 "hks_act_ids": [1],
                 "hks_act_ids_tolerated": [118],
-                "hks_natives": ["env", "isenv", "act", "print"],
+                "hks_natives": ["env", "isenv", "act", "print", "type"],
             }
         ),
         "2.7.1.0",
@@ -82,6 +82,17 @@ def test_calls_of_functions_defined_nowhere_are_one_warning_naming_the_part():
         "Revive added). In game such a call is an error each time it runs, unless a mod's DLL provides the function"
     ]
     assert checked("NrrNative(1)\nNrmStop()\n", natives=["NrrNative", "Nrm*"]) == []
+
+
+def test_calls_the_script_checks_are_there_first_are_not_reported():
+    fragment = (
+        "if NrrNative == nil then return end\n"
+        'if type(NrmStop) == "function" then NrmStop() end\n'
+        "if nil ~= NrmGo then NrmGo() end\n"
+        "Missing() -- type(Missing) in a comment doesn't count\n"
+    )
+    (said,) = checked(fragment + "NrrNative(1)\n")
+    assert "calls a function defined nowhere" in said and ": Missing (line 9" in said
 
 
 def test_env_and_act_ids_the_game_does_not_handle_are_warned_about():

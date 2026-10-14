@@ -9,8 +9,10 @@ compile only, never run; the error named with its line and the part that introdu
 The check still compiles the composed `c0000.hks` with Lua 5.1 and still refuses the build on a real syntax error.
 When the text uses one of Havok Script's own forms, it is not refused for that:
 
-- The integer literals `0x…hi` and `0x…hl` are read as `0` before compiling, so the rest of the script is still
-  checked; each line that has one gets a warning.
+- The integer literal `0x…hi` is read as `0` before compiling, so the rest of the script is still checked; each
+  line that has one gets a warning.
+- The integer literal `0x…hl` is refused, naming the line and the part it came from: the game's compiler never
+  accepts it (owner, 2026-10-14).
 - The reserved words `hstructure` and `hmake` can't be read by Lua 5.1 at all. A failure at or after the first line
   using one is not counted; the lines before it were checked. That line gets a warning.
 
@@ -30,8 +32,9 @@ can do.
 
 ## Limits
 
-- `hl` literals never compile in this game build (it lacks 64-bit integer support); `hi` literals need a compiler
-  option whose state for character scripts is unknown. The check can't tell, so both are warnings.
+- `hl` literals never compile in this game build (it lacks 64-bit integer support), so they are refused; `hi`
+  literals need a compiler option whose state for character scripts is unknown, so they stay a warning.
+- An `hl` literal is looked for outside `--` comments only; one inside a string is (wrongly) refused too.
 - No in-game test has been made with a text `c0000.hks` using `hstructure` or `hmake` (spec §8.11, test 5).
 
 ## Would reopen it

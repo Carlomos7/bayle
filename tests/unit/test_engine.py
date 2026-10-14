@@ -704,8 +704,7 @@ def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
     world.build()
     report = (world.own / "merge-report.txt").read_text()
     assert (
-        "uses Havok Script syntax (hi-hl numbers) that this check can't read; the rest of the script was checked"
-        in report
+        "uses Havok Script syntax (hi numbers) that this check can't read; the rest of the script was checked" in report
     )
 
 

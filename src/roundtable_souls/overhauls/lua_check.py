@@ -4,9 +4,10 @@ build is made instead of failing silently in the game.
 The game's character scripts (HKS) are Havok Script: Lua 5.1 with Havok's additions. The check compiles the text with
 Lua 5.1 itself (lupa's lua51 module: the reference compiler, loaded only, never run): nothing of the script executes.
 Havok's own forms are not Lua 5.1 (docs/decisions/0009, which supersedes 0006): the reserved words `hstructure` and
-`hmake`, and the integer literals `0x...hi` and `0x...hl`. The literals are read as 0 so the rest is still checked;
-a failure at or after a line using `hstructure`/`hmake` is not refused (this check can't read past it). Either way
-havok_syntax() says which line it could not read, as a warning.
+`hmake`, and the integer literals `0x...hi` and `0x...hl`. The `hi` literals are read as 0 so the rest is still
+checked; a failure at or after a line using `hstructure`/`hmake` is not refused (this check can't read past it). Either
+way havok_syntax() says which line it could not read, as a warning. A `0x...hl` literal is refused: the game's compiler
+never accepts one (it needs a 64-bit option this game was built without; game-model/havok-script.md).
 
 check() parses the base and each hook's fragment on its own first, so a broken fragment is named as the cause even
 when the whole would also fail, then the composed text, whose error line is traced back to the part it came from.
@@ -23,6 +24,7 @@ from roundtable_souls.overhauls.hooks import Composed, Hook
 _WHERE = re.compile(r'^\[string "[^"]*"\]:(\d+):\s*(.*)$', re.S)
 _HAVOK_LITERAL = re.compile(r"\b0x[0-9A-Fa-f]+[hH][iIlL]\b")  # Havok Script integer literals (60-bit: ...hl)
 _HAVOK_WORD = re.compile(r"\b(hstructure|hmake)\b")
+_HL_LITERAL = re.compile(r"\b0x[0-9A-Fa-f]+[hH][lL]\b")  # never compiles in the game
 
 
 @dataclass(frozen=True)
@@ -52,7 +54,7 @@ def syntax_error(text: str) -> SyntaxProblem | None:
 @dataclass(frozen=True)
 class HavokLine:
     line: int  # 1-based
-    forms: tuple[str, ...]  # what is there: "hstructure", "hmake", "hi-hl numbers"
+    forms: tuple[str, ...]  # what is there: "hstructure", "hmake", "hi numbers"
     checked_after: bool  # whether the lines after it were checked too
 
 
@@ -63,8 +65,8 @@ def _havok(text: str) -> tuple[str, list[HavokLine]]:
         for m in _HAVOK_WORD.finditer(line):
             lines.setdefault(n, set()).add(m.group(1))
         if _HAVOK_LITERAL.search(line):
-            lines.setdefault(n, set()).add("hi-hl numbers")
-    order = ("hstructure", "hmake", "hi-hl numbers")
+            lines.setdefault(n, set()).add("hi numbers")
+    order = ("hstructure", "hmake", "hi numbers")
     found = [HavokLine(n, tuple(f for f in order if f in forms), True) for n, forms in sorted(lines.items())]
     return _HAVOK_LITERAL.sub("0", text), found
 
@@ -72,6 +74,17 @@ def _havok(text: str) -> tuple[str, list[HavokLine]]:
 def plain_lua(text: str) -> str:
     """The text with Havok Script's integer literals (0x...hi, 0x...hl) read as 0, so Lua 5.1 can compile the rest."""
     return _havok(text)[0]
+
+
+def _hl_line(text: str) -> int | None:
+    """The first line using a 0x...hl literal outside a comment, or None."""
+    for n, line in enumerate(text.split("\n"), 1):
+        if _HL_LITERAL.search(line.split("--")[0]):
+            return n
+    return None
+
+
+_HL_WHY = "a 0x...hl number, which the game never compiles (60-bit numbers aren't supported in this game)"
 
 
 def _lua_or_havok(text: str) -> tuple[SyntaxProblem | None, list[HavokLine]]:
@@ -108,6 +121,13 @@ def check(entry: str, base: str, base_from: str, hooks: Sequence[Hook], composed
     """Why the composed entry script would not load, naming the file, the line and the part that introduced it; None
     when it compiles (Havok-only syntax aside: see havok_syntax). entry: how the file is named
     ("action/script/c0000.hks")."""
+    line = _hl_line(base)
+    if line is not None:
+        return f"{entry} would not load in game: {base_from} uses {_HL_WHY} at line {line}."
+    for hook in hooks:
+        line = _hl_line(hook.text.removeprefix("\ufeff"))
+        if line is not None:
+            return f"{entry} would not load in game: {hook.who}'s script uses {_HL_WHY} at its line {line}."
     found = _lua_or_havok(base)[0]
     if found is not None:
         return f"{entry} would not load in game: {base_from} has a syntax error at line {found.line} ({found.message})."

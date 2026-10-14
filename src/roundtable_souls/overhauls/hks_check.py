@@ -5,7 +5,9 @@ A character script's calls resolve to (game-model/havok-script.md): the function
 data by the exe's version, game.knowledge), the four shared scripts the game always loads with it (read from the
 installed game's own bytecode, or a package's text copy when one ships it), the script itself, and functions a mod's
 DLL registers. The launcher cannot see the last kind: a hook step may name them (`natives`, from the mod's own
-config); otherwise the warning says a mod's DLL may provide them.
+config); otherwise the warning says a mod's DLL may provide them. A function the script tests before calling it
+(`type(F) == "function"`, `F == nil`, `F ~= nil`) is one it knows may be missing (another mod's, used when that mod is
+there): its calls are not reported.
 
 The composed text is compiled with Lua 5.1 (never run) and its bytecode read (formats.hks): which globals it calls and
 sets, and the constant first argument of env, isenv and act calls. A script Lua 5.1 can't compile (Havok-only syntax,
@@ -14,6 +16,7 @@ see lua_check) is not checked here.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,6 +33,11 @@ SHARED = ("c9997", "common_define", "modifier", "c0000_talk")  # loaded with eve
 EXAMPLES = 5  # names given in a warning; the rest are counted
 _ENV = frozenset({"env", "isenv"})
 _WATCHED = frozenset({"env", "isenv", "act"})
+_TESTED = (
+    re.compile(r"\btype\s*\(\s*([A-Za-z_]\w*)\s*\)"),
+    re.compile(r"\b([A-Za-z_]\w*)\s*[~=]=\s*nil\b"),
+    re.compile(r"\bnil\s*[~=]=\s*([A-Za-z_]\w*)\b"),
+)
 
 
 @dataclass
@@ -82,6 +90,11 @@ def _facts(text: str) -> hks.Lua51Facts | None:
     return hks.lua51_facts(bytes(dump), _WATCHED)
 
 
+def _tested(text: str) -> set[str]:
+    """The names the script tests for being there before using them (type(F), F == nil, F ~= nil)."""
+    return {m.group(1) for line in text.split("\n") for r in _TESTED for m in r.finditer(line.split("--")[0])}
+
+
 def _native(name: str, declared: Sequence[str]) -> bool:
     return any(name.startswith(d[:-1]) if d.endswith("*") else name == d for d in declared)
 
@@ -108,7 +121,7 @@ def check(
             "it defines is not known"
         )
     else:
-        known = facts.defined | shared.functions | set(lists.lists.hks_natives)
+        known = facts.defined | shared.functions | set(lists.lists.hks_natives) | _tested(composed.text)
         first: dict[str, int] = {}
         for name, line in facts.calls:
             if name not in known and not _native(name, natives):

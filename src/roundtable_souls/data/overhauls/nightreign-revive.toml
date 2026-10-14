@@ -149,6 +149,7 @@ base_until = "-- Wrap the current mod's Update;"
 fragment = "installer/revive.hks"
 markers = ["local NrrOriginalUpdate = Update", "-- Nightreign Revive deferred adapter"]
 refuse_text = "A mod before it already contains Nightreign Revive's script; keep only the original mod in the profile."
+natives = ["NrrNative"]  # RevivePrototype.dll gives the script this function
 
 [[builds.steps]]
 do = "remove"

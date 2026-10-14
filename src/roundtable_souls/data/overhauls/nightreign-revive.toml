@@ -20,6 +20,10 @@ mod_ids = ["nightreign-revive", "reviveprototype.dll"]
 # Profile entries containing one of these (case aside) are its own: an offline launch with "Skip Revive too" turns
 # them off.
 profile_marks = ["nightreign-revive", "reviveprototype", "revivehud", "reviveerss", "nrrinitialize", "nrrhud"]
+# What its installer keeps beside the profile besides its folder (a copy of the download it refreshes from), and its
+# backups of the profile before each install: offered for removal with Remove overhaul, the backups last and apart.
+installer_folders = [".nightreign-revive-setup"]
+installer_backups = "Revive Backups"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # LITE 0.1.33-rc3: the launcher's own build (Settings: "Build Nightreign Revive in the launcher (preview)"). Revive's
@@ -30,10 +34,12 @@ id = "nightreign-revive-lite"
 # write one on a mod's behalf. Revive's own installer insists on Seamless Co-op; the launcher's build and install
 # leave Seamless as the player has it.
 
+# The download says its edition and version in edition.json (revive-maintenance.json is written only by its installer,
+# so a download straight from its archive has none; since 3.22 the launcher installs from such a download too).
 [builds.match]
-files = ["edition.json", "revive-maintenance.json", "payload/RevivePrototype.dll"]
+files = ["edition.json", "payload/RevivePrototype.dll"]
 json = [{ file = "edition.json", key = "edition", equals = "LITE" }]
-version = { file = "revive-maintenance.json", key = "version" }
+version = { file = "edition.json", key = "version" }
 versions = ["0.1.33-rc3"]
 
 # Where the download's files go in the launcher's layout (docs/Overhaul configs.md). The build above still reads the
@@ -143,14 +149,16 @@ base_until = "-- Wrap the current mod's Update;"
 fragment = "installer/revive.hks"
 markers = ["local NrrOriginalUpdate = Update", "-- Nightreign Revive deferred adapter"]
 refuse_text = "A mod before it already contains Nightreign Revive's script; keep only the original mod in the profile."
+natives = ["NrrNative"]  # RevivePrototype.dll gives the script this function
 
 [[builds.steps]]
 do = "remove"
 glob = "**/*.graph-work"
 
 # What Revive's installer (0.1.33-rc3, installer/installer.py) does to the me3 profile on a LITE install; the
-# launcher's install plan (overhauls/install_plan.py) works out the same changes. Revive's own folder is beside the
-# profile (recognise.folder).
+# launcher's install plan (overhauls/install_plan.py) works out the same changes, and "Install with the launcher
+# (preview)" applies them (mods/overhaul_install.py), with paths relative to the profile. Revive's own folder is
+# beside the profile (recognise.folder).
 [builds.install]
 profile_settings = { profileVersion = "v1", start_online = false }  # patched_profile
 owned_package_ids = ["nightreign-revive", "zz_NightreignRevive"]  # clean_owned: OWN_ID, ADDON_ID

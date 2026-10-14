@@ -222,3 +222,13 @@ def test_a_rebuild_without_room_on_the_drive_is_not_started(prof, monkeypatch):
         merge.rebuild(prof, lambda s: None, loc=er())
     after = {p.relative_to(folder).as_posix(): p.read_bytes() for p in folder.rglob("*") if p.is_file()}
     assert after == before and not folder.with_name("." + folder.name + ".staging").exists()
+
+
+def test_a_mod_lacking_the_games_inner_files_is_noted_in_the_log_and_the_record(prof):
+    (prof.parent / "mod" / "marker" / REL).write_bytes(dcx(bnd({"SB_KG.layout": b"xbox buttons"})))
+    lines: list[str] = []
+    merge.rebuild(prof, lines.append, loc=er())
+    said = "marker lacks 2 inner files the current game has (left out of the result)"
+    assert any(line.strip() == f"notice: {REL}: {said}" for line in lines)
+    rec = builtin.find(prof, merge.layers(prof), loc=er()).record()
+    assert rec["files"][REL.lower()]["omissions"] == [{"path": REL, "notice": said}]

@@ -46,6 +46,11 @@ class Recognise(_Strict):
     manifest: str  # its installer's manifest in that folder; a Play setup started from such a file includes it
     mod_ids: list[str] = Field(default_factory=list)  # profile entries (lower-case ids) meaning a setup includes it
     profile_marks: list[str] = Field(default_factory=list)  # text in a profile entry that marks it as this overhaul's
+    # What its own installer leaves beside the profile besides its folder (its setup copy, say): offered for removal,
+    # with their sizes, when its setup is removed. Never written by the launcher.
+    installer_folders: list[str] = Field(default_factory=list)
+    # Its installer's backups of the profiles it changed: the only copy from before it; offered last and separately.
+    installer_backups: str | None = None
 
 
 # ----------------------------------------------------------------------------- recognising a download
@@ -134,6 +139,9 @@ class Hook(_Strict):
     fragment: str  # the download's file appended
     markers: list[str] = Field(default_factory=list)  # text meaning a script already contains the fragment
     refuse_text: str | None = None  # the refusal then
+    # functions the mod's own DLL gives the script ("NrrNative", or a prefix "Nrr*"): its calls of them are not
+    # reported as undefined (overhauls.hks_check); only a mod's own config names them
+    natives: list[str] = Field(default_factory=list)
 
 
 class Remove(_Strict):

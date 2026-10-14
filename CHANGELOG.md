@@ -4,6 +4,55 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Nightreign Revive, a preview you turn on (Tools > Play session > "Install overhauls with the launcher (preview)"):
+  the launcher can install Revive LITE 0.1.33 into a profile itself, from the folder you unpacked its download into,
+  without running its installer. The Mods page's new Overhaul button shows everything that will change first: the
+  profile's new entries (with paths relative to the profile), the settings it changes (start_online), and the copy of
+  the download it keeps. It's one step you can undo from Activity; if anything fails, nothing changes. Installing again
+  is an update (Activity can roll it back), a profile that already has another overhaul is refused, and a Revive that
+  its own installer set up isn't touched: remove it first. The launcher keeps its copy of the download and its notes
+  in its own folder, rs-eldenring, in me3's profiles folder; Revive's own folder stays beside your profile as before.
+- Remove overhaul (same preview): one action takes Revive out of a profile. Its entries go, and each setting its
+  install changed is put back, but only where it's still what the install set; anything you changed since stays, and
+  the preview says so. Its folder, its build and the launcher's copy of its download go to the Recycle Bin when no
+  other profile uses them. Seamless Co-op is never removed. Restore in Activity puts it all back. For a Revive that
+  its own installer set up, the launcher compares your profile with the installer's oldest backup and lets you pick
+  which of its changes to put back. Then Clean up installer leftovers offers its leftover folders with their sizes:
+  the setup copy first, and its "Revive Backups" separately at the end, since that's the only copy of your profile
+  from before Revive.
+- Nightreign Revive: the launcher now reads a download's edition and version from its edition.json, which every
+  download has, instead of the file only Revive's installer writes. So it recognises a download straight from its
+  archive. If you use "Build Nightreign Revive in the launcher (preview)", this counts as a change: the next Play
+  rebuilds Revive once (or asks first, if you turned off automatic rebuilds before Play).
+- Combine and overhaul builds match a merged archive's inner files the way the game finds them: by ID in part,
+  character and texture archives (where a mod may rename every inner file and still work), by name where the ID is
+  only a position. Two mods changing the same part now meet on it instead of being listed under different names.
+  Merged builds are rebuilt once.
+- Combine and overhaul builds now say when a mod's copy of a merged archive lacks inner files the current game has:
+  "Sekiro Animations lacks 58 animations the current game uses (they won't play)". A notice in the build's report and
+  log, not a stop.
+- Nightreign Revive (launcher build): a character script using Havok Script's own syntax (`hstructure`, `hmake`,
+  `0x…hi` numbers) is no longer refused as a syntax error; the build's report names the line the check can't read.
+  Real syntax errors are still refused, and so are `0x…hl` numbers, which the game never compiles.
+- Combine and overhaul builds check parameters the way the game reads them: a result with more than 65,535 rows in a
+  table, or missing a table the game's own regulation has, is refused (the previous build stays); a table the game
+  doesn't know and rows with negative IDs are warnings in the build's report.
+- Merged talk scripts: a mod's talk commands and functions the game doesn't have are warnings in the build's report,
+  naming the mod, the state machine and the state.
+- Nightreign Revive (launcher build): the build's report warns about calls of functions defined nowhere the game
+  looks and `env`/`act` IDs the game doesn't handle. Functions a mod's own DLL provides can't be seen by the
+  launcher, so the warning says so; Revive's config names its own (NrrNative), and a call the script makes only after
+  checking the function is there (Revive's use of Nightreign Movement's) isn't reported.
+- Play: going online with a mod's parameters is warned about before the game starts. After Play, when me3's fast DLC
+  loading failed, the log says so in plain words: "me3's fast DLC loading failed this launch; if your DLC was
+  missing, that's why; Play again."
+- Mods: a first look at the new design. A new button on the Mods page, Open new Mods window, opens the redesigned
+  Mods page in a window of its own: the mods in the order me3 loads them, switched on and off in place with Undo,
+  dragged into a new order (a move me3's load-after rules would undo is refused and says why), Mod options, Profile
+  settings, Versions, the Parameters card and the Load order panel. The Mods page you know stays as it is.
+- Mods: removing an entry that only points at a folder of mods no longer fails when another mod must load after
+  it; deleting a profile now waits until the running job finishes; a mod's rebuild tool is asked about again when
+  its program or script changes. Wording: refusing to delete a profile an installer manages names that profile.
 - Combine and overhaul builds are much faster: merged archives are compressed at Oodle level 4 instead of 6. The large
   effects archive takes about 5 seconds instead of nearly 2 minutes, for about 3% more disk; checked in game with the
   same effects and load time.

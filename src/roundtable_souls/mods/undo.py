@@ -32,8 +32,14 @@ LABEL = {
     "install": "Undo install",
     "update": "Roll back",
     "rollback": "Roll back again",
+    "overhaul-install": "Undo install",
+    "overhaul-update": "Roll back",
+    "overhaul-remove": "Restore",
 }
 OPERATIONS = ("install", "update", "rollback")
+# An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
+# says what to take back; the removal's folders come back from the Recycle Bin.
+OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove")
 
 
 class UndoError(RuntimeError):
@@ -73,7 +79,7 @@ def available(undo: dict | None) -> bool:
         if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
             return False
         return not _listed(profile, undo.get("path") or "") or _in_bin(undo)
-    if undo.get("type") in OPERATIONS:
+    if undo.get("type") in OPERATIONS or undo.get("type") in OVERHAUL:
         from roundtable_souls.merging import build
 
         op = Path(str(undo.get("operation") or ""))
@@ -101,6 +107,8 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         return _undo_rebuild(undo, log)
     if undo.get("type") in OPERATIONS:
         return _take_back(undo, log, loc)
+    if undo.get("type") in OVERHAUL:
+        return _overhaul_back(undo, log)
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 
 
@@ -148,6 +156,19 @@ def _take_back(undo: dict, log, loc: Locations) -> str:
     try:
         return operations.rollback(op, log, rebuild_after if undo.get("rebuild") else None)
     except operations.OperationError as e:
+        raise UndoError(str(e)) from e
+
+
+def _overhaul_back(undo: dict, log) -> str:
+    from roundtable_souls.mods import operations, overhaul_install
+
+    if not available(undo):
+        raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
+    try:
+        if undo["type"] == "overhaul-remove":
+            return overhaul_install.undo_remove(undo, log)
+        return operations.take_back(Path(undo["operation"]), log)
+    except overhaul_install.OverhaulError as e:
         raise UndoError(str(e)) from e
 
 

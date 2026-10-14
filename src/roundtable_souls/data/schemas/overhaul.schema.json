@@ -283,6 +283,13 @@
      ],
      "default": null,
      "title": "Refuse Text"
+    },
+    "natives": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Natives",
+     "type": "array"
     }
    },
    "required": [
@@ -682,6 +689,25 @@
      },
      "title": "Profile Marks",
      "type": "array"
+    },
+    "installer_folders": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Installer Folders",
+     "type": "array"
+    },
+    "installer_backups": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Installer Backups"
     }
    },
    "required": [

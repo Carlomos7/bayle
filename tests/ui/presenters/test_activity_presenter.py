@@ -216,3 +216,26 @@ def test_every_string_goes_through_tr():
         assert state.days[0].jobs[0].outcome == "DONE"
     finally:
         text.install(None)
+
+
+def test_undo_plans_for_an_overhaul_installed_updated_or_removed_by_the_launcher():
+    p = presenter()
+    fresh = p.undo_plan(
+        {"id": "o", "undo": {"type": "overhaul-install", "name": "Nightreign Revive", "profile": "x/a.me3"}},
+        False,
+        False,
+    )
+    assert isinstance(fresh, act.UndoPlan)
+    assert fresh.title == "Undo the install of Nightreign Revive" and fresh.apply_text == "Undo install"
+    assert fresh.changes[0] == "a.me3 goes back to exactly what it was before the install"
+    update = p.undo_plan({"id": "u", "undo": {"type": "overhaul-update", "name": "NR", "profile": "a.me3"}}, 0, 0)
+    assert isinstance(update, act.UndoPlan) and update.title == "Roll NR back" and update.apply_text == "Roll back"
+    gone = p.undo_plan(
+        {"id": "r", "undo": {"type": "overhaul-remove", "name": "NR", "profile": "a.me3", "trash": []}}, 0, 0
+    )
+    assert isinstance(gone, act.UndoPlan) and gone.title == "Restore NR" and gone.apply_text == "Restore"
+    assert gone.changes == (
+        "a.me3 goes back to exactly what it was before the removal",
+        "The launcher's notes on it come back",
+    )
+    assert "If a.me3 changed since the removal, nothing is changed" in gone.safety

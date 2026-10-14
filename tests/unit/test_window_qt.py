@@ -967,6 +967,35 @@ def test_the_play_pages_log_links_to_activity(sandbox):
     assert w.stackedWidget.currentWidget() is w.activity_page
 
 
+def test_the_mods_page_opens_the_new_mods_window(sandbox, app):
+    from PySide6.QtCore import QEventLoop, QTimer
+    from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+
+    from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
+
+    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)  # offscreen: the software scene graph
+    w = sandbox
+    w.switchTo(w.mods_page)
+    text = ModsPresenter().open_window_text
+    button = next(b for b in w.mods_page.findChildren(QPushButton) if b.text() == text)
+    QTest.mouseClick(button, Qt.LeftButton)
+    loop = QEventLoop()
+    QTimer.singleShot(400, loop.quit)
+    loop.exec()
+    try:
+        win = w.mods_window.window
+        assert win is not None and win.isVisible()
+        assert w.mods_window.warnings == []
+        state = w.mods_window.adapter.state()
+        assert state.title == "sandbox"  # the profile the window shows is the launcher's own
+        QTest.mouseClick(button, Qt.LeftButton)  # a second click brings the same window forward
+        assert w.mods_window.window is win
+    finally:
+        w.mods_window.dispose()
+        w.mods_window = None
+        app.processEvents()
+
+
 def test_the_activity_page_opens_the_new_activity_window(sandbox, app):
     from PySide6.QtCore import QEventLoop, QTimer
     from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
@@ -1119,7 +1148,9 @@ def test_removing_a_merged_package_says_play_rebuilds_first(sandbox, monkeypatch
     prof.write_text(
         prof.read_text(encoding="utf-8") + "\n[[packages]]\nid = \"near\"\npath = 'mod/near'\n", encoding="utf-8"
     )
-    monkeypatch.setattr(ui.Launcher, "_merged_from", lambda self, p, e: ["regulation.bin"])
+    from roundtable_souls.services import profile_mods
+
+    monkeypatch.setattr(profile_mods, "merged_from", lambda p, e, **k: ["regulation.bin"])
     patch_ui(monkeypatch, "notice", lambda *a, **k: type("B", (), {"close": lambda s: None})())
     rebuilt, shown = [], []
     monkeypatch.setattr(ui.core.mod_merge, "rebuild", lambda p, log, **k: rebuilt.append(p) or {"backend": "t"})
@@ -1514,3 +1545,26 @@ def test_the_load_order_card_says_when_me3_is_older_than_the_order_checked(sandb
     assert "not checked for me3 0.9.2" in w._order_unverified()
     w._me3 = {}
     assert w._order_unverified() is None  # unknown: nothing to say
+
+
+def test_the_overhaul_button_shows_only_with_the_preview_switch_on(sandbox):
+    w = sandbox
+    assert w.game is ui.games.ELDEN_RING and not w.play_rows["overhaul_install"].isHidden()
+    assert w.mods_overhaul.isHidden()  # off by default
+    assert "install description for (Nightreign Revive LITE" in w.play_rows["overhaul_install"].d.text()
+    w.play_sw["overhaul_install"].setChecked(True)
+    assert not w.mods_overhaul.isHidden() and w.settings.overhaul_install
+    assert "install description for: Nightreign Revive LITE" in w.mods_overhaul.toolTip()
+    w.play_sw["overhaul_install"].setChecked(False)
+    assert w.mods_overhaul.isHidden()
+
+
+def test_a_choice_list_can_go_ahead_with_none_ticked_when_allowed(sandbox):
+    from roundtable_souls.ui.dialogs.common import ChoiceListDialog
+
+    strict = ChoiceListDialog("t", "", ["a", "b"], sandbox, apply_text="Put back")
+    assert not strict.yesButton.isEnabled()
+    free = ChoiceListDialog("t", "", ["a", "b"], sandbox, apply_text="Put back", allow_none=True, none_text="Leave")
+    assert free.yesButton.isEnabled() and free.yesButton.text() == "Leave"
+    free.boxes[1].setChecked(True)
+    assert free.yesButton.text() == "Put back 1" and free.selected() == [1]

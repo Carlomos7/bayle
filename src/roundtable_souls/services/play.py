@@ -50,6 +50,7 @@ from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.saves import analyze as save_analyze
 from roundtable_souls.saves import fix as save_fix
 from roundtable_souls.saves import repair as save_repair
+from roundtable_souls.services import game_checks
 from roundtable_souls.services.saves import (
     save_info,
 )
@@ -429,7 +430,18 @@ def repair_key(game) -> str:
     return "play_repair_after_eldenring" if game is games.ELDEN_RING else "play_repair_after"
 
 
+def _me3_said() -> None:
+    """me3's own log of the launch just ended: what its fast loading failing means for the player (backlog M1)."""
+    try:
+        text = me3_session.me3_log_path().read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return
+    for said in game_checks.me3_mount_failures(text):
+        run_logging.log(f"warning: {said}")
+
+
 def _after_play(opts, loc: Locations):
+    _me3_said()
     if not loc.game.regulation_repair:
         pass  # this game has no regulation block me3 leaves dirty
     elif opts[repair_key(loc.game)]:
@@ -452,6 +464,9 @@ def job_play(setup: Setup, loc: Locations | None = None, backup: str = BACKUP_RE
     me3_session.ensure_steam(120)
     if opts["play_clear_before"]:
         me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
+    online = game_checks.online_warning(Path(setup.profile), loc)
+    if online is not None:
+        run_logging.log(f"warning: {online}")
     me3_session.launch(
         setup.game.key,
         setup.profile,

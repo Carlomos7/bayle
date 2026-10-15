@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
+  current one could be copied).
+- The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.
 - the overhaul, a preview you turn on (Tools > Play session > "Install overhauls with the launcher (preview)"):
   the launcher can install the overhaul LITE 0.1.33 into a profile itself, from the folder you unpacked its download into,
   without running its installer. The Mods page's new Overhaul button shows everything that will change first: the

@@ -159,6 +159,28 @@ def test_switching_a_mod_off_writes_the_profile_and_offers_undo(qt_app, profile)
         closed(w)
 
 
+def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app, profile, monkeypatch):
+    from roundtable_souls.services import mods as mod_service
+
+    calls = []
+
+    def recover(prof, timeout=30.0):
+        calls.append(prof)
+        return ["the removal of flora was undone"] if len(calls) == 1 else []
+
+    monkeypatch.setattr(mod_service, "recover_interrupted", recover)
+    host = Host(profile)
+    w = opened(host)
+    try:
+        assert [n.key for n in w.adapter.state().notices] == ["recovered"]
+        host.busy = True  # a job holds the folder: it is not looked at then
+        w.adapter.refresh()
+        settle()
+        assert len(calls) == 1 and [n.key for n in w.adapter.state().notices] == ["recovered"]
+    finally:
+        closed(w)
+
+
 def test_a_move_the_dependencies_would_undo_is_refused_with_the_reason(qt_app, profile):
     w = opened(Host(profile))
     try:

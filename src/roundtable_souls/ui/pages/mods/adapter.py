@@ -103,6 +103,7 @@ class ModsAdapter(QObject):
         self._scan: dict | None = None
         self._tool: Any = None
         self._rebuild_undo: dict | None = None
+        self._recovered: tuple[str, ...] = ()  # interrupted changes put right as the page read the profile
         self._state: ModsState = self.presenter.page(None)
         self._loading = False
         self._again = False
@@ -159,10 +160,12 @@ class ModsAdapter(QObject):
         self._loading = True
         self.loadingChanged.emit()
         loc, settings, game = self.host.locations, self.host.settings, self.host.game
+        recover = not self.host.busy  # a running job holds the folder: nothing of it is interrupted
 
         def work():
             if profile is None or not Path(profile).is_file():
-                return None, None, None, None
+                return None, None, None, None, ()
+            recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
             facts = profile_mods.page_facts(profile, loc=loc, settings=settings)
             try:
                 scan = mod_overview.overview(Path(profile), loc=loc)
@@ -173,7 +176,7 @@ class ModsAdapter(QObject):
                 undo = profile_mods.last_rebuild_undo(profile)
             except Exception:
                 undo = None
-            return facts, scan, tool, undo
+            return facts, scan, tool, undo, recovered
 
         self.host.run_in_background(work, self._apply)
 
@@ -184,14 +187,19 @@ class ModsAdapter(QObject):
             self._again = False
             self.refresh()
             return
-        self._facts, self._scan, self._tool, self._rebuild_undo = got
+        self._facts, self._scan, self._tool, self._rebuild_undo, recovered = got
+        self._recovered += recovered
         self._render()
         if not self._edit_text:
             self._read_text()
 
     def _render(self) -> None:
         self._state = self.presenter.page(
-            self._facts, self._scan, game_running=self.host.game_running, tool_to_allow=self._tool
+            self._facts,
+            self._scan,
+            game_running=self.host.game_running,
+            tool_to_allow=self._tool,
+            recovered=self._recovered,
         )
         groups = {g.kind: g for g in self._state.groups}
         self._packages.set_rows([_row(r) for r in (groups["package"].rows if "package" in groups else ())])

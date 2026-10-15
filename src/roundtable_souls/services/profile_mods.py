@@ -21,6 +21,7 @@ from roundtable_souls.mods import conflicts as mod_overview
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
+from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods.backends.manifest_refresh import launcher_installed
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services.mods import (
@@ -154,29 +155,9 @@ def holder_dependents(profile, entry: dict) -> list[str]:
 
 def remove_holder(profile, index: int, entry: dict, needs: list[str], *, loc: Locations) -> None:
     """Take out an entry that points at a folder of mods (it loaded nothing, so the game does not change): the entry
-    goes, the folder and its mods stay, and the dependency on it is taken out of the packages in needs. The
-    dependencies go first: the profile writer refuses a profile in which a package must load after an entry that is
-    not there.
-
-    TODO(after 3.22-A): one write instead of several (the dependencies, then the entry), as a single ProfileWriter
-    edit inside an S3i operation; today a failure between them leaves the profile valid but only half changed."""
-    ref = profile_edit.entry_ref(entry).lower()
-
-    def keep(deps: list) -> list:
-        return [dep for dep in deps if str(dep["id"]).lower() != ref]
-
-    for other in profile_entries(profile):
-        if other["name"] in needs:
-            set_mod_options(
-                profile,
-                other["index"],
-                {
-                    "load_after": keep(other.get("load_after") or []),
-                    "load_before": keep(other.get("load_before") or []),
-                },
-                loc=loc,
-            )
-    uninstall_mod(profile, index, delete_folder=False, loc=loc)
+    goes, the folder and its mods stay, and the dependency on it is taken out of the packages in needs, in one
+    profile write (mods.remove.remove_holder)."""
+    mod_remove.remove_holder(Path(profile), index, profile_edit.entry_ref(entry), needs, loc=loc)
 
 
 # ----------------------------------------------------------------------------- install

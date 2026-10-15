@@ -167,7 +167,7 @@ def files(folder: Path) -> dict[str, bytes]:
         p.relative_to(folder).as_posix(): p.read_bytes()
         for p in Path(folder).rglob("*")
         if p.is_file()
-        and not p.relative_to(folder).as_posix().startswith(B.OPS)
+        and not p.relative_to(folder).as_posix().startswith(".roundtable")
         and ".bak" not in p.suffixes
         and "history" not in p.parts
     }
@@ -352,7 +352,7 @@ def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
     with pytest.raises(engine.EngineError):
         world.install()
     assert files(world.base) == before
-    assert not [p for p in world.base.iterdir() if p.name.startswith(".") and not p.name.startswith(B.OPS)]
+    assert not [p for p in world.base.iterdir() if p.name.startswith(".") and not p.name.startswith(".roundtable")]
     assert not list((world.library / "sources").iterdir())  # no staged copy left
     assert operations.pending(world.profile) == []
 

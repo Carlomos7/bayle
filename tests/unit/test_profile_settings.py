@@ -1,4 +1,4 @@
-"""roundtable.json: the launcher's decisions about a profile kept beside it, so they travel with the folder."""
+"""settings.json in .roundtable beside a profile: the launcher's decisions about it, so they travel with the folder."""
 
 import json
 import shutil
@@ -13,7 +13,8 @@ from roundtable_souls.mods import rebuild as merge
 def test_settings_round_trip_and_keep_what_this_version_does_not_know(tmp_path):
     prof = tmp_path / "p.me3"
     prof.write_text("")
-    file = tmp_path / "roundtable.json"
+    file = profile_settings.path(prof)
+    file.parent.mkdir()
     file.write_text(
         json.dumps({"schema": 1, "future": {"x": 1}, "profiles": {"p.me3": {"later": 2}, "other.me3": {"y": 3}}})
     )
@@ -24,7 +25,7 @@ def test_settings_round_trip_and_keep_what_this_version_does_not_know(tmp_path):
     assert profile_settings.load(prof) == {"later": 2, "after_overlay": ["a"]}
     profile_settings.update(prof, after_overlay=None)
     assert profile_settings.load(prof) == {"later": 2}
-    assert not (tmp_path / "roundtable.json.tmp").exists()
+    assert not file.with_name(file.name + ".tmp").exists()
 
 
 def test_a_newer_schema_is_kept(tmp_path):
@@ -32,7 +33,7 @@ def test_a_newer_schema_is_kept(tmp_path):
     prof.write_text("")
     (tmp_path / "roundtable.json").write_text(json.dumps({"schema": 7, "profiles": {}}))
     profile_settings.update(prof, after_overlay=["a"])
-    assert json.loads((tmp_path / "roundtable.json").read_text())["schema"] == 7
+    assert json.loads(profile_settings.path(prof).read_text())["schema"] == 7
 
 
 def test_an_unreadable_file_is_left_alone_and_the_launchers_setting_is_used(tmp_path, monkeypatch):
@@ -79,3 +80,24 @@ def test_a_folder_that_cannot_be_written_falls_back_to_the_launchers_setting(tmp
     note = merge.set_overlay_override(w.profile, w.winner)
     assert "read-only" in note
     assert merge.overlay_mark(w.profile)["package"] == w.winner
+
+
+def test_the_file_of_launchers_before_3_23_is_copied_never_changed_and_the_newer_one_wins(tmp_path):
+    """Safety (players' files): roundtable.json beside the profile is copied into .roundtable/settings.json, left
+    byte for byte as it was, and when an older launcher writes it again later, its newer content is what is read."""
+    import os
+
+    prof = tmp_path / "p.me3"
+    prof.write_text("")
+    legacy = tmp_path / "roundtable.json"
+    legacy.write_text(json.dumps({"schema": 1, "keep": {"x": 1}, "profiles": {"p.me3": {"after_overlay": ["a"]}}}))
+    before = legacy.read_bytes()
+    assert profile_settings.load(prof) == {"after_overlay": ["a"]}
+    new = json.loads(profile_settings.path(prof).read_text(encoding="utf-8"))
+    assert new["version"] == 1 and new["keep"] == {"x": 1} and legacy.read_bytes() == before
+    profile_settings.update(prof, after_overlay=["b"])
+    assert profile_settings.load(prof) == {"after_overlay": ["b"]} and legacy.read_bytes() == before
+    legacy.write_text(json.dumps({"schema": 1, "profiles": {"p.me3": {"after_overlay": ["older launcher"]}}}))
+    later = profile_settings.path(prof).stat().st_mtime + 5
+    os.utime(legacy, (later, later))
+    assert profile_settings.load(prof) == {"after_overlay": ["older launcher"]}

@@ -12,7 +12,8 @@ nothing else writes SQL.
 
 What stays a file: the settings file (an older version restored after a failed update must read it), saves, me3
 profiles, mod folders and game files, other programs' formats, and the records that protect files beside them (build
-journals, a profile's `roundtable.json`). Records with that kind of job are classified before anything moves.
+journals, operation journals and a profile's settings, kept together in the profile's `.roundtable/` folder since
+3.23; `roundtable.json` beside the profile before). Records with that kind of job are classified before anything moves.
 
 **Connections.** Every connection sets a bounded `busy_timeout` (5 s), `foreign_keys=ON` and `synchronous=FULL`,
 and every write transaction starts with `BEGIN IMMEDIATE`, so a writer waits at the start instead of failing at

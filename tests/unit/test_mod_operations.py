@@ -25,7 +25,7 @@ def files(folder):
     return {
         p.relative_to(folder).as_posix(): p.read_bytes()
         for p in Path(folder).rglob("*")
-        if p.is_file() and not p.relative_to(folder).as_posix().startswith(B.OPS) and p.suffix != ".bak"
+        if p.is_file() and not p.relative_to(folder).as_posix().startswith(".roundtable") and p.suffix != ".bak"
     }
 
 
@@ -127,6 +127,41 @@ def test_an_interrupted_install_is_undone_on_the_next_start(profile, tmp_path, m
     assert files(profile.parent) == before and operations.problem(profile) is None
 
 
+@pytest.mark.parametrize("where", [".roundtable-ops", ".roundtable/ops"])
+def test_an_interrupted_install_is_undone_wherever_its_journal_is(profile, tmp_path, monkeypatch, where):
+    """Safety (players' files): a journal left in .roundtable-ops beside the profile (launchers before 3.23) blocks
+    Play and is undone on the next start, as one in the profile's .roundtable/ops is."""
+
+    def before_3_23(prof, what):
+        op = B.Operation(Path(prof).parent, what)
+        op.note(profile=str(Path(prof)))
+        return op
+
+    before = files(profile.parent)
+    real = B.os.replace
+    n = {"i": 0}
+
+    def dying(src, dst):
+        if "journal" not in str(dst) and Path(dst).is_relative_to(profile.parent):
+            n["i"] += 1
+            if n["i"] == 2:
+                raise Crash()
+        return real(src, dst)
+
+    with monkeypatch.context() as m:
+        if where == ".roundtable-ops":
+            m.setattr(operations, "start", before_3_23)
+        m.setattr(B.os, "replace", dying)
+        m.setattr(B, "_undo", lambda op: None)
+        with pytest.raises(Crash):
+            do_install(profile, source(tmp_path, "1"))
+    assert [d for d in (profile.parent / where).iterdir() if d.is_dir()]
+    assert "did not finish" in (operations.problem(profile) or "")
+    said = operations.recover(profile)
+    assert said and "undone" in said[0]
+    assert files(profile.parent) == before and operations.problem(profile) is None
+
+
 def test_update_keeps_the_previous_version_and_rolls_back_as_a_set(profile, tmp_path):
     do_install(profile, source(tmp_path, "1"))
     v1_profile = profile.read_bytes()
@@ -140,9 +175,10 @@ def test_update_keeps_the_previous_version_and_rolls_back_as_a_set(profile, tmp_
     assert profile.read_bytes() == v1_profile
     [rb] = operations.kept_versions(profile)
     assert rb["kind"] == "rollback"  # the version rolled back is kept aside until kept
-    aside = [p for p in grass.parent.iterdir() if p.name.startswith(".grass.previous-")]
+    aside = list((profile.parent / ".roundtable" / "previous").glob("grass-*"))  # in the profile's .roundtable
     assert len(aside) == 1 and files(aside[0])["new.txt"] == b"n"
     operations.keep(Path(rb["dir"]))
+    assert not list((profile.parent / ".roundtable" / "previous").glob("grass-*"))
     assert not any(p.name.startswith(".grass.") for p in grass.parent.iterdir())
 
 

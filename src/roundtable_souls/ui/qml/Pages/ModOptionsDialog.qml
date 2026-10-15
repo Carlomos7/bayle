@@ -277,5 +277,16 @@ ModalDialog {
             width: parent ? parent.width : 0
             wrapMode: Text.WordWrap
         }
+        GhostButton {
+            icon_: "Link"
+            objectName: "openOnModConfigs"
+            text: dlg.words.openOnModConfigs
+            visible: (dlg.data_.configs || []).length > 0
+
+            onClicked: {
+                dlg.adapter.attachConfig(dlg.data_.index);
+                dlg.close();
+            }
+        }
     }
 }

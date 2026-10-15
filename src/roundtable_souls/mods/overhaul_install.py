@@ -891,15 +891,12 @@ def _remove_lines(r: RemovePreview) -> list[str]:
 
 
 def _tidy(where: Places | None) -> None:
-    """Folders of the launcher's that a removal left empty go (builds/<id>/<profile>, builds/<id>, overhauls/<id>)."""
+    """Folders of the launcher's that a removal left empty go, up to the library itself (builds/<id>/<profile>,
+    overhauls/<id>, sources/<id>, then builds/, overhauls/, sources/ when nothing else is in them)."""
     if where is None:
         return
-    for folder in (where.effects.parent, where.effects.parent.parent, where.record.parent):
-        try:
-            if folder.is_dir() and not any(folder.iterdir()):
-                folder.rmdir()
-        except OSError:
-            pass
+    for folder in (where.effects.parent, where.record.parent, where.sources):
+        where.library.prune(folder)
 
 
 def remove(preview: RemovePreview, *, log=lambda s: None) -> dict:

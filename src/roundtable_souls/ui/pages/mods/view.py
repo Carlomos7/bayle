@@ -63,6 +63,7 @@ from roundtable_souls.services.play import (
     forget_setup,
     play_options,
     remember_setup,
+    same_source,
 )
 from roundtable_souls.services.settings import (
     load_settings,
@@ -1651,22 +1652,26 @@ class ModsView:
         )
 
     def _new_profile(self):
-        cur = self.setup.profile if self.setup and Path(self.setup.profile).is_file() else None
+        profiles = []  # every profile of this game the launcher knows (the Play list), each once
+        for s in self.setups:
+            if Path(s.profile).is_file() and not any(same_source(s.profile, p) for p in profiles):
+                profiles.append(s.profile)
         dlg = TextDialog(
             "New me3 profile",
             f"Created in me3's profile folder, in {self.game.key}-mods with its own mod and natives folders. A copy goes beside the profile it copies, so its mods keep working.",
             self,
             placeholder="name, e.g. vanilla-plus",
-            option=(f"Start from a copy of {Path(cur).name}" if cur else None),
-            option_checked=False,
             apply_text="Create",
+            choices=["Empty profile"] + [f"Copy of {Path(p).name}  ·  {Path(p).parent.name}" for p in profiles],
+            choice_label="Start from",
         )
         if not dlg.exec():
             return
+        pick = dlg.choice.currentIndex() if dlg.choice is not None else 0
         try:
             p = create_profile(
                 dlg.edit.text().strip(),
-                copy_from=cur if (dlg.option is not None and dlg.option.isChecked()) else None,
+                copy_from=profiles[pick - 1] if pick > 0 else None,
                 loc=self.ctx.locations,
             )
         except Exception as e:

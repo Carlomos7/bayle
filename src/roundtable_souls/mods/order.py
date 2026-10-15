@@ -28,7 +28,7 @@ optional, so switching a mod on or off never rewrites the file. Entries of the p
 touched. A load_early DLL is not added (it loads in another phase), but one already listed stays.
 
 Kept after it on purpose (an exception): an entry whose own load_after names that mod (or that it names in its
-load_before), and the names in after_overlay in roundtable.json (see mods.profile_settings, "Keep it after").
+load_before), and the names in after_overlay in the profile's settings.json (see mods.profile_settings, "Keep it after").
 
 reconcile() works on the text about to be written and is called where the launcher changes a profile: install,
 remove, add existing, saved options. If the result would make the load order loop, nothing of it is used and the
@@ -323,7 +323,7 @@ def target(profile: Path, loc: Locations) -> dict | None:
 
 
 def exceptions(profile: Path) -> set[str]:
-    """Names (lower-case) kept after the mod that must stay last with Keep it after (roundtable.json)."""
+    """Names (lower-case) kept after the mod that must stay last with Keep it after (the profile's settings.json)."""
     from roundtable_souls.mods import profile_settings
 
     return {str(x).lower() for x in profile_settings.load(profile).get("after_overlay") or []}
@@ -503,7 +503,7 @@ def status(profile: Path, *, loc: Locations) -> dict | None:
     """{name, late, kept, kept_setting, can_fix, problem} for the Load order card, or None when there is no mod
     that must stay last. late: enabled entries that load after it without being kept there on purpose (they replace
     its files); kept: the ones kept after it on purpose, kept_setting those of them kept by Keep it after
-    (roundtable.json); can_fix: fix() would change the file; problem: why it cannot."""
+    (settings.json); can_fix: fix() would change the file; problem: why it cannot."""
     profile = Path(profile)
     tgt = target(profile, loc)
     if not tgt:

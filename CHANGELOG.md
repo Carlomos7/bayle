@@ -2,7 +2,7 @@
 
 All notable changes to Roundtable Souls. The version is shown in the window title.
 
-## [Unreleased]
+## [3.22.0] - 2026-10-15
 
 - Nightreign Revive, a preview you turn on (Tools > Play session > "Install overhauls with the launcher (preview)"):
   the launcher can install Revive LITE 0.1.33 into a profile itself, from the folder you unpacked its download into,

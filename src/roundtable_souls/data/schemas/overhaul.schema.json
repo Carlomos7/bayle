@@ -56,6 +56,84 @@
    "title": "AddText",
    "type": "object"
   },
+  "Basic": {
+   "additionalProperties": false,
+   "description": "What the Overhaul setup form sets (overhauls.basic derives the rest of the config from it and the mod's\nfiles). The config's recognise and builds are written beside it; it loads last whatever is set here.",
+   "properties": {
+    "version": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Version"
+    },
+    "natives": {
+     "items": {
+      "$ref": "#/$defs/BasicNative"
+     },
+     "title": "Natives",
+     "type": "array"
+    },
+    "keep": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Keep",
+     "type": "array"
+    },
+    "not_merged": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Not Merged",
+     "type": "array"
+    }
+   },
+   "title": "Basic",
+   "type": "object"
+  },
+  "BasicNative": {
+   "additionalProperties": false,
+   "description": "One of the mod's DLLs, as the Overhaul setup form sets it.",
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "load_early": {
+     "default": false,
+     "title": "Load Early",
+     "type": "boolean"
+    },
+    "initializer": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Initializer"
+    },
+    "after_others": {
+     "default": true,
+     "title": "After Others",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "file"
+   ],
+   "title": "BasicNative",
+   "type": "object"
+  },
   "Build": {
    "additionalProperties": false,
    "description": "One edition the launcher builds itself.",
@@ -872,6 +950,17 @@
    },
    "title": "Install Unsupported",
    "type": "object"
+  },
+  "basic": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Basic"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
   }
  },
  "required": [

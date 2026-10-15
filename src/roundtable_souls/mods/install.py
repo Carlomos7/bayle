@@ -32,6 +32,7 @@ from roundtable_souls.mods.profile_edit import (
     slug,
 )
 from roundtable_souls.mods.profile_writer import ProfileWriter
+from roundtable_souls.overhauls.basic import INSTALLER_SUFFIXES
 
 REGULATION = games.ELDEN_RING.regulation  # the parameter file a package may ship
 
@@ -89,8 +90,6 @@ DOC_SUFFIXES = {
 SETTINGS_SUFFIXES = {".ini", ".toml", ".json", ".cfg", ".conf", ".yaml", ".yml", ".xml"}
 
 LOADER_DLLS = {"dinput8.dll", "modengine2.dll", "mod_loader.dll", "me3-mod-host.dll"}  # me3 loads mods itself
-
-INSTALLER_SUFFIXES = {".exe", ".cmd", ".bat", ".ps1", ".py"}  # a download that ships its own installer
 
 
 def _top_dlls(root: Path) -> list[Path]:

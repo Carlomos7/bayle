@@ -76,6 +76,10 @@ class OverhaulError(ModError):
     """Why an overhaul can't be installed or removed, in plain words; nothing was changed."""
 
 
+class NotAnOverhaul(OverhaulError):
+    """No overhaul config describes the download at all (as opposed to one at another version or edition)."""
+
+
 # ----------------------------------------------------------------------------- where things are
 @dataclass(frozen=True)
 class Places:
@@ -205,13 +209,10 @@ def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | N
     tries = [folder, *sorted((p for p in folder.iterdir() if p.is_dir()), key=lambda p: p.name.lower())]
     newer = None
     for place in tries:
-        recipe, version, why = engine.match(place)
-        if recipe is None:
-            newer = newer or why
-            continue
-        for config in configs:
-            build = next((b for b in config.builds if b.id == recipe["id"]), None)
-            if build is None:
+        for config, build in ((c, b) for c in configs for b in c.builds):  # by config: two may share a build id
+            recipe, version, why = engine.match(place, [config.recipe(build)])
+            if recipe is None:
+                newer = newer or why
                 continue
             if config.game != game:
                 name = next((g.name for g in games.GAMES if g.key == config.game), config.game)
@@ -221,7 +222,8 @@ def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | N
                     f"The launcher builds {config.label} but has no description of how to install this edition; "
                     "use its own installer."
                 )
-            return Found(place, config, build, version or "")
+            # a config without a version file (one made with the Overhaul setup form) has its label
+            return Found(place, config, build, version or (config.basic.version if config.basic else None) or "")
     for place in tries:  # an edition its config names as one the launcher doesn't install
         for config in configs:
             for b in config.builds:
@@ -236,7 +238,7 @@ def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | N
         raise OverhaulError(
             f"{newer}, so it can't install it. Use its own installer, or a launcher with a newer config for it."
         )
-    raise OverhaulError(
+    raise NotAnOverhaul(
         f"The launcher doesn't know {folder.name} as an overhaul it can install. Pick the folder you unpacked the "
         "overhaul's download into."
     )
@@ -572,9 +574,13 @@ def _expect(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "missing"
 
 
-def install(preview: InstallPreview, *, loc: Locations, log=lambda s: None) -> dict:
-    """Install as previewed, as one operation (see the module notes). Returns {operation, update, name}; raises
-    OverhaulError (refused, nothing written) or the error that stopped it (the previous state is back)."""
+def install(
+    preview: InstallPreview, *, loc: Locations, log=lambda s: None, config_file: tuple[Path, bytes] | None = None
+) -> dict:
+    """Install as previewed, as one operation (see the module notes). config_file: the overhaul's config, written
+    to this file in the same operation (a setup made with the form), so an undo takes it back too. Returns
+    {operation, update, name}; raises OverhaulError (refused, nothing written) or the error that stopped it (the
+    previous state is back)."""
     from roundtable_souls import __version__
     from roundtable_souls.mods import engine
 
@@ -623,6 +629,9 @@ def install(preview: InstallPreview, *, loc: Locations, log=lambda s: None) -> d
             op.write_file(where.record, record.text().encode("utf-8"), expect=_expect(where.record))
             effects = records.SideEffectsRecord(changes=p.side_effects)
             op.write_file(where.effects, effects.text().encode("utf-8"), expect=_expect(where.effects))
+            if config_file is not None:
+                config_file[0].parent.mkdir(parents=True, exist_ok=True)
+                op.write_file(config_file[0], config_file[1], expect=_expect(config_file[0]))
             op.note(
                 kind="overhaul-update" if p.update else "overhaul-install",
                 name=cfg.label,
@@ -923,24 +932,27 @@ def remove(preview: RemovePreview, *, log=lambda s: None) -> dict:
             op.discard()
             raise
 
-        def take() -> None:
-            for folder in r.trash:
-                try:
-                    if trash.available():
-                        gone.append(trash.send(folder))
-                    else:
-                        aside = folder.with_name(f".{folder.name}.removing-{op.id}")
-                        os.replace(folder, aside)
-                        shutil.rmtree(aside, ignore_errors=True)
-                except trash.TrashError:
-                    kept.append(folder.name)  # cancelled at Windows' warning, or no bin: it stays
-
-        operations.commit(op, take)
+        operations.commit(op, lambda: _to_bin(r.trash, op.id, gone, kept))
         _tidy(r.places)
     for name in kept:
         log(f"warning: {name} stayed (the Recycle Bin did not take it)")
     log(f"overhaul: removed {r.config.label} from {profile.name}")
     return {"operation": str(op.dir), "trash": gone, "name": r.config.label, "kept": kept}
+
+
+def _to_bin(folders: Sequence[Path], op_id: str, gone: list[dict], kept: list[str]) -> None:
+    """Send folders to the Recycle Bin (deleted where there is none), the last one last; gone gets each bin record,
+    kept the names of those that stayed."""
+    for folder in folders:
+        try:
+            if trash.available():
+                gone.append(trash.send(folder))
+            else:
+                aside = folder.with_name(f".{folder.name}.removing-{op_id}")
+                os.replace(folder, aside)
+                shutil.rmtree(aside, ignore_errors=True)
+        except trash.TrashError:
+            kept.append(folder.name)  # cancelled at Windows' warning, or no bin: it stays
 
 
 def undo_remove(undo: dict, log=lambda s: None) -> str:
@@ -952,6 +964,9 @@ def undo_remove(undo: dict, log=lambda s: None) -> str:
     profile = Path(op.info["profile"])
     name = op.info.get("name") or "the overhaul"
     steps = [s for s in op.steps if s["type"] == "file"]
+    folders = [s for s in op.steps if s["type"] == "folder"]  # Turn off's ordinary copy of the mod
+    made = op.info.get("made") or {}
+    emptied: list[Path] = []
     prof = next((s for s in steps if Path(s["live"]) == profile), None)
     if prof is not None and profile.read_bytes() != (op.dir / prof["after"]).read_bytes():
         raise OverhaulError(
@@ -973,6 +988,20 @@ def undo_remove(undo: dict, log=lambda s: None) -> str:
                     new.write_file(live, (op.dir / s["before"]).read_bytes(), expect=expect)
                 else:
                     new.write_file(live, None)
+            for s in folders:
+                live, previous = Path(s["live"]), Path(s["previous"]) if s["previous"] else None
+                if previous is not None and previous.is_dir():
+                    new.replace_folder(live, previous)
+                elif live.is_dir():  # it made the folder: it goes, except files changed or added since
+                    created = made.get(str(live)) or {}
+                    staged = live.with_name(f".{live.name}.staging-{new.id}")
+                    staged.mkdir()
+                    for rel, rec in operations.manifest(live).items():
+                        if created.get(rel) != rec:
+                            (staged / rel).parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(live / rel, staged / rel)
+                    new.replace_folder(live, staged)
+                    emptied.append(live)
         except BaseException:
             new.discard()
             raise
@@ -984,6 +1013,9 @@ def undo_remove(undo: dict, log=lambda s: None) -> str:
 
         new.commit(then=bring_back)
         new.release()
+        for folder in emptied:
+            if folder.is_dir() and not any(folder.iterdir()):
+                folder.rmdir()
         op.release()
     log(
         f"undo: {name} is back in {profile.name}"
@@ -1115,3 +1147,180 @@ def _oldest_backup(profile: Path, folder: Path) -> str | None:
                 except OSError:
                     return None
     return None
+
+
+# ----------------------------------------------------------------------------- the Overhaul setup form
+def setup_config(config: OverhaulConfig, folder: Path) -> OverhaulConfig:
+    """The config the form's values give for the mod's folder: at the basic level derived again from its files (so
+    the steps follow the form), at the advanced level as it is."""
+    if config.basic is None:
+        return config
+    return overhauls.basic.make(
+        id=config.id,
+        label=config.label,
+        game=config.game,
+        basic=config.basic,
+        folder=folder,
+        short_label=config.short_label,
+    )
+
+
+def config_path(config: OverhaulConfig) -> Path | None:
+    """Where the config is written: the local file it was loaded from, else <id>.toml in the local folder (None
+    before the launcher's data folder is set). Call after overhauls.load()."""
+    found = overhauls.origin(config.id)
+    if found is not None and not overhauls.verified(config.id):
+        return found
+    folder = overhauls.local_dir()
+    return folder / f"{config.id}.toml" if folder is not None else None
+
+
+def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: Locations) -> InstallPreview:
+    """What installing the mod in folder as an overhaul with this config (the Overhaul setup form's) would do, the
+    config written to the launcher's local overhauls folder in the same operation. folder: an unpacked download,
+    or an installed mod's folder (its entries, when the config owns them, are replaced as an update). Raises
+    OverhaulError when it can't be set up."""
+    from roundtable_souls.overhauls import writer
+
+    configs = overhauls.load(_game(loc))
+    if config.basic is not None and overhauls.verified(config.id):
+        raise OverhaulError(f"{config.label} already has a verified setup that comes with the launcher.")
+    try:
+        made = setup_config(config, Path(folder))
+        writer.render(made)
+    except ValueError as e:
+        raise OverhaulError(str(e)) from e
+    path = config_path(made)
+    if path is None:
+        raise OverhaulError("The launcher's data folder is not set.")
+    # its own config first: a folder another config also fits is still the one the player set up
+    out = preview_install(profile, folder, loc=loc, configs=[made, *(c for c in configs if c.id != made.id)])
+    if path.is_file():
+        out.notes.append(f"Your setup in {path.name} is replaced by this one (Undo puts the old one back).")
+    return out
+
+
+def install_setup(preview: InstallPreview, *, loc: Locations, log=lambda s: None) -> dict:
+    """Install as previewed (preview_setup), its config written in the same operation."""
+    from roundtable_souls.overhauls import writer
+
+    config = preview.found.config
+    path = config_path(config)
+    if path is None:
+        raise OverhaulError("The launcher's data folder is not set.")
+    return install(preview, loc=loc, log=log, config_file=(path, writer.render(config).encode("utf-8")))
+
+
+@dataclass
+class TurnOffPreview:
+    """What Turn off does: Remove overhaul's changes, then the launcher's copy of its download installed as an
+    ordinary mod, and its config kept aside as <file>.off; all one operation (Undo turn off)."""
+
+    remove: RemovePreview
+    config_file: Path | None
+    plain: dict  # the ordinary install's plan (mods.install)
+    reuse: bool  # its ordinary folder is already there with the same files: listed again, not copied
+    lines: list[str] = field(default_factory=list)
+    refusals: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return not self.refusals
+
+
+def _same_files(folder: Path, sources: Path) -> bool:
+    """folder holds exactly the download copy's files (its record left out), byte for byte."""
+    want = [rel for rel in operations.manifest(sources) if rel != library.RECORD]
+    have = operations.manifest(folder)
+    return set(want) == set(have) and all(_sha(folder / rel) == _sha(sources / rel) for rel in want)
+
+
+def preview_turn_off(profile: Path, *, loc: Locations) -> TurnOffPreview:
+    """What turning the profile's overhaul setup off would do (the mod made ordinary again). Raises OverhaulError
+    when the profile has no overhaul."""
+    from roundtable_souls.mods import install as mod_install
+
+    configs = overhauls.load(_game(loc))
+    r = preview_remove(profile, loc=loc, configs=configs)
+    cfg = r.config
+    path = overhauls.origin(cfg.id)
+    out = TurnOffPreview(r, path, {}, False, refusals=list(r.refusals))
+    if path is None or overhauls.verified(cfg.id):
+        out.refusals.append(f"{cfg.label} comes with the launcher's own setup; use Remove {cfg.short_label} instead.")
+    if r.legacy or r.places is None or not r.places.sources.is_dir():
+        out.refusals.append(
+            f"The launcher's copy of {cfg.label}'s download is gone, so it can't become an ordinary mod again. "
+            f"Remove {cfg.short_label} instead."
+        )
+    if out.refusals:
+        return out
+    assert r.places is not None and path is not None
+    plan = mod_install.plan_install(Path(profile), r.places.sources, name=cfg.id, pkg_id=cfg.id, loc=loc)
+    plan["exclude"] = [library.RECORD]
+    out.plain = plan
+    if plan.get("error"):
+        out.refusals.append(plan["error"])
+        return out
+    dest = Path(plan["dest"])
+    if dest.exists():
+        if not _same_files(dest, r.places.sources):
+            out.refusals.append(
+                f"There is already a folder {dest.name} in {dest.parent}. Move it somewhere else first."
+            )
+            return out
+        out.reuse = True
+    deepest = max((len(rel) for rel in operations.manifest(r.places.sources)), default=0)
+    for e in plan["entries"]:
+        r.writer.add_entry(e["kind"], e, deepest=deepest)
+    r.change = r.writer.plan(f"before turning {cfg.label} off")
+    out.refusals += [x.message for x in r.change.refusals]
+    keep = [line for line in r.lines if not line.startswith("Seamless Co-op")]
+    out.lines = [
+        *keep,
+        f"{cfg.label} goes back into {Path(profile).name} as an ordinary mod"
+        + (f", from {dest.name}, which is already there" if out.reuse else f", copied into {dest}"),
+        f"Its setup {path.name} is kept as {path.name}.off, so it can be set up again",
+        "Seamless Co-op and your other mods are not touched",
+    ]
+    return out
+
+
+def turn_off(preview: TurnOffPreview, *, log=lambda s: None) -> dict:
+    """Turn the setup off as previewed, as one operation. Returns {operation, trash, name, kept}."""
+    from roundtable_souls.mods import install as mod_install
+
+    t, r = preview, preview.remove
+    if not t.ok or r.change is None or t.config_file is None:
+        raise OverhaulError("; ".join(t.refusals) or "Nothing to turn off.")
+    profile, path = r.profile, t.config_file
+    gone: list[dict] = []
+    kept: list[str] = []
+    made: dict = {}
+    with operations.lock(profile):
+        operations.recover(profile)
+        op = operations.start(profile, f"turning off {r.config.label}")
+        try:
+            if not t.reuse:  # the ordinary copy, staged before anything goes
+                dest = Path(t.plain["dest"])
+                staged = dest.with_name(f".{dest.name}.staging-{op.id}")
+                mod_install._copy_into(t.plain, staged)
+                made[str(dest)] = operations.manifest(staged)
+                op.replace_folder(dest, staged)
+            r.writer.commit(r.change, operation=op)
+            for f in r.delete_files:
+                op.write_file(f, None)
+            off = path.with_name(path.name + ".off")
+            op.write_file(off, path.read_bytes(), expect=_expect(off))
+            op.write_file(path, None, expect=_expect(path))
+            op.note(kind="overhaul-turn-off", name=r.config.label, overhaul=r.config.id, dest=str(r.own), made=made)
+            if r.trash:
+                op.gone_when(r.trash[-1])
+        except BaseException:
+            op.discard()
+            raise
+        operations.commit(op, lambda: _to_bin(r.trash, op.id, gone, kept))
+        _tidy(r.places)
+    for name in kept:
+        log(f"warning: {name} stayed (the Recycle Bin did not take it)")
+    log(f"overhaul: turned {r.config.label} off in {profile.name}; it is an ordinary mod again")
+    return {"operation": str(op.dir), "trash": gone, "name": r.config.label, "kept": kept}

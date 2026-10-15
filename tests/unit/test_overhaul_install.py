@@ -617,3 +617,68 @@ def test_the_switch_and_button_words_come_from_the_configs(world):
     assert "only the overhauls the launcher has an install description for (the overhaul LITE 0.1.33-rc3)" in text
     assert "in rs-eldenring, in me3's profiles folder" in text
     assert "install description for: the overhaul LITE 0.1.33-rc3." in service.overhaul_button_tip("eldenring")
+
+
+# ----------------------------------------------------------------------------- the Overhaul setup form (S3g)
+def mixed_mod(world) -> Path:
+    """A mod no config describes: game files and a DLL with its settings."""
+    m = world.tmp / "Downloads" / "Mixed Mod"
+    (m / "chr").mkdir(parents=True)
+    (m / "chr/c0000_a00_hi.anibnd.dcx").write_bytes(dcx(bnd({**GAME_CLIPS, "mine.hkx": b"mine"})))
+    (m / "regulation.bin").write_bytes(pack({"EquipParamWeapon": set_word(2000, 0, 9)}))
+    (m / "MixedMod.dll").write_bytes(b"d")
+    (m / "MixedMod.ini").write_text("[a]\nb=1\n")
+    return m
+
+
+def set_up(world) -> tuple[Path, Path, dict]:
+    from roundtable_souls.overhauls import basic
+
+    folder = mixed_mod(world)
+    config = basic.make(id="mixed-mod", label="Mixed Mod", game="eldenring", basic=basic.propose(folder), folder=folder)
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert p.ok, p.refusals
+    out = overhaul_install.install_setup(p, loc=world.loc)
+    local = overhauls.local_dir()
+    assert local is not None
+    toml = local / "mixed-mod.toml"
+    assert overhauls.read(toml) == config
+    return folder, toml, out
+
+
+def test_a_setup_made_with_the_form_is_undone_with_its_config(world):
+    before = world.profile.read_bytes()
+    _folder, toml, out = set_up(world)
+    assert "mixed-mod" in world.text() and (world.base / "mixed-mod" / "mod").is_dir()
+    rec = {"type": "overhaul-install", "profile": str(world.profile), "name": "x", "operation": out["operation"]}
+    undo.run(rec, lambda s: None, loc=world.loc)
+    assert world.profile.read_bytes() == before
+    assert not toml.exists() and not (world.base / "mixed-mod").exists()
+
+
+def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
+    _folder, toml, _out = set_up(world)
+    before, setup = world.profile.read_bytes(), toml.read_bytes()
+    own = files(world.base / "mixed-mod")
+    t = overhaul_install.preview_turn_off(world.profile, loc=world.loc)
+    assert t.ok, t.refusals
+    out = overhaul_install.turn_off(t)
+    off = toml.with_name(toml.name + ".off")
+    plain = world.base / "mod" / "mixed-mod"
+    assert not toml.exists() and off.read_bytes() == setup
+    assert not (world.base / "mixed-mod").exists() and (plain / "MixedMod.dll").is_file()
+    assert not (plain / "roundtable.json").exists()
+    data = world.data()
+    assert {"id": "mixed-mod", "path": "mod/mixed-mod"}.items() <= data["packages"][-1].items()
+    assert data["natives"][-1]["path"] == "mod/mixed-mod/MixedMod.dll"
+    rec = {
+        "type": "overhaul-turn-off",
+        "profile": str(world.profile),
+        "name": out["name"],
+        "operation": out["operation"],
+        "trash": out["trash"],
+    }
+    assert undo.available(rec) and undo.label(rec) == "Undo turn off"
+    undo.run(rec, lambda s: None, loc=world.loc)
+    assert world.profile.read_bytes() == before and toml.read_bytes() == setup and not off.exists()
+    assert not plain.exists() and files(world.base / "mixed-mod") == own

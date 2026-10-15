@@ -428,6 +428,25 @@ class ActivityPresenter:
             )
         if u.get("type") in mod_undo.OVERHAUL:
             return self._overhaul_undo_plan(u, prof, job_id)
+        if u.get("type") == "profile-import":
+            name = u.get("name") or tr("the profile")
+            return UndoPlan(
+                tr("Undo the import into {name}").format(name=name),
+                (
+                    tr("{name} goes back to exactly what it was before the import (a profile it made goes)").format(
+                        name=name
+                    ),
+                    tr(
+                        "The mod folders it copied in are removed; files you changed or added since stay, and are listed"
+                    ),
+                ),
+                tr("If {name} changed since, only the imported entries are taken out of it.").format(name=name),
+                tr("Undo import"),
+                tr("Undoing the import..."),
+                u,
+                job_id,
+                name,
+            )
         if u.get("type") in mod_undo.OPERATIONS:
             name = u.get("name") or tr("the mod")
             fresh = u.get("type") == "install"
@@ -477,16 +496,22 @@ class ActivityPresenter:
         """An overhaul installed, updated or removed with the launcher (mods.overhaul_install)."""
         name = u.get("name") or tr("the overhaul")
         kind = u.get("type")
-        if kind == "overhaul-remove":
+        if kind in ("overhaul-remove", "overhaul-turn-off"):
             back = any(trash.exists(t) for t in u.get("trash") or [])
+            off = kind == "overhaul-turn-off"
             return UndoPlan(
-                tr("Restore {name}").format(name=name),
+                (tr("Undo turning {name} off") if off else tr("Restore {name}")).format(name=name),
                 tuple(
                     c
                     for c in (
-                        tr("{profile} goes back to exactly what it was before the removal").format(profile=prof.name),
+                        (
+                            tr("{profile} goes back to exactly what it was before it was turned off")
+                            if off
+                            else tr("{profile} goes back to exactly what it was before the removal")
+                        ).format(profile=prof.name),
                         tr("Its folders come back from the Recycle Bin") if back else "",
                         tr("The launcher's notes on it come back"),
+                        tr("Its setup is back, and the ordinary copy made when it was turned off goes") if off else "",
                     )
                     if c
                 ),
@@ -494,7 +519,7 @@ class ActivityPresenter:
                     "If {profile} changed since the removal, nothing is changed: install {name} again instead. "
                     "Seamless Co-op and your other mods are not touched."
                 ).format(profile=prof.name, name=name),
-                tr("Restore"),
+                tr("Undo turn off") if off else tr("Restore"),
                 tr("Restoring {name}...").format(name=name),
                 u,
                 job_id,

@@ -204,7 +204,7 @@ def _set_legacy_mark(profile: Path, value) -> None:
 
 def overlay_mark(profile: Path) -> dict | None:
     """What Options set for this profile: {package: folder, rebuild: a rebuild.json or None}, or None (the overlay
-    is found from its files). Kept in roundtable.json beside the profile (see mods.profile_settings); a mark in the
+    is found from its files). Kept in the profile's settings.json (see mods.profile_settings); a mark in the
     launcher's own settings, where launchers before 3.10 kept it, is moved there the first time it is read."""
     from roundtable_souls.mods import profile_settings as ps
 
@@ -217,7 +217,7 @@ def overlay_mark(profile: Path) -> dict | None:
                 "package": ps.from_stored(profile, got["package"]),
                 "rebuild": ps.from_stored(profile, got.get("rebuild")),
             }
-        return None  # turned off in roundtable.json: found from its files
+        return None  # turned off in settings.json: found from its files
     got = _legacy_mark(profile)
     mark = None
     if isinstance(got, str) and got:  # before rebuild.json could be picked
@@ -245,7 +245,7 @@ def overlay_override(profile: Path) -> Path | None:
 
 
 def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path | None = None) -> str | None:
-    """Set (or, with None, clear) the package that must stay last, in roundtable.json beside the profile. When that
+    """Set (or, with None, clear) the package that must stay last, in the profile's settings.json. When that
     file cannot be written, it goes into the launcher's own settings instead, and the reason is returned."""
     from roundtable_souls.mods import profile_settings as ps
 
@@ -262,7 +262,7 @@ def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path 
         _set_legacy_mark(profile, legacy)
         return f"kept in the launcher's own settings on this PC instead: {e}"
     if _legacy_mark(profile) is not None:
-        _set_legacy_mark(profile, None)  # roundtable.json has it now; an old copy must not come back
+        _set_legacy_mark(profile, None)  # settings.json has it now; an old copy must not come back
     return None
 
 

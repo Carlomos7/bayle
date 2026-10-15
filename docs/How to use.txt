@@ -191,8 +191,8 @@ Mods
   rebuild tool is then looked for with looser rules, or you can pick a
   rebuild.json for it there; installs place new packs before it even when no
   tool is found. That choice, and the mods you keep after it on purpose, are
-  kept in roundtable.json next to the profile, so they go with the folder
-  when you copy it to another PC.
+  kept in the hidden .roundtable folder next to the profile, so they go
+  with the folder when you copy it to another PC.
   When the package that must stay last is there but its setup files are not
   (copied without its hidden setup folder, say), Load order names what is
   missing, and Rebuild stops before changing anything. Run the installer it

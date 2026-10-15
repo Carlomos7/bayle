@@ -223,7 +223,9 @@ class ModsView:
         )
         self.fix_order_btn.clicked.connect(self._fix_order)
         self.keep_after_btn = ghost_btn("Keep it after", FI.ACCEPT)
-        self.keep_after_btn.setToolTip("They load after it on purpose: stop warning (kept in roundtable.json).")
+        self.keep_after_btn.setToolTip(
+            "They load after it on purpose: stop warning (kept with the profile's settings)."
+        )
         self.keep_after_btn.clicked.connect(lambda: self._keep_after(True))
         self.put_before_btn = ghost_btn("Put them before", FI.RETURN)
         self.put_before_btn.setToolTip("Stop keeping these after it, and put it after them again.")

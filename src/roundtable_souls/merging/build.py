@@ -273,13 +273,14 @@ class Operation:
     # -------------------------------------------------------------- preparing (nothing live changes)
     def replace_folder(self, live: Path, staged: Path) -> None:
         """staged (filled and checked beside live, on the same drive) takes live's place; a live folder already
-        there is kept as <name>-<id> in aside when that is on the same drive, else as .<name>.previous-<id> beside it."""
+        there is kept as <name>-<id>-<step> in aside when that is on the same drive (the step number keeps two folders
+        of one name apart, an overhaul's sources and its runtime folder, say), else as .<name>.previous-<id> beside it."""
         live, staged = Path(live), Path(staged)
         prev = None
         if live.exists():
             prev = live.with_name(f".{live.name}.previous-{self.id}")
             if self.aside is not None and _same_drive(self.aside.parent, live.parent):
-                prev = self.aside / f"{live.name}-{self.id}"
+                prev = self.aside / f"{live.name}-{self.id}-{len(self.steps)}"
         self.steps.append({"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")})
         self._save()
 

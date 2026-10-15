@@ -178,6 +178,24 @@ class ModLibrary:
                     files.hide(p)
         return made
 
+    def prune(self, folder: Path) -> list[Path]:
+        """Remove folder and the folders above it while they are empty, up to the library's root (which stays); a
+        folder already gone counts as empty. Nothing outside the library is touched. Returns the folders removed."""
+        root = Path(os.path.abspath(self.root))
+        folder = Path(os.path.abspath(folder))
+        gone: list[Path] = []
+        while root in folder.parents:
+            try:
+                if folder.exists():
+                    if not folder.is_dir() or any(folder.iterdir()):
+                        break
+                    folder.rmdir()
+                    gone.append(folder)
+            except OSError:
+                break
+            folder = folder.parent
+        return gone
+
     # ------------------------------------------------------------------ what is there
     def scan(self) -> Contents:
         """What the library holds and which profiles use what, read from the folders and the profiles' entries.

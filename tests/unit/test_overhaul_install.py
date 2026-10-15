@@ -68,6 +68,7 @@ class Bin:
         return bool(record) and Path(record["item"]).exists()
 
     def restore(self, record) -> Path:
+        Path(record["original"]).parent.mkdir(parents=True, exist_ok=True)  # as platform.trash.restore does
         Path(record["item"]).replace(record["original"])
         return Path(record["original"])
 

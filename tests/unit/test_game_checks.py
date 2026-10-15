@@ -72,6 +72,35 @@ def test_the_fingerprint_names_the_regulation_in_use(world):
     assert own is not None and own.text().endswith("(the game's own regulation.bin); co-op partners need the same")
 
 
+def test_the_online_risk_is_the_rule_without_the_words(world):
+    root, profile, loc = world
+    (root / "params/regulation.bin").write_bytes(b"changed")
+    assert game_checks.online_risk(profile, loc) is None  # offline
+    profile.write_text(PROFILE.format(online="start_online = true\n"), encoding="utf-8")
+    assert game_checks.online_risk(profile, loc) == game_checks.Regulation(root / "params/regulation.bin", "params")
+    (root / "params/regulation.bin").unlink()
+    assert game_checks.online_risk(profile, loc) is None  # online with the game's own parameters is fine
+
+
+def test_the_fingerprint_is_hashed_again_only_when_the_file_changes(world, monkeypatch):
+    import os
+    from pathlib import Path
+
+    root, profile, loc = world
+    reg = root / "params/regulation.bin"
+    reg.write_bytes(b"first")
+    first = game_checks.regulation_fingerprint(profile, loc)
+    reads = []
+    real = Path.read_bytes
+    monkeypatch.setattr(Path, "read_bytes", lambda self: (self == reg and reads.append(self)) or real(self))
+    assert game_checks.regulation_fingerprint(profile, loc) == first and reads == []
+    reg.write_bytes(b"other")  # the same size
+    st = reg.stat()
+    os.utime(reg, ns=(st.st_atime_ns, st.st_mtime_ns + 10**9))
+    again = game_checks.regulation_fingerprint(profile, loc)
+    assert again is not None and first is not None and again.short != first.short and reads == [reg]
+
+
 KEYS = {
     "Data0": "-----BEGIN RSA PUBLIC KEY-----\nAAAA\nBBBB\n-----END RSA PUBLIC KEY-----",
     "DLC": "-----BEGIN RSA PUBLIC KEY-----\nCCCC\nDDDD\n-----END RSA PUBLIC KEY-----",

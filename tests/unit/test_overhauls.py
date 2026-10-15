@@ -95,12 +95,12 @@ def test_play_finds_each_overhauls_installations_beside_the_profiles_and_in_the_
     found = play.discover(None, loc)
     assert [(s.kind, Path(s.source)) for s in found] == [
         ("me3", profiles / "er.me3"),
-        ("overhaul", beside),
-        ("overhaul", standalone),
+        ("manifest", beside),
+        ("manifest", standalone),
     ]
     local("toy.toml", TOY)
-    assert ("overhaul", toy) in [(s.kind, Path(s.source)) for s in play.discover(None, loc)]
-    assert play.setup_from_path(toy, loc).kind == "overhaul"
+    assert ("manifest", toy) in [(s.kind, Path(s.source)) for s in play.discover(None, loc)]
+    assert play.setup_from_path(toy, loc).kind == "manifest"
     nightreign = Locations(games.NIGHTREIGN, Overrides(profiles_dir=str(profiles)))
     assert play.discover(None, nightreign) == [] and play.setup_from_path(beside, nightreign) is None
 

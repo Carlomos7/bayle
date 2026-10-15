@@ -65,6 +65,15 @@ class Host:
         self.changes.append(f"asked: {title}")
         return self.folder
 
+    def profiles(self):
+        return [self.profile.name]
+
+    def profile_index(self):
+        return 0
+
+    def pick_profile(self, index):
+        self.changes.append(f"picked profile {index}")
+
     folder = None
 
 

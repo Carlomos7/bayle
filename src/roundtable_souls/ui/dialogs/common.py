@@ -360,7 +360,17 @@ class TextDialog(Dialog):
     """One line of text with a title, a blurb and an optional tick box."""
 
     def __init__(
-        self, title, blurb, parent, placeholder="", text="", option=None, option_checked=False, apply_text="OK"
+        self,
+        title,
+        blurb,
+        parent,
+        placeholder="",
+        text="",
+        option=None,
+        option_checked=False,
+        apply_text="OK",
+        choices=None,
+        choice_label="",
     ):
         super().__init__(parent)
         self.widget.setMinimumWidth(480)
@@ -377,6 +387,13 @@ class TextDialog(Dialog):
             self.option = CheckBox(option)
             self.option.setChecked(option_checked)
             self.viewLayout.addWidget(self.option)
+        self.choice = None
+        if choices:  # a drop-down under the text (choice_label above it); its index is the caller's
+            if choice_label:
+                self.viewLayout.addWidget(hint(choice_label))
+            self.choice = ComboBox()
+            self.choice.addItems(list(choices))
+            self.viewLayout.addWidget(self.choice)
         self.yesButton.setText(apply_text)
         self.cancelButton.setText("Cancel")
 

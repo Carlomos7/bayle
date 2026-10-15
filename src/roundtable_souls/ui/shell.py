@@ -195,6 +195,20 @@ class LauncherHost:
     def open_path(self, path: Path) -> None:
         desktop.open_path(str(path))
 
+    def profiles(self) -> list[str]:
+        """The Play list's setups for this game, as the Play page names them."""
+        box = self._w.setup_box
+        return [box.itemText(i) for i in range(box.count())]
+
+    def profile_index(self) -> int:
+        return self._w.setup_box.currentIndex()
+
+    def pick_profile(self, index: int) -> None:
+        """Make the index'th setup the current one, as picking it on Play does."""
+        box = self._w.setup_box
+        if 0 <= index < box.count() and index != box.currentIndex():
+            box.setCurrentIndex(index)
+
     def pick_folder(self, title: str) -> Path | None:
         got = QFileDialog.getExistingDirectory(self._w, title, "")
         return Path(got) if got else None

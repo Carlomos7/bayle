@@ -157,7 +157,6 @@ class ModsAdapter(QObject):
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
         self.host.pick_profile(index)
-        self._recovered = ()
         self.refresh()
 
     def _group(self, kind: str) -> dict:
@@ -221,8 +220,10 @@ class ModsAdapter(QObject):
             self._again = False
             self.refresh()
             return
+        before = self._facts.profile if self._facts is not None else None
         self._facts, self._scan, self._tool, self._rebuild_undo, recovered, self._overhaul = got
-        self._recovered += recovered
+        now = self._facts.profile if self._facts is not None else None
+        self._recovered = (self._recovered if now == before else ()) + recovered  # another profile: its own lines
         self._render()
         if not self._edit_text:
             self._read_text()
@@ -515,7 +516,7 @@ class ModsAdapter(QObject):
     # ---- InfoBars
     @Slot(str)
     def closeNotice(self, key: str) -> None:
-        self.presenter.close_notice(key)
+        self.presenter.close_notice(key, str(self._facts.profile) if self._facts is not None else "")
         self._render()
 
     @Slot(str)

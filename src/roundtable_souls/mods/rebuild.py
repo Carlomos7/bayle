@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from roundtable_souls.game import catalog as games
-from roundtable_souls.mods import backends, checks
+from roundtable_souls.mods import backends, checks, library
 from roundtable_souls.mods import profile_edit as mod_manage
 from roundtable_souls.mods.profile_writer import ProfileWriter
 
@@ -204,7 +204,7 @@ def _set_legacy_mark(profile: Path, value) -> None:
 
 def overlay_mark(profile: Path) -> dict | None:
     """What Options set for this profile: {package: folder, rebuild: a rebuild.json or None}, or None (the overlay
-    is found from its files). Kept in roundtable.json beside the profile (see mods.profile_settings); a mark in the
+    is found from its files). Kept in the profile's settings.json (see mods.profile_settings); a mark in the
     launcher's own settings, where launchers before 3.10 kept it, is moved there the first time it is read."""
     from roundtable_souls.mods import profile_settings as ps
 
@@ -217,7 +217,7 @@ def overlay_mark(profile: Path) -> dict | None:
                 "package": ps.from_stored(profile, got["package"]),
                 "rebuild": ps.from_stored(profile, got.get("rebuild")),
             }
-        return None  # turned off in roundtable.json: found from its files
+        return None  # turned off in settings.json: found from its files
     got = _legacy_mark(profile)
     mark = None
     if isinstance(got, str) and got:  # before rebuild.json could be picked
@@ -245,7 +245,7 @@ def overlay_override(profile: Path) -> Path | None:
 
 
 def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path | None = None) -> str | None:
-    """Set (or, with None, clear) the package that must stay last, in roundtable.json beside the profile. When that
+    """Set (or, with None, clear) the package that must stay last, in the profile's settings.json. When that
     file cannot be written, it goes into the launcher's own settings instead, and the reason is returned."""
     from roundtable_souls.mods import profile_settings as ps
 
@@ -262,7 +262,7 @@ def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path 
         _set_legacy_mark(profile, legacy)
         return f"kept in the launcher's own settings on this PC instead: {e}"
     if _legacy_mark(profile) is not None:
-        _set_legacy_mark(profile, None)  # roundtable.json has it now; an old copy must not come back
+        _set_legacy_mark(profile, None)  # settings.json has it now; an old copy must not come back
     return None
 
 
@@ -684,7 +684,7 @@ def rebuild(profile: Path, log, combine: bool | None = None, *, loc: Locations) 
     from roundtable_souls.mods import history
 
     original = mod_manage.read_text(profile)
-    bak = profile.with_name(profile.name + ".bak")
+    bak = library.profile_backup(profile)
     bak.write_text(original, encoding="utf-8", newline="")
     before = history.snapshot(profile, "before rebuilding")
     log(f"merge: profile saved to {bak.name} and the profile history")
@@ -862,7 +862,8 @@ def keep_profile_text(profile: Path, original: str, backend) -> str:
         return "the profile was not changed"
     own = [checks._canon(f) for f in backend.own_folders()]
     if _shape(profile, now, own) != _shape(profile, original, own):
-        return f"{backend.label} changed what the profile loads, so its version is kept; yours is in {profile.name}.bak"
+        bak = library.state_of(profile).backups / (profile.name + ".bak")
+        return f"{backend.label} changed what the profile loads, so its version is kept; yours is in {bak}"
     text = mod_manage.to_blocks(original) if mod_manage.is_array_form(original) else original
     fresh = mod_manage.to_blocks(now) if mod_manage.is_array_form(now) else now
     lists = {}

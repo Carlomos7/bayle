@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from roundtable_souls import overhauls
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.game import catalog as games
-from roundtable_souls.mods import checks, history, naming, profile_edit
+from roundtable_souls.mods import checks, history, library, naming, profile_edit
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods.profile_edit import ModError
 from roundtable_souls.platform import files
@@ -152,7 +152,8 @@ class ProfileRule:
 
 
 class Safety(ProfileRule):
-    """The history copy (mods.history) and the .bak beside the profile, before every write of a profile that exists.
+    """The history copy (mods.history) and the .bak (in the profile's .roundtable/backups, mods.library), before every
+    write of a profile that exists.
     The write itself is atomic (one replace), or one step of an operation's journal."""
 
     name = "safety"
@@ -162,7 +163,7 @@ class Safety(ProfileRule):
         if not plan.existed:
             return None
         plan.snapshot = history.snapshot(plan.profile, plan.why)
-        bak = plan.profile.with_name(plan.profile.name + ".bak")
+        bak = library.profile_backup(plan.profile)
         shutil.copy2(plan.profile, bak)
         plan.backup = bak
         return None
@@ -611,11 +612,11 @@ class ProfileWriter:
             self._before_write(plan)
             operation.write_file(plan.profile, data, expect=_sha256(plan.read) if plan.existed else "missing")
         else:
-            from roundtable_souls.merging import build
+            from roundtable_souls.mods import operations
 
             # The same lock operations hold, for the last check and the replace: another launcher window can't write
             # this profile in between (a write already inside an operation on this thread just enters).
-            with build.ops_lock(plan.profile.parent, timeout=STANDALONE_LOCK_WAIT):
+            with operations.lock(plan.profile, timeout=STANDALONE_LOCK_WAIT):
                 self._before_write(plan)
                 files.atomic_write(plan.profile, data)
         plan.written = True

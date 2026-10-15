@@ -33,6 +33,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   settings.
 - Install mod: a download that is only a me3 profile now gets its plain message ("This is a whole me3 profile, not a
   mod...") instead of an error.
+- The launcher's own files beside a profile now live in one hidden .roundtable folder: the profile's launcher
+  settings (before, roundtable.json), its .bak, the records that let an install be finished or undone, and the copy
+  of a mod kept after an update (before, a .previous folder beside the mod). Nothing is moved: roundtable.json is
+  copied the first time it is read and left as it is, older .bak files and records stay where they are and are still
+  read, so an older launcher keeps working with the same folder.
 
 ## [3.22.0] - 2026-10-15
 

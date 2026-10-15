@@ -71,8 +71,8 @@ Players can turn on **Parameter overlay** in your package's Options and pick a `
 tool. Tools that keep an `installation.json` with a `refreshProtocol` and a source list beside their package, and
 their installer in a setup folder of the profile, are recognised without one.
 
-The player's choice is kept in `roundtable.json` next to their profile (relative paths), so it travels with the profile
-folder. Whatever the tool, the launcher keeps your package's `load_after` naming every other package, and your DLL's
+The player's choice is kept in `.roundtable/settings.json` next to their profile (relative paths; `roundtable.json`
+before 3.23), so it travels with the profile folder. Whatever the tool, the launcher keeps your package's `load_after` naming every other package, and your DLL's
 naming every other DLL (not `load_early` ones), each optional, so it stays last however mods are added. It changes only
 those lists, never the player's other entries.
 

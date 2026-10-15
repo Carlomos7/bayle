@@ -612,11 +612,11 @@ class ProfileWriter:
             self._before_write(plan)
             operation.write_file(plan.profile, data, expect=_sha256(plan.read) if plan.existed else "missing")
         else:
-            from roundtable_souls.merging import build
+            from roundtable_souls.mods import operations
 
             # The same lock operations hold, for the last check and the replace: another launcher window can't write
             # this profile in between (a write already inside an operation on this thread just enters).
-            with build.ops_lock(plan.profile.parent, timeout=STANDALONE_LOCK_WAIT):
+            with operations.lock(plan.profile, timeout=STANDALONE_LOCK_WAIT):
                 self._before_write(plan)
                 files.atomic_write(plan.profile, data)
         plan.written = True

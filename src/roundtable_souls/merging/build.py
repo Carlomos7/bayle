@@ -167,16 +167,18 @@ def recover(live: Path) -> str | None:
 
 
 # ----------------------------------------------------------------------------- operations
-OPS = ".roundtable-ops"  # beside the profile: one folder per operation, its journal and the bytes it restores
+OPS = ".roundtable-ops"  # before 3.23, beside the profile: one folder per operation, its journal and what it restores
+# Every function below takes the folder holding the operations (root) and their folder's name in it (ops), so the
+# caller decides where they live (mods.operations: the profile's .roundtable/ops, and this legacy folder).
 OP_JOURNAL = "journal.json"
 PREPARED, ACTIVATING, ACTIVE = "prepared", "activating", "active"
 
 
-def ops_lock(root: Path, timeout: float = 30.0) -> AbstractContextManager[None]:
+def ops_lock(root: Path, timeout: float = 30.0, ops: str = OPS) -> AbstractContextManager[None]:
     """Held while operations under root are prepared, applied or recovered, by every launcher process (the window,
     a Play from a shortcut): a recovery never takes another process's operation for an interrupted one."""
     return filelock.exclusive(
-        Path(root) / OPS,
+        Path(root) / ops,
         timeout,
         lambda: BuildError("another launcher window is installing or removing a mod in this profile's folder"),
     )
@@ -192,6 +194,14 @@ def _state(op_dir: Path) -> str | None:
 def _move(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     os.replace(src, dst)
+
+
+def _same_drive(a: Path, b: Path) -> bool:
+    """Whether a folder can be renamed from b into a (os.replace does not cross drives); False when either is gone."""
+    try:
+        return os.stat(a).st_dev == os.stat(b).st_dev
+    except OSError:
+        return False
 
 
 def _fingerprint(path: Path) -> str:
@@ -214,13 +224,14 @@ class Operation:
         active      every step is applied; what they replaced is kept for a rollback
     """
 
-    def __init__(self, root: Path, what: str, op_id: str | None = None):
+    def __init__(self, root: Path, what: str, op_id: str | None = None, ops: str = OPS):
         import time
         import uuid
 
         self.id = op_id or time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
-        self.dir = Path(root) / OPS / self.id
+        self.dir = Path(root) / ops / self.id
         self.dir.mkdir(parents=True, exist_ok=False)
+        self.aside: Path | None = None  # where replace_folder keeps a live folder's previous copy (same drive only)
         self.what = what
         self.steps: list[dict] = []
         self.info: dict = {}  # the caller's own notes, kept in the journal (what was created, for an undo)
@@ -239,6 +250,7 @@ class Operation:
         op.steps, op.info = list(data.get("steps") or []), dict(data.get("info") or {})
         op.state, op.done, op._builds = data.get("state", PREPARED), int(data.get("done", 0)), []
         op.untouched = False
+        op.aside = None
         return op
 
     def _save(self) -> None:
@@ -261,9 +273,13 @@ class Operation:
     # -------------------------------------------------------------- preparing (nothing live changes)
     def replace_folder(self, live: Path, staged: Path) -> None:
         """staged (filled and checked beside live, on the same drive) takes live's place; a live folder already
-        there is kept as .<name>.previous-<id> beside it."""
+        there is kept as <name>-<id> in aside when that is on the same drive, else as .<name>.previous-<id> beside it."""
         live, staged = Path(live), Path(staged)
-        prev = live.with_name(f".{live.name}.previous-{self.id}") if live.exists() else None
+        prev = None
+        if live.exists():
+            prev = live.with_name(f".{live.name}.previous-{self.id}")
+            if self.aside is not None and _same_drive(self.aside.parent, live.parent):
+                prev = self.aside / f"{live.name}-{self.id}"
         self.steps.append({"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")})
         self._save()
 
@@ -386,15 +402,15 @@ def _undo(op: Operation) -> None:
     op.discard()
 
 
-def recover_operations(root: Path, timeout: float = 30.0) -> list[str]:
+def recover_operations(root: Path, timeout: float = 30.0, ops: str = OPS) -> list[str]:
     """Finish or undo the operations under root that were interrupted: one still activating is undone as a whole
     (the previous state stands), one only prepared is discarded. Active ones are left for a rollback. Returns what
     was done, one line each."""
     out: list[str] = []
-    base = Path(root) / OPS
+    base = Path(root) / ops
     if not base.is_dir():
         return out
-    with ops_lock(root, timeout):
+    with ops_lock(root, timeout, ops):
         _recover_all(base, out)
     return out
 
@@ -423,9 +439,9 @@ def _recover_all(base: Path, out: list[str]) -> None:
             out.append(f"the {op.what}, prepared but never applied, was cleaned up")
 
 
-def pending(root: Path) -> list[str]:
+def pending(root: Path, ops: str = OPS) -> list[str]:
     """What the operations under root that are not finished are doing (empty when there are none)."""
-    base = Path(root) / OPS
+    base = Path(root) / ops
     if not base.is_dir():
         return []
     return [
@@ -435,9 +451,9 @@ def pending(root: Path) -> list[str]:
     ]
 
 
-def active(root: Path) -> list[Operation]:
+def active(root: Path, ops: str = OPS) -> list[Operation]:
     """The finished operations under root that still keep what they replaced, oldest first."""
-    base = Path(root) / OPS
+    base = Path(root) / ops
     if not base.is_dir():
         return []
     return [Operation.load(d) for d in sorted(p for p in base.iterdir() if p.is_dir()) if _state(d) == ACTIVE]

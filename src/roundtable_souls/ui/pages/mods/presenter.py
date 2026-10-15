@@ -614,11 +614,17 @@ class ModsPresenter:
             ),
         )
 
-    def delete_profile(self, profile) -> Confirm:
+    def delete_profile(self, profile, overhaul: str = "") -> Confirm:
+        """overhaul: the label of an overhaul the launcher installed in it (profile_mods.overhaul_to_keep)."""
         p = Path(profile)
+        kept = (
+            (tr("{label}'s shared files stay; Remove overhaul first to take them out too.").format(label=overhaul),)
+            if overhaul
+            else ()
+        )
         return Confirm(
             title=tr("Delete profile {name}?").format(name=p.stem),
-            changes=(tr("The .me3 moves to Deleted profiles."), tr("Its mod folders stay on disk.")),
+            changes=(tr("The .me3 moves to Deleted profiles."), tr("Its mod folders stay on disk."), *kept),
             apply=tr("Delete"),
         )
 

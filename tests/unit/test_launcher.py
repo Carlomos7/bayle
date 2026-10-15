@@ -164,7 +164,7 @@ def test_setup_label_is_the_profile_name(tmp_path):
     p.write_text("")
     assert g.Setup("me3", p, loc=er()).label == "any.me3"
     assert (
-        g.Setup("overhaul", p, source=tmp_path / "installation.json", loc=er()).label == "any.me3  ·  installation.json"
+        g.Setup("manifest", p, source=tmp_path / "installation.json", loc=er()).label == "any.me3  ·  installation.json"
     )
 
 
@@ -217,7 +217,7 @@ def test_setup_from_installation_json(tmp_path):
         )
     )
     s = g.setup_from_path(str(inst), er())
-    assert s and s.kind == "overhaul" and s.exe.endswith("eldenring.exe")
+    assert s and s.kind == "manifest" and s.exe.endswith("eldenring.exe")
     assert any("missing" in x for x in s.problems())  # nothing exists in tmp, so it must say so
     assert g.setup_from_path(str(tmp_path / "nothing.txt"), er()) is None
 

@@ -205,6 +205,10 @@ def test_the_confirmations_words():
     managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "the overhaul")
     assert managed is not None and managed.body == "the overhaul is managed by its installer; delete it there."
     assert p.delete_refusal(None) is None
+    assert len(p.delete_profile(PROFILE).changes) == 2
+    assert p.delete_profile(PROFILE, "the overhaul").changes[-1] == (
+        "the overhaul's shared files stay; Remove overhaul first to take them out too."
+    )
     assert (
         p.holder(PROFILE, "bundle", ["overhaul"]).changes[-1]
         == "overhaul must load after it: that setting is taken out too"

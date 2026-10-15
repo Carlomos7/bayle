@@ -1685,7 +1685,7 @@ class ModsView:
         self._toast("Profile created", f"{p.name} is now the setup on Play.")
 
     def _delete_profile(self):
-        refusal = profile_mods.delete_refusal(self.setup, self.busy)
+        refusal = profile_mods.delete_refusal(self.setup, self.busy, loc=self.ctx.locations)
         if refusal == profile_mods.DELETE_NO_PROFILE:
             self._toast("No profile", "Pick a setup on Play first.", error=True)
             return
@@ -1700,6 +1700,11 @@ class ModsView:
             changes=[
                 f"{p.name} moves into the launcher's deleted profiles, with a note of where it lived",
                 "Mod folders and natives stay where they are",
+                *(
+                    [WORDS.delete_profile(p, kept).changes[-1]]
+                    if (kept := profile_mods.overhaul_to_keep(p, loc=self.ctx.locations))
+                    else []
+                ),
             ],
             warning="This setup disappears from the Play list.",
             safety="The moved file can be copied back by hand at any time.",

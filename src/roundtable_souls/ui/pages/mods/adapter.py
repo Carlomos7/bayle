@@ -726,7 +726,8 @@ class ModsAdapter(QObject):
     def deleteProfile(self) -> None:
         profile = self.host.profile
         refusal = self.presenter.delete_refusal(
-            profile_mods.delete_refusal(self._setup_like(), self.host.busy), Path(profile).stem if profile else ""
+            profile_mods.delete_refusal(self._setup_like(), self.host.busy, loc=self.host.locations),
+            Path(profile).stem if profile else "",
         )
         if refusal is not None:
             self.notifier.toast(f"{refusal.title}. {refusal.body}", error=True)
@@ -747,7 +748,8 @@ class ModsAdapter(QObject):
             )
             self.refresh()
 
-        self.notifier.ask(self.presenter.delete_profile(profile), answered, destructive=True)
+        kept = profile_mods.overhaul_to_keep(profile, loc=self.host.locations)
+        self.notifier.ask(self.presenter.delete_profile(profile, kept), answered, destructive=True)
 
     def _setup_like(self):
         """The host's current setup as delete_refusal reads it (profile and kind)."""

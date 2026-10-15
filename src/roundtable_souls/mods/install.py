@@ -347,6 +347,7 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
         plan["error"] = (
             "This is a whole me3 profile, not a mod. Copy its .me3 next to yours and pick it as a setup instead."
         )
+        plan["profiles_inside"] = [str(m.relative_to(folder)) for m in folder.rglob("*.me3")]
     elif d["kind"] == "unknown":
         plan["error"] = (
             "No game folders (parts, chr, msg, ...), no regulation.bin, no known game file and no DLL found in here."

@@ -503,3 +503,30 @@ def turn_off_overhaul(preview) -> dict:
     )
     run_logging.log(f"done: {out['name']} is an ordinary mod again in {preview.remove.profile.name}")
     return out
+
+
+# ----------------------------------------------------------------------------- a profile a download ships (S3g)
+def preview_profile_import(unpacked, me3: str, current, *, loc: Locations, new_name: str | None = None):
+    """What importing the .me3 a download ships (me3: its path in plan["unpacked"], one of plan["profiles_inside"])
+    would do: into current, or into a new profile named new_name beside it (profile_import.ImportPreview: lines,
+    renamed, skipped, refusals). Raises ModError when it can't be read."""
+    from roundtable_souls.mods import profile_import
+
+    return profile_import.preview_import(Path(unpacked), me3, Path(current), loc=loc, new_name=new_name)
+
+
+def import_profile(preview) -> dict:
+    """Import as previewed, as one operation, and leave its undo record (Undo import)."""
+    from roundtable_souls.mods import profile_import
+
+    out = profile_import.apply_import(preview, log=run_logging.log)
+    run_logging.set_undo(
+        {
+            "type": "profile-import",
+            "profile": out["profile"],
+            "name": preview.profile.name,
+            "operation": out["operation"],
+        }
+    )
+    run_logging.log(f"done: imported into {preview.profile.name}")
+    return out

@@ -36,6 +36,7 @@ LABEL = {
     "overhaul-update": "Roll back",
     "overhaul-remove": "Restore",
     "overhaul-turn-off": "Undo turn off",
+    "profile-import": "Undo import",
 }
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
@@ -80,7 +81,7 @@ def available(undo: dict | None) -> bool:
         if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
             return False
         return not _listed(profile, undo.get("path") or "") or _in_bin(undo)
-    if undo.get("type") in OPERATIONS or undo.get("type") in OVERHAUL:
+    if undo.get("type") in OPERATIONS or undo.get("type") in OVERHAUL or undo.get("type") == "profile-import":
         from roundtable_souls.merging import build
 
         op = Path(str(undo.get("operation") or ""))
@@ -110,6 +111,12 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         return _take_back(undo, log, loc)
     if undo.get("type") in OVERHAUL:
         return _overhaul_back(undo, log)
+    if undo.get("type") == "profile-import":
+        from roundtable_souls.mods import profile_import
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
+        return profile_import.undo_import(Path(undo["operation"]), log)
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 
 

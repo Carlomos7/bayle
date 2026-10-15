@@ -156,7 +156,7 @@ class ModsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
     notices_shown: int = 2  # InfoBars at once; the rest wait
-    _closed: set[str] = field(default_factory=set)
+    _closed: set[tuple[str, str]] = field(default_factory=set)  # (profile, notice kind) closed this session
 
     # ---- the page's fixed words
     install_text = property(lambda self: tr("Install mod"))
@@ -253,6 +253,7 @@ class ModsPresenter:
             "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
             "rebuildFile": tr("Rebuild-tool file"),
             "configFiles": tr("Config files"),
+            "openOnModConfigs": tr("Open on Mod Configs"),
             "noDeps": tr("No other entry of this kind to depend on."),
             "settingsTitle": tr("Profile settings"),
             "meDefault": tr("me3 default"),
@@ -320,7 +321,9 @@ class ModsPresenter:
             health=self.health(scan),
             groups=groups,
             parameters=self.parameters(health, game_running, facts.fingerprint, facts.regulation),
-            notices=self.notices(health, tool_to_allow, recovered, facts.online_with, facts.regulation),
+            notices=self.notices(
+                health, tool_to_allow, recovered, facts.online_with, facts.regulation, str(facts.profile)
+            ),
         )
 
     # ---- header
@@ -537,6 +540,7 @@ class ModsPresenter:
         recovered: tuple[str, ...],
         online_with: str = "",
         regulation: str = "regulation.bin",
+        profile: str = "",
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -588,10 +592,11 @@ class ModsPresenter:
                     True,
                 )
             )
-        return tuple(n for n in out if n.key not in self._closed)[: self.notices_shown]
+        return tuple(n for n in out if (profile, n.key) not in self._closed)[: self.notices_shown]
 
-    def close_notice(self, key: str) -> None:
-        self._closed.add(key)
+    def close_notice(self, key: str, profile: str = "") -> None:
+        """A closed InfoBar stays closed for this profile only."""
+        self._closed.add((profile, key))
 
     # ---- confirmations and refusals (the Widgets page uses these words too)
     def removal(self, profile, plan: Removal) -> Confirm:

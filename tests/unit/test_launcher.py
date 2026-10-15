@@ -12,6 +12,7 @@ from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services import mods as mods_service
 from roundtable_souls.services import play as g
 from roundtable_souls.services import saves as saves_service
+from roundtable_souls.ui.pages.mod_configs import presenter as mod_configs_words
 from support import er
 
 INI = (
@@ -238,14 +239,15 @@ def test_settings_meta_types_from_comments(tmp_path):
     assert by["default_boot_master_volume"]["kind"] == "int" and by["default_boot_master_volume"]["extra"] == (0, 10)
     assert by["enemy_health_scaling"]["kind"] == "int" and by["enemy_health_scaling"]["extra"] == (0, 500)
     assert (
-        by["cooppassword"]["kind"] == "password" and coop_service.label_of("skip_splash_screens") == "Skip intro logos"
+        by["cooppassword"]["kind"] == "password"
+        and mod_configs_words.label_of("skip_splash_screens") == "Skip intro logos"
     )
-    assert coop_service.label_of("allow_invaders") == "Invaders"
-    assert coop_service.choice_label("overhead_player_display", 2, "Display player ping") == "Ping"
-    _label, blurb, help_text = coop_service.setting_face("allow_invaders", "Invaders join.  0=FALSE  1=TRUE")
+    assert mod_configs_words.label_of("allow_invaders") == "Invaders"
+    assert mod_configs_words.choice_label("overhead_player_display", 2, "Display player ping") == "Ping"
+    _label, blurb, help_text = mod_configs_words.setting_face("allow_invaders", "Invaders join.  0=FALSE  1=TRUE")
     assert "FALSE" not in blurb and "0=" not in help_text and "invade" in help_text.lower()
-    _label, _blurb, fallback = coop_service.setting_face("made_up_flag", "Does a thing.  0=FALSE  1=TRUE")
-    assert fallback == "Does a thing." and coop_service.label_of("made_up_flag") == "Made up flag"
+    _label, _blurb, fallback = mod_configs_words.setting_face("made_up_flag", "Does a thing.  0=FALSE  1=TRUE")
+    assert fallback == "Does a thing." and mod_configs_words.label_of("made_up_flag") == "Made up flag"
 
 
 PROFILE = (

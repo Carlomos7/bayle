@@ -1,0 +1,319 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls.Basic
+import Theme
+import Components
+
+// Mod Configs (§8.10): left, the profile's mods with settings files (Seamless Co-op first) and their files; the app's
+// one vertical divider; right, the breadcrumb "Mod / file", the path, Edit as text, and the file as a form (INI,
+// flat TOML), Seamless Co-op's panel, Markdown or plain text. Footer: Reset all / Discard / Save (Ctrl+S). Under
+// 1000 px the tree and the file take turns, with Back. Everything shown and every word comes from the adapter.
+Item {
+    id: page
+
+    required property var adapter
+    readonly property var words: adapter.words
+    readonly property bool narrow: width < 1000
+    property bool showFile: false
+
+    objectName: "modConfigsPage"
+
+    Component.onCompleted: page.adapter.refresh()
+
+    Shortcut {
+        sequences: [StandardKey.Save]
+
+        onActivated: page.adapter.save()
+    }
+    Item {  // the header: the profile, picked here as on the Mods page
+        id: header
+
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.sp16
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.sp16
+        anchors.top: parent.top
+        anchors.topMargin: Theme.sp8
+        height: 40
+
+        DropButton {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            implicitHeight: Theme.controlH
+            objectName: "profilePicker"
+            text: page.adapter.profileName !== "" ? page.adapter.profileName : page.words.noProfile
+
+            Repeater {
+                model: page.adapter.profiles
+
+                MenuEntry {
+                    required property int index
+                    required property string modelData
+
+                    checked: index === page.adapter.profileIndex
+                    text: modelData
+
+                    onTriggered: page.adapter.pickProfile(index)
+                }
+            }
+        }
+    }
+    Flickable {  // the tree
+        id: tree
+
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.top: header.bottom
+        anchors.topMargin: Theme.sp8
+        clip: true
+        contentHeight: treeColumn.implicitHeight + Theme.sp16
+        visible: !page.narrow || !page.showFile
+        width: page.narrow ? page.width : 300
+
+        Column {
+            id: treeColumn
+
+            spacing: Theme.sp4
+            width: tree.width - Theme.sp16 * 2
+            x: Theme.sp16
+
+            Txt {
+                elide: Text.ElideNone
+                kind: "hint"
+                text: !page.adapter.hasProfile ? page.words.noProfile : page.adapter.nodes.length === 0 && !page.adapter.loading ? page.words.noMods : ""
+                visible: text !== ""
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
+            Repeater {
+                model: page.adapter.nodes
+
+                Column {
+                    id: node
+
+                    required property var modelData
+
+                    spacing: 2
+                    width: treeColumn.width
+
+                    Txt {
+                        color: node.modelData.muted ? Theme.textSecondary : Theme.textPrimary
+                        kind: "strong"
+                        text: node.modelData.name
+                        width: parent.width
+                    }
+                    Txt {
+                        elide: Text.ElideNone
+                        kind: "hint"
+                        text: node.modelData.sub
+                        visible: text !== ""
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                    }
+                    Repeater {
+                        model: node.modelData.files
+
+                        HoverRow {
+                            id: fileRow
+
+                            required property var modelData
+
+                            implicitHeight: 32
+                            objectName: "file_" + modelData.name
+                            selected: modelData.path === page.adapter.selectedFile
+                            width: node.width
+
+                            onClicked: {
+                                page.adapter.selectFile(node.modelData.key, fileRow.modelData.path);
+                                page.showFile = true;
+                            }
+
+                            Txt {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: fileRow.modelData.name
+                                x: Theme.sp16
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Rectangle {  // the app's one vertical divider (v2.5)
+        id: divider
+
+        anchors.bottom: parent.bottom
+        anchors.top: header.bottom
+        color: Theme.borderHairline
+        visible: !page.narrow
+        width: 1
+        x: tree.width
+    }
+    Item {  // the file
+        id: detail
+
+        anchors.bottom: parent.bottom
+        anchors.left: page.narrow ? parent.left : divider.right
+        anchors.right: parent.right
+        anchors.top: header.bottom
+        visible: !page.narrow || page.showFile
+
+        Column {
+            id: top
+
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.sp16
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.sp16
+            anchors.top: parent.top
+            anchors.topMargin: Theme.sp8
+            spacing: Theme.sp4
+
+            GhostButton {
+                icon_: "Return"
+                text: page.words.back
+                visible: page.narrow
+
+                onClicked: page.showFile = false
+            }
+            Item {
+                height: Math.max(crumbText.implicitHeight, Theme.controlSmallH)
+                width: parent.width
+
+                Txt {
+                    id: crumbText
+
+                    anchors.left: parent.left
+                    anchors.right: editRow.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    kind: "rowTitle"
+                    text: page.adapter.crumb !== "" ? page.adapter.crumb : page.words.pickFile
+                }
+                Row {
+                    id: editRow
+
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.sp8
+                    visible: page.adapter.selectedFile !== ""
+
+                    GhostButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        icon_: "Link"
+                        implicitHeight: Theme.controlSmallH
+                        objectName: "attachFile"
+                        text: page.words.attach
+                        visible: page.adapter.canAttach
+
+                        onClicked: page.adapter.attachFile()
+                    }
+                    GhostButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitHeight: Theme.controlSmallH
+                        text: page.words.detach
+                        visible: page.adapter.selectedAttached
+
+                        onClicked: page.adapter.detachFile(page.adapter.selectedFile)
+                    }
+                    Txt {
+                        anchors.verticalCenter: parent.verticalCenter
+                        kind: "caption"
+                        text: page.words.editAsText
+                    }
+                    ToggleSwitch {
+                        anchors.verticalCenter: parent.verticalCenter
+                        checked: page.adapter.editText
+                        objectName: "editAsText"
+
+                        onToggled: page.adapter.setEditText(checked)
+                    }
+                }
+            }
+            Txt {
+                kind: "hint"
+                text: page.adapter.selectedFile
+                visible: text !== ""
+                width: parent.width
+            }
+        }
+        Flickable {
+            id: body
+
+            anchors.bottom: footer.top
+            anchors.bottomMargin: Theme.sp8
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: top.bottom
+            anchors.topMargin: Theme.sp12
+            clip: true
+            contentHeight: bodyColumn.implicitHeight + Theme.sp16
+
+            Column {
+                id: bodyColumn
+
+                spacing: Theme.sp16
+                width: body.width - Theme.sp16 * 2
+                x: Theme.sp16
+
+                ConfigForm {
+                    adapter: page.adapter
+                    sections: page.adapter.fileKind === "form" ? page.adapter.sections : []
+                    visible: page.adapter.fileKind === "form"
+                    width: parent.width
+                }
+                SeamlessPanel {
+                    adapter: page.adapter
+                    visible: page.adapter.fileKind === "seamless"
+                    width: parent.width
+                }
+                Txt {
+                    elide: Text.ElideNone
+                    text: page.adapter.fileKind === "markdown" ? page.adapter.text : ""
+                    textFormat: Text.MarkdownText
+                    visible: page.adapter.fileKind === "markdown"
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+                CodeArea {
+                    height: Math.max(320, body.height - Theme.sp16)
+                    objectName: "configText"
+                    text: page.adapter.fileKind === "text" ? page.adapter.text : ""
+                    visible: page.adapter.fileKind === "text"
+                    width: parent.width
+
+                    onEdited: page.adapter.edit(text)
+                }
+            }
+        }
+        Row {
+            id: footer
+
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.sp12
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.sp16
+            spacing: Theme.gapInline
+            visible: page.adapter.selectedFile !== ""
+
+            GhostButton {
+                text: page.words.resetAll
+                visible: page.adapter.fileKind === "form"
+
+                onClicked: page.adapter.resetAll()
+            }
+            GhostButton {
+                enabled: page.adapter.dirty
+                text: page.words.discard
+
+                onClicked: page.adapter.discard()
+            }
+            PrimaryButton {
+                enabled: page.adapter.dirty
+                objectName: "saveConfig"
+                text: page.words.save
+
+                onClicked: page.adapter.save()
+            }
+        }
+    }
+}

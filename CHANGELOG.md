@@ -16,6 +16,15 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   .me3 could be deleted directly). A profile the launcher installed an overhaul into can be deleted; the confirmation
   says the overhaul's shared files stay. Removing an entry that only points at a folder of mods is now one change
   to the profile (one backup, one entry in Versions).
+- Mod Configs, a first look at the new page: a new button on the Co-op page, Open new Mod Configs window, lists the
+  profile's mods that have settings files, Seamless Co-op first. An .ini, .cfg or .toml file opens as a form (a
+  switch, a list or a number per setting, the file's own comment as help, Reset to a default the comment states);
+  any file can be edited as text. Save changes only the values you edited: comments, order and spacing stay, and
+  a file changed elsewhere since it was opened is not overwritten. Seamless Co-op has its own panel: password,
+  difficulty, language (the game's, or a translation in its locale folder) and Share with a friend (Copy, Paste,
+  Load and Save settings as plain ini lines; a pasted older JSON export still reads; the parameters fingerprint).
+  In the new Mods window, a DLL's file icon and Mod options' Open on Mod Configs open it on that mod.
+- Remove overhaul no longer leaves empty builds, overhauls or sources folders in the launcher's library folder.
 
 ## [3.22.0] - 2026-10-15
 

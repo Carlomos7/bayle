@@ -76,8 +76,8 @@ class ModsHost(Protocol):
     def install_paths(self, paths: list[Path]) -> None:
         """Install dropped files through the launcher's install flow, in turn."""
 
-    def attach_config(self, entry: dict) -> None:
-        """Open the launcher's dialog for a DLL's config files (until Mod Configs, S7)."""
+    def open_mod_configs(self, select: str = "") -> None:
+        """Open the Mod Configs window, showing the mod called select."""
 
     def profile_deleted(self, profile: Path, moved_to: Path) -> None:
         """The page deleted the profile: the host forgets it and picks another."""
@@ -157,7 +157,6 @@ class ModsAdapter(QObject):
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
         self.host.pick_profile(index)
-        self._recovered = ()
         self.refresh()
 
     def _group(self, kind: str) -> dict:
@@ -221,8 +220,10 @@ class ModsAdapter(QObject):
             self._again = False
             self.refresh()
             return
+        before = self._facts.profile if self._facts is not None else None
         self._facts, self._scan, self._tool, self._rebuild_undo, recovered, self._overhaul = got
-        self._recovered += recovered
+        now = self._facts.profile if self._facts is not None else None
+        self._recovered = (self._recovered if now == before else ()) + recovered  # another profile: its own lines
         self._render()
         if not self._edit_text:
             self._read_text()
@@ -515,7 +516,7 @@ class ModsAdapter(QObject):
     # ---- InfoBars
     @Slot(str)
     def closeNotice(self, key: str) -> None:
-        self.presenter.close_notice(key)
+        self.presenter.close_notice(key, str(self._facts.profile) if self._facts is not None else "")
         self._render()
 
     @Slot(str)
@@ -745,10 +746,10 @@ class ModsAdapter(QObject):
 
     @Slot(int)
     def attachConfig(self, index: int) -> None:
-        """A DLL's config files: today's dialog for them (attach, open, edit), until Mod Configs (S7)."""
+        """A DLL's config files: the Mod Configs window, on that mod (attach, open, edit)."""
         entry = self._entry(index)
         if entry is not None and self._profile() is not None:
-            self.host.attach_config(entry)
+            self.host.open_mod_configs(entry["name"])
 
     # ---- Mod options
     @Slot(int, result=dict)

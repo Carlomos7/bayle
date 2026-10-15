@@ -68,6 +68,15 @@ class SelfTestHost:
     def pick_profile(self, index: int) -> None:
         pass
 
+    def pick_file(self, title: str, filters: str) -> None:
+        return None
+
+    def save_file(self, title: str, name: str) -> None:
+        return None
+
+    def open_mod_configs(self, select: str = "") -> None:
+        pass
+
 
 class Report:
     def __init__(self, out: Callable[[str], None] = print):

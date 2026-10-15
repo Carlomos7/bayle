@@ -33,18 +33,13 @@ from qfluentwidgets import FluentIcon as FI
 from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services.coop import (
     CUSTOM,
-    SAVE_KINDS,
     SCALING_KEYS,
     SCALING_LABELS,
     SCALING_PRESETS,
-    VOLUME_STOPS,
-    choice_label,
     export_text,
-    label_of,
     parse_settings_json,
     plan_import,
     read_settings_meta,
-    setting_face,
     write_keys,
     write_password,
 )
@@ -57,6 +52,15 @@ from roundtable_souls.services.play import (
 )
 from roundtable_souls.ui.dialogs.common import (
     confirm,
+)
+from roundtable_souls.ui.pages.mod_configs.presenter import (
+    ModConfigsPresenter,
+    choice_label,
+    label_of,
+    save_kinds,
+    section_title,
+    setting_face,
+    volume_stops,
 )
 from roundtable_souls.ui.theme import (
     ACCENT,
@@ -96,7 +100,17 @@ class CoopView:
         hl = QVBoxLayout(self.coop_head)
         hl.setContentsMargins(40, 28, 40, 8)
         hl.setSpacing(0)
-        titled(hl, "Co-op", FI.PEOPLE, "Seamless Co-op: difficulty, options, and the password where the mod has one.")
+        words = ModConfigsPresenter()
+        self.coop_new_window = ghost_btn(words.open_window_text, FI.LINK)
+        self.coop_new_window.setToolTip(words.open_window_tip)
+        self.coop_new_window.clicked.connect(lambda: self._open_mod_configs_window())
+        titled(
+            hl,
+            "Co-op",
+            FI.PEOPLE,
+            "Seamless Co-op: difficulty, options, and the password where the mod has one.",
+            self.coop_new_window,
+        )
         outer.addWidget(self.coop_head)
         self.coop_scroll, lay = page("coopScroll")
         lay.setContentsMargins(40, 12, 40, 16)
@@ -431,7 +445,7 @@ class CoopView:
                 "SAVE": "Which file Seamless writes",
                 "LANGUAGE": "Locale override",
             }.get(sec["section"].upper(), count_label(len(items), "setting"))
-            exp = ExpandGroupSettingCard(icon, sec["title"], sub)
+            exp = ExpandGroupSettingCard(icon, section_title(sec["section"]), sub)
             for it in items:
                 self.all_file[it["key"]] = it["value"]
                 exp.addGroupWidget(self._setting_row(it))
@@ -448,8 +462,8 @@ class CoopView:
 
         if key == "default_boot_master_volume":
             w = ComboBox()
-            labels = [lab for _, lab in VOLUME_STOPS]
-            nums = [n for n, _ in VOLUME_STOPS]
+            labels = [lab for _, lab in volume_stops()]
+            nums = [n for n, _ in volume_stops()]
             w.addItems(labels)
             w.setMinimumWidth(140)
             w.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
@@ -457,10 +471,10 @@ class CoopView:
             nearest = min(nums, key=lambda x: abs(x - n))
             w.setCurrentIndex(nums.index(nearest))
             w.currentIndexChanged.connect(lambda i, ns=nums: mark(ns[i]))
-        elif key == "save_file_extension" and val in {k for k, _ in SAVE_KINDS}:
+        elif key == "save_file_extension" and val in {k for k, _ in save_kinds()}:
             w = ComboBox()
-            kinds = [k for k, _ in SAVE_KINDS]
-            w.addItems([lab for _, lab in SAVE_KINDS])
+            kinds = [k for k, _ in save_kinds()]
+            w.addItems([lab for _, lab in save_kinds()])
             w.setMinimumWidth(140)
             w.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             w.setCurrentIndex(kinds.index(val))

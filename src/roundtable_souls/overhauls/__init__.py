@@ -2,7 +2,7 @@
 used to recognise it (Play-page detection, the offline launch's strip), to build it (mods.engine) and to place its
 download in the launcher's layout (sources)."""
 
-from roundtable_souls.overhauls import basic, requirements, sources
+from roundtable_souls.overhauls import basic, requirements, sources, writer
 from roundtable_souls.overhauls.config import (
     RECIPE_VERSION,
     Basic,
@@ -44,4 +44,5 @@ __all__ = [
     "sources",
     "verified",
     "write_schema",
+    "writer",
 ]

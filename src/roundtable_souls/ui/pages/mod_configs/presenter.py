@@ -153,6 +153,13 @@ def choice_label(key: str, n: int, raw: str) -> str:
 class ModConfigsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
+    open_window_text = property(lambda self: tr("Open new Mod Configs window"))
+    open_window_tip = property(
+        lambda self: tr(
+            "The new Mod Configs page, in a window of its own: every mod's settings files, Seamless Co-op's among them."
+        )
+    )
+
     def words(self) -> dict[str, str]:
         return {
             "title": tr("Mod Configs"),

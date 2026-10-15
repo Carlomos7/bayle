@@ -87,6 +87,15 @@ class ModConfigsAdapter(QObject):
     text = Property(str, lambda self: self._text, notify=fileChanged)
     editText = Property(bool, lambda self: self._edit_text, notify=fileChanged)
     dirty = Property(bool, lambda self: self._is_dirty(), notify=dirtyChanged)
+    canAttach = Property(
+        bool, lambda self: self._node is not None and self._node.target is not None, notify=fileChanged
+    )
+    selectedAttached = Property(bool, lambda self: self._attached(), notify=fileChanged)
+
+    def _attached(self) -> bool:
+        if self._node is None or self._opened is None:
+            return False
+        return any(f.path == self._opened.path and f.how == "attached" for f in self._node.files)
 
     def _kind(self) -> str:
         if self._opened is None:

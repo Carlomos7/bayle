@@ -197,6 +197,24 @@ Item {
                     spacing: Theme.sp8
                     visible: page.adapter.selectedFile !== ""
 
+                    GhostButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        icon_: "Link"
+                        implicitHeight: Theme.controlSmallH
+                        objectName: "attachFile"
+                        text: page.words.attach
+                        visible: page.adapter.canAttach
+
+                        onClicked: page.adapter.attachFile()
+                    }
+                    GhostButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitHeight: Theme.controlSmallH
+                        text: page.words.detach
+                        visible: page.adapter.selectedAttached
+
+                        onClicked: page.adapter.detachFile(page.adapter.selectedFile)
+                    }
                     Txt {
                         anchors.verticalCenter: parent.verticalCenter
                         kind: "caption"

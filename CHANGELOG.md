@@ -7,6 +7,18 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.
+- New Mods window: a warning when the profile goes online with a mod's parameters (regulation.bin), with Play
+  offline to turn online matchmaking off (Undo puts it back); the Parameters card shows a fingerprint of the
+  parameters the game will use, with Copy, so co-op partners can check they have the same; and, with the overhaul
+  preview on, More has Install an overhaul with the launcher, Remove <overhaul> and Clean up installer leftovers,
+  as the Overhaul button does. It also puts right a change that was interrupted, as the Mods page does.
+- Delete profile: a profile an overhaul's own installer set up is refused whichever way it was picked (before, its
+  .me3 could be deleted directly). A profile the launcher installed an overhaul into can be deleted; the confirmation
+  says the overhaul's shared files stay. Removing an entry that only points at a folder of mods is now one change
+  to the profile (one backup, one entry in Versions).
+
+## [3.22.0] - 2026-10-15
+
 - Nightreign Revive, a preview you turn on (Tools > Play session > "Install overhauls with the launcher (preview)"):
   the launcher can install Revive LITE 0.1.33 into a profile itself, from the folder you unpacked its download into,
   without running its installer. The Mods page's new Overhaul button shows everything that will change first: the
@@ -56,15 +68,6 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Mods: removing an entry that only points at a folder of mods no longer fails when another mod must load after
   it; deleting a profile now waits until the running job finishes; a mod's rebuild tool is asked about again when
   its program or script changes. Wording: refusing to delete a profile an installer manages names that profile.
-- New Mods window: a warning when the profile goes online with a mod's parameters (regulation.bin), with Play
-  offline to turn online matchmaking off (Undo puts it back); the Parameters card shows a fingerprint of the
-  parameters the game will use, with Copy, so co-op partners can check they have the same; and, with the overhaul
-  preview on, More has Install an overhaul with the launcher, Remove <overhaul> and Clean up installer leftovers,
-  as the Overhaul button does. It also puts right a change that was interrupted, as the Mods page does.
-- Delete profile: a profile an overhaul's own installer set up is refused whichever way it was picked (before, its
-  .me3 could be deleted directly). A profile the launcher installed an overhaul into can be deleted; the confirmation
-  says the overhaul's shared files stay. Removing an entry that only points at a folder of mods is now one change
-  to the profile (one backup, one entry in Versions).
 - Combine and overhaul builds are much faster: merged archives are compressed at Oodle level 4 instead of 6. The large
   effects archive takes about 5 seconds instead of nearly 2 minutes, for about 3% more disk; checked in game with the
   same effects and load time.

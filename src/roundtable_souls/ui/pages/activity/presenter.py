@@ -428,6 +428,25 @@ class ActivityPresenter:
             )
         if u.get("type") in mod_undo.OVERHAUL:
             return self._overhaul_undo_plan(u, prof, job_id)
+        if u.get("type") == "profile-import":
+            name = u.get("name") or tr("the profile")
+            return UndoPlan(
+                tr("Undo the import into {name}").format(name=name),
+                (
+                    tr("{name} goes back to exactly what it was before the import (a profile it made goes)").format(
+                        name=name
+                    ),
+                    tr(
+                        "The mod folders it copied in are removed; files you changed or added since stay, and are listed"
+                    ),
+                ),
+                tr("If {name} changed since, only the imported entries are taken out of it.").format(name=name),
+                tr("Undo import"),
+                tr("Undoing the import..."),
+                u,
+                job_id,
+                name,
+            )
         if u.get("type") in mod_undo.OPERATIONS:
             name = u.get("name") or tr("the mod")
             fresh = u.get("type") == "install"

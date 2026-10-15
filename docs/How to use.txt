@@ -459,11 +459,15 @@ Inside it:
   temp\                                  mods being unpacked while they install
 
 Nothing of Roundtable Souls' goes into the game's save folder or me3's profile
-folders, apart from three things that must sit beside their file: the
-.offline.me3 copy Play offline uses (me3 reads a profile's paths from its
-folder), one .bak next to a .me3 or settings file you edited, and a moment's
+folders, apart from what must sit beside its file: the .offline.me3 copy
+Play offline uses (me3 reads a profile's paths from its folder), the hidden
+.roundtable folder next to a profile (its settings, its .bak, the copy of a
+mod kept after an update, and the records that let an install be finished or
+undone), one .bak next to a mod's settings file you edited, and a moment's
 temporary file while a save is written. Backups and deleted profiles from
-earlier versions are moved into the data folder automatically.
+earlier versions are moved into the data folder automatically. Versions
+before 3.23 kept a profile's settings (roundtable.json) and its .bak beside
+the .me3; those files are left where they are.
 
 Activity (in the sidebar) lists what the launcher did: every Play, repair,
 install and rebuild, grouped by day, with how it went (Done, Done with

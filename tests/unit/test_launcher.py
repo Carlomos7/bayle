@@ -270,7 +270,7 @@ def test_profile_mods_are_the_ones_me3_loads(tmp_path):
     ]
     assert mods_service.set_profile_mod_enabled(p, 1, False)
     assert [m["id"] for m in mods_service.read_profile_mods(p)] == ["flora", "nightreign-revive"]
-    assert (tmp_path / "profile.me3.bak").is_file()
+    assert (tmp_path / ".roundtable/backups/profile.me3.bak").is_file()
 
 
 def test_offline_profile_disables_only_seamless():

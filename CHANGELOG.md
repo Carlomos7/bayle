@@ -25,6 +25,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   Load and Save settings as plain ini lines; a pasted older JSON export still reads; the parameters fingerprint).
   In the new Mods window, a DLL's file icon and Mod options' Open on Mod Configs open it on that mod.
 - Remove overhaul no longer leaves empty builds, overhauls or sources folders in the launcher's library folder.
+- Combining parameter packs that add many rows is much faster: 66,000 added rows took about 5 minutes, now under
+  a second.
 
 ## [3.22.0] - 2026-10-15
 

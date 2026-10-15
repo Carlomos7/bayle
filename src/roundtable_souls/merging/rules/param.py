@@ -20,7 +20,6 @@ with negative IDs are reported: the game's lookup by ID never finds them.
 
 from __future__ import annotations
 
-import bisect
 from dataclasses import dataclass, field
 
 from roundtable_souls import formats
@@ -127,8 +126,9 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
             continue
         v = formats.param.read_param(vfile.data)
         vkeyed = _keyed(v.rows)
-        out_rows = [formats.param.Row(r.id, bytes(r.data), r.name) for r in v.rows]
-        at = {k: i for i, k in enumerate(vkeyed)}  # key -> position in out_rows
+        out = {k: formats.param.Row(r.id, bytes(r.data), r.name) for k, r in vkeyed.items()}  # key -> row, in order
+        ids = [r.id for r in v.rows]
+        in_order = ids == sorted(ids)  # added rows go by ID if the game's are in order, else at the end
         changers: dict[tuple[int, int], list[str]] = {}
         clashed: set[tuple[int, int]] = set()
         table_changed = False
@@ -163,29 +163,25 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
             for key, row in _keyed(p.rows).items():
                 if key in vkeyed:
                     vrow = vkeyed[key]
-                    if row.data == vrow.data and (not row.name or row.name == out_rows[at[key]].name):
+                    if row.data == vrow.data and (not row.name or row.name == out[key].name):
                         continue
-                    cur = out_rows[at[key]]
+                    cur = out[key]
                     data = bytearray(cur.data)
                     if row.data != vrow.data:
                         if _apply_words(data, row.data, vrow.data):
                             clashed.add(key)
                         rep.changed += 1
                         changers.setdefault(key, []).append(pname)
-                    out_rows[at[key]] = formats.param.Row(cur.id, bytes(data), row.name or cur.name)
+                    out[key] = formats.param.Row(cur.id, bytes(data), row.name or cur.name)
                     did = True
-                elif key in at:  # added by an earlier pack too
+                elif key in out:  # added by an earlier pack too
                     clashed.add(key)
                     changers.setdefault(key, []).append(pname)
-                    out_rows[at[key]] = formats.param.Row(row.id, bytes(row.data), row.name)
+                    out[key] = formats.param.Row(row.id, bytes(row.data), row.name)
                     rep.added += 1
                     did = True
                 else:
-                    ids = [r.id for r in out_rows]
-                    pos = bisect.bisect_right(ids, row.id) if ids == sorted(ids) else len(out_rows)
-                    out_rows.insert(pos, formats.param.Row(row.id, bytes(row.data), row.name))
-                    at = {k: (j + 1 if j >= pos else j) for k, j in at.items()}
-                    at[key] = pos
+                    out[key] = formats.param.Row(row.id, bytes(row.data), row.name)
                     changers[key] = [pname]
                     rep.added += 1
                     did = True
@@ -196,6 +192,9 @@ def combine(base_raw: bytes, packs: list[tuple[str, bytes]], oodle=None) -> tupl
             if len(changers.get(key, [])) > 1:
                 report.conflicts.append((short.rsplit(".", 1)[0], key[0], changers[key]))
         if table_changed:
+            out_rows = list(out.values())
+            if in_order:  # stable: an added row goes after the rows with its ID already there, as inserted
+                out_rows.sort(key=lambda r: r.id)
             if len(out_rows) > MAX_ROWS:
                 raise TableLimit(
                     f"{short.rsplit('.', 1)[0]} would have {len(out_rows):,} rows; the game reads at most "

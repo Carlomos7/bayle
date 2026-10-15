@@ -90,6 +90,44 @@ def test_taking_out_an_entry_for_a_folder_of_mods_takes_the_dependency_on_it_too
     assert (profile.parent / "mod" / "flora").is_dir()  # the folder and its mods stay
 
 
+def test_taking_out_a_holder_is_one_write_with_one_version(profile):
+    before = len(pm.versions(profile))
+    holder = entry(profile, "bundle")
+    pm.remove_holder(profile, holder["index"], holder, ["needs-bundle"], loc=er())
+    assert len(pm.versions(profile)) == before + 1
+    assert profile.with_name(profile.name + ".bak").read_text(encoding="utf-8") == PROFILE
+
+
+def test_a_holder_removal_that_fails_leaves_the_profile_as_it_was(profile, monkeypatch):
+    from roundtable_souls.mods.profile_writer import ProfileWriter
+
+    def fail(self, index):
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(ProfileWriter, "remove_entry", fail)  # after the dependency was taken out, in memory
+    holder = entry(profile, "bundle")
+    with pytest.raises(OSError):
+        pm.remove_holder(profile, holder["index"], holder, ["needs-bundle"], loc=er())
+    assert profile.read_text(encoding="utf-8") == PROFILE
+
+
+def test_a_holder_removal_interrupted_before_it_counted_is_put_right(profile, monkeypatch):
+    from roundtable_souls.mods import operations
+    from roundtable_souls.services import mods as mod_service
+
+    def crash(op, then=None):
+        raise KeyboardInterrupt  # the window closed before the operation counted as done
+
+    holder = entry(profile, "bundle")
+    with monkeypatch.context() as m:
+        m.setattr(operations, "commit", crash)
+        with pytest.raises(KeyboardInterrupt):
+            pm.remove_holder(profile, holder["index"], holder, ["needs-bundle"], loc=er())
+    said = mod_service.recover_interrupted(profile, timeout=0.5)
+    assert said and profile.read_text(encoding="utf-8") == PROFILE
+    assert mod_service.recover_interrupted(profile, timeout=0.5) == []
+
+
 def test_an_install_leaves_install_or_update_as_its_undo_record(profile, undo_records, monkeypatch):
     monkeypatch.setattr(pm, "install_mod", lambda prof, plan, **k: {"update": True, "operation": "op-1"})
     out = pm.install_and_record(profile, {"name": "Flora", "exists": True, "merge": True}, loc=er())

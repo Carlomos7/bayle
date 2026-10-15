@@ -181,6 +181,33 @@ def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app
         closed(w)
 
 
+def test_online_with_a_packages_parameters_warns_and_play_offline_turns_it_off(qt_app, profile):
+    from roundtable_souls.services.mods import read_profile_settings
+
+    profile.write_text(PROFILE.replace('profileVersion = "v1"\n', 'profileVersion = "v1"\nstart_online = true\n'))
+    (profile.parent / "mod/flora/regulation.bin").write_bytes(b"params")
+    host = Host(profile)
+    w = opened(host)
+    try:
+        bar = find(w, "notice_online")
+        todo, button = [bar], None
+        while todo and button is None:
+            item = todo.pop()
+            if item.property("text") == "Play offline":
+                button = item
+            todo.extend(item.childItems())
+        assert button is not None
+        assert find(w, "fingerprintRow").isVisible()
+        undos = []
+        w.notifier.toastActionRequested.connect(lambda text, error, action, token: undos.append((text, action, token)))
+        click(w, button)
+        assert read_profile_settings(profile).get("start_online") is not True
+        assert undos and undos[0][1] == "Undo"
+        assert "online" not in [n.key for n in w.adapter.state().notices]
+    finally:
+        closed(w)
+
+
 def test_a_move_the_dependencies_would_undo_is_refused_with_the_reason(qt_app, profile):
     w = opened(Host(profile))
     try:

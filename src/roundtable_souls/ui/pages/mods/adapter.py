@@ -490,6 +490,18 @@ class ModsAdapter(QObject):
             self.rebuild()
         elif key == "allow-tool":
             self.allowTool()
+        elif key == "online":
+            self.setSetting("start_online", 2)  # Online matchmaking off: a Version, with Undo
+
+    @Slot()
+    def copyFingerprint(self) -> None:
+        from PySide6.QtGui import QGuiApplication
+
+        facts = self._facts
+        if facts is None or facts.fingerprint is None:
+            return
+        QGuiApplication.clipboard().setText(self.presenter.fingerprint(facts.fingerprint, facts.regulation))
+        self.notifier.toast(tr("Fingerprint copied"))
 
     # ---- the header
     @Slot()

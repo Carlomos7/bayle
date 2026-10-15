@@ -163,6 +163,27 @@ def test_the_parameters_card():
     )
 
 
+def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
+    from roundtable_souls.services.game_checks import Fingerprint
+
+    p = ModsPresenter()
+    stale = {"state": "stale", "packs": ["a"], "backend": "t", "reasons": []}
+    tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"})
+    state = p.page(facts(online_with="flora", fingerprint=Fingerprint("1A2B3C4D", 9, "flora")), scan(health=stale))
+    online = state.notices[0]
+    assert (online.key, online.severity, online.action, online.closable) == ("online", "warning", "Play offline", True)
+    assert online.text == (
+        "This profile goes online with changed parameters (flora's regulation.bin). FromSoftware's servers can see "
+        "the change."
+    )
+    assert [n.key for n in p.notices(stale, tool, (), "flora")] == ["online", "stale"]  # two at most
+    assert state.parameters.fingerprint == "Parameters fingerprint: 1A2B3C4D (flora's regulation.bin)"
+    assert state.parameters.fingerprint_note.startswith("Co-op partners should use the same parameters.")
+    own = p.parameters(stale, False, Fingerprint("00FF00FF", 9, ""))
+    assert own.fingerprint == "Parameters fingerprint: 00FF00FF (the game's own regulation.bin)"
+    assert p.parameters(stale, False).fingerprint == "" and p.page(facts(), None).notices == ()
+
+
 def test_infobars_two_at_once_and_a_closed_one_stays_closed():
     p = ModsPresenter()
     tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"})

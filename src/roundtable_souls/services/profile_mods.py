@@ -24,6 +24,7 @@ from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods.backends.manifest_refresh import launcher_installed
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.services import game_checks
 from roundtable_souls.services.mods import (
     install_mod,
     profile_entries,
@@ -316,6 +317,9 @@ class PageFacts:
     configs: dict[int, tuple[str, ...]]  # a DLL's config files (found beside it or attached)
     not_loaded: dict[str, int]  # kind -> mod folders (or DLLs) in the profile no entry loads
     error: str = ""  # why the profile could not be read ("" when it was)
+    online_with: str = ""  # the package whose parameters the profile goes online with (game_checks.online_risk)
+    fingerprint: game_checks.Fingerprint | None = None  # the parameters the game will use (co-op partners compare)
+    regulation: str = "regulation.bin"  # the game's parameters file name
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
@@ -384,6 +388,9 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         empty=empty,
         configs=configs,
         not_loaded={"package": len(pk.get("unlisted") or []), "native": len(nt.get("unlisted") or [])},
+        online_with=risk.source if (risk := game_checks.online_risk(prof, loc)) is not None else "",
+        fingerprint=game_checks.regulation_fingerprint(prof, loc),
+        regulation=loc.game.regulation,
     )
 
 

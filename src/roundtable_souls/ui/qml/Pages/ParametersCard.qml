@@ -120,6 +120,37 @@ Card {
                 text: card.p.blocked || ""
             }
         }
+        Item {
+            height: visible ? Math.max(fpText.implicitHeight, Theme.controlSmallH) : 0
+            objectName: "fingerprintRow"
+            visible: (card.p.fingerprint || "") !== ""
+            width: parent ? parent.width : 0
+
+            Txt {
+                id: fpText
+
+                anchors.left: parent.left
+                anchors.right: fpCopy.left
+                anchors.rightMargin: Theme.sp8
+                anchors.verticalCenter: parent.verticalCenter
+                elide: Text.ElideNone
+                kind: "caption"
+                text: (card.p.fingerprint || "") + "\n" + (card.p.fingerprint_note || "")
+                wrapMode: Text.WordWrap
+            }
+            GhostButton {
+                id: fpCopy
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                icon_: "Copy"
+                implicitHeight: Theme.controlSmallH
+                objectName: "copyFingerprint"
+                text: card.words.copy
+
+                onClicked: card.adapter.copyFingerprint()
+            }
+        }
         Row {
             spacing: Theme.sp8
 

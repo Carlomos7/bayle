@@ -769,3 +769,39 @@ def test_a_loop_is_only_one_me3_sees(tmp_path):
     found = checks.entry_problems(p, M.entries(p))
     # gone's folder is missing (me3 leaves it out) and 'C' is not 'c' (me3 matches ids exactly): no loop either way
     assert not any("loops" in x for v in found.values() for x in v)
+
+
+def test_mixed_archive_gets_package_and_dll_entries_and_nothing_else_changes(tmp_path):
+    p = _profile(tmp_path / "prof")
+    before = p.read_bytes()
+    src = tmp_path / "Mixed Mod"
+    (src / "chr").mkdir(parents=True)
+    (src / "chr" / "c0000.anibnd.dcx").write_bytes(b"a")
+    (src / "MixedMod.dll").write_bytes(b"d")
+    (src / "MixedMod.ini").write_text("x=1")
+    (src / "tools").mkdir()
+    (src / "tools" / "helper.dll").write_bytes(b"h")  # nested: one of its files, not an entry
+    plan = install.plan_install(p, src, loc=er())
+    assert plan["kind"] == "package" and plan["mixed"]
+    assert {c["name"]: c["group"] for c in plan["contents"]}["MixedMod.ini"] == "settings"
+    out = install.install(p, plan, loc=er())
+    assert out["entries"] == [
+        {"kind": "package", "id": "mixed-mod", "path": "mod/mixed-mod"},
+        {"kind": "native", "path": "mod/mixed-mod/MixedMod.dll"},
+    ]
+    import difflib
+
+    old, new = before.decode().splitlines(), p.read_bytes().decode().splitlines()
+    changed = [d for d in difflib.ndiff(old, new) if d[0] in "+-"]
+    assert changed == [  # only the two new entries; every other line (comments, CRLF profile) as it was
+        "+ ",
+        "+ [[packages]]",
+        '+ id = "mixed-mod"',
+        "+ path = 'mod/mixed-mod'",
+        "+ ",
+        "+ [[natives]]",
+        "+ path = 'mod/mixed-mod/MixedMod.dll'",
+    ]
+    data = tomllib.loads(p.read_text(encoding="utf-8"))
+    assert [n["path"] for n in data["natives"]][-1] == "mod/mixed-mod/MixedMod.dll"
+    assert not any("helper.dll" in n["path"] for n in data["natives"])

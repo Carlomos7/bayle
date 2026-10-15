@@ -27,6 +27,12 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Remove overhaul no longer leaves empty builds, overhauls or sources folders in the launcher's library folder.
 - Combining parameter packs that add many rows is much faster: 66,000 added rows took about 5 minutes, now under
   a second.
+- Install mod: a mod that ships game files and DLLs together now gets both kinds of entries. Before, it was installed
+  as a package only and its DLLs were never loaded. Only the DLLs directly in the mod's folder are added (you can
+  untick them); DLLs in its subfolders stay part of its files, and settings files beside its DLLs are grouped as
+  settings.
+- Install mod: a download that is only a me3 profile now gets its plain message ("This is a whole me3 profile, not a
+  mod...") instead of an error.
 
 ## [3.22.0] - 2026-10-15
 

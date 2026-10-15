@@ -3,9 +3,9 @@
     remove   an entry removed from a profile: its text and where it was, and the folder when it went to the
              Recycle Bin (see system.trash). Restore puts both back.
     install  a fresh install, update an update, rollback a rollback (see mods.operations): the operation's own
-             folder (.roundtable-ops/<id>) says what to take back. An install is undone (the profile's exact
-             previous bytes, the files it created that nobody changed); an update or a rollback is rolled back as
-             a set, with a rebuild when the install asked for one.
+             folder (.roundtable/ops/<id>, older ones .roundtable-ops/<id>) says what to take back. An install is
+             undone (the profile's exact previous bytes, the files it created that nobody changed); an update or a
+             rollback is rolled back as a set, with a rebuild when the install asked for one.
     rebuild  a rebuild of combined parameters: the profile as it was before (mods.history), the combined output it
              replaced (kept in the data folder), and the rebuild tool's own backup (its restore.json). Undo swaps each
              back by renaming, so it takes no time or space, and doing it again redoes the rebuild.

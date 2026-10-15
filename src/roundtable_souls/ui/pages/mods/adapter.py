@@ -91,6 +91,14 @@ class ModsHost(Protocol):
     def pick_folder(self, title: str) -> Path | None:
         """Ask for a folder (the overhaul's unpacked download); None when cancelled."""
 
+    def profiles(self) -> list[str]:
+        """The setups the player can pick (the Play list's labels)."""
+        ...
+
+    def profile_index(self) -> int: ...
+
+    def pick_profile(self, index: int) -> None: ...
+
 
 class ModsAdapter(QObject):
     changed = Signal()
@@ -140,6 +148,17 @@ class ModsAdapter(QObject):
     showAll = Property(bool, lambda self: self._show_all, notify=changed)
     hasProfile = Property(bool, lambda self: self._facts is not None and not self._facts.error, notify=changed)
     overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
+    profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
+    profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
+
+    @Slot(int)
+    def pickProfile(self, index: int) -> None:
+        if self.host.busy:
+            self.notifier.toast(tr("Wait for the current job"), error=True)
+            return
+        self.host.pick_profile(index)
+        self._recovered = ()
+        self.refresh()
 
     def _group(self, kind: str) -> dict:
         group = next((g for g in self._state.groups if g.kind == kind), None)

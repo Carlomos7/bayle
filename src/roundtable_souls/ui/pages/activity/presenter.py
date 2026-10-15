@@ -477,16 +477,22 @@ class ActivityPresenter:
         """An overhaul installed, updated or removed with the launcher (mods.overhaul_install)."""
         name = u.get("name") or tr("the overhaul")
         kind = u.get("type")
-        if kind == "overhaul-remove":
+        if kind in ("overhaul-remove", "overhaul-turn-off"):
             back = any(trash.exists(t) for t in u.get("trash") or [])
+            off = kind == "overhaul-turn-off"
             return UndoPlan(
-                tr("Restore {name}").format(name=name),
+                (tr("Undo turning {name} off") if off else tr("Restore {name}")).format(name=name),
                 tuple(
                     c
                     for c in (
-                        tr("{profile} goes back to exactly what it was before the removal").format(profile=prof.name),
+                        (
+                            tr("{profile} goes back to exactly what it was before it was turned off")
+                            if off
+                            else tr("{profile} goes back to exactly what it was before the removal")
+                        ).format(profile=prof.name),
                         tr("Its folders come back from the Recycle Bin") if back else "",
                         tr("The launcher's notes on it come back"),
+                        tr("Its setup is back, and the ordinary copy made when it was turned off goes") if off else "",
                     )
                     if c
                 ),
@@ -494,7 +500,7 @@ class ActivityPresenter:
                     "If {profile} changed since the removal, nothing is changed: install {name} again instead. "
                     "Seamless Co-op and your other mods are not touched."
                 ).format(profile=prof.name, name=name),
-                tr("Restore"),
+                tr("Undo turn off") if off else tr("Restore"),
                 tr("Restoring {name}...").format(name=name),
                 u,
                 job_id,

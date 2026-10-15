@@ -388,12 +388,29 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
         plan["contents"] = contents(d["root"], d["kind"]) + extras(folder, d["root"])
         plan["profiles_inside"] = [str(m.relative_to(folder)) for m in folder.rglob("*.me3")]
         plan["overhaul_hint"] = overhaul_hint(folder, d["root"])
+        plan["overhaul"] = _overhaul_of(folder, loc)
     if d["kind"] == "package" and (d["root"] / REGULATION).is_file():
         plan.update(regulation_order(profile, skip=plan.get("dest")))
         from roundtable_souls.mods import rebuild as merge
 
         plan.update(merge.offer(profile, d["root"], plan["regulation_packages"], loc=loc))
     return plan
+
+
+def _overhaul_of(folder: Path, loc: Locations) -> dict | None:
+    """The overhaul config that describes the download, if one does: {id, label, version, verified}, or {refusal}
+    when one fits it but not this version or edition (no opt-in: the way out is named); None when none fits."""
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+
+    try:
+        found = overhaul_install.find_download(folder, loc.game.key, overhauls.load(loc.game.key))
+    except overhaul_install.NotAnOverhaul:
+        return None
+    except overhaul_install.OverhaulError as e:
+        return {"refusal": str(e)}
+    cfg = found.config
+    return {"id": cfg.id, "label": cfg.label, "version": found.version, "verified": overhauls.verified(cfg.id)}
 
 
 def regulation_order(profile: Path, skip: Path | None = None) -> dict:

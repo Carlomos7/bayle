@@ -35,11 +35,12 @@ LABEL = {
     "overhaul-install": "Undo install",
     "overhaul-update": "Roll back",
     "overhaul-remove": "Restore",
+    "overhaul-turn-off": "Undo turn off",
 }
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
 # says what to take back; the removal's folders come back from the Recycle Bin.
-OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove")
+OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove", "overhaul-turn-off")
 
 
 class UndoError(RuntimeError):
@@ -165,7 +166,7 @@ def _overhaul_back(undo: dict, log) -> str:
     if not available(undo):
         raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
     try:
-        if undo["type"] == "overhaul-remove":
+        if undo["type"] in ("overhaul-remove", "overhaul-turn-off"):
             return overhaul_install.undo_remove(undo, log)
         return operations.take_back(Path(undo["operation"]), log)
     except overhaul_install.OverhaulError as e:

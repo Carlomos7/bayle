@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from roundtable_souls.game import catalog as games
-from roundtable_souls.mods import backends, checks
+from roundtable_souls.mods import backends, checks, library
 from roundtable_souls.mods import profile_edit as mod_manage
 from roundtable_souls.mods.profile_writer import ProfileWriter
 
@@ -684,7 +684,7 @@ def rebuild(profile: Path, log, combine: bool | None = None, *, loc: Locations) 
     from roundtable_souls.mods import history
 
     original = mod_manage.read_text(profile)
-    bak = profile.with_name(profile.name + ".bak")
+    bak = library.profile_backup(profile)
     bak.write_text(original, encoding="utf-8", newline="")
     before = history.snapshot(profile, "before rebuilding")
     log(f"merge: profile saved to {bak.name} and the profile history")
@@ -862,7 +862,8 @@ def keep_profile_text(profile: Path, original: str, backend) -> str:
         return "the profile was not changed"
     own = [checks._canon(f) for f in backend.own_folders()]
     if _shape(profile, now, own) != _shape(profile, original, own):
-        return f"{backend.label} changed what the profile loads, so its version is kept; yours is in {profile.name}.bak"
+        bak = library.state_of(profile).backups / (profile.name + ".bak")
+        return f"{backend.label} changed what the profile loads, so its version is kept; yours is in {bak}"
     text = mod_manage.to_blocks(original) if mod_manage.is_array_form(original) else original
     fresh = mod_manage.to_blocks(now) if mod_manage.is_array_form(now) else now
     lists = {}

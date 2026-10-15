@@ -205,6 +205,10 @@ def test_the_confirmations_words():
     managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "Nightreign Revive")
     assert managed is not None and managed.body == "Nightreign Revive is managed by its installer; delete it there."
     assert p.delete_refusal(None) is None
+    assert len(p.delete_profile(PROFILE).changes) == 2
+    assert p.delete_profile(PROFILE, "Nightreign Revive").changes[-1] == (
+        "Nightreign Revive's shared files stay; Remove overhaul first to take them out too."
+    )
     assert (
         p.holder(PROFILE, "bundle", ["revive"]).changes[-1]
         == "revive must load after it: that setting is taken out too"

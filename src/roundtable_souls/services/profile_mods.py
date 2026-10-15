@@ -9,6 +9,7 @@ services/mods.py keeps install and the plain profile operations; this module onl
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,8 +21,15 @@ from roundtable_souls.mods import conflicts as mod_overview
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
+from roundtable_souls.mods.backends.manifest_refresh import launcher_installed
 from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.services.mods import install_mod, profile_entries, set_mod_options, uninstall_mod
+from roundtable_souls.services.mods import (
+    install_mod,
+    profile_entries,
+    profile_overhaul,
+    set_mod_options,
+    uninstall_mod,
+)
 
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
@@ -266,15 +274,36 @@ DELETE_MANAGED = "managed"  # the profile belongs to an installer that manages i
 DELETE_BUSY = "busy"
 
 
-def delete_refusal(setup, busy: bool) -> str | None:
-    """Why the setup's profile cannot be deleted now (one of the DELETE_* codes), or None."""
+def delete_refusal(setup, busy: bool, *, loc: Locations) -> str | None:
+    """Why the setup's profile cannot be deleted now (one of the DELETE_* codes), or None. A profile belongs to an
+    installer that manages it when an overhaul's own installer made the setup (the overhaul configs' [recognise]
+    data: its manifest is there and the launcher did not install it), whether the setup was picked as the .me3 or
+    through the installer's manifest. A setup the launcher installed can be deleted (overhaul_to_keep)."""
     if setup is None or not getattr(setup, "profile", None) or not Path(setup.profile).is_file():
         return DELETE_NO_PROFILE
-    if getattr(setup, "kind", "") == "revive":
+    if getattr(setup, "kind", "") == "manifest" and not _launcher_manifest(Path(setup.source)):
+        return DELETE_MANAGED
+    has = profile_overhaul(setup.profile, loc=loc)
+    if has is not None and has["legacy"]:
         return DELETE_MANAGED
     if busy:
         return DELETE_BUSY
     return None
+
+
+def _launcher_manifest(path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return False
+    return isinstance(data, dict) and launcher_installed(data)
+
+
+def overhaul_to_keep(profile, *, loc: Locations) -> str:
+    """The label of an overhaul the launcher installed in the profile (its shared files stay when the profile is
+    deleted), or ""."""
+    has = profile_overhaul(profile, loc=loc)
+    return has["label"] if has is not None and not has["legacy"] else ""
 
 
 def setting_needs_confirmation(key: str, value) -> bool:

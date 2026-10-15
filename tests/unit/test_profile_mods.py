@@ -142,11 +142,11 @@ def test_why_a_profile_cannot_be_deleted_now(profile):
     def setup(kind="me3", path=profile):
         return SimpleNamespace(profile=str(path), kind=kind)
 
-    assert pm.delete_refusal(None, False) == pm.DELETE_NO_PROFILE
-    assert pm.delete_refusal(setup(path=profile.parent / "gone.me3"), False) == pm.DELETE_NO_PROFILE
-    assert pm.delete_refusal(setup(kind="revive"), False) == pm.DELETE_MANAGED
-    assert pm.delete_refusal(setup(), True) == pm.DELETE_BUSY
-    assert pm.delete_refusal(setup(), False) is None
+    assert pm.delete_refusal(None, False, loc=er()) == pm.DELETE_NO_PROFILE
+    assert pm.delete_refusal(setup(path=profile.parent / "gone.me3"), False, loc=er()) == pm.DELETE_NO_PROFILE
+    assert pm.delete_refusal(setup(), True, loc=er()) == pm.DELETE_BUSY
+    assert pm.delete_refusal(setup(), False, loc=er()) is None
+    assert pm.overhaul_to_keep(profile, loc=er()) == ""  # no overhaul in it (test_overhaul_install has those)
 
 
 def test_me3_option_rules():

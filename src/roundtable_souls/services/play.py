@@ -88,7 +88,8 @@ def logo_path(theme_dark: bool, logo: str = "auto") -> Path:
 
 
 class Setup:
-    """What to launch and how. kind: 'me3' (installed me3, --game) or 'revive' (installation.json, --exe).
+    """What to launch and how. kind: 'me3' (installed me3, --game) or 'manifest' (an overhaul installer's manifest,
+    installation.json, --exe).
     loc: where the game it launches is on this machine (its game is loc.game)."""
 
     def __init__(self, kind, profile, me3=None, exe=None, source=None, ini=None, *, loc: Locations):
@@ -116,7 +117,7 @@ class Setup:
     @property
     def label(self):
         name = Path(self.profile).name
-        if self.kind == "revive":
+        if self.kind == "manifest":
             return f"{name}  ·  installation.json"
         return name
 
@@ -169,7 +170,7 @@ def setup_from_installation(path: Path, loc: Locations) -> Setup | None:
         cand = Path(cfg["seamless"]).parent / "ersc_settings.ini"
         if cand.is_file():
             ini = cand
-    return Setup("revive", cfg["profile"], cfg.get("me3"), cfg.get("game"), source=path, ini=ini, loc=loc)
+    return Setup("manifest", cfg["profile"], cfg.get("me3"), cfg.get("game"), source=path, ini=ini, loc=loc)
 
 
 def same_source(a, b) -> bool:
@@ -240,7 +241,7 @@ def overhauls_in(setup: Setup) -> list[str]:
     for o in overhauls.load():
         r = o.recognise
         if (
-            (setup.kind == "revive" and source == r.manifest.lower())
+            (setup.kind == "manifest" and source == r.manifest.lower())
             or (profile.parent / r.folder).is_dir()
             or ids & {i.lower() for i in r.mod_ids}
         ):

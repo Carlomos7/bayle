@@ -394,3 +394,112 @@ def remove_overhaul_leftovers(paths) -> list[dict]:
     out = overhaul_install.remove_leftovers([Path(p) for p in paths], log=run_logging.log)
     run_logging.log(f"done: {len(out)} folder(s) moved to the Recycle Bin")
     return out
+
+
+# ----------------------------------------------------------------------------- the Overhaul setup form (S3g)
+def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: str | None = None):
+    """A setup for the mod in folder (an unpacked download's mod folder, plan["root"], or an installed mod's
+    folder), at the basic level with the form's starting values: its id from the name (or overhaul_id: an installed
+    mod keeps its package id, so its entries are replaced), loading last, its top-level DLLs with no special
+    options, the settings files beside them kept. Returns an overhauls.OverhaulConfig; raises ValueError when the
+    folder has nothing to set up."""
+    from roundtable_souls.mods import naming
+    from roundtable_souls.overhauls import basic
+
+    ident = overhaul_id or naming.mod_id(name)
+    game = loc.game.key
+    return basic.make(
+        id=ident, label=name, game=game, basic=basic.propose(Path(folder), game=game), folder=Path(folder)
+    )
+
+
+def preview_overhaul_setup(profile, folder, config, *, loc: Locations):
+    """What installing the mod in folder as an overhaul with config (the form's, basic or advanced) would do
+    (overhaul_install.InstallPreview: lines, notes, refusals); writes nothing. Raises overhaul_install.OverhaulError
+    when it can't be set up."""
+    from roundtable_souls.mods import overhaul_install
+
+    return overhaul_install.preview_setup(Path(profile), Path(folder), config, loc=loc)
+
+
+def install_overhaul_setup(preview, *, loc: Locations) -> dict:
+    """Install as previewed, its config written to the local overhauls folder in the same operation, and leave
+    its undo record (Undo install takes the config back too)."""
+    from roundtable_souls.mods import overhaul_install
+
+    out = overhaul_install.install_setup(preview, loc=loc, log=run_logging.log)
+    run_logging.set_undo(
+        {
+            "type": "overhaul-update" if out["update"] else "overhaul-install",
+            "profile": str(preview.profile),
+            "name": out["name"],
+            "operation": out["operation"],
+        }
+    )
+    run_logging.log(f"done: set up {preview.label} as an overhaul in {preview.profile.name}")
+    return out
+
+
+def overhaul_setup_of(profile, *, loc: Locations) -> dict | None:
+    """The profile's overhaul for the Mod Configs "Overhaul setup" node: {config, path (its file), sha (of the file
+    as read, for save_overhaul_setup), verified, level ("basic" or "advanced"), folder (the launcher's copy of its
+    download, the files the form lists; None when there is none)}; None without an overhaul."""
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.overhauls import basic, writer
+
+    hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
+    if hit is None:
+        return None
+    config = hit[0]
+    path = overhauls.origin(config.id)
+    where = overhaul_install.places(Path(profile), config.id, loc)
+    folder = where.sources if where is not None and where.sources.is_dir() else None
+    return {
+        "config": config,
+        "path": path,
+        "sha": writer.sha256_of(path) if path is not None else None,
+        "verified": overhauls.verified(config.id),
+        "level": basic.level(config, folder) if folder is not None else "advanced",
+        "folder": folder,
+    }
+
+
+def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -> Path:
+    """Save the form: at the basic level the steps are derived again from the mod's files in folder (the download
+    copy) first. A file changed since it was read (expect: its sha256 then) is not overwritten. Every profile using
+    it is rebuilt before its next Play. Raises overhauls.writer.WriteRefused or ValueError."""
+    from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.overhauls import writer
+
+    if folder is not None:
+        config = overhaul_install.setup_config(config, Path(folder))
+    out = writer.save_local(config, expect=expect, path=Path(path) if path else None)
+    run_logging.log(f"saved the overhaul setup {out}")
+    return out
+
+
+def preview_turn_off_overhaul(profile, *, loc: Locations):
+    """What Turn off does to the profile's overhaul setup (overhaul_install.TurnOffPreview: lines, refusals).
+    Raises overhaul_install.OverhaulError when the profile has no overhaul."""
+    from roundtable_souls.mods import overhaul_install
+
+    return overhaul_install.preview_turn_off(Path(profile), loc=loc)
+
+
+def turn_off_overhaul(preview) -> dict:
+    """Turn it off as previewed, as one operation, and leave its undo record (Undo turn off)."""
+    from roundtable_souls.mods import overhaul_install
+
+    out = overhaul_install.turn_off(preview, log=run_logging.log)
+    run_logging.set_undo(
+        {
+            "type": "overhaul-turn-off",
+            "profile": str(preview.remove.profile),
+            "name": out["name"],
+            "operation": out["operation"],
+            "trash": out["trash"],
+        }
+    )
+    run_logging.log(f"done: {out['name']} is an ordinary mod again in {preview.remove.profile.name}")
+    return out

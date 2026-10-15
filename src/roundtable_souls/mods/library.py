@@ -18,6 +18,7 @@ the profiles' entries.
 
 Today's installs, updates and Combine still use the folders they always have (3.21); this is the model they and the
 adoption of existing setups will ask. Not to be confused with the save library (saves.library).
+A profile outside the library has its own .roundtable beside it, with the same layout (state_of).
 """
 
 from __future__ import annotations
@@ -34,7 +35,12 @@ if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
 PREFIX = "rs-"
-STATE = ".roundtable"  # the launcher's own folder in the library
+STATE = ".roundtable"  # the launcher's own folder: in the library, or beside a profile kept elsewhere
+SETTINGS = "settings.json"  # per-profile launcher choices (was roundtable.json beside the profile)
+BACKUPS = "backups"  # each profile's .bak (was beside the .me3)
+PREVIOUS_COPIES = "previous"  # an updated mod's old copy until it is kept or rolled back
+OPS = "ops"  # operation journals (was .roundtable-ops beside the profile)
+OPS_LOCK = OPS + ".lock"
 PREVIOUS = ".previous"  # a build's previous copy, for Undo rebuild
 HIDDEN = (STATE, PREVIOUS)  # given Windows' hidden attribute when ensure() makes them
 RECORD = "roundtable.json"  # the launcher's file beside a mod's files
@@ -153,10 +159,7 @@ class ModLibrary:
 
     @property
     def state(self) -> StateFolders:
-        root = self.root / STATE
-        return StateFolders(
-            root, root / "settings.json", root / "backups", root / "previous", root / "ops", root / "ops.lock"
-        )
+        return _state_folders(self.root / STATE)
 
     # ------------------------------------------------------------------ making folders
     def ensure(self, *folders: Path) -> list[Path]:
@@ -270,6 +273,35 @@ class Contents:
     def unused(self, collection: str) -> list[str]:
         """The mods in a collection no profile points at."""
         return [m for m in self.mods.get(collection, []) if (collection, m) not in self.users]
+
+
+def _state_folders(root: Path) -> StateFolders:
+    return StateFolders(root, root / SETTINGS, root / BACKUPS, root / PREVIOUS_COPIES, root / OPS, root / OPS_LOCK)
+
+
+def state_of(profile: Path) -> StateFolders:
+    """The launcher's own folder for a profile: the library's .roundtable for a profile in rs-<game>/profiles, else
+    .roundtable beside the profile (existing setups keep everything where they are)."""
+    folder = Path(profile).parent
+    if folder.name == "profiles" and folder.parent.name.startswith(PREFIX):
+        return _state_folders(folder.parent / STATE)
+    return _state_folders(folder / STATE)
+
+
+def ensure_state(state: StateFolders, *folders: Path) -> None:
+    """Make the state folder (hidden on Windows when made) and the given folders inside it."""
+    if not state.root.is_dir():
+        state.root.mkdir(parents=True, exist_ok=True)
+        files.hide(state.root)
+    for f in folders:
+        f.mkdir(parents=True, exist_ok=True)
+
+
+def profile_backup(profile: Path) -> Path:
+    """Where the profile's .bak goes: <state>/backups/<name>.me3.bak (made when missing)."""
+    state = state_of(profile)
+    ensure_state(state, state.backups)
+    return state.backups / (Path(profile).name + ".bak")
 
 
 def _folders(folder: Path) -> list[str]:

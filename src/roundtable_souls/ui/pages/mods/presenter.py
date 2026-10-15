@@ -127,6 +127,29 @@ class Refusal:
     body: str
 
 
+@dataclass(frozen=True)
+class Pick:
+    """A tick list's words: none is the button that goes on with nothing ticked ("" when one must be ticked)."""
+
+    title: str
+    body: str
+    apply: str
+    none: str = ""
+
+
+@dataclass(frozen=True)
+class OverhaulMenu:
+    """The header overflow's overhaul entries (an overhaul installed with the launcher, a preview): shown while the
+    switch is on and the game has an overhaul the launcher can install (owner, D4 A)."""
+
+    visible: bool
+    install: str
+    remove: str
+    can_remove: bool
+    clean: str
+    can_clean: bool
+
+
 # ----------------------------------------------------------------------------- the presenter
 @dataclass
 class ModsPresenter:
@@ -705,3 +728,111 @@ class ModsPresenter:
 
     def edit_options_text(self) -> str:
         return tr("Edit options")
+
+    # ---- overhauls installed with the launcher (preview); the Widgets Overhaul button uses these words too
+    def overhaul_menu(self, on: bool, has: dict | None, leftovers: bool) -> OverhaulMenu:
+        """on: services.mods.overhaul_preview_on; has: services.mods.profile_overhaul; leftovers: any to clean."""
+        return OverhaulMenu(
+            visible=on,
+            install=tr("Install an overhaul with the launcher (preview)..."),
+            remove=tr("Remove {label}...").format(label=has["label"]) if has else tr("Remove overhaul..."),
+            can_remove=has is not None,
+            clean=tr("Clean up installer leftovers..."),
+            can_clean=leftovers,
+        )
+
+    def overhaul_folder_title(self) -> str:
+        return tr("Install an overhaul: pick the folder you unpacked it into")
+
+    def overhaul_unreadable(self, folder, why: str) -> Refusal:
+        return Refusal(tr("Can't install from {name}").format(name=Path(folder).name), why)
+
+    def overhaul_install(self, profile, preview) -> Confirm | Refusal:
+        """The confirmation for install.preview (overhaul_install.InstallPreview), or why it can't go ahead."""
+        if not preview.ok:
+            return Refusal(
+                tr("{label} can't be installed here").format(label=preview.label), " ".join(preview.refusals)
+            )
+        return Confirm(
+            title=(tr("Update {label} in {profile}") if preview.update else tr("Install {label} in {profile}")).format(
+                label=preview.label, profile=Path(profile).name
+            ),
+            changes=(*preview.lines, *preview.notes),
+            apply=tr("Update") if preview.update else tr("Install"),
+            safety=tr(
+                "It's one step: if anything fails, nothing changes, and you can undo it from Activity. Nothing of the "
+                "overhaul's own installer runs."
+            ),
+        )
+
+    def overhaul_installing(self, preview) -> str:
+        return (tr("Updating {label}...") if preview.update else tr("Installing {label}...")).format(
+            label=preview.label
+        )
+
+    def overhaul_put_back(self, label: str) -> Pick:
+        return Pick(
+            title=tr("Put back what {label}'s installer changed?").format(label=label),
+            body=tr(
+                "Its installer changed these in your profile (compared with its oldest backup of it). Tick the ones "
+                "to put back; the others stay as they are now."
+            ),
+            apply=tr("Put back"),
+            none=tr("Leave them"),
+        )
+
+    def overhaul_remove(self, profile, label: str, preview) -> Confirm | Refusal:
+        """The confirmation for overhaul_install.RemovePreview: switching a shared dependency back off is its
+        option, unticked (owner, 3.22-A)."""
+        if not preview.ok:
+            return self.overhaul_remove_failed(label, " ".join(preview.refusals))
+        asked = ", ".join(str(e.entry) for e in preview.asked)
+        return Confirm(
+            title=tr("Remove {label} from {profile}").format(label=label, profile=Path(profile).name),
+            changes=tuple(preview.lines),
+            apply=tr("Remove"),
+            safety=tr("It's one step, and Restore in Activity puts it all back. Folders go to the Recycle Bin."),
+            option=tr("Also switch {names} back off, as it was before the install").format(names=asked)
+            if asked
+            else "",
+        )
+
+    def overhaul_remove_failed(self, label: str, why: str) -> Refusal:
+        return Refusal(tr("Can't remove {label}").format(label=label), why)
+
+    def overhaul_removing(self, label: str) -> str:
+        return tr("Removing {label}...").format(label=label)
+
+    def overhaul_leftovers_later(self, label: str) -> Refusal:
+        """The note after removing a setup its installer made (a toast, not a refusal)."""
+        return Refusal(
+            tr("{label}'s installer left folders behind").format(label=label),
+            tr("Clean up installer leftovers shows them with their sizes once the removal is done."),
+        )
+
+    def leftovers(self, more_after: bool) -> Pick:
+        """more_after: the installer's backups are asked about next, so going on with nothing ticked is allowed."""
+        return Pick(
+            title=tr("Clean up installer leftovers"),
+            body=tr(
+                "What an overhaul's own installer left beside your profile, which no profile there uses any more. The "
+                "ticked ones go to the Recycle Bin."
+            ),
+            apply=tr("Move to Recycle Bin"),
+            none=tr("Next") if more_after else "",
+        )
+
+    def leftover_backups(self, leftover) -> Confirm:
+        """Asked one at a time, last: the only copy of the profile from before the overhaul."""
+        return Confirm(
+            title=tr("Also remove {name}?").format(name=leftover.path.name),
+            changes=(tr("{what} goes to the Recycle Bin").format(what=leftover.label),),
+            apply=tr("Move to Recycle Bin"),
+            warning=tr(
+                "These are its installer's backups of your profiles: the only copy from before the overhaul was "
+                "installed. Keep them unless you're sure you don't need them."
+            ),
+        )
+
+    def leftovers_moving(self) -> str:
+        return tr("Moving leftovers to the Recycle Bin...")

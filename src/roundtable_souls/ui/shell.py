@@ -195,6 +195,10 @@ class LauncherHost:
     def open_path(self, path: Path) -> None:
         desktop.open_path(str(path))
 
+    def pick_folder(self, title: str) -> Path | None:
+        got = QFileDialog.getExistingDirectory(self._w, title, "")
+        return Path(got) if got else None
+
 
 # ----------------------------------------------------------------------------- window
 class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow):

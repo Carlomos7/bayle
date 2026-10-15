@@ -184,6 +184,32 @@ def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
     assert p.parameters(stale, False).fingerprint == "" and p.page(facts(), None).notices == ()
 
 
+def test_the_overhaul_words():
+    p = ModsPresenter()
+    menu = p.overhaul_menu(True, None, False)
+    assert (menu.visible, menu.remove, menu.can_remove, menu.can_clean) == (True, "Remove overhaul...", False, False)
+    assert p.overhaul_menu(False, {"label": "Toy"}, True).remove == "Remove Toy..."
+    found = SimpleNamespace(ok=True, update=False, label="Toy", lines=["a line"], notes=["a note"], refusals=[])
+    install = p.overhaul_install(PROFILE, found)
+    assert install.title == "Install Toy in main.me3" and install.changes == ("a line", "a note")
+    assert install.apply == "Install" and "Nothing of the overhaul's own installer runs." in install.safety
+    assert p.overhaul_installing(found) == "Installing Toy..."
+    update = p.overhaul_install(PROFILE, SimpleNamespace(**{**found.__dict__, "update": True}))
+    assert update.title == "Update Toy in main.me3" and update.apply == "Update"
+    refused = p.overhaul_install(PROFILE, SimpleNamespace(**{**found.__dict__, "ok": False, "refusals": ["No."]}))
+    assert (refused.title, refused.body) == ("Toy can't be installed here", "No.")
+    removal = SimpleNamespace(ok=True, lines=["out"], refusals=[], asked=[SimpleNamespace(entry="ersc.dll")])
+    remove = p.overhaul_remove(PROFILE, "Toy", removal)
+    assert remove.title == "Remove Toy from main.me3" and not remove.option_checked
+    assert remove.option == "Also switch ersc.dll back off, as it was before the install"
+    assert p.overhaul_remove(PROFILE, "Toy", SimpleNamespace(**{**removal.__dict__, "asked": []})).option == ""
+    assert p.overhaul_put_back("Toy").none == "Leave them"
+    assert p.leftovers(True).none == "Next" and p.leftovers(False).none == ""
+    backups = p.leftover_backups(SimpleNamespace(path=Path("C:/x/Revive Backups"), label="Revive Backups (2 MB)"))
+    assert backups.title == "Also remove Revive Backups?"
+    assert backups.changes == ("Revive Backups (2 MB) goes to the Recycle Bin",)
+
+
 def test_infobars_two_at_once_and_a_closed_one_stays_closed():
     p = ModsPresenter()
     tool = SimpleNamespace(label="rebuild.json", package={"name": "Revive"})

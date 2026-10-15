@@ -21,7 +21,7 @@ from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter
 from roundtable_souls.ui.pages.activity.presenter import Refusal as UndoRefusal
 from roundtable_souls.ui.pages.mods import load_order
-from roundtable_souls.ui.pages.mods.presenter import ModsPresenter, ModsState
+from roundtable_souls.ui.pages.mods.presenter import ModsPresenter, ModsState, Pick, Refusal
 from roundtable_souls.ui.text import tr
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
@@ -88,6 +88,9 @@ class ModsHost(Protocol):
 
     def open_path(self, path: Path) -> None: ...
 
+    def pick_folder(self, title: str) -> Path | None:
+        """Ask for a folder (the overhaul's unpacked download); None when cancelled."""
+
 
 class ModsAdapter(QObject):
     changed = Signal()
@@ -104,6 +107,8 @@ class ModsAdapter(QObject):
         self._tool: Any = None
         self._rebuild_undo: dict | None = None
         self._recovered: tuple[str, ...] = ()  # interrupted changes put right as the page read the profile
+        self._overhaul: tuple[bool, dict | None, bool] = (False, None, False)  # switch on, the profile's, leftovers
+        self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
         self._state: ModsState = self.presenter.page(None)
         self._loading = False
         self._again = False
@@ -134,6 +139,7 @@ class ModsAdapter(QObject):
     loading = Property(bool, lambda self: self._loading, notify=loadingChanged)
     showAll = Property(bool, lambda self: self._show_all, notify=changed)
     hasProfile = Property(bool, lambda self: self._facts is not None and not self._facts.error, notify=changed)
+    overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
 
     def _group(self, kind: str) -> dict:
         group = next((g for g in self._state.groups if g.kind == kind), None)
@@ -164,7 +170,7 @@ class ModsAdapter(QObject):
 
         def work():
             if profile is None or not Path(profile).is_file():
-                return None, None, None, None, ()
+                return None, None, None, None, (), (False, None, False)
             recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
             facts = profile_mods.page_facts(profile, loc=loc, settings=settings)
             try:
@@ -176,7 +182,16 @@ class ModsAdapter(QObject):
                 undo = profile_mods.last_rebuild_undo(profile)
             except Exception:
                 undo = None
-            return facts, scan, tool, undo, recovered
+            try:
+                on = mod_service.overhaul_preview_on(loc)
+                overhaul = (
+                    on,
+                    mod_service.profile_overhaul(profile, loc=loc) if on else None,
+                    bool(mod_service.overhaul_leftovers(profile, loc=loc)) if on else False,
+                )
+            except Exception:  # an overhaul config or record that does not read: no overhaul entries
+                overhaul = (False, None, False)
+            return facts, scan, tool, undo, recovered, overhaul
 
         self.host.run_in_background(work, self._apply)
 
@@ -187,7 +202,7 @@ class ModsAdapter(QObject):
             self._again = False
             self.refresh()
             return
-        self._facts, self._scan, self._tool, self._rebuild_undo, recovered = got
+        self._facts, self._scan, self._tool, self._rebuild_undo, recovered, self._overhaul = got
         self._recovered += recovered
         self._render()
         if not self._edit_text:
@@ -502,6 +517,168 @@ class ModsAdapter(QObject):
             return
         QGuiApplication.clipboard().setText(self.presenter.fingerprint(facts.fingerprint, facts.regulation))
         self.notifier.toast(tr("Fingerprint copied"))
+
+    # ---- overhauls installed with the launcher (preview; owner, D4 A: shown while the switch is on)
+    pickRequested = Signal(str, dict, list)  # a tick list: its key, its words (presenter.Pick), the rows' labels
+
+    def _refuse(self, refusal: Refusal) -> None:
+        self.notifier.toast(f"{refusal.title}. {refusal.body}", error=True)
+
+    def _ready(self) -> Path | None:
+        """The profile to change, or None (with the reason said) while a job runs."""
+        if self.host.busy:
+            self.notifier.toast(tr("Wait for the current job"), error=True)
+            return None
+        return self._profile()
+
+    def _pick(self, words: Pick, rows: list[str], then) -> None:
+        key = f"pick-{len(self._picks) + 1}"
+        self._picks[key] = then
+        self.pickRequested.emit(key, plain(words), rows)
+
+    @Slot(str, list)
+    def picked(self, key: str, indexes: list) -> None:
+        then = self._picks.pop(key, None)
+        if then is not None:
+            then([int(i) for i in indexes])
+
+    @Slot(str)
+    def pickCancelled(self, key: str) -> None:
+        self._picks.pop(key, None)
+
+    @Slot()
+    def installOverhaul(self) -> None:
+        profile = self._ready()
+        if profile is None:
+            return
+        folder = self.host.pick_folder(self.presenter.overhaul_folder_title())
+        if folder is None:
+            return
+        loc = self.host.locations
+
+        def work():
+            try:
+                return mod_service.preview_overhaul_install(profile, folder, loc=loc), ""
+            except Exception as e:  # not a download the launcher installs: said, nothing written
+                return None, str(e)
+
+        def got(result) -> None:
+            preview, why = result
+            if preview is None:
+                self._refuse(self.presenter.overhaul_unreadable(folder, why))
+                return
+            words = self.presenter.overhaul_install(profile, preview)
+            if isinstance(words, Refusal):
+                self._refuse(words)
+                return
+
+            def answered(ok: bool, _option: bool) -> None:
+                if not ok or self.host.busy:
+                    return
+
+                def job(_setup, loc):
+                    from roundtable_souls.platform import logging as run_logging
+
+                    verb = "update" if preview.update else "install"
+                    run_logging.start_log(f"launcher: {verb} overhaul {preview.label}", loc.game.key)
+                    mod_service.install_overhaul(preview, loc=loc)
+
+                self.host.run_job(job, self.presenter.overhaul_installing(preview))
+
+            self.notifier.ask(words, answered)
+
+        self.host.run_in_background(work, got)
+
+    @Slot()
+    def removeOverhaul(self) -> None:
+        profile, has = self._ready(), self._overhaul[1]
+        if profile is None or not has:
+            return
+        loc, label = self.host.locations, has["label"]
+
+        def preview_and_ask(chosen: list) -> None:
+            try:
+                preview = mod_service.preview_overhaul_removal(profile, loc=loc, legacy_choices=chosen)
+            except Exception as e:
+                self._refuse(self.presenter.overhaul_remove_failed(label, str(e)))
+                return
+            words = self.presenter.overhaul_remove(profile, label, preview)
+            if isinstance(words, Refusal):
+                self._refuse(words)
+                return
+
+            def answered(ok: bool, switch_back: bool) -> None:
+                if not ok or self.host.busy:
+                    return
+                final = preview
+                if switch_back:
+                    final = mod_service.preview_overhaul_removal(
+                        profile, loc=loc, revert_asked=True, legacy_choices=chosen
+                    )
+                    if not final.ok:
+                        self._refuse(self.presenter.overhaul_remove_failed(label, " ".join(final.refusals)))
+                        return
+
+                def job(_setup, loc):
+                    from roundtable_souls.platform import logging as run_logging
+
+                    run_logging.start_log(f"launcher: remove overhaul {label}", loc.game.key)
+                    mod_service.remove_overhaul(final)
+
+                self.host.run_job(job, self.presenter.overhaul_removing(label))
+                if has["legacy"]:
+                    later = self.presenter.overhaul_leftovers_later(label)
+                    self.notifier.toast(f"{later.title}. {later.body}")
+
+            self.notifier.ask(words, answered, destructive=True)
+
+        choices = mod_service.legacy_overhaul_choices(profile, loc=loc) if has["legacy"] else []
+        if choices:  # what its installer changed: offered unticked (owner, 3.22-A)
+            self._pick(
+                self.presenter.overhaul_put_back(label),
+                [text for text, _ in choices],
+                lambda ticked: preview_and_ask([choices[i][1] for i in ticked]),
+            )
+        else:
+            preview_and_ask([])
+
+    @Slot()
+    def cleanLeftovers(self) -> None:
+        profile = self._ready()
+        if profile is None:
+            return
+        left = mod_service.overhaul_leftovers(profile, loc=self.host.locations)
+        folders = [x for x in left if not x.backups]
+        backups = [x for x in left if x.backups]
+
+        def ask_backups(picked: list, rest: list) -> None:
+            if rest:  # last, and one at a time: the only copy of the profile from before the overhaul
+                x = rest[0]
+                self.notifier.ask(
+                    self.presenter.leftover_backups(x),
+                    lambda ok, _o: ask_backups([*picked, x.path] if ok else picked, rest[1:]),
+                    destructive=True,
+                )
+                return
+            if not picked or self.host.busy:
+                return
+
+            def job(_setup, loc):
+                from roundtable_souls.platform import logging as run_logging
+
+                run_logging.start_log("launcher: clean up overhaul installer leftovers", loc.game.key)
+                mod_service.remove_overhaul_leftovers(picked)
+
+            self.host.run_job(job, self.presenter.leftovers_moving())
+
+        if folders:
+            self._pick(
+                self.presenter.leftovers(bool(backups)),
+                [x.label for x in folders],
+                lambda ticked: ask_backups([folders[i].path for i in ticked], backups),
+            )
+        else:
+            ask_backups([], backups)
 
     # ---- the header
     @Slot()

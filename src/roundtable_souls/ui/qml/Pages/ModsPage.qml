@@ -39,6 +39,9 @@ PageScroll {
             else if (which === "add-existing-package" || which === "add-existing-native")
                 addExisting.openFor(which.slice("add-existing-".length));
         }
+        function onPickRequested(key, words, rows) {
+            pickList.openFor(key, words, rows);
+        }
 
         target: page.adapter
     }
@@ -54,6 +57,11 @@ PageScroll {
     }
     VersionsDialog {
         id: versions
+
+        adapter: page.adapter
+    }
+    PickListDialog {
+        id: pickList
 
         adapter: page.adapter
     }

@@ -206,6 +206,39 @@ Item {
 
                     onTriggered: header.adapter.addExisting("package")
                 }
+                MenuSep {  // overhauls installed with the launcher (a preview, shown while its switch is on)
+                    height: visible ? implicitHeight : 0
+                    visible: header.adapter.overhaul.visible === true
+                }
+                MenuEntry {
+                    height: visible ? implicitHeight : 0
+                    icon_: "Folder"
+                    objectName: "installOverhaul"
+                    text: header.adapter.overhaul.install || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.installOverhaul()
+                }
+                MenuEntry {
+                    enabled: header.adapter.overhaul.can_remove === true
+                    height: visible ? implicitHeight : 0
+                    icon_: "Delete"
+                    objectName: "removeOverhaul"
+                    text: header.adapter.overhaul.remove || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.removeOverhaul()
+                }
+                MenuEntry {
+                    enabled: header.adapter.overhaul.can_clean === true
+                    height: visible ? implicitHeight : 0
+                    icon_: "Broom"
+                    objectName: "cleanLeftovers"
+                    text: header.adapter.overhaul.clean || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.cleanLeftovers()
+                }
             }
         }
     }

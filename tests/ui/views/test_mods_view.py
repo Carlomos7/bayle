@@ -61,6 +61,12 @@ class Host:
     def open_path(self, path):
         pass
 
+    def pick_folder(self, title):
+        self.changes.append(f"asked: {title}")
+        return self.folder
+
+    folder = None
+
 
 @pytest.fixture
 def profile(tmp_path) -> Path:
@@ -233,6 +239,79 @@ def test_removing_asks_first_then_runs_as_a_job(qt_app, profile):
         assert host.jobs == []
         w.notifier.answerWith(asked[0][0], True, False)
         assert host.jobs == ["Removing a.dll..."]
+    finally:
+        closed(w)
+
+
+class Effect:
+    entry = "ersc.dll"
+
+
+def overhaul_services(monkeypatch, legacy=True, on=True):
+    """The overhaul services faked: a profile with an overhaul its installer made, one change to put back."""
+    from roundtable_souls.services import mods as mod_service
+
+    calls: dict = {"previews": [], "removed": []}
+
+    def preview(profile, *, loc, revert_asked=False, legacy_choices=()):
+        calls["previews"].append((revert_asked, list(legacy_choices)))
+        return type(
+            "Preview",
+            (),
+            {"ok": True, "refusals": [], "lines": ["toy.me3 loses Toy's entries"], "asked": [Effect()]},
+        )()
+
+    monkeypatch.setattr(mod_service, "overhaul_preview_on", lambda loc: on)
+    monkeypatch.setattr(
+        mod_service, "profile_overhaul", lambda p, loc: {"label": "Toy", "short_label": "Toy", "legacy": legacy}
+    )
+    monkeypatch.setattr(mod_service, "overhaul_leftovers", lambda p, loc: [])
+    monkeypatch.setattr(mod_service, "legacy_overhaul_choices", lambda p, loc: [("start_online: back to on", "E")])
+    monkeypatch.setattr(mod_service, "preview_overhaul_removal", preview)
+    return calls
+
+
+def test_the_overhaul_entries_follow_the_preview_switch(qt_app, profile, monkeypatch):
+    overhaul_services(monkeypatch, on=False)
+    w = opened(Host(profile))
+    try:
+        assert w.adapter.property("overhaul")["visible"] is False
+    finally:
+        closed(w)
+    overhaul_services(monkeypatch, on=True)
+    w = opened(Host(profile))
+    try:
+        menu = w.adapter.property("overhaul")
+        assert (menu["visible"], menu["remove"], menu["can_remove"], menu["can_clean"]) == (
+            True,
+            "Remove Toy...",
+            True,
+            False,
+        )
+    finally:
+        closed(w)
+
+
+def test_removing_an_installer_made_overhaul_asks_what_to_put_back_then_confirms(qt_app, profile, monkeypatch):
+    calls = overhaul_services(monkeypatch)
+    host = Host(profile)
+    w = opened(host)
+    try:
+        asked = []
+        w.notifier.confirmFullRequested.connect(lambda token, words: asked.append((token, words)))
+        picks = []
+        w.adapter.pickRequested.connect(lambda key, words, rows: picks.append((words["title"], rows)))
+        w.adapter.removeOverhaul()
+        settle()
+        assert picks == [("Put back what Toy's installer changed?", ["start_online: back to on"])]
+        click(w, find(w, "pickRow_0"))
+        click(w, find(w, "pickApply"))
+        assert calls["previews"] == [(False, ["E"])]  # the ticked change goes to the preview
+        [(token, words)] = asked
+        assert words["title"] == "Remove Toy from main.me3"
+        assert words["option"] == "Also switch ersc.dll back off, as it was before the install"
+        w.notifier.answerWith(token, True, True)  # the switch-back ticked: previewed again with it
+        assert calls["previews"][-1] == (True, ["E"]) and host.jobs == ["Removing Toy..."]
     finally:
         closed(w)
 

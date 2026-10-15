@@ -79,11 +79,14 @@ class Parameters:
     packs: str
     action: str  # the main button's words: "Combine", "Rebuild" or "" (none)
     blocked: str  # why it cannot run now ("" when it can)
+    fingerprint: str = ""  # "Parameters fingerprint: 1A2B3C4D (flora's regulation.bin)", "" without one
+    fingerprint_note: str = ""  # what co-op partners do with it
 
 
 @dataclass(frozen=True)
 class Notice:
-    """One InfoBar: key says what it is (stale, allow-tool, recovered), so the adapter knows what its action does."""
+    """One InfoBar: key says what it is (online, stale, allow-tool, recovered), so the adapter knows what its action
+    does."""
 
     key: str
     severity: str  # info | success | warning | error
@@ -182,6 +185,7 @@ class ModsPresenter:
             "openRebuildLog": tr("Open rebuild log"),
             "allowTool": tr("Allow rebuild tool"),
             "details": tr("Details"),
+            "copy": tr("Copy"),
             "loadOrder": tr("Load order"),
             "staysLast": tr("Stays last"),
             "fixOrder": tr("Fix order"),
@@ -292,8 +296,8 @@ class ModsPresenter:
             counts=counts,
             health=self.health(scan),
             groups=groups,
-            parameters=self.parameters(health, game_running),
-            notices=self.notices(health, tool_to_allow, recovered),
+            parameters=self.parameters(health, game_running, facts.fingerprint, facts.regulation),
+            notices=self.notices(health, tool_to_allow, recovered, facts.online_with, facts.regulation),
         )
 
     # ---- header
@@ -435,8 +439,11 @@ class ModsPresenter:
         return "  ·  ".join(bits)
 
     # ---- the Parameters card
-    def parameters(self, health: dict | None, game_running: bool) -> Parameters:
-        """Shown only when a package ships parameters (v2.1 A)."""
+    def parameters(
+        self, health: dict | None, game_running: bool, fingerprint=None, regulation: str = "regulation.bin"
+    ) -> Parameters:
+        """Shown only when a package ships parameters (v2.1 A). fingerprint: game_checks.Fingerprint of the
+        parameters the game will use (owner, D3 A: on this card, for co-op partners to compare)."""
         health = health or {}
         state = health.get("state") or ""
         packs = list(health.get("packs") or [])
@@ -479,11 +486,51 @@ class ModsPresenter:
             packs=", ".join(packs),
             action=action,
             blocked=tr("Blocked while the game runs") if game_running and action else "",
+            fingerprint=self.fingerprint(fingerprint, regulation),
+            fingerprint_note=tr(
+                "Co-op partners should use the same parameters. Compare this fingerprint with theirs: if it differs, "
+                "expect desyncs or a failed session."
+            )
+            if fingerprint is not None
+            else "",
         )
 
+    @staticmethod
+    def fingerprint(fingerprint, regulation: str = "regulation.bin") -> str:
+        if fingerprint is None:
+            return ""
+        whose = (
+            tr("{package}'s {file}").format(package=fingerprint.source, file=regulation)
+            if fingerprint.source
+            else tr("the game's own {file}").format(file=regulation)
+        )
+        return tr("Parameters fingerprint: {short} ({whose})").format(short=fingerprint.short, whose=whose)
+
     # ---- InfoBars
-    def notices(self, health: dict | None, tool_to_allow, recovered: tuple[str, ...]) -> tuple[Notice, ...]:
+    def notices(
+        self,
+        health: dict | None,
+        tool_to_allow,
+        recovered: tuple[str, ...],
+        online_with: str = "",
+        regulation: str = "regulation.bin",
+    ) -> tuple[Notice, ...]:
+        """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
+        permission, interrupted changes put right."""
         out = []
+        if online_with:
+            out.append(
+                Notice(
+                    "online",
+                    "warning",
+                    tr(
+                        "This profile goes online with changed parameters ({package}'s {file}). FromSoftware's "
+                        "servers can see the change."
+                    ).format(package=online_with, file=regulation),
+                    tr("Play offline"),
+                    True,
+                )
+            )
         if (health or {}).get("state") == "stale":
             reasons = list((health or {}).get("reasons") or [])
             out.append(

@@ -213,6 +213,14 @@ class LauncherHost:
         got = QFileDialog.getExistingDirectory(self._w, title, "")
         return Path(got) if got else None
 
+    def pick_file(self, title: str, filters: str) -> Path | None:
+        got, _ = QFileDialog.getOpenFileName(self._w, title, "", filters)
+        return Path(got) if got else None
+
+    def save_file(self, title: str, name: str) -> Path | None:
+        got, _ = QFileDialog.getSaveFileName(self._w, title, name)
+        return Path(got) if got else None
+
 
 # ----------------------------------------------------------------------------- window
 class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow):

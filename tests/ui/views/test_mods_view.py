@@ -65,6 +65,12 @@ class Host:
         self.changes.append(f"asked: {title}")
         return self.folder
 
+    def pick_file(self, title, filters):
+        return None
+
+    def save_file(self, title, name):
+        return None
+
     def profiles(self):
         return [self.profile.name]
 

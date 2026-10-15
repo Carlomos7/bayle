@@ -232,3 +232,39 @@ installer left. Nothing in it knows a particular overhaul; everything comes from
   way; its side effects are worked out from the oldest of its installer's profile backups (`installer_backups`) and
   offered as choices, none ticked. Its leftovers (`installer_folders`, its folder when no profile uses it) are then
   offered with their sizes, its backups last and one at a time.
+
+## Basic: a config made with the Overhaul setup form
+
+Any mod can be set up as an overhaul (loaded last, merged with the mods before it) without writing build steps. The
+form's values are the `[basic]` table; the launcher works out the rest from the mod's own files and writes it into
+the same file, so the result is an ordinary config that everything above reads.
+
+```toml
+[basic]
+version = "1.2"                  # the label shown; nothing depends on it
+keep = ["MyMod.ini"]             # settings files the player keeps on updates (new keys added)
+not_merged = []                  # binders to use whole instead of merging
+natives = [{ file = "MyMod.dll", load_early = false, after_others = true }]  # initializer = "Fn" when needed
+```
+
+What each of the mod's files becomes:
+
+- `regulation.bin`: `params`, combined on top of the packages before it;
+- a binder in a game folder (`*bnd.dcx`: animations, behaviours, parts, text, talk scripts, ...): `merge`, on top of
+  the last package before it that ships the same file, or used whole when none does (unless listed in `not_merged`:
+  then copied whole);
+- any other file in a game folder: copied into its package (`mod/<path>`);
+- a settings file listed in `keep`: `config`;
+- anything else (its DLLs and their data): copied into its own folder at the same path;
+- installers (`.exe`, `.cmd`, `.bat`, `.ps1`, `.py`), `.me3` profiles and empty files: left out. Nothing of the mod's
+  runs.
+
+The derived parts are its folder and profile marks (`[recognise]`, all named after the config's `id`) and one
+`[[builds]]` with the config's `id` as its build id, `match.files` listing every file it takes, and an install
+description: its DLLs with the form's options (loading after the other DLLs unless switched off) and its package
+loading after the other packages. A download with the same files is recognised as this mod; one with other files
+is set up again. Editing the steps by hand makes the config *advanced*: the form then shows the steps and no longer
+rewrites them.
+
+A config from `data/overhauls` is shown as **verified**; one in the local folder (made with the form, written by
+hand, or replacing a shipped one) as **your config, not verified**.

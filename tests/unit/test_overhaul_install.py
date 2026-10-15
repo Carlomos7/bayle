@@ -569,6 +569,28 @@ def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch)
     assert undo.available(undos[-1]) and service.profile_overhaul(world.profile, loc=world.loc) is None
 
 
+def test_a_profile_its_overhauls_installer_made_cannot_be_deleted_one_the_launcher_made_can(world):
+    from types import SimpleNamespace
+
+    from roundtable_souls.services import profile_mods as pm
+
+    def refusal(kind="me3", source=None):
+        return pm.delete_refusal(
+            SimpleNamespace(profile=str(world.profile), kind=kind, source=str(source or world.profile)),
+            False,
+            loc=world.loc,
+        )
+
+    world.install()
+    manifest = world.own / "installation.json"
+    assert refusal() is None and refusal("manifest", manifest) is None
+    assert pm.overhaul_to_keep(world.profile, loc=world.loc) == "Nightreign Revive"
+    overhaul_install.remove(overhaul_install.preview_remove(world.profile, loc=world.loc))
+    legacy(world)  # the same profile, as its installer sets it up: refused through the .me3 and the manifest
+    assert refusal() == pm.DELETE_MANAGED and refusal("manifest", manifest) == pm.DELETE_MANAGED
+    assert pm.overhaul_to_keep(world.profile, loc=world.loc) == ""
+
+
 def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
     from roundtable_souls.services import mods as service
 

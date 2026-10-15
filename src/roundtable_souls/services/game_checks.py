@@ -50,8 +50,9 @@ def active_regulation(profile: Path, loc: Locations) -> Regulation | None:
     return Regulation(own, "") if own is not None and own.is_file() else None
 
 
-def online_warning(profile: Path, loc: Locations) -> str | None:
-    """A warning when the profile goes online (start_online) with a package's parameters; None otherwise."""
+def online_risk(profile: Path, loc: Locations) -> Regulation | None:
+    """The package's regulation the profile goes online with (start_online on and a package's parameters in effect),
+    or None. The rule without the words: the log line is online_warning's, the Mods page words its presenter's."""
     try:
         settings = profile_tools.read_settings(me3_profile.read_text(Path(profile)))
     except OSError:
@@ -59,7 +60,13 @@ def online_warning(profile: Path, loc: Locations) -> str | None:
     if settings.get("start_online") is not True:
         return None
     active = active_regulation(profile, loc)
-    if active is None or not active.source:
+    return active if active is not None and active.source else None
+
+
+def online_warning(profile: Path, loc: Locations) -> str | None:
+    """A warning when the profile goes online (start_online) with a package's parameters; None otherwise."""
+    active = online_risk(profile, loc)
+    if active is None:
         return None
     return (
         f"this profile goes online with changed parameters ({active.source}'s {loc.game.regulation}). Online, the "
@@ -85,10 +92,18 @@ def regulation_fingerprint(profile: Path, loc: Locations) -> Fingerprint | None:
     if active is None:
         return None
     try:
-        data = active.path.read_bytes()
+        st = active.path.stat()
+        key = (str(active.path), st.st_size, st.st_mtime_ns)
+        if key not in _HASHES:
+            data = active.path.read_bytes()
+            _HASHES[key] = (hashlib.sha256(data).hexdigest()[:FINGERPRINT_HEX].upper(), len(data))
     except OSError:
         return None
-    return Fingerprint(hashlib.sha256(data).hexdigest()[:FINGERPRINT_HEX].upper(), len(data), active.source)
+    short, size = _HASHES[key]
+    return Fingerprint(short, size, active.source)
+
+
+_HASHES: dict[tuple[str, int, int], tuple[str, int]] = {}  # the Mods page reads it on every refresh: hash once
 
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m|\x1b\][^\x07]*\x07")

@@ -11,6 +11,7 @@ path, so the tie holds across profiles and never needs a key me3 does not know i
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from pathlib import Path
@@ -136,14 +137,28 @@ def read(p: Path) -> dict:
         except UnicodeDecodeError:
             encoding = "cp1252"  # older mods write their ini in the Windows code page
     text = raw.decode(encoding, errors="replace")
-    return {"text": text.replace("\r\n", "\n").replace("\r", "\n"), "encoding": encoding, "crlf": b"\r\n" in raw}
+    return {
+        "text": text.replace("\r\n", "\n").replace("\r", "\n"),
+        "encoding": encoding,
+        "crlf": b"\r\n" in raw,
+        "sha": hashlib.sha256(raw).hexdigest(),  # what write(expect=) compares with
+    }
 
 
-def write(p: Path, text: str, encoding: str, crlf: bool) -> Path:
-    """Write text back the way the file was stored (encoding, line endings), keeping one .bak of the old version."""
+def write(p: Path, text: str, encoding: str, crlf: bool, expect: str | None = None) -> Path:
+    """Write text back the way the file was stored (encoding, line endings), keeping one .bak of the old version.
+    expect: the sha read() gave; the write is refused when the file changed on disk since (another window, the mod
+    itself), so a change made elsewhere is never overwritten."""
     from roundtable_souls.platform.files import atomic_write
 
     p = Path(p)
+    if expect is not None:
+        try:
+            now = hashlib.sha256(p.read_bytes()).hexdigest()
+        except OSError:
+            now = "missing"
+        if now != expect:
+            raise ConfigError(f"{p.name} changed on disk since it was read; reload it and try again.")
     body = text.replace("\n", "\r\n") if crlf else text
     try:
         data = body.encode(encoding)

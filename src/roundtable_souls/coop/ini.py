@@ -10,7 +10,7 @@ import re
 import tomllib
 from pathlib import Path
 
-from roundtable_souls.formats import me3_profile
+from roundtable_souls.formats import config_model, me3_profile
 from roundtable_souls.game import catalog as games
 from roundtable_souls.platform.files import atomic_write
 
@@ -86,26 +86,16 @@ def _key_re(key):
 
 def read_keys(ini: Path, keys) -> dict:
     """key -> value string for the keys present in the ini (comments and layout untouched)."""
-    text = _read(ini)
-    out = {}
-    for k in keys:
-        m = _key_re(k).search(text)
-        if m:
-            out[k] = m.group(2)
-    return out
+    doc = config_model.parse(_read(ini), config_model.INI)
+    return {k: item.value for k in keys if (item := doc.find(k)) is not None}
 
 
 def write_keys(ini: Path, values: dict):
-    """Rewrite only the given keys in place; a key that is not in the file is reported, never appended."""
-    text = _read(ini)
-    missing = []
-    for k, v in values.items():
-        rx = _key_re(k)
-        if rx.search(text):
-            text = rx.sub(lambda m, v=v: m.group(1) + str(v) + m.group(3), text, count=1)
-        else:
-            missing.append(k)
-    _write(ini, text)
+    """Rewrite only the given keys in place (formats.config_model: nothing else in the file changes); a key that is not
+    in the file is reported, never appended."""
+    doc = config_model.parse(_read(ini), config_model.INI)
+    missing = [k for k, v in values.items() if not doc.set(k, v)]
+    _write(ini, doc.text())
     return missing
 
 
@@ -116,58 +106,24 @@ SECTION_TITLES = {
     "SAVE": "Save file",
     "LANGUAGE": "Language",
 }
-_CHOICE_RE = re.compile(r"(\d+)\s*=\s*([^|]+?)\s*(?=\||$)")
-
-
-def _kind_of(key: str, value: str, desc: str):
-    """(kind, extra): bool | choice (list of (int, label)) | int (lo, hi) | text | password, from the comment."""
-    d = desc.replace(" ", "")
-    if key == "cooppassword":
-        return "password", None
-    if "0=FALSE" in d.upper() and "1=TRUE" in d.upper():
-        return "bool", None
-    choices = [(int(n), lab.strip().rstrip(".")) for n, lab in _CHOICE_RE.findall(desc)] if "|" in desc else []
-    if len(choices) >= 2:
-        return "choice", choices  # "0 = Normal | 1 = None | 2 = ..."
-    nums = re.findall(r"(-?\d+)\s*=", desc)
-    if "MAX" in desc.upper() and len(nums) >= 2:
-        return "int", (int(nums[0]), int(nums[-1]))  # "0 = MUTE 10 = MAX"
-    if value.strip().lstrip("-").isdigit():
-        return "int", (0, 500)
-    return "text", None
 
 
 def read_settings_meta(ini: Path):
-    """[{section, title, items: [{key, value, desc, kind, extra}]}] in file order. The comment line(s) directly
-    above a key are its description; the kind is inferred from that comment so the window can show the right
-    control (toggle, dropdown, number, text) without a hand-written table that would go stale."""
-    out, section, pending = [], None, []
-    for raw in _read(ini).splitlines():
-        line = raw.rstrip("\r")
-        if not line.strip():
-            pending = []
-            continue
-        if line.lstrip().startswith((";", "#")):
-            pending.append(line.lstrip(";# ").strip())
-            continue
-        m = SECTION_RE.match(line)
-        if m:
-            section = {
-                "section": m.group(1),
-                "title": SECTION_TITLES.get(m.group(1).upper(), m.group(1).title()),
-                "items": [],
-            }
-            out.append(section)
-            pending = []
-            continue
-        m = LINE_RE.match(line)
-        if m and section is not None:
-            key, value = m.group(1), m.group(2)
-            desc = " ".join(pending)
-            kind, extra = _kind_of(key, value, desc)
-            section["items"].append({"key": key, "value": value, "desc": desc, "kind": kind, "extra": extra})
-            pending = []
-    return out
+    """[{section, title, items: [{key, value, desc, kind, extra}]}] in file order, from formats.config_model: the
+    comment line(s) directly above a key are its description, and the kind is inferred from that comment so the
+    window can show the right control (toggle, dropdown, number, text) without a hand-written table."""
+    doc = config_model.parse(_read(ini), config_model.INI)
+    return [
+        {
+            "section": s.name,
+            "title": SECTION_TITLES.get(s.name.upper(), s.name.title()),
+            "items": [
+                {"key": i.key, "value": i.value, "desc": i.desc, "kind": i.kind, "extra": i.extra} for i in s.settings
+            ],
+        }
+        for s in doc.sections
+        if s.name  # settings above the first [section] are not Seamless's
+    ]
 
 
 VOLUME_STOPS = ((0, "Mute"), (3, "Quiet"), (5, "Medium"), (8, "Loud"), (10, "Max"))

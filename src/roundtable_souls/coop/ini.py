@@ -1,4 +1,5 @@
 """The Seamless Co-op ini: password, difficulty scaling, every setting typed from its comment, and the whole-file share JSON.
+The words the window shows for its settings are the Mod Configs presenter's (ui/pages/mod_configs/presenter.py).
 
 Elden Ring's Seamless Co-op (ersc.dll) and Nightreign's (nrsc.dll) use the same ini format with different keys:
 Nightreign's has no password and scales with three values instead of six. ScalingSpec says which keys a file has.
@@ -99,15 +100,6 @@ def write_keys(ini: Path, values: dict):
     return missing
 
 
-SECTION_TITLES = {
-    "GAMEPLAY": "Gameplay",
-    "SCALING": "Difficulty scaling",
-    "PASSWORD": "Password",
-    "SAVE": "Save file",
-    "LANGUAGE": "Language",
-}
-
-
 def read_settings_meta(ini: Path):
     """[{section, title, items: [{key, value, desc, kind, extra}]}] in file order, from formats.config_model: the
     comment line(s) directly above a key are its description, and the kind is inferred from that comment so the
@@ -116,7 +108,7 @@ def read_settings_meta(ini: Path):
     return [
         {
             "section": s.name,
-            "title": SECTION_TITLES.get(s.name.upper(), s.name.title()),
+            "title": s.name.title(),  # the page shows its own title for a known section
             "items": [
                 {"key": i.key, "value": i.value, "desc": i.desc, "kind": i.kind, "extra": i.extra} for i in s.settings
             ],
@@ -124,120 +116,6 @@ def read_settings_meta(ini: Path):
         for s in doc.sections
         if s.name  # settings above the first [section] are not Seamless's
     ]
-
-
-VOLUME_STOPS = ((0, "Mute"), (3, "Quiet"), (5, "Medium"), (8, "Loud"), (10, "Max"))
-SAVE_KINDS = (("co2", "Co-op"), ("sl2", "Standard"))
-
-SETTING_COPY = {
-    "allow_invaders": {
-        "label": "Invaders",
-        "blurb": "Uninvited players can join and fight you.",
-        "help": "When this is on, other players can invade your session and try to kill you and your party. Turn it off if you only want people you invited.",
-    },
-    "death_debuffs": {
-        "label": "Death debuffs",
-        "blurb": "Rot Essence after you die, until you rest.",
-        "help": "When this is on, dying gives you Rot Essence. It lasts until you sit at a Site of Grace.",
-    },
-    "allow_summons": {
-        "label": "Spirit summons",
-        "blurb": "Ashes can help in multiplayer.",
-        "help": "When this is on, spirit ashes work in a Seamless session the way they do when you play alone.",
-    },
-    "overhead_player_display": {
-        "label": "Nameplates",
-        "blurb": "What sits over other players.",
-        "help": "Choose what appears over other players. Hidden removes the nameplate. Ping, level, and deaths help you tell people apart.",
-        "choices": {0: "Name", 1: "Hidden", 2: "Ping", 3: "Level", 4: "Deaths", 5: "Level and ping"},
-    },
-    "skip_splash_screens": {
-        "label": "Skip intro logos",
-        "blurb": "Go straight to the menu when the game starts.",
-        "help": "When this is on, the publisher and studio logos are skipped on boot.",
-    },
-    "append_steam_id_to_players": {
-        "label": "Steam ID on nameplates",
-        "blurb": "Show each player's Steam ID next to their name.",
-        "help": "Adds the player's Steam ID to their nameplate. Useful if you need to report or block someone.",
-        "choices": {0: "Off", 1: "On"},
-    },
-    "always_spectate_on_death": {
-        "label": "Spectate after death",
-        "blurb": "What you watch after you die.",
-        "help": "Bosses and invasions keeps the usual Seamless camera. Until you rest keeps you watching teammates until the party wipes or someone sits at a grace.",
-        "choices": {0: "Bosses and invasions", 1: "Until you rest"},
-    },
-    "default_boot_master_volume": {
-        "label": "Menu volume",
-        "blurb": "How loud the title screen is, before a save loads.",
-        "help": "This is only the volume on the title screen. In-game volume is still set in the game's own options.",
-    },
-    "save_file_extension": {
-        "label": "Save file",
-        "blurb": "Which save Seamless writes.",
-        "help": "Co-op uses a separate file from the standard game save, so they do not overwrite each other. Change this only if you know you need a different file. Letters and numbers only.",
-    },
-    "mod_language_override": {
-        "label": "Language",
-        "blurb": "Leave blank to use the game language.",
-        "help": "Only fill this in if you have a custom locale file for Seamless. Empty means the game's current language.",
-    },
-}
-
-
-def label_of(key: str) -> str:
-    copy = SETTING_COPY.get(key)
-    if copy:
-        return copy["label"]
-    return key.replace("_", " ").strip().capitalize()
-
-
-def setting_face(key: str, desc: str = ""):
-    """(label, short blurb, help). Ini numbers stay out of the window."""
-    copy = SETTING_COPY.get(key) or {}
-    return copy.get("label") or label_of(key), copy.get("blurb") or "", copy.get("help") or _human_ini_comment(desc)
-
-
-def _human_ini_comment(desc: str) -> str:
-    if not desc:
-        return ""
-    d = re.sub(r"\s*\d+\s*=\s*FALSE\s+\d+\s*=\s*TRUE", "", desc, flags=re.I)
-    d = re.sub(r"\s*\d+\s*=\s*MUTE\s+\d+\s*=\s*MAX", "", d, flags=re.I)
-    if "|" in d or re.search(r"\d+\s*=", d):
-        d = re.split(r"\s*\d+\s*=", d, maxsplit=1)[0]
-    d = re.sub(r"\s+", " ", d).strip(" .")
-    return d + ("." if d else "")
-
-
-def choice_label(key: str, n: int, raw: str) -> str:
-    mapped = (SETTING_COPY.get(key) or {}).get("choices", {}).get(n)
-    if mapped:
-        return mapped
-    t = (raw or "").strip().rstrip(".")
-    t = re.sub(r"(?i)^display player ", "", t)
-    low = t.lower()
-    if low.startswith("will add the player's unique steam"):
-        return "On"
-    if low.startswith("spectate only"):
-        return "Bosses and invasions"
-    if low.startswith("always spectate"):
-        return "Until you rest"
-    if low == "no change":
-        return "Off"
-    if low == "soul level and ping":
-        return "Level and ping"
-    if low == "normal":
-        return "Name"
-    if low == "none":
-        return "Hidden"
-    t = re.sub(r"(?i)soul level", "Level", t)
-    t = re.sub(r"(?i)death count", "Deaths", t)
-    return t[:1].upper() + t[1:] if t else t
-
-
-def nearest_volume_stop(n: int) -> int:
-    return min(VOLUME_STOPS, key=lambda p: abs(p[0] - n))[0]
 
 
 LINE_RE = re.compile(r"^[ \t]*([A-Za-z0-9_]+)[ \t]*=[ \t]*(.*?)[ \t]*$")

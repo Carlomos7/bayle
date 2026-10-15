@@ -76,8 +76,8 @@ class ModsHost(Protocol):
     def install_paths(self, paths: list[Path]) -> None:
         """Install dropped files through the launcher's install flow, in turn."""
 
-    def attach_config(self, entry: dict) -> None:
-        """Open the launcher's dialog for a DLL's config files (until Mod Configs, S7)."""
+    def open_mod_configs(self, select: str = "") -> None:
+        """Open the Mod Configs window, showing the mod called select."""
 
     def profile_deleted(self, profile: Path, moved_to: Path) -> None:
         """The page deleted the profile: the host forgets it and picks another."""
@@ -746,10 +746,10 @@ class ModsAdapter(QObject):
 
     @Slot(int)
     def attachConfig(self, index: int) -> None:
-        """A DLL's config files: today's dialog for them (attach, open, edit), until Mod Configs (S7)."""
+        """A DLL's config files: the Mod Configs window, on that mod (attach, open, edit)."""
         entry = self._entry(index)
         if entry is not None and self._profile() is not None:
-            self.host.attach_config(entry)
+            self.host.open_mod_configs(entry["name"])
 
     # ---- Mod options
     @Slot(int, result=dict)

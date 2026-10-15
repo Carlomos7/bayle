@@ -74,6 +74,9 @@ class SelfTestHost:
     def save_file(self, title: str, name: str) -> None:
         return None
 
+    def open_mod_configs(self, select: str = "") -> None:
+        pass
+
 
 class Report:
     def __init__(self, out: Callable[[str], None] = print):

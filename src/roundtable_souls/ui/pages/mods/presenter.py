@@ -253,6 +253,7 @@ class ModsPresenter:
             "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
             "rebuildFile": tr("Rebuild-tool file"),
             "configFiles": tr("Config files"),
+            "openOnModConfigs": tr("Open on Mod Configs"),
             "noDeps": tr("No other entry of this kind to depend on."),
             "settingsTitle": tr("Profile settings"),
             "meDefault": tr("me3 default"),

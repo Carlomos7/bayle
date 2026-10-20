@@ -212,6 +212,8 @@ class ModConfigsPresenter:
             "attach": tr("Attach a file..."),
             "detach": tr("Detach"),
             "password": tr("Password"),
+            "showPassword": tr("Show"),
+            "hidePassword": tr("Hide"),
             "passwordHint": tr("Friends type the same password to join your session."),
             "difficulty": tr("Difficulty"),
             "preset": tr("Party size"),

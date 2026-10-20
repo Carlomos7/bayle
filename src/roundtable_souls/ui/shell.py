@@ -84,6 +84,7 @@ from roundtable_souls.ui.dialogs.common import (
     ask_unsaved,
     confirm,
 )
+from roundtable_souls.ui.host import Host
 from roundtable_souls.ui.jobs import Jobs
 from roundtable_souls.ui.page_window import PageWindow
 from roundtable_souls.ui.pages import registry as qml_pages
@@ -281,6 +282,10 @@ class LauncherHost:
     def me3_facts(self) -> dict:
         """me3 asked now (runs me3 info: call it on a worker thread)."""
         return me3_facts(self._w.setup, self._w.ctx.locations)
+
+
+def _declares_host(host: LauncherHost) -> Host:  # pyright checks LauncherHost against the one host contract
+    return host
 
 
 # ----------------------------------------------------------------------------- window

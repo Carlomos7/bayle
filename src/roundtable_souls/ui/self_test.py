@@ -19,6 +19,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from roundtable_souls.resources import DATA_DIR, PACKAGE_DIR
+from roundtable_souls.ui.host import Host
 
 THEMES = ("dark", "tarnished", "light")
 LIST_FILE = DATA_DIR / "self-test.json"
@@ -121,6 +122,10 @@ class SelfTestHost:
 
     def me3_facts(self) -> dict:
         return {}
+
+
+def _declares_host(host: SelfTestHost) -> Host:  # pyright checks the fake against the one host contract
+    return host
 
 
 class Report:

@@ -7,129 +7,166 @@ import Components
 // Activity (technical specification §8.10): a summary row (last Play, last install, last failure), filters, the jobs
 // grouped by day (one card per day, the jobs as rows), each opening to its log, with Undo where the job can still be
 // taken back. Everything shown and every word comes from the adapter (ui/pages/activity/adapter.py).
-PageScroll {
+ListView {  // the page's own scroller: the days are virtualized, the summary and filters are its header
     id: page
 
     required property var adapter
+    readonly property int colW: Math.min(width - sideMargin * 2, Theme.contentMaxW)
+    readonly property int sideMargin: width < 820 ? 20 : 40
     readonly property var words: adapter.words
 
+    boundsBehavior: Flickable.StopAtBounds
+    bottomMargin: 36
+    clip: true
+    model: page.adapter.days
     objectName: "activityPage"
+    spacing: Theme.sp24
+    topMargin: 28
 
     Component.onCompleted: {
         page.adapter.refresh();
         page.adapter.seen();
     }
 
-    Row {  // the summary row
-        id: summaryRow
+    ScrollBar.vertical: ScrollBar {
+        id: bar
 
-        spacing: Theme.sp12
-        width: parent ? parent.width : 0
+        policy: ScrollBar.AsNeeded
 
-        Repeater {
-            model: page.adapter.summary
+        contentItem: Rectangle {
+            color: Theme.textTertiary
+            implicitWidth: 6
+            opacity: bar.pressed ? 1 : (bar.active ? 0.8 : 0)
+            radius: 3
+        }
+    }
+    header: Item {
+        height: headerCol.height + Theme.sp24
+        width: page.width
 
-            Card {
-                id: summaryCard
+        Column {
+            id: headerCol
 
-                required property string label
-                required property string level
-                required property string value
+            spacing: Theme.sp24
+            width: page.colW
+            x: Math.max(page.sideMargin, Math.round((page.width - width) / 2))
 
-                padding: Theme.sp12
-                width: Math.floor((summaryRow.width - summaryRow.spacing * 2) / 3)
+            Row {  // the summary row
+                id: summaryRow
 
-                Column {
-                    spacing: Theme.sp4
-                    width: parent ? parent.width : 0
+                spacing: Theme.sp12
+                width: parent ? parent.width : 0
 
-                    Txt {
-                        kind: "caption"
-                        text: summaryCard.label
+                Repeater {
+                    model: page.adapter.summary
+
+                    Card {
+                        id: summaryCard
+
+                        required property string label
+                        required property string level
+                        required property string value
+
+                        padding: Theme.sp12
+                        width: Math.floor((summaryRow.width - summaryRow.spacing * 2) / 3)
+
+                        Column {
+                            spacing: Theme.sp4
+                            width: parent ? parent.width : 0
+
+                            Txt {
+                                kind: "caption"
+                                text: summaryCard.label
+                            }
+                            Txt {
+                                color: summaryCard.level === "danger" ? Theme.statusDanger : summaryCard.level === "muted" ? Theme.textSecondary : Theme.textPrimary
+                                elide: Text.ElideNone
+                                kind: "strong"
+                                text: summaryCard.value
+                                width: parent ? parent.width : 0
+                                wrapMode: Text.WordWrap
+                            }
+                        }
                     }
-                    Txt {
-                        color: summaryCard.level === "danger" ? Theme.statusDanger : summaryCard.level === "muted" ? Theme.textSecondary : Theme.textPrimary
-                        elide: Text.ElideNone
-                        kind: "strong"
-                        text: summaryCard.value
-                        width: parent ? parent.width : 0
-                        wrapMode: Text.WordWrap
+                }
+            }
+            Row {  // the filters
+                spacing: Theme.sp8
+
+                DropButton {
+                    fixedWidth: Theme.pickerW
+                    implicitHeight: Theme.controlH
+                    text: page.adapter.gameLabel
+
+                    Repeater {
+                        model: page.adapter.games
+
+                        MenuEntry {
+                            required property string key
+                            required property string label
+
+                            checked: key === page.adapter.game
+                            text: label
+
+                            onTriggered: page.adapter.setGame(key)
+                        }
                     }
                 }
-            }
-        }
-    }
-    Row {  // the filters
-        spacing: Theme.sp8
+                DropButton {
+                    fixedWidth: Theme.pickerW
+                    implicitHeight: Theme.controlH
+                    text: page.adapter.kindLabel
 
-        DropButton {
-            fixedWidth: Theme.pickerW
-            implicitHeight: Theme.controlH
-            text: page.adapter.gameLabel
+                    Repeater {
+                        model: page.adapter.kinds
 
-            Repeater {
-                model: page.adapter.games
+                        MenuEntry {
+                            required property string key
+                            required property string label
 
-                MenuEntry {
-                    required property string key
-                    required property string label
+                            checked: key === page.adapter.kind
+                            text: label
 
-                    checked: key === page.adapter.game
-                    text: label
+                            onTriggered: page.adapter.setKind(key)
+                        }
+                    }
+                }
+                CheckRow {
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: page.adapter.failedOnly
+                    text: page.adapter.failedOnlyText
 
-                    onTriggered: page.adapter.setGame(key)
+                    onToggled: page.adapter.setFailedOnly(checked)
                 }
             }
-        }
-        DropButton {
-            fixedWidth: Theme.pickerW
-            implicitHeight: Theme.controlH
-            text: page.adapter.kindLabel
-
-            Repeater {
-                model: page.adapter.kinds
-
-                MenuEntry {
-                    required property string key
-                    required property string label
-
-                    checked: key === page.adapter.kind
-                    text: label
-
-                    onTriggered: page.adapter.setKind(key)
-                }
+            Txt {  // nothing yet, or nothing matches the filters
+                kind: "hint"
+                text: page.adapter.empty
+                visible: page.adapter.empty !== ""
+                width: parent ? parent.width : 0
+                wrapMode: Text.WordWrap
             }
         }
-        CheckRow {
-            anchors.verticalCenter: parent.verticalCenter
-            checked: page.adapter.failedOnly
-            text: page.adapter.failedOnlyText
+    }
+    delegate: Item {
+        id: dayItem
 
-            onToggled: page.adapter.setFailedOnly(checked)
-        }
-    }
-    Txt {  // nothing yet, or nothing matches the filters
-        kind: "hint"
-        text: page.adapter.empty
-        visible: page.adapter.empty !== ""
-        width: parent ? parent.width : 0
-        wrapMode: Text.WordWrap
-    }
-    Repeater {
-        model: page.adapter.days
+        required property var jobs
+        required property string label
+
+        height: dayColumn.height
+        width: page.width
 
         Column {
             id: dayColumn
 
-            required property var jobs
-            required property string label
-
             spacing: Theme.sp8
-            width: parent ? parent.width : 0
+            width: page.colW
+            x: Math.max(page.sideMargin, Math.round((page.width - width) / 2))
 
             Txt {
                 kind: "section"
-                text: dayColumn.label
+                text: dayItem.label
             }
             Card {  // one day = one card: the jobs are rows with hairline dividers; the log opens inside its row
                 padding: 0
@@ -142,7 +179,7 @@ PageScroll {
                     Repeater {
                         id: jobRows
 
-                        model: dayColumn.jobs
+                        model: dayItem.jobs
 
                         HoverRow {
                             id: job

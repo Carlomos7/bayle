@@ -1048,13 +1048,8 @@ class ModsAdapter(QObject):
 
     # ---- Profile settings
     def _heap_shown(self) -> bool:
-        """Whether me3 uses a heap size for this game (data/games/<game>.json); shown when the game is not described."""
-        from roundtable_souls.game import config as game_config
-
-        try:
-            return game_config.load(self.host.locations.game.key).me3_heap_setting
-        except Exception:
-            return True
+        """Whether me3 uses a heap size for this game (game.catalog)."""
+        return bool(getattr(self.host.locations.game, "me3_heap_setting", True))
 
     @Slot(result=dict)
     def settingsFor(self) -> dict:

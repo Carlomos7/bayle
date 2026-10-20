@@ -37,14 +37,19 @@ def key_for(dll: Path) -> str:
     return os.path.normcase(os.path.abspath(str(dll)))
 
 
-def looks_like_settings(p: Path) -> bool:
-    name = p.name.lower()
+def settings_name(name: str) -> bool:
+    """Whether a file name alone is a settings file's (no .dll, .exe, readme, backup, ...)."""
+    p = Path(name)
     return (
-        p.is_file()
+        p.name == name
         and p.suffix.lower() in CONFIG_SUFFIXES
         and not NOT_SETTINGS.match(p.stem)
-        and not re.search(r"\.(bak|old|orig|tmp)(\.|$)|\d{8}", name)  # dated / backup copies
+        and not re.search(r"\.(bak|old|orig|tmp)(\.|$)|\d{8}", name.lower())  # dated / backup copies
     )
+
+
+def looks_like_settings(p: Path) -> bool:
+    return p.is_file() and settings_name(p.name)
 
 
 def found(dll: Path) -> list[Path]:

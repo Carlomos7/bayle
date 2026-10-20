@@ -269,21 +269,36 @@ class ModConfigsAdapter(QObject):
     def _open(self, node: mod_configs.ModNode, path: Path) -> None:
         self._node, self._pending, self._edit_text = node, {}, False
         self._seamless = self._ov = None
-        try:
-            setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
-            self._opened = mod_configs.open_file(path, form=not setup_file)
-            if node.kind == mod_configs.SEAMLESS:
-                self._seamless = mod_configs.seamless(path)
-            elif setup_file and node.setup:
-                self._ov = self._new_ov(node.setup, None)
-        except Exception as e:  # too big, not text, gone: said, nothing open
-            self._opened = None
-            self._refuse(self.presenter.unreadable(path.name, str(e)))
-        self._text = self._opened.text if self._opened else ""
-        self.fileChanged.emit()
-        self.dirtyChanged.emit()
+        self._open_token = token = getattr(self, "_open_token", 0) + 1
+        setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
+
+        def work():  # the file is read off the UI thread
+            try:
+                opened = mod_configs.open_file(path, form=not setup_file)
+                seamless = mod_configs.seamless(path) if node.kind == mod_configs.SEAMLESS else None
+                return opened, seamless, None
+            except Exception as e:  # too big, not text, gone: said, nothing open
+                return None, None, e
+
+        def got(result) -> None:
+            if token != self._open_token or self._node is not node:  # a newer open or a close came first
+                return
+            self._opened, self._seamless, err = result
+            try:
+                if err is None and node.kind != mod_configs.SEAMLESS and setup_file and node.setup:
+                    self._ov = self._new_ov(node.setup, None)
+            except Exception as e:
+                self._opened, err = None, e
+            if err is not None:
+                self._refuse(self.presenter.unreadable(path.name, str(err)))
+            self._text = self._opened.text if self._opened else ""
+            self.fileChanged.emit()
+            self.dirtyChanged.emit()
+
+        self.host.run_in_background(work, got)
 
     def _close(self) -> None:
+        self._open_token = getattr(self, "_open_token", 0) + 1
         self._node = self._opened = self._seamless = self._ov = None
         self._pending, self._text = {}, ""
         self.fileChanged.emit()

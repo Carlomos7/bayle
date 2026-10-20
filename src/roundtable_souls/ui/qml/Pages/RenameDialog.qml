@@ -31,11 +31,10 @@ ModalDialog {
         name.selectAll();
     }
     function refresh() {
-        info = entry < 0 ? info : adapter.renamePreview(entry, name.text);
+        if (entry >= 0)
+            adapter.requestRenamePreview(entry, name.text);
     }
     function apply() {
-        refreshTimer.stop();
-        refresh();
         if (!info.ok)
             return;
         adapter.rename(entry, name.text.trim());
@@ -68,6 +67,13 @@ ModalDialog {
 
         onAccepted: dlg.apply()
         onTextChanged: refreshTimer.restart()  // the preview reads the profiles: not on every keystroke
+    }
+    Connections {
+        function onRenamePreviewReady(result) {
+            dlg.info = result;
+        }
+
+        target: dlg.adapter
     }
     Timer {
         id: refreshTimer

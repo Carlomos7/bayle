@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mod Configs reads a file in the background, and Rename checks the name in the background.
 - Renaming a mod waits for a pause in typing before it checks the new name.
 - Load order tags keep their names (Clash, Loads early) and explain themselves on hover.
 - The Mods and Mod Configs pages follow the profile picked in the top bar; their own profile pickers are gone.

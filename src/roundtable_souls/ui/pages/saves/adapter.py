@@ -143,6 +143,50 @@ class SavesAdapter(QObject):
         return [self.presenter.card(i, self._role(i["name"]), running) for i in ordered]
 
     # ---- reading
+    # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
+    COMMANDS = {
+        "backUpNow": "backUpAll",
+        "transferCharacter": "_transfer_hint",
+        "importSave": "pickImport",
+        "openSavesFolder": "_open_saves_folder",
+        "openLibrary": "openLibrary",
+        "openBackups": "openBackups",
+        "back": "_back",
+    }
+
+    def command(self, name: str, args) -> bool:
+        """Run a menu command; False when this page has none by that name."""
+        method = self.COMMANDS.get(name)
+        if method is None:
+            return False
+        getattr(self, method)(*args)
+        return True
+
+    def _back(self) -> None:
+        if self._repair_path:
+            self.closeRepair()
+        elif self._sheet_open:
+            self.closeSheet()
+
+    def _transfer_hint(self) -> None:
+        self.notifier.toast(tr("Open a character's menu and choose Copy character to..."))
+
+    def _open_saves_folder(self) -> None:
+        if self._infos:
+            self.host.open_path(Path(self._infos[0]["path"]).parent)
+
+    def backUpAll(self) -> None:
+        """Saves > Back up now: one backup of every live save of this game."""
+        if self._blocked():
+            return
+        paths = [Path(i["path"]) for i in self._infos]
+
+        def body(loc):
+            made = [saves_service.back_up_now(p, loc=loc) for p in paths]
+            return {"text": tr("Backed up {n} save file(s).").format(n=len(made))}
+
+        self._write("back up now", tr("Backing up saves..."), body)
+
     @Slot()
     def refresh(self) -> None:
         loc = self.host.locations

@@ -19,6 +19,8 @@ PageScroll {
     property bool readmePreview: false
     property bool showChangelog: false
 
+    signal leave   // the page is done (the bundled profile's Cancel): the window or the shell goes back
+
     maxContentWidth: Theme.formMaxW
     objectName: "profileTransferPage"
 
@@ -669,7 +671,7 @@ PageScroll {
 
                 onClicked: {
                     page.adapter.cancel();
-                    Window.window.close();
+                    page.leave();
                 }
             }
         }

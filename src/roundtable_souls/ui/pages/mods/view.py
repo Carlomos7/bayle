@@ -82,7 +82,6 @@ from roundtable_souls.ui.dialogs.install import InstallDialog
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter, Refusal
 from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
 from roundtable_souls.ui.pages.mods.presenter import Refusal as ModsRefusal
-from roundtable_souls.ui.pages.profile_transfer.presenter import ProfileTransferPresenter
 from roundtable_souls.ui.theme import (
     ghost_btn,
     hint,
@@ -137,15 +136,6 @@ class ModsView:
         al.addWidget(self.prof_new)
         al.addWidget(self.prof_del)
         al.addWidget(self.mods_refresh)
-        self.mods_new_window = ghost_btn(WORDS.open_window_text, FI.LINK)
-        self.mods_new_window.setToolTip(WORDS.open_window_tip)
-        self.mods_new_window.clicked.connect(self._open_mods_window)
-        al.addWidget(self.mods_new_window)
-        transfer = ProfileTransferPresenter()
-        self.mods_transfer = ghost_btn(transfer.open_window_text, FI.SHARE)
-        self.mods_transfer.setToolTip(transfer.open_window_tip)
-        self.mods_transfer.clicked.connect(lambda: self._open_profile_transfer_window("export"))
-        al.addWidget(self.mods_transfer)
         titled(lay, "Mods", FI.LIBRARY, "What this profile loads.", acts)
         head = QHBoxLayout()
         head.setSpacing(10)

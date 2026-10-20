@@ -82,7 +82,7 @@ Item {
             Txt {
                 elide: Text.ElideNone
                 kind: "hint"
-                text: !page.adapter.hasProfile ? page.words.noProfile : page.adapter.nodes.length === 0 && !page.adapter.loading ? page.words.noMods : page.narrow ? page.words.pickFile : ""
+                text: !page.adapter.hasProfile ? page.words.noProfile : page.adapter.nodes.length > 0 && page.narrow ? page.words.pickFile : ""
                 visible: text !== ""
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -260,7 +260,7 @@ Item {
         Flickable {
             id: body
 
-            anchors.bottom: footer.top
+            anchors.bottom: page.adapter.selectedFile !== "" ? footer.top : parent.bottom
             anchors.bottomMargin: Theme.sp8
             anchors.left: parent.left
             anchors.right: parent.right
@@ -311,35 +311,107 @@ Item {
                 }
             }
         }
-        Row {
+        Rectangle {  // the save bar: always in the same place, the state in words
             id: footer
 
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.sp12
+            anchors.left: parent.left
             anchors.right: parent.right
-            anchors.rightMargin: Theme.sp16
-            spacing: Theme.gapInline
+            color: Theme.surfacePage
+            height: 56
             visible: page.adapter.selectedFile !== ""
 
-            GhostButton {
-                text: page.words.resetAll
-                visible: page.adapter.fileKind === "form"
+            Hairline {}
+            Txt {
+                id: changeLabel
 
-                onClicked: page.adapter.resetAll()
+                Accessible.role: Accessible.AlertMessage
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.sp16
+                anchors.right: buttons.left
+                anchors.rightMargin: Theme.sp8
+                anchors.verticalCenter: parent.verticalCenter
+                color: page.adapter.dirty ? Theme.accent : Theme.textSecondary
+                kind: "caption"
+                text: page.adapter.changeText
             }
-            GhostButton {
-                enabled: page.adapter.dirty
-                text: page.words.discard
+            Row {
+                id: buttons
 
-                onClicked: page.adapter.discard()
-            }
-            PrimaryButton {
-                enabled: page.adapter.dirty
-                objectName: "saveConfig"
-                text: page.words.save
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.sp16
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.gapInline
 
-                onClicked: page.adapter.save()
+                PrimaryButton {
+                    enabled: page.adapter.dirty
+                    objectName: "saveConfig"
+                    text: page.words.save
+
+                    onClicked: page.adapter.save()
+                }
+                GhostButton {
+                    enabled: page.adapter.dirty
+                    text: page.words.discard
+
+                    onClicked: page.adapter.discard()
+                }
+                GhostButton {
+                    text: page.words.resetAll
+                    visible: page.adapter.fileKind === "form"
+
+                    onClicked: page.adapter.resetAll()
+                }
             }
+        }
+        Column {  // nothing picked yet
+            anchors.centerIn: body
+            spacing: Theme.sp4
+            visible: page.adapter.selectedFile === "" && page.adapter.nodes.length > 0
+            width: Math.min(body.width - Theme.sp32, 360)
+
+            Txt {
+                horizontalAlignment: Text.AlignHCenter
+                kind: "rowTitle"
+                text: page.words.emptyPickTitle
+                width: parent.width
+            }
+            Txt {
+                elide: Text.ElideNone
+                horizontalAlignment: Text.AlignHCenter
+                kind: "hint"
+                text: page.words.emptyPickBody
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
+        }
+    }
+    Column {  // no mod in this profile has a settings file
+        anchors.centerIn: parent
+        spacing: Theme.sp8
+        visible: page.adapter.hasProfile && page.adapter.nodes.length === 0 && !page.adapter.loading
+        width: Math.min(page.width - Theme.sp32, 380)
+
+        Txt {
+            horizontalAlignment: Text.AlignHCenter
+            kind: "rowTitle"
+            text: page.words.emptyNoFilesTitle
+            width: parent.width
+        }
+        Txt {
+            elide: Text.ElideNone
+            horizontalAlignment: Text.AlignHCenter
+            kind: "hint"
+            text: page.words.emptyNoFilesBody
+            width: parent.width
+            wrapMode: Text.WordWrap
+        }
+        PrimaryButton {
+            anchors.horizontalCenter: parent.horizontalCenter
+            objectName: "goToMods"
+            text: page.words.goToMods
+
+            onClicked: page.adapter.openMods()
         }
     }
 }

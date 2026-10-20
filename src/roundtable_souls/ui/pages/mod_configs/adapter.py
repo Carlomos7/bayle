@@ -19,7 +19,7 @@ from roundtable_souls.ui.models import plain
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mod_configs.presenter import ModConfigsPresenter
 from roundtable_souls.ui.pages.mods.presenter import Confirm, ModsPresenter, Pick, Refusal
-from roundtable_souls.ui.text import tr
+from roundtable_souls.ui.text import plural, tr
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 
@@ -36,6 +36,7 @@ class ModConfigsHost(Protocol):
     @property
     def settings(self) -> Any: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def show_page(self, name: str) -> Any: ...
     def run_job(self, job, status: str) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None:
         """Ask for a file to open; None when cancelled."""
@@ -97,6 +98,9 @@ class ModConfigsAdapter(QObject):
     text = Property(str, lambda self: self._text, notify=fileChanged)
     editText = Property(bool, lambda self: self._edit_text, notify=fileChanged)
     dirty = Property(bool, lambda self: self._is_dirty(), notify=dirtyChanged)
+    changedKeys = Property(list, lambda self: self._changed_keys(), notify=dirtyChanged)
+    changeText = Property(str, lambda self: self._change_text(), notify=dirtyChanged)
+    changeCount = Property(int, lambda self: self._change_count(), notify=dirtyChanged)
     canAttach = Property(
         bool, lambda self: self._node is not None and self._node.target is not None, notify=fileChanged
     )
@@ -166,6 +170,36 @@ class ModConfigsAdapter(QObject):
             )
             s = dataclasses.replace(s, scaling=values, preset=coop_scaling.preset_of(values, s.spec))
         return self.presenter.seamless(s, line, note)
+
+    def _changed_keys(self) -> list:
+        """ "section|key" of every setting whose waiting value differs from the file's (the form's Changed marker)."""
+        opened = self._opened
+        if not self._pending or opened is None or opened.doc is None:
+            return []
+        disk = config_model.parse(opened.text, opened.doc.lang)
+        out = []
+        for (section, key), value in self._pending.items():
+            item = disk.find(key, section)
+            if item is None or item.value != value:
+                out.append(f"{section}|{key}")
+        return out
+
+    def _change_text(self) -> str:
+        n = self._change_count()
+        if n == 0:
+            return tr("No changes")
+        return plural("{n} change not saved", "{n} changes not saved", n).format(n=n)
+
+    @Slot()
+    def openMods(self) -> None:
+        self.host.show_page("mods")
+
+    def _change_count(self) -> int:
+        if self._ov is not None and not self._edit_text:
+            return 1 if self._ov["dirty"] else 0
+        if self._edit_text or self._kind() in ("text", "markdown"):
+            return 1 if self._is_dirty() else 0
+        return len(self._changed_keys())
 
     def _is_dirty(self) -> bool:
         if self._ov is not None and not self._edit_text:

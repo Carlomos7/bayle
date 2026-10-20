@@ -1,6 +1,8 @@
 """formats.config_model: a file read as a form and written back changes only the edited value's characters (the one
 test the owner allowed for it, 2026-10-15: INI and flat TOML)."""
 
+import pytest
+
 from roundtable_souls.formats import config_model
 
 INI = (
@@ -73,3 +75,11 @@ def test_only_the_edited_value_changes_in_ini_and_flat_toml():
     for key in ("list", "inline", "a.b", "id"):
         assert toml.find(key).readonly, key
     assert toml.text() == TOML
+
+
+def test_a_value_with_a_line_break_is_refused_and_the_text_is_unchanged():
+    doc = config_model.parse(INI, config_model.INI)
+    for bad in ("pw\nx = 1", "pw\rx = 1"):
+        with pytest.raises(ValueError, match="line break"):
+            doc.set("cooppassword", bad)
+        assert doc.text() == INI

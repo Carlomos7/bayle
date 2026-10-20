@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Undo import of a profile the import created now removes the whole profile and every folder it copied, Seamless
+  Co-op's copy included (before, the co-op entry and its folder were left behind). The co-op guard still protects
+  your own profiles. Export opens on the small share list; the Full export tab shows its size.
 - Importing a profile or a full export no longer copies a mod you already have: a mod folder byte-identical to an
   installed one (same files and sizes, then checksums) is reused, the new profile points at it, and the preview says
   so and how much copying it saves. Only a folder that differs is copied, as name-2. Undo import never touches a

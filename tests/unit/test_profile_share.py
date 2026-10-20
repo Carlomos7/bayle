@@ -242,3 +242,41 @@ def test_importing_a_full_export_reuses_an_identical_installed_folder_and_undo_l
         assert {p.relative_to(flora).as_posix(): p.read_bytes() for p in flora.rglob("*") if p.is_file()} == before
     finally:
         pt.discard(inc)
+
+
+def test_undoing_an_import_into_a_new_profile_removes_it_and_its_coop_copy_and_nothing_else(tmp_path):
+    src, dst = make(tmp_path / "a", 7), make(tmp_path / "b", 5)
+    (tmp_path / "b/natives/SeamlessCoop/ersc.dll").write_bytes(b"another build")  # differs, so it is copied
+    other = tmp_path / "b" / "other.me3"
+    other.write_bytes(b'profileVersion = "v1"\n')
+    out = pt.full_export(
+        src,
+        loc=er(),
+        settings=load_settings(),
+        name="Pack",
+        version="1",
+        author="me",
+        readme="",
+        changelog="",
+        chosen={it.key for it in pt.items(src, full=True)},
+        out_dir=tmp_path / "out",
+    )
+    before = tree(tmp_path / "b")
+    inc = pt.read(out, loc=er())
+    try:
+        pre = pt.preview(inc, dst, loc=er(), settings=load_settings(), new_name="Imported")
+        assert not pre.refusals, pre.refusals
+        res = pt.apply(pre)
+        assert (tmp_path / "b/natives/seamlesscoop-2/ersc.dll").is_file() and (tmp_path / "b/imported.me3").is_file()
+        rec = {
+            "type": "profile-import",
+            "profile": res["profile"],
+            "name": "imported.me3",
+            "operation": res["operation"],
+        }
+        undo.run(rec, lambda s: None, loc=er())
+        assert not (tmp_path / "b/imported.me3").exists() and not (tmp_path / "b/natives/seamlesscoop-2").exists()
+        after = {k: v for k, v in tree(tmp_path / "b").items() if not k.startswith(".roundtable")}
+        assert after == before  # the other profile and the original co-op folder are untouched
+    finally:
+        pt.discard(inc)

@@ -4,6 +4,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- New Mods window, Rename: right-click a mod and choose Rename... to give its folder (and, for a package, its id) a
+  new name. The profile's entry, the mods that load after or before it, the keep-after list and a DLL's attached
+  config files follow, as one step with Undo. It is refused, with the reason, while the game runs, when another
+  mod, another profile, an overhaul, Seamless Co-op or the mod that must stay last uses the folder, or when the name
+  is taken or not allowed. The merged files are rebuilt before the next Play.
 - Install mod, with "Install overhauls with the launcher (preview)" on: a download that ships its own installer, an
   me3 profile, or a regulation.bin with DLLs starts with "Set up as an overhaul" ticked and the reason shown; any
   other mod can tick it. The dialog shows what it will do (the Name gives the id) and the button reads "Install as

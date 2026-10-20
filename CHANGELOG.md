@@ -4,6 +4,20 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Install mod, with "Install overhauls with the launcher (preview)" on: a download that ships its own installer, an
+  me3 profile, or a regulation.bin with DLLs starts with "Set up as an overhaul" ticked and the reason shown; any
+  other mod can tick it. The dialog shows what it will do (the Name gives the id) and the button reads "Install as
+  overhaul"; Undo takes it back. A download an overhaul config already describes (such as the overhaul) is shown as
+  already set up; one whose version is not listed is refused with the way out. With the switch off the dialog has
+  no overhaul option, only one line naming the switch.
+- The new Mods window installs mods in its own Install mod dialog (From archive or DLL, From folder, or files dropped
+  on the page; several drops open one dialog after another, each once the last install has finished): the folder
+  name (and id for a package), what to install, where regulation.bin goes and the mod that must stay last, as in the
+  old dialog. Cancelling leaves nothing behind.
+- Install mod: a folder name Windows refuses (such as CON), one of the launcher's own folder names, or one that
+  makes a path too long for Windows is refused in the dialog with the reason, before anything is copied (before, a
+  too-long path failed only after Install). A name that matches an installed mod's folder in another case updates
+  that folder instead of making a second one.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

@@ -70,6 +70,11 @@ PageScroll {
 
         adapter: page.adapter
     }
+    InstallModDialog {
+        id: installMod
+
+        adapter: page.adapter
+    }
     Item {  // the lifted row floats here, outside what the page clips
         id: dragLayer
 

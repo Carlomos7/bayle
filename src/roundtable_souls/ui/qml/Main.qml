@@ -199,6 +199,9 @@ ApplicationWindow {
             }
         }
 
+        Atmosphere {  // blooms, vignette, grain, the luminous edge: under the page, over the surface colour
+            anchors.fill: parent
+        }
         InfoBar {  // a lasting condition of the page on show (its Notifier's InfoBar)
             id: infoBar
 
@@ -219,7 +222,7 @@ ApplicationWindow {
         Item {  // the pages, side by side, one on show
             id: pageHost
 
-            anchors.bottom: parent.bottom
+            anchors.bottom: hintBar.top
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: infoBar.visible ? infoBar.bottom : parent.top
@@ -264,6 +267,66 @@ ApplicationWindow {
                     onLoaded: {
                         if (item.leave !== undefined)   // a page that finishes by itself (the bundled profile's Cancel)
                             item.leave.connect(win.shell.back);
+                    }
+                }
+            }
+        }
+        Item {  // the hint bar (v2.8; v2.11): its own row, so it never covers a page's footer or last row
+            id: hintBar
+
+            readonly property bool shown: !win.compact && win.height >= 640
+
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            clip: true
+            height: shown ? 34 : 0
+            visible: shown
+
+            Hairline {
+            }
+            Row {
+                anchors.left: parent.left
+                anchors.leftMargin: 28
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.sp16
+
+                Repeater {
+                    model: [["Ctrl+L", qsTr("Launch")], ["Ctrl+1-5", qsTr("Pages")], ["F5", qsTr("Rescan")], ["Esc", qsTr("Back")]]
+
+                    Row {
+                        id: hintRow
+
+                        required property var modelData
+
+                        spacing: Theme.sp8
+
+                        Rectangle {
+                            border.color: Theme.borderEdge
+                            border.width: 1
+                            color: "transparent"
+                            height: 18
+                            radius: Theme.radiusTag
+                            width: keyText.implicitWidth + 12
+
+                            Text {
+                                id: keyText
+
+                                anchors.centerIn: parent
+                                color: Theme.textSecondary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.weight: Font.DemiBold
+                                text: hintRow.modelData[0]
+                            }
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: Theme.textTertiary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 12
+                            text: hintRow.modelData[1]
+                        }
                     }
                 }
             }

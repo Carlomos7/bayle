@@ -11,6 +11,7 @@ import os
 import shutil
 from pathlib import Path
 
+from roundtable_souls.mods import library
 from roundtable_souls.mods.profile_edit import block_options, blocks, resolve
 from roundtable_souls.mods.profile_writer import ProfileWriter
 
@@ -35,6 +36,7 @@ def uninstall(profile: Path, index: int, delete_folder: bool = True, to_trash: b
         chunk, where = writer.remove_entry(index)
         new_text = writer.text
         goes = False
+        kept_for: list[str] = []
         if delete_folder and folder is not None and folder.is_dir():
             inside = profile.parent.resolve() in folder.resolve().parents
             still = [block_options(new_text, b["index"])["path"] for b in blocks(new_text)]
@@ -48,6 +50,11 @@ def uninstall(profile: Path, index: int, delete_folder: bool = True, to_trash: b
             )
             coop = operations._shared_folder(folder) and Path(o["path"]).name.lower() not in operations._coop_dlls()
             goes = inside and not shared and not coop and folder.resolve() != profile.parent.resolve()
+            lib = library.library_of(profile)
+            if lib is not None:  # a library mod lives in packages/ or natives/, shared by every profile that lists it
+                mod_folder = lib.place_of(folder)
+                kept_for = lib.folder_users(folder, besides=profile)
+                goes = mod_folder is not None and mod_folder[0] != "builds" and not kept_for and not shared and not coop
         # The profile change and the folder's removal are one operation: an interruption between them is undone
         # (the entry comes back) unless the folder had already left, then it is finished.
         op = operations.start(profile, f"removal of {name}")
@@ -94,6 +101,7 @@ def uninstall(profile: Path, index: int, delete_folder: bool = True, to_trash: b
         "backup": bak,
         "entry_text": chunk,
         "where": where,
+        "kept_for": kept_for,  # other library profiles that still list the folder, so it stays
         "trash": trashed,  # where the folder went in the Recycle Bin (system.trash), when it went there
     }
 

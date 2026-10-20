@@ -407,6 +407,11 @@ def preview_install(
     out = InstallPreview(profile, found, own, where, plan.update, writer, None, [], [], 0)
     out.refusals += [p.message for p in plan.problems if p.blocks]
     out.notes += [p.message for p in plan.problems if not p.blocks]
+    if library.library_of(profile) is not None:  # its runtime folder would land in profiles/ (S3e moves it)
+        out.refusals.append(
+            f"{config.label} can't be installed into a profile in the library yet: it needs the launcher's own "
+            "build, which is still to come."
+        )
     if installer_setup(profile, config) is not None:
         out.refusals.append(
             f"{config.label} in {profile.parent.name} was installed by its own installer, and the launcher doesn't "

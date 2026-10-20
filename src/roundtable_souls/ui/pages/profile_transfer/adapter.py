@@ -52,6 +52,7 @@ class ProfileTransferHost(Protocol):
 class ProfileTransferAdapter(QObject):
     changed = Signal()
     _progressed = Signal(object, object, str, int, int)  # emitted on the export's worker, delivered on the UI thread
+    _bytes_in = Signal(object, object)  # an import's bytes unpacked of the total, likewise
 
     def __init__(
         self,
@@ -104,6 +105,8 @@ class ProfileTransferAdapter(QObject):
         self._cancel = threading.Event()
         self._started = 0.0
         self._progressed.connect(self._on_progress)
+        self._import_pct = -1  # -1: no byte count (reading, or a share list)
+        self._bytes_in.connect(self._on_unpacked)
 
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
@@ -173,6 +176,7 @@ class ProfileTransferAdapter(QObject):
             "newProfile": self._new_profile,
             "newName": self._new_name,
             "error": self._error,
+            "pct": self._import_pct,
         }
         imp["canImport"] = bool(prev and not prev.refusals and (self._ticked & {c["key"] for c in imp["cards"]}))
         b = self._bundled
@@ -262,6 +266,7 @@ class ProfileTransferAdapter(QObject):
         if not res:
             return
         self._working = False
+        self._import_pct = -1
         if res.get("kind") == "export":
             took = time.monotonic() - self._started
             if res.get("cancelled"):
@@ -415,6 +420,10 @@ class ProfileTransferAdapter(QObject):
         self._run.update(shown, file=current.rsplit("/", 1)[-1])
         self._emit()
 
+    def _on_unpacked(self, done, total) -> None:
+        self._import_pct = int(100 * done / total) if total else 0
+        self._emit()
+
     @Slot()
     def cancelExport(self) -> None:
         if self._run.get("phase") == "running":
@@ -533,14 +542,22 @@ class ProfileTransferAdapter(QObject):
         skip = {c.key for c in prev.cards} - self._ticked
         box = self._result
         self._working = True
+        self._import_pct = 0
         self._emit()
+        last = [0.0]
+
+        def report(done, total) -> None:  # on the worker: at most ten times a second
+            now = time.monotonic()
+            if now - last[0] >= 0.1 or done >= total:
+                last[0] = now
+                self._bytes_in.emit(done, total)
 
         def job(_setup, loc):
             from roundtable_souls.platform import logging as run_logging
 
             run_logging.start_log(f"launcher: import a shared profile into {prev.profile.name}", loc.game.key)
             try:
-                out = pt.apply(prev, skip)
+                out = pt.apply(prev, skip, progress=report)
                 box.update(name=Path(out["profile"]).name)
             except Exception as e:
                 box.update(error=str(e) or type(e).__name__)

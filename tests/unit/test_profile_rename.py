@@ -39,7 +39,7 @@ def records(*profiles: Path) -> dict:
     """Everything outside the library the rename touches: the launcher's settings and the history folders."""
     s = load_settings()
     return {
-        "setup": s.setup,
+        "setup": s.profile,
         "marks": dict(s.parameter_overlays),
         "history": {str(p): tree(history.folder(p)) if history.folder(p).is_dir() else None for p in profiles},
     }
@@ -82,7 +82,7 @@ def test_rename_then_undo_is_byte_exact(world):
     assert "builds/combined-parameters/My Run" in new.read_text()  # the entry follows the folder
     assert ps.load(new)["after_overlay"] == ["flora"] and ps.load(a) == {} and ps.load(b)["after_overlay"] == ["x"]
     s = load_settings()
-    assert s.setup == str(new) and _key(new) in s.parameter_overlays and _key(a) not in s.parameter_overlays
+    assert s.profile == str(new) and _key(new) in s.parameter_overlays and _key(a) not in s.parameter_overlays
     assert tree(history.folder(new)) == tree(history.folder(a))  # copied; the old copies stay
     assert profile_rename.undo_rename(Path(out["operation"])).startswith("took back")
     assert tree(root) == before
@@ -145,7 +145,7 @@ def test_an_interrupted_rename_recovers(world, monkeypatch):
             profile_rename.apply(profile_rename.preview(a, "z", loc=loc), loc=loc)
     assert "did not finish" in (operations.problem(a) or "")
     assert operations.recover(a)
-    assert tree(root) == before and operations.problem(a) is None and load_settings().setup == str(a)
+    assert tree(root) == before and operations.problem(a) is None and load_settings().profile == str(a)
 
     # dying after every step but before the launcher's records were re-keyed: recovery finishes that
     with monkeypatch.context() as m:
@@ -153,12 +153,12 @@ def test_an_interrupted_rename_recovers(world, monkeypatch):
         with pytest.raises(Crash):
             profile_rename.apply(profile_rename.preview(a, "z", loc=loc), loc=loc)
     new = lib.profile("z")
-    assert new.is_file() and load_settings().setup == str(a)
+    assert new.is_file() and load_settings().profile == str(a)
     operations.recover(new)
-    assert load_settings().setup == str(new) and _key(new) in load_settings().parameter_overlays
+    assert load_settings().profile == str(new) and _key(new) in load_settings().parameter_overlays
     assert history.folder(new).is_dir()
     operations.recover(new)  # idempotent
-    assert load_settings().setup == str(new)
+    assert load_settings().profile == str(new)
 
 
 def test_an_older_launchers_rollback_cannot_delete_a_folder(world):

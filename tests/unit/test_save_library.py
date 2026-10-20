@@ -137,25 +137,25 @@ def test_default_name_says_when_without_characters(tmp_path):
     assert Lib.default_name(_save(tmp_path / "ER0000.co2", 1), ER).startswith("ER0000.co2 · ")
 
 
-def test_setup_saves_follow_me3_savefile_and_the_seamless_extension(tmp_path):
+def test_profile_saves_follow_me3_savefile_and_the_seamless_extension(tmp_path):
     prof = tmp_path / "p.me3"
     prof.write_text('profileVersion = "v1"\nsavefile = "run2.sl2"\n', encoding="utf-8")
     ini = tmp_path / "ersc_settings.ini"
     ini.write_text("[SAVE]\nsave_file_extension = co3\n", encoding="utf-8")
-    names = core.setup_saves(core.Setup("me3", prof, ini=ini, loc=er()))
+    names = core.profile_saves(core.LaunchProfile("me3", prof, ini=ini, loc=er()))
     assert names["standard"] == "run2.sl2" and names["coop"] == "run2.co3" and names["active"] == "run2.co3"
     assert "save_file_extension" in names["why"]["coop"] and "savefile" in names["why"]["standard"]
-    plain = core.setup_saves(core.Setup("me3", tmp_path / "missing.me3", loc=er()))
+    plain = core.profile_saves(core.LaunchProfile("me3", tmp_path / "missing.me3", loc=er()))
     assert (plain["standard"], plain["coop"], plain["active"]) == ("ER0000.sl2", None, "ER0000.sl2")
 
 
-def test_save_files_include_the_names_the_setup_uses(tmp_path, monkeypatch):
+def test_save_files_include_the_names_the_profile_uses(tmp_path, monkeypatch):
     acct = tmp_path / "EldenRing" / "7656"
     acct.mkdir(parents=True)
     for n in ("ER0000.sl2", "run2.co3", "unrelated.sl2"):
         (acct / n).write_bytes(b"x")
     monkeypatch.setattr(common, "save_roots_for", lambda save_dir, app_id: [tmp_path / "EldenRing"])
     assert [p.name for p in er().save_files()] == ["ER0000.sl2"]
-    loc = er().with_setup_save_names({"standard": "ER0000.sl2", "coop": "run2.co3"})
+    loc = er().with_profile_save_names({"standard": "ER0000.sl2", "coop": "run2.co3"})
     assert [p.name for p in loc.save_files()] == ["ER0000.sl2", "run2.co3"]
     assert saves_service.save_kind(acct / "run2.co3", loc=loc) == "Seamless Co-op"

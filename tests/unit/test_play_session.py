@@ -5,7 +5,7 @@ every way it can go wrong. Nothing real is started; time only passes when the co
 import json
 
 import pytest
-from fakehost import STEAM_EXE, FakeHost, setup_for
+from fakehost import STEAM_EXE, FakeHost, launch_profile_for
 
 from roundtable_souls.game import catalog as games
 from roundtable_souls.game.locate import Locations
@@ -214,12 +214,12 @@ def play(monkeypatch, me3):
         "host": host,
         "opts": opts,
         "repaired": repaired,
-        "setup": setup_for(games.ELDEN_RING, me3=str(me3), loc=er()),
+        "setup": launch_profile_for(games.ELDEN_RING, me3=str(me3), loc=er()),
     }
 
 
-def _run(job, setup):
-    return jobs.run_job(job, setup, er(), "Starting...")
+def _run(job, launch):
+    return jobs.run_job(job, launch, er(), "Starting...")
 
 
 def _record(job_id=None):
@@ -256,8 +256,8 @@ def test_play_that_cannot_get_steam_fails_and_launches_nothing(play):
 
 
 def test_play_with_me3_missing_fails_before_launching(play, tmp_path):
-    setup = setup_for(games.ELDEN_RING, me3=str(tmp_path / "nowhere" / "me3.exe"), loc=er())
-    outcome = _run(core.job_play, setup)
+    launch = launch_profile_for(games.ELDEN_RING, me3=str(tmp_path / "nowhere" / "me3.exe"), loc=er())
+    outcome = _run(core.job_play, launch)
     assert not outcome.ok and "me3" not in play["host"].happened() and play["repaired"] == []
     assert _record()["outcome"] == "failed"
 
@@ -289,8 +289,8 @@ def test_offline_play_uses_the_offline_profile_and_skips_steams_sign_in(play, mo
     host = play["host"]
     host.sign_in_after = None  # offline: never signs in, and must not be waited for
 
-    def job(setup, loc):
-        core.job_play_offline(setup, loc, start_steam=True)
+    def job(launch, loc):
+        core.job_play_offline(launch, loc, start_steam=True)
 
     outcome = _run(job, play["setup"])
     assert outcome.ok
@@ -303,8 +303,8 @@ def test_offline_play_uses_the_offline_profile_and_skips_steams_sign_in(play, mo
 def test_offline_play_without_starting_steam_never_starts_it(play, monkeypatch, tmp_path):
     monkeypatch.setattr(core, "offline_profile_for", lambda profile, **k: tmp_path / "p.offline.me3")
 
-    def job(setup, loc):
-        core.job_play_offline(setup, loc, start_steam=False)
+    def job(launch, loc):
+        core.job_play_offline(launch, loc, start_steam=False)
 
     _run(job, play["setup"])
     assert "steam started" not in play["host"].happened()
@@ -315,8 +315,8 @@ def test_a_game_without_a_regulation_block_is_not_repaired(play, monkeypatch):
     assert not ds3.regulation_repair
     loc = Locations(ds3)
     monkeypatch.setattr(Locations, "save_files", lambda self: [])
-    setup = setup_for(ds3, me3=play["setup"].me3_path(), loc=loc)
-    outcome = jobs.run_job(core.job_play, setup, loc, "Starting...")
+    launch = launch_profile_for(ds3, me3=play["setup"].me3_path(), loc=loc)
+    outcome = jobs.run_job(core.job_play, launch, loc, "Starting...")
     assert outcome.ok and play["repaired"] == []
 
 

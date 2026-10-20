@@ -282,16 +282,16 @@ DELETE_MANAGED = "managed"  # the profile belongs to an installer that manages i
 DELETE_BUSY = "busy"
 
 
-def delete_refusal(setup, busy: bool, *, loc: Locations) -> str | None:
+def delete_refusal(launch, busy: bool, *, loc: Locations) -> str | None:
     """Why the setup's profile cannot be deleted now (one of the DELETE_* codes), or None. A profile belongs to an
     installer that manages it when an overhaul's own installer made the setup (the overhaul configs' [recognise]
     data: its manifest is there and the launcher did not install it), whether the setup was picked as the .me3 or
     through the installer's manifest. A setup the launcher installed can be deleted (overhaul_to_keep)."""
-    if setup is None or not getattr(setup, "profile", None) or not Path(setup.profile).is_file():
+    if launch is None or not getattr(launch, "profile", None) or not Path(launch.profile).is_file():
         return DELETE_NO_PROFILE
-    if getattr(setup, "kind", "") == "manifest" and not _launcher_manifest(Path(setup.source)):
+    if getattr(launch, "kind", "") == "manifest" and not _launcher_manifest(Path(launch.source)):
         return DELETE_MANAGED
-    has = profile_overhaul(setup.profile, loc=loc)
+    has = profile_overhaul(launch.profile, loc=loc)
     if has is not None and has["legacy"]:
         return DELETE_MANAGED
     if busy:
@@ -453,7 +453,7 @@ def rebuild_job(profile, combine: bool | None = None):
     """The logged job that rebuilds (or combines) the parameters and leaves the rebuild's undo record."""
     prof = Path(profile)
 
-    def job(_setup, loc):
+    def job(_launch, loc):
         run_logging.start_log("launcher: rebuild combined parameters", loc.game.key)
         try:
             out = mod_merge.rebuild(prof, run_logging.log, combine=combine, loc=loc)

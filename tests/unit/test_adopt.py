@@ -126,13 +126,13 @@ def test_adopt_then_undo_round_trip(world):
     now = load_settings()
     assert list(now.native_configs) == [configs.key_for(lib.native("foo") / "foo.dll")]
     assert now.native_configs[configs.key_for(lib.native("foo") / "foo.dll")] == [str(lib.native("foo") / "foo.ini")]
-    assert now.setup == str(a)
+    assert now.profile == str(a)
     assert ps.load(a)["overlay"]["package"] == "../packages/grass" and ps.load(a)["after_overlay"] == ["flora"]
     assert (lib.state.backups / "a.me3.bak").read_bytes() == b"old bak"
     msg = adopt.undo_adopt(Path(out["operation"]))
     assert "took back" in msg
     assert tree(root.parent) == before_tree
-    assert load_settings().native_configs == before_settings.native_configs and load_settings().setup == str(
+    assert load_settings().native_configs == before_settings.native_configs and load_settings().profile == str(
         s / "a.me3"
     )
     assert not a.exists() and not (lib.state.backups / "a.me3.bak").exists()
@@ -178,7 +178,7 @@ def test_a_crash_while_adopting_is_undone_and_play_is_blocked_until_then(world, 
     said = operations.recover(s / "a.me3")
     assert said and "undone" in said[0]
     assert tree(root.parent) == before and operations.problem(s / "a.me3") is None
-    assert load_settings().setup == str(s / "a.me3")
+    assert load_settings().profile == str(s / "a.me3")
 
     # a prepared move step that is given up leaves both sides alone
     kept = s / "mod" / "flora"
@@ -193,9 +193,9 @@ def test_a_crash_while_adopting_is_undone_and_play_is_blocked_until_then(world, 
         with pytest.raises(Crash):
             adopt.adopt(adopt.preview(setup, loc=loc), loc=loc)
     lib = library.ModLibrary.at(root, "eldenring")
-    assert load_settings().setup == str(s / "a.me3")
+    assert load_settings().profile == str(s / "a.me3")
     operations.recover(lib.profile("a"))
-    assert load_settings().setup == str(lib.profile("a"))
+    assert load_settings().profile == str(lib.profile("a"))
     assert configs.key_for(lib.native("foo") / "foo.dll") in load_settings().native_configs
 
 
@@ -237,5 +237,5 @@ def test_undo_is_refused_after_an_adopted_profile_changed(world):
     settings = load_settings()
     with pytest.raises(adopt.AdoptError, match="changed after it was adopted"):
         adopt.undo_adopt(Path(out["operation"]))
-    assert tree(root.parent) == mid and load_settings().setup == settings.setup
+    assert tree(root.parent) == mid and load_settings().profile == settings.profile
     assert not (s / "a.me3").exists()

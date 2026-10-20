@@ -34,9 +34,9 @@ class Jobs(QObject):
         self._calls[task] = (on_progress, on_result)
         return task
 
-    def start_job(self, job, setup, loc, title: str, on_done: Callable[[jobs.Outcome], None]) -> int:
+    def start_job(self, job, launch, loc, title: str, on_done: Callable[[jobs.Outcome], None]) -> int:
         """A logged job (jobs.run_job); on_done gets its Outcome on the UI thread."""
-        task = self.runner.start_job(job, setup, loc, title)
+        task = self.runner.start_job(job, launch, loc, title)
         self._calls[task] = (None, on_done)
         return task
 

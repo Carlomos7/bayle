@@ -57,16 +57,16 @@ def test_every_status_text_state():
     assert s(Facts(game=catalog.SEKIRO)).text == "Not supported yet"
 
 
-def _setup(label, kind="me3", source=None):
+def _launch(label, kind="me3", source=None):
     return SimpleNamespace(label=label, kind=kind, source=source or f"C:/p/{label}")
 
 
 def test_the_profile_drop_down_lists_the_profiles_the_current_one_checked_and_new_profile_last():
-    setups = [_setup("a.me3"), _setup("the overhaul  ·  installation.json", "manifest")]
-    m = topbar.profile_menu(setups, 1, busy=False)
+    launch_profiles = [_launch("a.me3"), _launch("the overhaul  ·  installation.json", "manifest")]
+    m = topbar.profile_menu(launch_profiles, 1, busy=False)
     assert [e.label for e in m.entries] == ["a.me3", "the overhaul"] and m.entries[1].managed and m.entries[1].checked
     assert m.current == "the overhaul" and m.new_text == "New profile..." and m.enabled
-    assert not topbar.profile_menu(setups, 0, busy=True).enabled
+    assert not topbar.profile_menu(launch_profiles, 0, busy=True).enabled
     assert topbar.profile_menu([], -1, busy=False).current == "No profile"
 
 

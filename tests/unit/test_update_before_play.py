@@ -87,10 +87,10 @@ def test_only_the_newest_tool_backups_are_kept_after_an_automatic_rebuild(world,
 
 def test_play_without_the_window_updates_first_when_the_tool_is_allowed(world, monkeypatch):
     world.pack("params")
-    setup = type("S", (), {"profile": str(world.profile), "game": core.games.ELDEN_RING, "loc": er()})()
+    launch = type("S", (), {"profile": str(world.profile), "game": core.games.ELDEN_RING, "loc": er()})()
     lines = []
     monkeypatch.setattr(run_logging, "log", lines.append)
-    assert core.update_merge_headless(setup) is None  # updated: the game may start
+    assert core.update_merge_headless(launch) is None  # updated: the game may start
     assert merge.health(world.profile, loc=er())["state"] == "current"
     assert any(l.startswith("done: merged mods updated") for l in lines)
 
@@ -142,10 +142,10 @@ def test_play_without_the_window_does_not_start_when_the_merge_cannot_be_rebuilt
 
 
 def test_headless_play_does_not_launch_when_it_must_not(monkeypatch):
-    setup = type(
+    launch = type(
         "S", (), {"profile": "p.me3", "source": "x", "game": core.games.ELDEN_RING, "problems": lambda self: []}
     )()
-    monkeypatch.setattr(core, "discover", lambda remembered, loc: [setup])
+    monkeypatch.setattr(core, "discover", lambda remembered, loc: [launch])
     monkeypatch.setattr(core, "same_source", lambda a, b: True)
     monkeypatch.setattr(core, "update_merge_headless", lambda s, automatic=True: "out of date")
     played, shown = [], []
@@ -155,7 +155,7 @@ def test_headless_play_does_not_launch_when_it_must_not(monkeypatch):
     assert core.play_headless(s, er(), notice=lambda game, why: shown.append(why)) == 1
     assert played == [] and shown == ["out of date"]
     monkeypatch.setattr(core, "update_merge_headless", lambda s, automatic=True: None)
-    assert core.play_headless(s, er()) == 0 and played == [setup]
+    assert core.play_headless(s, er()) == 0 and played == [launch]
 
 
 def test_automatic_rebuilds_are_on_by_default():

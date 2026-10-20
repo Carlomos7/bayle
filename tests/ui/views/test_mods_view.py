@@ -36,7 +36,7 @@ class Host:
         self.locations = er()
         self.settings = LauncherSettings()
         self.game = games.ELDEN_RING
-        self.setup = type("Setup", (), {"profile": str(profile), "kind": "me3"})()
+        self.launch_profile = type("Setup", (), {"profile": str(profile), "kind": "me3"})()
         self.jobs: list[str] = []
         self.changes: list[str] = []
         self.installs: list = []

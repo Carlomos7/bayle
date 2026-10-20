@@ -80,9 +80,9 @@ def test_profiles_are_listed_for_the_game_they_support(tmp_path, monkeypatch):
     loc = Locations(NR, Overrides(profiles_dir=str(root)))
     assert [p.name for p in loc.me3_profiles(ER)] == ["er.me3", "old.me3"]
     assert [p.name for p in loc.me3_profiles()] == ["nr.me3"]
-    setups = core.discover(None, loc)
-    assert [s.label for s in setups] == ["nr.me3"] and setups[0].game is NR
-    wrong = core.Setup("me3", root / "er.me3", loc=loc)
+    launch_profiles = core.discover(None, loc)
+    assert [s.label for s in launch_profiles] == ["nr.me3"] and launch_profiles[0].game is NR
+    wrong = core.LaunchProfile("me3", root / "er.me3", loc=loc)
     assert any("for Elden Ring, not Nightreign" in p for p in wrong.problems())
 
 
@@ -90,20 +90,20 @@ def test_settings_are_kept_per_game():
     settings.save_game_settings("eldenring", setup="er.me3", game_exe="C:/er/eldenring.exe")
     settings.save_game_settings("nightreign", setup="nr.me3")
     s = settings.load_settings()
-    assert s.setup == "er.me3"  # Elden Ring stays where older builds read it
+    assert s.profile == "er.me3"  # Elden Ring stays where older builds read it
     assert settings.game_setting(s, "nightreign", "setup") == "nr.me3"
     assert settings.game_setting(s, "nightreign", "game_exe", "") == ""
-    assert core.remembered_setup(s, NR) == "nr.me3" and core.remembered_setup(s, ER) == "er.me3"
+    assert core.remembered_profile(s, NR) == "nr.me3" and core.remembered_profile(s, ER) == "er.me3"
     assert Locations.from_settings(s, NR).overrides.game_exe == ""  # Elden Ring's custom exe is not Nightreign's
     assert Locations.from_settings(s, ER).overrides.game_exe == "C:/er/eldenring.exe"
 
 
-def test_forget_setup_only_touches_its_own_game():
+def test_forget_profile_only_touches_its_own_game():
     settings.save_game_settings("eldenring", setup="er.me3")
     settings.save_game_settings("nightreign", setup="nr.me3")
-    core.forget_setup(NR)
+    core.forget_profile(NR)
     s = settings.load_settings()
-    assert core.remembered_setup(s, NR) is None and core.remembered_setup(s, ER) == "er.me3"
+    assert core.remembered_profile(s, NR) is None and core.remembered_profile(s, ER) == "er.me3"
 
 
 def test_same_source_matches_remembered_paths_loosely():
@@ -113,10 +113,10 @@ def test_same_source_matches_remembered_paths_loosely():
         assert core.same_source("C:/profiles/Er.me3", "c:\\profiles\\er.me3")
 
 
-def test_setup_reads_its_coop_ini_once_and_only_on_use(tmp_path, monkeypatch):
+def test_profile_reads_its_coop_ini_once_and_only_on_use(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(core, "coop_ini_for", lambda *a: calls.append(a))
-    s = core.Setup("me3", tmp_path / "a.me3", loc=Locations(ER))
+    s = core.LaunchProfile("me3", tmp_path / "a.me3", loc=Locations(ER))
     assert calls == []  # discover() builds a Setup per profile on disk; none reads its file until picked
     assert s.ini is None and s.ini is None
     assert len(calls) == 1  # looked once, remembered the answer, even "this profile has none"

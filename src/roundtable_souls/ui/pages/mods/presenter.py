@@ -797,14 +797,14 @@ class ModsPresenter:
             safety=tr("Nothing else in the profile changes; a backup copy of the file is kept."),
         )
 
-    def delete_refusal(self, code: str | None, setup_name: str = "") -> Refusal | None:
+    def delete_refusal(self, code: str | None, profile_name: str = "") -> Refusal | None:
         if code == profile_mods.DELETE_NO_PROFILE:
             return Refusal(tr("No profile"), tr("Pick a profile first."))
         if code == profile_mods.DELETE_MANAGED:
             return Refusal(
                 tr("Not this one"),
                 tr("{name} is managed by its installer; delete it there.").format(
-                    name=setup_name or tr("This profile")
+                    name=profile_name or tr("This profile")
                 ),
             )
         if code == profile_mods.DELETE_BUSY:

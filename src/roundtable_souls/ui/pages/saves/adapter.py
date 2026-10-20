@@ -251,7 +251,7 @@ class SavesAdapter(QObject):
         if self._blocked():
             return
 
-        def job(_setup, loc):
+        def job(_launch, loc):
             run_logging.start_log(f"launcher: undo the last change to {save.name}", loc.game.key)
             try:
                 said = mod_undo.run(record, run_logging.log, loc=loc)
@@ -280,7 +280,7 @@ class SavesAdapter(QObject):
         the change back (the Activity's Undo and the toast's)."""
         after = self._after
 
-        def job(_setup, loc):
+        def job(_launch, loc):
             run_logging.start_log(f"launcher: {log_title}", loc.game.key)
             try:
                 out = body(loc)

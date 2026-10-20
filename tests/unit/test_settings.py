@@ -28,7 +28,7 @@ def test_invalid_value_falls_back_to_default_for_that_key():
 def test_the_file_keeps_its_keys():
     """An older build restored by the update watchdog reads the same flat file: a save writes back every key it
     had (another build's included), and the keys declared later only once something sets them."""
-    old = settings.LauncherSettings().model_dump()
+    old = settings.LauncherSettings().model_dump(by_alias=True)
     for key in settings.WRITTEN_WHEN_SET:
         old.pop(key)
     old["from_a_newer_build"] = {"x": 1}
@@ -40,3 +40,20 @@ def test_the_file_keeps_its_keys():
     written = json.loads(settings.settings_path().read_text(encoding="utf-8"))
     assert written["update_blocked"] == ["9.9.9"] and "inno_migration" not in written
     assert settings.load_settings().update_blocked == ["9.9.9"]
+
+
+def test_the_launch_profile_keeps_the_file_key_setup():
+    """T7: the field is `profile`, the key on disk stays `setup` (top level and per game), so a build restored after a
+    rollback still reads it; an old-format file loads and a save writes the same keys and keeps unknown ones."""
+    old = {"setup": "a.me3", "games": {"nightreign": {"setup": "nr.me3", "game_exe": "x.exe"}}, "future_key": [1]}
+    settings.settings_path().write_text(json.dumps(old), encoding="utf-8")
+    loaded = settings.load_settings()
+    assert loaded.profile == "a.me3" and settings.game_setting(loaded, "eldenring", "setup") == "a.me3"
+    assert settings.game_setting(loaded, "nightreign", "setup") == "nr.me3"
+    settings.save_settings(theme="light")
+    settings.save_game_settings("eldenring", setup="b.me3")
+    settings.save_game_settings("nightreign", setup="n2.me3")
+    written = json.loads(settings.settings_path().read_text(encoding="utf-8"))
+    assert written["setup"] == "b.me3" and "profile" not in written and written["future_key"] == [1]
+    assert written["games"]["nightreign"] == {"setup": "n2.me3", "game_exe": "x.exe"}
+    assert settings.load_settings().profile == "b.me3"

@@ -174,7 +174,7 @@ class _Context:
         self.locations = Locations.from_settings(self.settings, game)
         return self.locations
 
-    def note_setup_saves(self, names):
+    def note_profile_saves(self, names):
         return self.locations
 
     def reload_settings(self):

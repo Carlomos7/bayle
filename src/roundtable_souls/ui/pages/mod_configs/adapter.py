@@ -629,7 +629,7 @@ class ModConfigsAdapter(QObject):
                 if not ok or self.host.busy:
                     return
 
-                def job(_setup, loc):
+                def job(_launch, loc):
                     from roundtable_souls.platform import logging as run_logging
 
                     run_logging.start_log(f"launcher: set up {preview.label} as an overhaul", loc.game.key)
@@ -703,7 +703,7 @@ class ModConfigsAdapter(QObject):
                 if not ok or self.host.busy:
                     return
 
-                def job(_setup, loc):
+                def job(_launch, loc):
                     from roundtable_souls.platform import logging as run_logging
 
                     run_logging.start_log(f"launcher: turn off overhaul {label}", loc.game.key)

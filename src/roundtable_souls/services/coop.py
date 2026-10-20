@@ -68,7 +68,7 @@ __all__ = [
     "toggle_comment",
     "GameFolderSeamless",
     "game_folder_seamless",
-    "move_seamless_into_setup",
+    "move_seamless_into_profile",
     "clean_up_game_folder_seamless",
     "relocate_dismissed",
     "dismiss_relocate",
@@ -101,15 +101,15 @@ class GameFolderSeamless:
         return f"{game}|{Path(profile).name.lower()}|{self.kind}"
 
 
-def game_folder_seamless(setup) -> GameFolderSeamless | None:
+def game_folder_seamless(launch) -> GameFolderSeamless | None:
     """What of Seamless Co-op sits in the game folder of this setup's game, and what can be done with it. None when
     there is nothing (crash-dump folders alone don't count: Seamless Co-op recreates them) or no game folder."""
     from roundtable_souls.coop.ini import coop_ini_for
 
-    game = setup.game
-    if not game.coop_dll or setup.kind != "me3":
+    game = launch.game
+    if not game.coop_dll or launch.kind != "me3":
         return None
-    gdir = setup.loc.game_dir()
+    gdir = launch.loc.game_dir()
     if not gdir:
         return None
     gdir = Path(gdir)
@@ -118,7 +118,7 @@ def game_folder_seamless(setup) -> GameFolderSeamless | None:
     has_dll = any(p.name.lower() == game.coop_dll.lower() and p.is_file() for p in files)
     launcher = gdir / game.coop_launcher if game.coop_launcher else None
     launcher = launcher if launcher is not None and launcher.is_file() else None
-    loaded = coop_ini_for(setup.profile, game)  # the ini beside the DLL the profile loads, when it does
+    loaded = coop_ini_for(launch.profile, game)  # the ini beside the DLL the profile loads, when it does
     if loaded is None:
         if not has_dll:
             return None
@@ -140,7 +140,7 @@ def seamless_in_game_folder(loc) -> bool:
     return bool(game.coop_dll and gdir and (Path(gdir) / "SeamlessCoop" / game.coop_dll).is_file())
 
 
-def move_seamless_into_setup(setup, found: GameFolderSeamless, log=lambda s: None) -> Path:
+def move_seamless_into_profile(launch, found: GameFolderSeamless, log=lambda s: None) -> Path:
     """Move Seamless Co-op from the game folder into the setup's DLL folder (natives/SeamlessCoop, or -2…), add it to
     the profile as an early-loading DLL (a switched-off entry for it is replaced), and send its own launcher to the
     Recycle Bin. The settings file moves untouched (password included). Returns the new folder. If the profile
@@ -148,8 +148,8 @@ def move_seamless_into_setup(setup, found: GameFolderSeamless, log=lambda s: Non
     from roundtable_souls.mods import profile_edit
     from roundtable_souls.mods.profile_writer import ProfileWriter
 
-    profile = Path(setup.profile)
-    game = setup.game
+    profile = Path(launch.profile)
+    game = launch.game
     text = profile.read_bytes().decode("utf-8", errors="replace")
     _pk, natives = profile_edit.roots(profile, text)
     dest = natives / "SeamlessCoop"
@@ -164,7 +164,7 @@ def move_seamless_into_setup(setup, found: GameFolderSeamless, log=lambda s: Non
             target = dest / src.name
             shutil.move(str(src), str(target))
             moved.append((src, target))
-        w = ProfileWriter(profile, setup.loc)
+        w = ProfileWriter(profile, launch.loc)
         old = w.find("native", game.coop_dll)
         if old is not None:
             w.remove_entry(old)
@@ -183,7 +183,7 @@ def move_seamless_into_setup(setup, found: GameFolderSeamless, log=lambda s: Non
     return dest
 
 
-def clean_up_game_folder_seamless(setup, found: GameFolderSeamless, log=lambda s: None) -> list[Path]:
+def clean_up_game_folder_seamless(launch, found: GameFolderSeamless, log=lambda s: None) -> list[Path]:
     """Send the leftover Seamless Co-op files in the game folder (not the crash dumps) and its launcher to the Recycle
     Bin. The profile's own copy is untouched. Returns what was removed."""
     from roundtable_souls.platform import trash

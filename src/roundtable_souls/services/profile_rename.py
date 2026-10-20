@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 Error = renamer.ProfileRenameError
 
 
-def refusal(setup, busy: bool, *, loc: Locations) -> str | None:
-    """Why the setup's profile can't be renamed or copied now (one of profile_mods' DELETE_* codes: no profile, run by
+def refusal(launch, busy: bool, *, loc: Locations) -> str | None:
+    """Why the profile can't be renamed or copied now (one of profile_mods' DELETE_* codes: no profile, run by
     an installer, a job running), or None."""
-    return profile_mods.delete_refusal(setup, busy, loc=loc)
+    return profile_mods.delete_refusal(launch, busy, loc=loc)
 
 
 def name_problem(profile: Path, name: str) -> str | None:

@@ -30,11 +30,21 @@ ModalDialog {
         name.forceActiveFocus();
         name.selectAll();
     }
+    property bool stale: false  // the name changed and its check has not come back yet
+    property bool applyWhenChecked: false
+
     function refresh() {
+        stale = true;
         if (entry >= 0)
             adapter.requestRenamePreview(entry, name.text);
     }
     function apply() {
+        if (stale) {  // wait for the check of the name as typed
+            applyWhenChecked = true;
+            refreshTimer.stop();
+            refresh();
+            return;
+        }
         if (!info.ok)
             return;
         adapter.rename(entry, name.text.trim());
@@ -43,7 +53,7 @@ ModalDialog {
 
     footerRow: [
         PrimaryButton {
-            enabled: dlg.info.ok
+            enabled: dlg.info.ok && !dlg.stale
             objectName: "renameApply"
             text: dlg.words.renameButton
 
@@ -66,11 +76,21 @@ ModalDialog {
         width: parent.width
 
         onAccepted: dlg.apply()
-        onTextChanged: refreshTimer.restart()  // the preview reads the profiles: not on every keystroke
+        onTextChanged: {
+            dlg.stale = true;
+            refreshTimer.restart();
+        }  // the preview reads the profiles: not on every keystroke
     }
     Connections {
         function onRenamePreviewReady(result) {
+            if (result.name !== name.text)  // an answer for a name since changed
+                return;
             dlg.info = result;
+            dlg.stale = false;
+            if (dlg.applyWhenChecked) {
+                dlg.applyWhenChecked = false;
+                dlg.apply();
+            }
         }
 
         target: dlg.adapter

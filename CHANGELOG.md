@@ -4,6 +4,13 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Export / Import profile, Export: a full export shows a progress bar (percent, file N of M, the file, MB done of total,
+  time left) and a Cancel export button that removes the partial zip; it runs as a job, so it is in Activity. Export
+  is off with the reason beside it, and a missing name, folder or mod is marked in place. A line says what the file
+  will hold and its size; mods of 1 GB or more carry a warning badge, a total over 2 GB shows a warning naming the
+  biggest mods and asks once before exporting. When it ends the page says Done (name, size, time, Show in folder),
+  Cancelled, or what failed. Already-compressed files (.dcx, .bdt, .dds, archives, images, audio) are stored, not
+  deflated: much faster for big exports.
 - Install mod, with "Install overhauls with the launcher (preview)" on: a download that ships its own installer, an
   me3 profile, or a regulation.bin with DLLs starts with "Set up as an overhaul" ticked and the reason shown; any
   other mod can tick it. The dialog shows what it will do (the Name gives the id) and the button reads "Install as

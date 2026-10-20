@@ -186,3 +186,23 @@ def test_a_full_export_imports_as_a_new_profile_without_the_save_or_an_exe(tmp_p
         assert any("save" in n for n in pre.notes)
     finally:
         pt.discard(inc)
+
+
+def test_a_cancelled_full_export_leaves_no_zip_and_no_temp_file(tmp_path):
+    src = make(tmp_path / "a", 7)
+    items = pt.items(src, full=True)
+    with pytest.raises(pt.ExportCancelled):
+        pt.full_export(
+            src,
+            loc=er(),
+            settings=load_settings(),
+            name="Pack",
+            version="1",
+            author="me",
+            readme="",
+            changelog="",
+            chosen={it.key for it in items},
+            out_dir=tmp_path / "out",
+            cancelled=lambda: True,
+        )
+    assert list((tmp_path / "out").iterdir()) == []

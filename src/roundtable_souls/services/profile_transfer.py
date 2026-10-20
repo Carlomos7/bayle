@@ -40,6 +40,19 @@ if TYPE_CHECKING:
 
 MAX_README = 256 * 1024
 PROFILE_CARD = "profile"
+# Formats that are already compressed or encrypted: deflating them costs minutes for almost no size gain.
+STORED_SUFFIXES = frozenset(".dcx .bdt .dds .zip .7z .rar .png .jpg .jpeg .ogg .mp3 .mp4 .wem .bk2 .bik .fsb".split())
+CHUNK = 4 * 1024 * 1024
+# shortcut: the thresholds and speed are one set of constants; MB/s measured 2026-10-20 (see exportux/critique.md)
+LARGE_MOD = 1024**3  # a mod this big is marked in the checklist
+LARGE_EXPORT = 2 * 1024**3  # an export this big warns and asks once
+EXPORT_MBPS = 150  # a conservative disk-bound guess for the time estimate
+
+
+class ExportCancelled(Exception):
+    """The player stopped a full export; the partial zip is already gone."""
+
+
 SETTING_LABELS = {k: v[0] for k, v in profile_tools.SETTING_TEXT.items()}
 
 
@@ -251,7 +264,8 @@ def full_export(
     password: bool = False,
     with_configs: bool = True,
     with_save: bool = False,
-    progress: Callable[[int, int], None] = lambda done, total: None,
+    progress: Callable[[int, int, str, int, int], None] = lambda *_: None,
+    cancelled: Callable[[], bool] = lambda: False,
 ) -> Path:
     """The zip: manifest.json, <name>.me3 pointing at mods/<folder> and dlls/<folder>/<dll>, those folders,
     README.md, CHANGELOG.md and the save under save/ when asked. Written to a temp file and renamed; never into a
@@ -309,11 +323,19 @@ def full_export(
             z.writestr(me3_name, text)
             z.writestr("README.md", readme)
             z.writestr("CHANGELOG.md", changelog)
-            for path, arc in files:
+            for n, (path, arc) in enumerate(files, 1):
                 if path.is_file() and not path.is_symlink():
-                    z.write(path, arc)
-                    done += path.stat().st_size
-                    progress(done, total)
+                    info = zipfile.ZipInfo.from_file(path, arc)
+                    info.compress_type = (
+                        zipfile.ZIP_STORED if path.suffix.lower() in STORED_SUFFIXES else zipfile.ZIP_DEFLATED
+                    )
+                    with path.open("rb") as src, z.open(info, "w") as dst:
+                        while chunk := src.read(CHUNK):
+                            if cancelled():
+                                raise ExportCancelled
+                            dst.write(chunk)
+                            done += len(chunk)
+                            progress(done, total, arc, n, len(files))
         os.replace(tmp, out)
     except BaseException:
         tmp.unlink(missing_ok=True)

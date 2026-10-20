@@ -128,6 +128,7 @@ Item {
             ToolTip.text: holder.more
             ToolTip.visible: containsMouse && !holder.held && holder.more !== ""
             acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
             anchors.fill: parent
             hoverEnabled: true
 

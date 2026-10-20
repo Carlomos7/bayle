@@ -37,9 +37,6 @@ class ModConfigsHost(Protocol):
     def settings(self) -> Any: ...
     def run_in_background(self, work, on_result) -> None: ...
     def run_job(self, job, status: str) -> None: ...
-    def profiles(self) -> list[str]: ...
-    def profile_index(self) -> int: ...
-    def pick_profile(self, index: int) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None:
         """Ask for a file to open; None when cancelled."""
 
@@ -79,8 +76,6 @@ class ModConfigsAdapter(QObject):
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
     words = Property(dict, lambda self: self._words, constant=True)
-    profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
-    profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
     profileName = Property(str, lambda self: self._profile.stem if self._profile else "", notify=changed)
     hasProfile = Property(bool, lambda self: self._profile is not None, notify=changed)
     nodes = Property(
@@ -249,14 +244,6 @@ class ModConfigsAdapter(QObject):
             self._open(node, node.files[0].path)
         elif node is None:
             self._close()
-
-    @Slot(int)
-    def pickProfile(self, index: int) -> None:
-        def go() -> None:
-            self.host.pick_profile(index)
-            self.refresh()
-
-        self._guard(go)
 
     def select_mod(self, name: str) -> None:
         """Select a mod by its name or key once the tree is read (the Mods page's links)."""

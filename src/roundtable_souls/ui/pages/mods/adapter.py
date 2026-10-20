@@ -105,10 +105,6 @@ class ModsHost(Protocol):
         """The setups the player can pick (the Play list's labels)."""
         ...
 
-    def profile_index(self) -> int: ...
-
-    def pick_profile(self, index: int) -> None: ...
-
     def request_new_profile(self) -> None:
         """Ask the shell for its New profile dialog (the page's first-run button)."""
 
@@ -165,17 +161,7 @@ class ModsAdapter(QObject):
     hasProfile = Property(bool, lambda self: self._facts is not None and not self._facts.error, notify=changed)
     overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
     installer = Property(QObject, lambda self: self._install, constant=True)
-    profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
-    profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
     canAdopt = Property(bool, lambda self: self._adopt[0] is not None, notify=changed)
-
-    @Slot(int)
-    def pickProfile(self, index: int) -> None:
-        if self.host.busy:
-            self.notifier.toast(tr("Wait for the current job"), error=True)
-            return
-        self.host.pick_profile(index)
-        self.refresh()
 
     @Slot()
     def createProfile(self) -> None:

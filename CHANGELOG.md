@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The Mods and Mod Configs pages follow the profile picked in the top bar; their own profile pickers are gone.
 - Mod Configs shows the file list and the file side by side down to a 640 px wide page.
 - Profile settings, Mod options and the load-order tags use plain words; the me3 setting names are in tooltips.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.

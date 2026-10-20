@@ -39,7 +39,7 @@ Item {
 
         onActivated: page.adapter.save()
     }
-    Item {  // the header: the profile, picked here as on the Mods page
+    Item {  // the header: the profile's name (picked in the top bar)
         id: header
 
         anchors.left: parent.left
@@ -50,26 +50,14 @@ Item {
         anchors.topMargin: Theme.sp8
         height: 40
 
-        DropButton {
+        Txt {
             anchors.left: parent.left
+            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            implicitHeight: Theme.controlH
-            objectName: "profilePicker"
+            elide: Text.ElideRight
+            kind: "rowTitle"
+            objectName: "profileTitle"
             text: page.adapter.profileName !== "" ? page.adapter.profileName : page.words.noProfile
-
-            Repeater {
-                model: page.adapter.profiles
-
-                MenuEntry {
-                    required property int index
-                    required property string modelData
-
-                    checked: index === page.adapter.profileIndex
-                    text: modelData
-
-                    onTriggered: page.adapter.pickProfile(index)
-                }
-            }
         }
     }
     Flickable {  // the tree

@@ -161,7 +161,7 @@ per-language fallback copies (`payload/settings/vanilla/`) are left out: the gam
 ## Installing it into a profile
 
 A build may also say what installing that edition does to the player's me3 profile (`[builds.install]`). The
-launcher works the changes out from it without writing anything (`overhauls/install_plan.py`), and, with Tools >
+launcher works the changes out from it without writing anything (`overhauls/install_plan.py`), and, with Settings >
 Play session > "Install overhauls with the launcher (preview)" on, applies them itself (`mods/overhaul_install.py`;
 see *Installing and removing with the launcher* below). Editions the mod's installer knows but
 the launcher does not install are listed with the reason in `install_unsupported` (edition -> why) at the top.

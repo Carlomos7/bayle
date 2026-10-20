@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Wording: the overhaul preview note and the Overhaul configs doc say "Settings > Play session" (the old Tools page is gone).
 - Wording: the leftover Workshop names in comments and docs now name the Check & repair page.
 - Saves: a Library copy is logged as "save copy" in its history; older history lines keep their old wording.
 - Activity: the job list is virtualized (only the days on screen are built), with the summary and filters scrolling as its header.

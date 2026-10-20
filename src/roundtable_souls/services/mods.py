@@ -290,7 +290,7 @@ def overhaul_button_tip(game: str) -> str:
     return (
         "Install an overhaul with the launcher, remove one, or clean up what its own installer left. Only overhauls "
         f"the launcher has an install description for: {', '.join(names) if names else 'none for this game yet'}. "
-        "A preview: Tools > Play session turns it on and off."
+        "A preview: Settings > Play session turns it on and off."
     )
 
 

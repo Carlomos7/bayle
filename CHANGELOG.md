@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves: drag and drop. Drag a character (from its grip) onto a slot, an empty slot or a save card; a Library copy or a backup onto a live save to restore it; a live save onto the Library (save a copy) or the Backups (back up now); a Library copy expands to its characters, which drag into slots. Ctrl+C on a character and Ctrl+V on a slot do the same copy. Every drop is the same action as its menu entry (same confirmation, back-up first, re-sign, read back, Undo); a refusal says why at the drop spot and after the drop. Esc cancels, the page scrolls at its edges, and Explorer files still import.
 - Mods: dragging a row now says why a drop is refused, in words at the drop spot (red line), the page scrolls when the row nears an edge, Esc cancels the drag, and a running job refuses the move with a message. The spots are judged in memory while you drag; the real check runs on drop.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.

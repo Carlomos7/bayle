@@ -14,8 +14,12 @@ import Components
 Item {
     id: root
 
+    property real captionLeftW: 0   // space for macOS traffic lights (native chrome)
+    property real captionW: 0       // space for the OS caption buttons on the right (native chrome)
+    property real chromeTop: 0      // the OS title bar height when the client area extends under it
     property bool compact: false
-    readonly property int menuRowHeight: Theme.menuRowH
+    property bool nativeChrome: false
+    readonly property int menuRowHeight: nativeChrome ? Math.max(Theme.menuRowH, Math.ceil(chromeTop)) : Theme.menuRowH
     required property var shell
     readonly property var st: shell.status
     readonly property color statusColor: st.tone === "danger" ? Theme.statusDanger : st.tone === "accent" ? Theme.accent : Theme.textSecondary
@@ -43,15 +47,17 @@ Item {
             }
         }
 
-        MouseArea {  // the drag strip
+        MouseArea {  // the drag strip; stops short of the OS caption buttons under native chrome, which Qt hit-tests itself
             anchors.fill: parent
+            anchors.leftMargin: root.captionLeftW
+            anchors.rightMargin: root.captionW
 
             onDoubleClicked: root.window.visibility === Window.Maximized ? root.window.showNormal() : root.window.showMaximized()
             onPressed: root.window.startSystemMove()
         }
         Row {
             anchors.left: parent.left
-            anchors.leftMargin: Theme.sp12
+            anchors.leftMargin: Theme.sp12 + root.captionLeftW
             anchors.verticalCenter: parent.verticalCenter
             spacing: 2
 
@@ -85,6 +91,46 @@ Item {
                         shell: root.shell
                     }
                 }
+            }
+        }
+        Row {  // our own caption buttons, out of the Tab order like a native title bar; hidden under native chrome
+            anchors.right: parent.right
+            anchors.top: parent.top
+            visible: !root.nativeChrome
+
+            IconButton {
+                ToolTip.text: qsTr("Minimise")
+                focusPolicy: Qt.NoFocus
+                hoverColor: Theme.surfaceRow
+                iconSize: 11
+                icon_: "ChromeMinimize"
+                implicitHeight: root.menuRowHeight
+                implicitWidth: 44
+
+                onClicked: root.window.showMinimized()
+            }
+            IconButton {
+                ToolTip.text: root.window.visibility === Window.Maximized ? qsTr("Restore") : qsTr("Maximise")
+                focusPolicy: Qt.NoFocus
+                hoverColor: Theme.surfaceRow
+                iconSize: 11
+                icon_: root.window.visibility === Window.Maximized ? "ChromeRestore" : "ChromeMaximize"
+                implicitHeight: root.menuRowHeight
+                implicitWidth: 44
+
+                onClicked: root.window.visibility === Window.Maximized ? root.window.showNormal() : root.window.showMaximized()
+            }
+            IconButton {
+                ToolTip.text: qsTr("Close")
+                focusPolicy: Qt.NoFocus
+                hoverColor: "#C42B1C"   // the caption red of Windows, the one colour that is not a token on purpose
+                iconSize: 11
+                icon_: "Close"
+                implicitHeight: root.menuRowHeight
+                implicitWidth: 44
+                pressColor: "#A2261A"
+
+                onClicked: root.window.close()
             }
         }
     }

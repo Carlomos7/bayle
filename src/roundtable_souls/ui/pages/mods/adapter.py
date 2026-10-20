@@ -241,7 +241,7 @@ class ModsAdapter(QObject):
                 return None, None, None, None, (), (False, None, False), (None, False)
             try:
                 self._seamless_found = coop_service.game_folder_seamless(setup) if setup is not None else None
-            except OSError:
+            except Exception:  # a game folder that cannot be read: nothing to offer
                 self._seamless_found = None
             recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
             facts = profile_mods.page_facts(profile, loc=loc, settings=settings)

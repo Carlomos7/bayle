@@ -16,12 +16,21 @@ import Shell
 ApplicationWindow {
     id: win
 
+    readonly property real captionLeftW: nativeChrome && Qt.platform.os === "osx" ? 78 : 0  // the traffic lights
+    readonly property real captionW: nativeChrome && Qt.platform.os === "windows" ? Math.round(chromeTop * 1.5) * 3 : 0  // Qt draws 3 buttons, each 1.5x the bar height
+    property real chromeTop: 0  // the OS title bar height (from the probe), 0 when not native
     readonly property bool compact: width < Theme.compactBelow
     readonly property var currentNotifier: shell.notifierFor(shell.currentPage)
     required property var shell
 
+    // Window chrome (v2.20). Windows and macOS on Qt 6.9+: the OS keeps the frame (rounded corners, shadow, Snap
+    // Layouts, resize borders and the caption buttons) and our client area extends under the title bar, where the
+    // menu row sits. Elsewhere, and off-screen (renders, the self-test): a frameless window with our own caption
+    // buttons and edge resizers.
+    readonly property bool nativeChrome: (Qt.platform.os === "windows" || Qt.platform.os === "osx") && Qt.platform.pluginName !== "offscreen" && Qt.ExpandedClientAreaHint !== undefined
+
     color: Theme.surfaceBar
-    flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
+    flags: nativeChrome ? Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
     font.family: Theme.fontFamily
     height: 760
     minimumHeight: 540
@@ -142,13 +151,25 @@ ApplicationWindow {
     }
 
     // ---------------------------------------------------------------- the L
+    Loader {  // the OS title bar's height, in its own file so a Qt without SafeArea fails only this load
+        id: chromeProbe
+
+        anchors.fill: parent
+        source: win.nativeChrome ? Qt.resolvedUrl("Shell/ChromeProbe.qml") : ""
+
+        onLoaded: win.chromeTop = Qt.binding(() => (item as ChromeProbe).topInset)
+    }
     TopBar {
         id: topBar
 
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
+        captionLeftW: win.captionLeftW
+        captionW: win.captionW
+        chromeTop: win.chromeTop
         compact: win.compact
+        nativeChrome: win.nativeChrome
         shell: win.shell
         window: win
     }
@@ -426,5 +447,113 @@ ApplicationWindow {
     }
     FolderDialog {
         objectName: "folderDialog"
+    }
+    Edge {
+        cursorShape: Qt.SizeHorCursor
+        edges: Qt.LeftEdge
+        width: band
+
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: band
+            left: parent.left
+            top: parent.top
+            topMargin: band
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeHorCursor
+        edges: Qt.RightEdge
+        width: band
+
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: band
+            right: parent.right
+            top: parent.top
+            topMargin: band
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeVerCursor
+        edges: Qt.BottomEdge
+        height: band
+
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
+            leftMargin: band
+            right: parent.right
+            rightMargin: band
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeVerCursor
+        edges: Qt.TopEdge
+        height: band
+
+        anchors {
+            left: parent.left
+            leftMargin: band
+            right: parent.right
+            rightMargin: band
+            top: parent.top
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeFDiagCursor
+        edges: Qt.TopEdge | Qt.LeftEdge
+        height: band
+        width: band
+
+        anchors {
+            left: parent.left
+            top: parent.top
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeBDiagCursor
+        edges: Qt.TopEdge | Qt.RightEdge
+        height: band
+        width: band
+
+        anchors {
+            right: parent.right
+            top: parent.top
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeBDiagCursor
+        edges: Qt.BottomEdge | Qt.LeftEdge
+        height: band
+        width: band
+
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
+        }
+    }
+    Edge {
+        cursorShape: Qt.SizeFDiagCursor
+        edges: Qt.BottomEdge | Qt.RightEdge
+        height: band
+        width: band
+
+        anchors {
+            bottom: parent.bottom
+            right: parent.right
+        }
+    }
+
+    // resize edges (frameless window): 6 px bands and corners hand off to the system
+    component Edge: MouseArea {
+        property int band: 6
+        property int edges
+
+        enabled: !win.nativeChrome   // the OS owns the resize borders when the frame is native
+        hoverEnabled: true
+        visible: !win.nativeChrome
+
+        onPressed: win.startSystemResize(edges)
     }
 }

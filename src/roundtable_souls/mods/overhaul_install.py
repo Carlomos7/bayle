@@ -258,7 +258,7 @@ def _needed(download: Path, build: Build, recipe: dict) -> list[str]:
     folders: list[str] = []
     places = {"."}  # where licence and notice files are looked for (mods.engine._notices): the top, beside its DLLs
     for step in recipe["steps"]:
-        for key in ("from", "patch", "vanilla", "base", "fragment"):
+        for key in ("from", "patch", "base", "fragment"):
             value = step.get(key)
             if not value:
                 continue
@@ -270,7 +270,7 @@ def _needed(download: Path, build: Build, recipe: dict) -> list[str]:
                 exact.add(value)
         for value in (step.get("texts") or {}).values():
             exact.add(value)
-        if step.get("each"):
+        if (step.get("each") or {}).get("folders_in"):
             folders.append(step["each"]["folders_in"])
         if step["do"] == "copy" and str(step.get("to", "")).lower().endswith(".dll"):
             places.add(str(PurePosixPath(step["from"]).parent).lower())

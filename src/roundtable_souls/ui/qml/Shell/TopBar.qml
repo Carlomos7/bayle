@@ -63,6 +63,29 @@ Item {
                 sourceSize: Qt.size(36, 36)
                 width: 18
             }
+            Item {
+                height: 1
+                width: 8
+            }
+            Repeater {
+                model: root.shell.menuBar
+
+                MenuButton {
+                    id: mb
+
+                    required property var modelData
+
+                    menu: dataMenu
+                    text: modelData.title
+
+                    DataMenu {
+                        id: dataMenu
+
+                        rows: mb.modelData.model
+                        shell: root.shell
+                    }
+                }
+            }
         }
     }
 
@@ -256,5 +279,36 @@ Item {
         z: 30
 
         onDismissed: root.shell.dismissTip("rail")
+    }
+
+    component MenuButton: Button {
+        id: mbtn
+
+        property PopupMenu menu
+
+        anchors.verticalCenter: parent.verticalCenter
+        focusPolicy: Qt.TabFocus
+        hoverEnabled: true
+        implicitHeight: Theme.menuRowH - 6
+        implicitWidth: label.implicitWidth + 18
+
+        background: Rectangle {
+            color: mbtn.down || (mbtn.menu && mbtn.menu.visible) ? Theme.surfacePressed : mbtn.hovered ? Theme.surfaceRow : "transparent"
+            radius: Theme.radiusControl
+        }
+        contentItem: Txt {
+            id: label
+
+            color: Theme.textPrimary
+            horizontalAlignment: Text.AlignHCenter
+            kind: "caption"
+            text: mbtn.text
+        }
+
+        onClicked: {
+            menu.parent = mbtn;
+            menu.y = mbtn.height + 2;
+            menu.open();
+        }
     }
 }

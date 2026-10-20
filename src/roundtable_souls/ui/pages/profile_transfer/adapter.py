@@ -187,6 +187,26 @@ class ProfileTransferAdapter(QObject):
         self._ticked = set()
         self._error = ""
 
+    # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
+    COMMANDS = {
+        "import": "_import_view",
+        "export": "_export_view",
+    }
+
+    def command(self, name: str, args) -> bool:
+        """Run a menu command; False when this page has none by that name."""
+        method = self.COMMANDS.get(name)
+        if method is None:
+            return False
+        getattr(self, method)(*args)
+        return True
+
+    def _import_view(self) -> None:
+        self.open_transfer("import")
+
+    def _export_view(self) -> None:
+        self.open_transfer("export")
+
     @Slot()
     def refresh(self) -> None:
         """Read the profile and what an export lists (also the host's call after a job)."""

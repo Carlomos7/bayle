@@ -344,6 +344,44 @@ class ShellHost(QObject):
         self.refresh_pages()
         self.changed.emit()
 
+    def seamless_offer(self) -> bool:
+        """Seamless Co-op sits in the game folder: a new profile may take it along (moved into the profile)."""
+        from roundtable_souls.services import coop as coop_service
+
+        g = self.state.game
+        try:
+            return bool(g.coop_dll) and bool(coop_service.seamless_in_game_folder(self.state.locations))
+        except OSError:
+            return False
+
+    def new_profile(self, name: str, include_seamless: bool) -> bool:
+        """File > New profile: a profile for this game (and Seamless Co-op moved into it when asked), as a logged job."""
+        from roundtable_souls.services import mods as mods_service
+
+        g = self.state.game
+        name = name.strip() or tr("{game} mods").format(game=g.name)
+        made: list[str] = []
+
+        def job(_setup, loc):
+            run_logging.start_log("launcher: create profile", loc.game.key)
+            try:
+                made.append(
+                    str(mods_service.create_first_profile(name, include_seamless, loc=loc, log=run_logging.log))
+                )
+            except Exception as e:  # reported to the player
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        def done(ok: bool) -> None:
+            if ok and made:
+                core.remember_setup(made[0], g)
+                self.ctx_settings_again()
+                self.state.reload_setups(select=made[0])
+                self.refresh_pages()
+                self.changed.emit()
+
+        return self.start(job, tr("Creating profile..."), "other", done)
+
     def add_profile(self, path: Path) -> bool:
         """File > Add existing profile: a .me3 profile or an installation.json becomes a profile of this game."""
         setup = core.setup_from_path(path, self.state.locations)

@@ -62,12 +62,31 @@ def _settings(host, notifier: Notifier):
 
 
 QML_PAGES: tuple[QmlPage, ...] = (
-    QmlPage("activity", "Pages/ActivityPage.qml", _activity),
-    QmlPage("mods", "Pages/ModsPage.qml", _mods),
-    QmlPage("modConfigs", "Pages/ModConfigsPage.qml", _mod_configs),
-    QmlPage("profileTransfer", "Pages/ProfileTransferPage.qml", _profile_transfer),
-    QmlPage("saves", "Pages/SavesPage.qml", _saves),
-    QmlPage("settings", "Pages/SettingsPage.qml", _settings),
+    QmlPage("activity", "Pages/ActivityPage.qml", _activity, ()),
+    QmlPage(
+        "mods",
+        "Pages/ModsPage.qml",
+        _mods,
+        (
+            "deleteProfile",
+            "profileSettings",
+            "editText",
+            "fixOrder",
+            "versions",
+            "saveUnsaved",
+            "discardUnsaved",
+            "back",
+        ),
+    ),
+    QmlPage("modConfigs", "Pages/ModConfigsPage.qml", _mod_configs, ("saveUnsaved", "discardUnsaved", "back")),
+    QmlPage("profileTransfer", "Pages/ProfileTransferPage.qml", _profile_transfer, ("import", "export")),
+    QmlPage(
+        "saves",
+        "Pages/SavesPage.qml",
+        _saves,
+        ("backUpNow", "transferCharacter", "importSave", "openSavesFolder", "openLibrary", "openBackups", "back"),
+    ),
+    QmlPage("settings", "Pages/SettingsPage.qml", _settings, ("checkForUpdates", "saveLogs")),
     QmlPage("placeholder", "Pages/PlaceholderPage.qml", _placeholder),  # a game without support yet (the shell)
 )
 

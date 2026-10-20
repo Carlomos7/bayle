@@ -51,6 +51,9 @@ ApplicationWindow {
         function onClosePrompt() {
             closeJob.open();
         }
+        function onNewProfileRequested(suggested, seamless) {
+            newProfile.ask(suggested, seamless);
+        }
         function onQuitRequested() {
             win.close();
         }
@@ -404,6 +407,12 @@ ApplicationWindow {
             width: parent.width
             wrapMode: Text.WordWrap
         }
+    }
+
+    NewProfileDialog {
+        id: newProfile
+
+        shell: win.shell
     }
 
     // ---------------------------------------------------------------- the file and folder dialogs (ShellHost's pickers)

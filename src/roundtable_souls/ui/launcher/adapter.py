@@ -20,6 +20,7 @@ from roundtable_souls.services import play as core
 from roundtable_souls.services.settings import save_settings
 from roundtable_souls.ui.launcher import menu, topbar
 from roundtable_souls.ui.launcher.host import ShellHost
+from roundtable_souls.ui.launcher.menumodel import MenuModel
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.page_window import QML_DIR
 from roundtable_souls.ui.pages import registry
@@ -47,6 +48,7 @@ class ShellAdapter(QObject):
     closePrompt = Signal()  # a job is running: confirm before closing
     quitRequested = Signal()
     forwardRequested = Signal()  # a second start: bring the window forward
+    newProfileRequested = Signal(str, bool)  # the suggested name, Seamless can come along
 
     def __init__(self, host: ShellHost, parent: QObject | None = None):
         super().__init__(parent)
@@ -61,6 +63,7 @@ class ShellAdapter(QObject):
         self._after_close_confirm: Any = None
         self._current = "mods" if host.state.game.ready else "placeholder"
         self._cache: dict[str, Any] = {}
+        self._menu_models = {key: MenuModel(self) for key, _title in menu.MENUS}
         host.page_opener = self.open_page
         host.guard_prompt = self._ask_unsaved
         host.close_guard = self._guard_close
@@ -116,8 +119,10 @@ class ShellAdapter(QObject):
                 for g in topbar.game_menu(h.state.game, h.installed_games())
             ],
             "profileMenu": self._profile_menu(),
-            "menus": self._menus(facts),
+            "menu_items": self._menus(facts),
         }
+        for key, _title, items in self._cache["menu_items"]:
+            self._menu_models[key].update(items)
 
     def _profile_menu(self) -> dict:
         m = topbar.profile_menu(self.host.state.setups, self.host.state.index, self.host.busy)
@@ -131,7 +136,7 @@ class ShellAdapter(QObject):
             "managedTag": m.managed_tag,
         }
 
-    def _menus(self, facts: topbar.Facts) -> list[dict]:
+    def _menus(self, facts: topbar.Facts) -> list[tuple[str, str, tuple[menu.Item, ...]]]:
         h = self.host
         st = h.state
         can = {m: topbar.blocked(facts, m) is None and not facts.busy and not facts.game_running for m in topbar.MODES}
@@ -149,21 +154,7 @@ class ShellAdapter(QObject):
             commands=commands,
         )
 
-        def plain(item: menu.Item) -> dict:
-            return {
-                "id": item.id,
-                "label": item.label,
-                "enabled": item.enabled,
-                "checked": item.checked,
-                "shortcut": item.shortcut,
-                "icon": item.icon,
-                "separator": item.separator,
-                "items": [plain(i) for i in item.items],
-            }
-
-        return [
-            {"id": key, "title": title, "items": [plain(i) for i in items]} for key, title, items in menu.resolve(mf)
-        ]
+        return menu.resolve(mf)
 
     def _load_order_broken(self) -> bool:
         page: Any = self._adapters.get("mods")
@@ -176,19 +167,23 @@ class ShellAdapter(QObject):
     modeMenu = Property(list, lambda self: self._cache["modes"], notify=changed)
     games = Property(list, lambda self: self._cache["games"], notify=changed)
     profileMenu = Property(dict, lambda self: self._cache["profileMenu"], notify=changed)
-    menus = Property(list, lambda self: self._cache["menus"], notify=changed)
+
+    @Property(list, constant=True)
+    def menuBar(self) -> list:
+        """The menus in order: {id, title, model}; the models update in place."""
+        return [{"id": key, "title": tr(title), "model": self._menu_models[key]} for key, title in menu.MENUS]
 
     def _menu_enabled(self) -> dict:
         out: dict[str, bool] = {}
 
-        def walk(items: list) -> None:
+        def walk(items: tuple[menu.Item, ...]) -> None:
             for i in items:
-                if not i["separator"]:
-                    out[i["id"]] = i["enabled"]
-                walk(i["items"])
+                if not i.separator:
+                    out[i.id] = i.enabled
+                walk(i.items)
 
-        for m in self._cache["menus"]:
-            walk(m["items"])
+        for _key, _title, items in self._cache["menu_items"]:
+            walk(items)
         return out
 
     menuEnabled = Property(dict, _menu_enabled, notify=changed)
@@ -431,7 +426,7 @@ class ShellAdapter(QObject):
         """A link in the pill's reason or the status text."""
         h = self.host
         if action == topbar.NEW_PROFILE:
-            self.runCommand("mods", "newProfile", [])
+            self._shell_command("newProfile", [])
         elif action == topbar.LOCATIONS:
             self.runCommand("settings", "show", ["locations"])
         elif action == topbar.ME3_UPDATE:
@@ -484,6 +479,8 @@ class ShellAdapter(QObject):
             h.set_appearance()
         elif name == "toggleRail":
             self.toggleRail()
+        elif name == "newProfile":
+            self.newProfileRequested.emit(tr("{game} mods").format(game=st.game.name), h.seamless_offer())
         elif name == "quit":
             self.requestClose()
         elif name == "addProfile":
@@ -540,6 +537,10 @@ class ShellAdapter(QObject):
             self.closePrompt.emit()
         else:
             after_job()
+
+    @Slot(str, bool)
+    def createProfile(self, name: str, include_seamless: bool) -> None:
+        self.host.new_profile(name, include_seamless)
 
     @Slot()
     def requestClose(self) -> None:

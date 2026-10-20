@@ -643,9 +643,9 @@ class SavesAdapter(QObject):
             try:
                 saves_service.delete_backup(Path(backup))
             except Exception as e:
-                self._refuse(Refusal(tr("Could not delete"), str(e)))
+                self._refuse(Refusal(tr("Could not remove"), str(e)))
                 return
-            self.notifier.toast(tr("Backup deleted"))
+            self.notifier.toast(tr("Backup removed"))
             self.refresh()
 
         self.notifier.ask(self.presenter.delete_backup(row), lambda ok, _o: go() if ok else None, destructive=True)

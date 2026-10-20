@@ -95,7 +95,7 @@ class SavesPresenter:
             "keep": tr("Keep as a Library copy..."),
             "rename": tr("Rename..."),
             "remove": tr("Remove"),
-            "deleteAction": tr("Delete"),
+            "deleteAction": tr("Remove"),
             "putBack": tr("Put back"),
             "finish": tr("Finish removing"),
             "name": tr("Name"),
@@ -401,13 +401,13 @@ class SavesPresenter:
 
     def delete_backup(self, row: dict) -> Confirm:
         return Confirm(
-            title=tr("Delete this backup"),
+            title=tr("Remove this backup"),
             changes=(
                 Path(row["path"]).name,
                 tr("Taken {when} before: {action}").format(when=row["time"], action=row["action"]),
             ),
-            apply=tr("Delete"),
-            warning=tr("Deleting a backup cannot be undone. The live save is not touched."),
+            apply=tr("Remove"),
+            warning=tr("Removing a backup cannot be undone. The live save is not touched."),
         )
 
     def changed_outside(self, name: str) -> Confirm:

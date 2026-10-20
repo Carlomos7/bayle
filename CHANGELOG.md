@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves: a backup is removed, not deleted ("Remove this backup" / "Remove"), as Library copies already are.
 - Wording: "Play" became "Launch" (Launch Offline on the online-with-changes notice, Settings, Activity); "Play anyway this once" stays in the fork dialog.
 
 - The top bar reads the profile's disk checks in the background and says "Checking..." only when that takes a moment; Launch re-checks fresh each time it is pressed. The Launch pill shows an amber mark (and the reason in its tooltip) when a mod folder is missing.

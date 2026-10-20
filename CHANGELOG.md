@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - A rebuild of an engine mod (the overhaul and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.

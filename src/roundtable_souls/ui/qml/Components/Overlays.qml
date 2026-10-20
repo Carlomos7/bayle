@@ -14,6 +14,10 @@ Item {
     property bool confirmed: false
     property var confirmSource: null
     property int confirmToken: 0
+    property var chooseSource: null
+    property string chooseCancel: "cancel"
+    property string chosenKey: ""
+    property int chooseToken: 0
     property var fullSource: null
     property var notifiers: []
     property Item toastItem: null
@@ -53,6 +57,14 @@ Item {
 
             required property var modelData
 
+            function onChooseRequested(token, words) {
+                root.chooseSource = link.modelData;
+                root.chooseToken = token;
+                root.chosenKey = "";
+                root.chooseCancel = words.cancel;
+                choose.words = words;
+                choose.open();
+            }
             function onConfirmFullRequested(token, words) {
                 root.fullSource = link.modelData;
                 full.token = token;
@@ -180,6 +192,90 @@ Item {
                 visible: text !== ""
 
                 onToggled: full.optionOn = checked
+            }
+        }
+    }
+    ModalDialog {  // a fork: the question, what happens, and verbs for each way (Cancel last, Esc cancels)
+        id: choose
+
+        property var words: ({})
+
+        preferredWidth: 520
+        title: words.title || ""
+
+        footerRow: [
+            Repeater {
+                model: choose.words.choices || []
+
+                delegate: Loader {
+                    id: slot
+
+                    required property var modelData
+
+                    sourceComponent: modelData.role === "normal" && modelData.key === choose.words.cancel ? ghost : modelData.role === "normal" ? ghost : primary
+
+                    Component {
+                        id: primary
+
+                        PrimaryButton {
+                            danger: slot.modelData.role === "danger"
+                            text: slot.modelData.label
+
+                            onClicked: {
+                                root.chosenKey = slot.modelData.key;
+                                choose.close();
+                            }
+                        }
+                    }
+                    Component {
+                        id: ghost
+
+                        GhostButton {
+                            text: slot.modelData.label
+
+                            onClicked: {
+                                root.chosenKey = slot.modelData.key;
+                                choose.close();
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+
+        onClosed: root.chooseSource.chosen(root.chooseToken, root.chosenKey !== "" ? root.chosenKey : root.chooseCancel)
+
+        Column {
+            spacing: Theme.sp8
+            width: parent.width
+
+            Repeater {
+                model: choose.words.lines || []
+
+                Txt {
+                    required property string modelData
+
+                    elide: Text.ElideNone
+                    text: modelData
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+            }
+            Txt {
+                color: Theme.statusDanger
+                elide: Text.ElideNone
+                text: choose.words.warning || ""
+                visible: text !== ""
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
+            Txt {
+                elide: Text.ElideNone
+                kind: "hint"
+                text: choose.words.safety || ""
+                visible: text !== ""
+                width: parent.width
+                wrapMode: Text.WordWrap
             }
         }
     }

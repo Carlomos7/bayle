@@ -310,3 +310,59 @@ def test_an_apply_whose_unpacking_fails_partway_leaves_no_staging_folder_and_no_
         assert not (tmp_path / "b/imported.me3").exists()
     finally:
         pt.discard(inc)
+
+
+def _pack(tmp_path: Path, volume: int) -> Path:
+    src = make(tmp_path / "a", volume)
+    return pt.full_export(
+        src,
+        loc=er(),
+        settings=load_settings(),
+        name="Pack",
+        version="1",
+        author="me",
+        readme="",
+        changelog="",
+        chosen={it.key for it in pt.items(src, full=True) if it.entry.get("id") == "flora"},
+        out_dir=tmp_path / "out",
+    )
+
+
+def test_use_the_incoming_copy_replaces_the_folder_in_the_current_profile_and_undo_restores_the_old_bytes(tmp_path):
+    zipped = _pack(tmp_path, 7)
+    dst = make(tmp_path / "b", 5)  # same mods, but flora's settings file differs
+    flora = tmp_path / "b/mod/flora"
+    before = tree(flora)
+    inc = pt.read(zipped, loc=er())
+    try:
+        pre = pt.preview(inc, dst, loc=er(), settings=load_settings())
+        assert not pre.refusals, pre.refusals
+        assert [c.key for c in pre.zip_preview.clashes] == ["flora"] and pre.zip_preview.undecided == ["flora"]
+        pre = pt.preview(inc, dst, loc=er(), settings=load_settings(), choices={"flora": "incoming"})
+        assert not pre.refusals, pre.refusals
+        res = pt.apply(pre)
+        assert not (tmp_path / "b/mod/flora-2").exists() and tree(flora) != before
+        assert b"volume = 7" in (flora / "flora.ini").read_bytes()
+        rec = {"type": "profile-import", "profile": res["profile"], "name": "my.me3", "operation": res["operation"]}
+        undo.run(rec, lambda s: None, loc=er())
+        assert tree(flora) == before
+    finally:
+        pt.discard(inc)
+
+
+def test_a_folder_another_profile_lists_is_never_replaced_and_this_profile_gets_name_2(tmp_path):
+    zipped = _pack(tmp_path, 7)
+    dst = make(tmp_path / "b", 5)
+    (tmp_path / "b/friend.me3").write_text("[[packages]]\nid = \"flora\"\npath = 'mod/flora'\n", encoding="utf-8")
+    flora = tmp_path / "b/mod/flora"
+    before = tree(flora)
+    inc = pt.read(zipped, loc=er())
+    try:
+        pre = pt.preview(inc, dst, loc=er(), settings=load_settings(), choices={"flora": "incoming"})
+        assert not pre.refusals, pre.refusals
+        assert pre.zip_preview.clashes[0].shared and pre.zip_preview.undecided == []
+        pt.apply(pre)
+        assert tree(flora) == before  # the other profile's mod is untouched
+        assert b"volume = 7" in (tmp_path / "b/mod/flora-2/flora.ini").read_bytes()
+    finally:
+        pt.discard(inc)

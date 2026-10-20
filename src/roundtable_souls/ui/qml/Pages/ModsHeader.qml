@@ -170,6 +170,20 @@ Item {
 
                     onTriggered: header.adapter.openVersions()
                 }
+                MenuEntry {
+                    icon_: "Share"
+                    objectName: "exportProfile"
+                    text: header.words.exportProfile
+
+                    onTriggered: header.adapter.openProfileTransfer("export")
+                }
+                MenuEntry {
+                    icon_: "Download"
+                    objectName: "importProfile"
+                    text: header.words.importProfile
+
+                    onTriggered: header.adapter.openProfileTransfer("import")
+                }
                 MenuSep {
                 }
                 MenuEntry {
@@ -218,6 +232,15 @@ Item {
                     text: header.words.addExisting
 
                     onTriggered: header.adapter.addExisting("package")
+                }
+                MenuEntry {
+                    height: visible ? implicitHeight : 0
+                    icon_: "Folder"
+                    objectName: "adoptIntoLibrary"
+                    text: header.words.adoptMenu
+                    visible: header.adapter.canAdopt
+
+                    onTriggered: header.adapter.adoptIntoLibrary()
                 }
                 MenuSep {  // overhauls installed with the launcher (a preview, shown while its switch is on)
                     height: visible ? implicitHeight : 0

@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
+import re
 import shutil
 import struct
 import uuid
@@ -103,6 +104,69 @@ def check_whole(data: bytes, game: games.Game) -> None:
         save_container.check(data, game.save_sections)
     except save_container.ContainerError as e:
         raise LibraryError(f"That file is not a whole {game.name} save: {e}.") from e
+
+
+STEAM_ID = re.compile(r"7656119\d{10}")
+
+
+def account_of(path: Path) -> int | None:
+    """The Steam account a save belongs to: its folder's name when that is one, else the Steam ID in its profile
+    summary (UserData10). None when neither can be read. Read-only."""
+    path = Path(path)
+    if STEAM_ID.fullmatch(path.parent.name):
+        return int(path.parent.name)
+    try:
+        return int(L.parse(str(path))["ud10"]["steam_id"])
+    except OSError, L.ParseError, EOFError, ValueError, struct.error:
+        return None
+
+
+def signed_for_account(data: bytes, target: Path, game: games.Game) -> tuple[bytes, bool]:
+    """Whole-file bytes of an Elden Ring save, made the target's own: the Steam ID in the profile summary and in every
+    active character set to the target's account, then every checksum signed again. Returns (bytes, changed); the same
+    bytes when the game is another one, the account is the same or the target's account is unknown. The result is
+    parsed back and compared before it is returned, so nothing is written from a bad edit (LibraryError)."""
+    if game.save_reader != "eldenring":
+        return data, False
+    sid = account_of(target)
+    try:
+        src = L.parse_bytes(data)
+    except (L.ParseError, EOFError, struct.error) as e:
+        raise LibraryError(f"That file could not be read: {e}") from e
+    active = [i for i, on in enumerate(src["ud10"]["active_raw"]) if on]
+    if sid is None or (src["ud10"]["steam_id"] == sid and all(src["slots"][i]["steam_id"] == sid for i in active)):
+        return data, False
+    old = [i for i in active if i in src["unreadable"]]
+    if old:
+        raise LibraryError(
+            f"Slot {old[0] + 1} is in a layout this launcher cannot read, so the file cannot be signed for this "
+            "account. Load that character once in the game, then try again."
+        )
+    out = bytearray(data)
+    for i in active:
+        struct.pack_into("<Q", out, src["slots"][i]["steam_id_pos"], sid)
+        save_fix._sign_slot(out, i)
+    struct.pack_into("<Q", out, src["ud10_pos"] + 0x14, sid)
+    save_fix._sign_ud10(out, src["ud10_pos"])
+    try:
+        got = L.parse_bytes(bytes(out))
+    except (L.ParseError, EOFError, struct.error) as e:
+        raise LibraryError(f"The re-signed copy did not read back ({e}); nothing was written.") from e
+    ok = (
+        got["ud10_md5_ok"]
+        and got["ud10"]["steam_id"] == sid
+        and got["ud10"]["active_raw"] == src["ud10"]["active_raw"]
+        and all(
+            got["slot_md5_ok"][i]
+            and got["slots"][i]["steam_id"] == sid
+            and got["slots"][i]["pgd"]["name"] == src["slots"][i]["pgd"]["name"]
+            and got["slots"][i]["pgd"]["level"] == src["slots"][i]["pgd"]["level"]
+            for i in active
+        )
+    )
+    if not ok:
+        raise LibraryError("The re-signed copy did not read back as expected; nothing was written.")
+    return bytes(out), True
 
 
 # ----------------------------------------------------------------------------- the manifest
@@ -338,7 +402,7 @@ def _add(save_dir: Path, source: Path, data: bytes, name: str, game: games.Game,
 def swap_in(save_dir: Path, entry_id: str, live: Path, outgoing_name: str | None, game: games.Game) -> dict:
     """Put a library copy in place of the live save. The live file goes into the library first under outgoing_name
     (skipped only when there is no live file), and a regular backup is kept for Undo. Returns
-    {entry, outgoing, backup, warning}. Runs under the library lock throughout. Once the live file is replaced the
+    {entry, outgoing, backup, warning, signed}. Runs under the library lock throughout. Once the live file is replaced the
     swap stands: when its history line can't be written, warning says so and where the record waits."""
     with library_lock(save_dir):
         return _swap_in(save_dir, entry_id, Path(live), outgoing_name, game)
@@ -352,6 +416,7 @@ def _swap_in(save_dir: Path, entry_id: str, live: Path, outgoing_name: str | Non
         raise LibraryError(f"The file for '{entry['name']}' is missing from {folder_for(save_dir)}.")
     data = src.read_bytes()
     check_whole(data, game)
+    data, signed = signed_for_account(data, live, game)
     outgoing, bak = None, None
     if live.exists():
         outgoing = add(save_dir, live, outgoing_name or default_name(live, game), game, action="swapped out")
@@ -372,7 +437,7 @@ def _swap_in(save_dir: Path, entry_id: str, live: Path, outgoing_name: str | Non
             backup=bak.name if bak else None,
         ),
     )
-    return {"entry": entry, "outgoing": outgoing, "backup": bak, "warning": warning}
+    return {"entry": entry, "outgoing": outgoing, "backup": bak, "warning": warning, "signed": signed}
 
 
 def rename(save_dir: Path, entry_id: str, name: str) -> dict:

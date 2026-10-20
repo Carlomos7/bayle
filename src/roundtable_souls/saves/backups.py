@@ -39,8 +39,21 @@ LIBRARY = "library"
 LIBRARY_REMOVED = "removed"
 
 # Backups are kept: the newest KEEP_NEWEST per save file, everything from the last KEEP_DAYS days, and any marked keep.
-KEEP_NEWEST = 20
+KEEP_NEWEST = 20  # the default; the Settings page changes it (backups_keep)
 KEEP_DAYS = 7
+
+
+def keep_newest() -> int:
+    """How many of the newest backups of a save are kept: the backups_keep setting, 5 to 200; anything else
+    (missing, text, 0, negative, huge) is the default, never a small number that would delete backups."""
+    from roundtable_souls.config.settings import load_settings
+
+    try:
+        n = load_settings().backups_keep
+    except Exception:
+        return KEEP_NEWEST
+    return n if 5 <= n <= 200 else KEEP_NEWEST
+
 
 _LEGACY_BACKUPS = {  # folder older versions kept beside the saves -> what a backup in it was taken before
     "save-fix-backups": "Before a save fix",
@@ -294,7 +307,7 @@ def delete(bak: Path) -> None:
 
 
 def prune(folder: Path, save_name: str, now: float | None = None) -> list[Path]:
-    """Remove backups of one save beyond the newest KEEP_NEWEST, unless younger than KEEP_DAYS, marked keep or
+    """Remove backups of one save beyond the newest keep_newest(), unless younger than KEEP_DAYS, marked keep or
     with protection that can't be read (is_kept). Runs under the account lock and reads each backup's protection
     again just before removing it, so a keep set by another process is seen. When the lock is busy nothing is
     removed (it is retried with the next backup). Returns what was removed."""
@@ -302,6 +315,7 @@ def prune(folder: Path, save_name: str, now: float | None = None) -> list[Path]:
     if not folder.is_dir():
         return []
     now = time.time() if now is None else now
+    keep = keep_newest()
     try:
         with account_lock(folder):
             mine = []
@@ -314,7 +328,7 @@ def prune(folder: Path, save_name: str, now: float | None = None) -> list[Path]:
             mine.sort(reverse=True)
             removed = []
             for rank, (mtime, f) in enumerate(mine):
-                if rank < KEEP_NEWEST or now - mtime < KEEP_DAYS * 86400:
+                if rank < keep or now - mtime < KEEP_DAYS * 86400:
                     continue
                 if is_kept(f):  # read now, under the lock, right before removing
                     continue

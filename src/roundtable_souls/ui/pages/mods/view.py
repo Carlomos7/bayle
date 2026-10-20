@@ -82,6 +82,7 @@ from roundtable_souls.ui.dialogs.install import InstallDialog
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter, Refusal
 from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
 from roundtable_souls.ui.pages.mods.presenter import Refusal as ModsRefusal
+from roundtable_souls.ui.pages.profile_transfer.presenter import ProfileTransferPresenter
 from roundtable_souls.ui.theme import (
     ghost_btn,
     hint,
@@ -140,6 +141,11 @@ class ModsView:
         self.mods_new_window.setToolTip(WORDS.open_window_tip)
         self.mods_new_window.clicked.connect(self._open_mods_window)
         al.addWidget(self.mods_new_window)
+        transfer = ProfileTransferPresenter()
+        self.mods_transfer = ghost_btn(transfer.open_window_text, FI.SHARE)
+        self.mods_transfer.setToolTip(transfer.open_window_tip)
+        self.mods_transfer.clicked.connect(lambda: self._open_profile_transfer_window("export"))
+        al.addWidget(self.mods_transfer)
         titled(lay, "Mods", FI.LIBRARY, "What this profile loads.", acts)
         head = QHBoxLayout()
         head.setSpacing(10)
@@ -1421,8 +1427,27 @@ class ModsView:
             if pl.get("staging"):
                 core.mod_manage.shutil.rmtree(pl["staging"], ignore_errors=True)
 
+        def import_instead(pl) -> None:
+            """The download ships a profile: the Export / Import page takes over its unpacked folder (it clears the
+            staging folder when it is done)."""
+            self._open_profile_transfer_window(
+                "bundled", (Path(pl["unpacked"]), pl["profiles_inside"], pl.get("staging"))
+            )
+            QTimer.singleShot(0, self._install_next)
+
         if plan.get("error"):
-            self._toast(f"{src.name} is not a mod Roundtable Souls can install", plan["error"], error=True)
+            if plan.get("profiles_inside") and plan.get("kind") == "me3":
+                if confirm(
+                    self,
+                    f"{src.name} is a profile, not a mod",
+                    ["Its mods can be copied into your library and its profile imported."],
+                    safety="Nothing in the download runs.",
+                    apply_text="Import it...",
+                ):
+                    import_instead(plan)
+                    return
+            else:
+                self._toast(f"{src.name} is not a mod Roundtable Souls can install", plan["error"], error=True)
             drop_unpacked(plan)
             QTimer.singleShot(0, self._install_next)
             return
@@ -1438,6 +1463,9 @@ class ModsView:
             Path(prof),
         )
         if not dlg.exec():
+            if dlg.import_instead:
+                import_instead(plan)
+                return
             drop_unpacked(plan)
             QTimer.singleShot(0, self._install_next)
             return

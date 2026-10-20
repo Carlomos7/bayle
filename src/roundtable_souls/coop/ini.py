@@ -73,6 +73,8 @@ def read_password(ini: Path) -> str | None:
 
 
 def write_password(ini: Path, value: str):
+    if "\n" in value or "\r" in value:  # a line break would add lines to the player's file
+        raise ValueError("a value can't contain a line break")
     text = _read(ini)
     if not PW_RE.search(text):
         raise ValueError("no cooppassword line in " + str(ini))

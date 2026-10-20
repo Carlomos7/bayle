@@ -341,3 +341,13 @@ def test_after_play_me3s_failed_dlc_loading_is_said(play, lines, monkeypatch, tm
     assert "warning: said about 59 characters" in lines
     log.unlink()
     core._me3_said()  # no log: nothing said, nothing raised
+
+
+def test_running_and_dead_shell_go_by_threads_not_memory(monkeypatch):
+    from roundtable_souls.platform import paths, proc
+
+    monkeypatch.setattr(paths, "IS_WINDOWS", True)
+    monkeypatch.setattr(proc, "processes", lambda _name: [(1, 0)])  # no threads: a corpse
+    assert not paths.exe_running(EXE) and paths.dead_exe_shells(EXE) == [1]
+    monkeypatch.setattr(proc, "processes", lambda _name: [(2, 3)])  # a game just starting: few threads, little memory
+    assert paths.exe_running(EXE) and paths.dead_exe_shells(EXE) == []

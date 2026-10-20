@@ -14,6 +14,7 @@ already taken where the mods go gets -2 the same way.
 from __future__ import annotations
 
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -71,10 +72,17 @@ def _refs(deps: list, renamed: dict[str, str]) -> list:
 
 
 def preview_import(
-    unpacked: Path, me3: str, current: Path, *, loc: Locations, new_name: str | None = None
+    unpacked: Path,
+    me3: str,
+    current: Path,
+    *,
+    loc: Locations,
+    new_name: str | None = None,
+    tune: Callable[[ProfileWriter], None] | None = None,
 ) -> ImportPreview:
     """What importing the bundled profile me3 (its path in the unpacked download) would do: into current, or, with
-    new_name, into a new profile of that name beside current. Raises ModError when it can't be read."""
+    new_name, into a new profile of that name beside current. tune(writer): more edits for the same write (a shared
+    profile's settings), made before it is planned. Raises ModError when it can't be read."""
     unpacked, current = Path(unpacked).resolve(), Path(current)
     source = (unpacked / me3).resolve()
     if not _inside(source, unpacked) or not source.is_file():
@@ -134,6 +142,8 @@ def preview_import(
     if not rows:
         out.refusals.append(f"None of {Path(me3).name}'s entries point at mods in the download.")
         return out
+    if tune is not None:
+        tune(writer)
     out.change = writer.plan(f"before importing {Path(me3).name}")
     # the imported folders are copied in only when the operation commits: "whose folder is missing" about one of
     # them is not a problem (shortcut: matched on the writer's wording, which test_mod_operations pins)
@@ -164,8 +174,11 @@ def _deepest(path: Path) -> int:
     )
 
 
-def apply_import(preview: ImportPreview, *, log=lambda s: None) -> dict:
-    """Import as previewed, as one operation. Returns {operation, profile, new}."""
+def apply_import(
+    preview: ImportPreview, *, log=lambda s: None, after_copy: Callable[[Path, Path], None] | None = None
+) -> dict:
+    """Import as previewed, as one operation. after_copy(dest, staged): called for each folder copied, before it
+    goes live (a shared profile's settings files are written into the copy). Returns {operation, profile, new}."""
     p = preview
     if not p.ok or p.change is None:
         raise ModError("; ".join(p.refusals) or "Nothing to import.")
@@ -181,6 +194,8 @@ def apply_import(preview: ImportPreview, *, log=lambda s: None) -> dict:
                     shutil.copy2(src, staged / src.name)
                 else:
                     shutil.copytree(src, staged, ignore=shutil.ignore_patterns(*JUNK))
+                if after_copy is not None:
+                    after_copy(dest, staged)
                 made[str(dest)] = operations.manifest(staged)
                 op.replace_folder(dest, staged)
             p.writer.commit(p.change, operation=op)

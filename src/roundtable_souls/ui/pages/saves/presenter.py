@@ -499,8 +499,8 @@ class SavesPresenter:
                     "id": "items",
                     "title": tr("Remove mod items"),
                     "hint": tr(
-                        "Items the game does not define, named from the mods that added them where possible. "
-                        "Off by default: tick what to remove. The mods give them back in co-op; a standard save should not carry them."
+                        "Items that only a mod knows about, named after the mod that added them where possible. "
+                        "Nothing is removed unless you tick it. In co-op the mods give them back; a standard save should not carry them."
                     ),
                     "items": items,
                 }
@@ -516,7 +516,8 @@ class SavesPresenter:
                 items.append(
                     self._item(
                         ("orphans", p["slot"]),
-                        prefix(p["slot"]) + plural("Clear {n} leftover row", "Clear {n} leftover rows", n).format(n=n),
+                        prefix(p["slot"])
+                        + plural("Clear {n} leftover entry", "Clear {n} leftover entries", n).format(n=n),
                         names_,
                         False,
                     )
@@ -525,9 +526,9 @@ class SavesPresenter:
             groups.append(
                 {
                     "id": "cleanup",
-                    "title": tr("Cleanup"),
+                    "title": tr("Leftover entries"),
                     "hint": tr(
-                        "Leftover item rows nothing holds or wears, usually from co-op partners' gear. Invisible in play. Off by default."
+                        "Old item entries that nothing holds or wears, usually from a co-op partner's gear. You will not notice them in play. Nothing is cleared unless you tick it."
                     ),
                     "items": items,
                 }
@@ -589,7 +590,7 @@ class SavesPresenter:
         if kinds.get("item"):
             bits.append(plural("remove {n} item", "remove {n} items", kinds["item"]).format(n=kinds["item"]))
         if kinds.get("orphans"):
-            bits.append(tr("clear leftover rows"))
+            bits.append(tr("clear leftover entries"))
         if kinds.get("checksum"):
             bits.append(
                 plural("{n} integrity repair", "{n} integrity repairs", kinds["checksum"]).format(n=kinds["checksum"])
@@ -638,7 +639,7 @@ class SavesPresenter:
                 n_items += len(v["items"])
                 bits.append(plural("remove {n} item", "remove {n} items", len(v["items"])).format(n=len(v["items"])))
             if v["orphans"]:
-                bits.append(tr("clear leftover rows"))
+                bits.append(tr("clear leftover entries"))
             lines.append(f"{names.get(sl, sl)}: " + ", ".join(bits))
         if calls["checksums"]:
             lines.append(tr("Make the integrity data match again"))

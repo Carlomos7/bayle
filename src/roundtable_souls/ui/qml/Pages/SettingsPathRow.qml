@@ -22,6 +22,9 @@ FormRow {
         TextBox {
             id: field
 
+            readonly property bool shortShown: !activeFocus && text !== ""
+
+            color: shortShown ? "transparent" : Theme.textPrimary   // the elided copy below shows instead
             objectName: pathRow.rowKey + "Field"
             placeholderText: pathRow.placeholder
             text: pathRow.value
@@ -29,6 +32,16 @@ FormRow {
 
             onEditingFinished: if (text !== pathRow.value)
                 pathRow.adapter.setLocation(pathRow.rowKey, text)
+
+            Txt {  // a long path keeps its drive and its file name; the middle is cut
+                anchors.fill: parent
+                anchors.leftMargin: Theme.sp10
+                anchors.rightMargin: Theme.sp8
+                elide: Text.ElideMiddle
+                text: field.text
+                verticalAlignment: Text.AlignVCenter
+                visible: field.shortShown
+            }
         }
         GhostButton {
             implicitHeight: Theme.controlH

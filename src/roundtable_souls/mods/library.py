@@ -227,6 +227,34 @@ class ModLibrary:
                     out.users.setdefault(where, []).append(use)
         return out
 
+    def folder_users(self, folder: Path, *, besides: Path | None = None) -> list[str]:
+        """The names of the profiles here (not `besides`) with an entry pointing at folder or into it, switched on or
+        off. Reads only; an unreadable profile counts as not using it."""
+        key = os.path.normcase(os.path.abspath(folder))
+        skip = os.path.normcase(os.path.abspath(besides)) if besides is not None else None
+        out: list[str] = []
+        if not self.profiles.is_dir():
+            return out
+        for profile in sorted(self.profiles.glob("*.me3"), key=lambda p: p.name.lower()):
+            if os.path.normcase(os.path.abspath(profile)) == skip or not profile.is_file():
+                continue
+            try:
+                rows = me3_profile.entries(me3_profile.read_text(profile))
+            except OSError, ValueError:
+                continue
+            for row in rows:
+                if not row.get("path"):
+                    continue
+                at = os.path.normcase(os.path.abspath(me3_profile.resolve(profile, row["path"])))
+                if at == key or at.startswith(key + os.sep):
+                    out.append(profile.stem)
+                    break
+        return out
+
+    def mod_id_free(self, collection: str, mod_id: str) -> bool:
+        """No folder called mod_id (case aside) in packages/ or natives/ (collection)."""
+        return mod_id.lower() not in {m.lower() for m in _folders(self.root / collection)}
+
     def place_of(self, path: Path) -> tuple[str, str] | None:
         """(collection, id) of the library folder a path points into: ("packages", "hair"), ("natives", "x") for
         natives/x/x.dll, ("builds", "<what>") for an overhaul's build; None outside the library's mod folders."""

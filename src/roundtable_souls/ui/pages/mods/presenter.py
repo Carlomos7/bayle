@@ -253,12 +253,18 @@ class ModsPresenter:
             "optional": tr("Optional"),
             "optionalDep": tr("optional"),
             "optionalNative": tr("Optional (the game starts without it)"),
-            "loadEarly": tr("Load early"),
-            "initializer": tr("Initializer"),
+            "loadEarly": tr("Start this DLL before the game sets itself up"),
+            "loadEarlyTip": tr("me3 setting: load_early"),
+            "initializer": tr("Run a function when it loads"),
+            "initializerHelp": tr(
+                "Some DLLs need the game to call one of their functions, or to wait, before they work."
+            ),
+            "initializerTip": tr("me3 setting: initializer"),
             "initNone": tr("None"),
             "initFunction": tr("Call a function"),
             "initDelay": tr("Wait (ms)"),
-            "finalizer": tr("Finalizer"),
+            "finalizer": tr("Run a function when the game closes"),
+            "finalizerTip": tr("me3 setting: finalizer"),
             "staysLastOption": tr("This mod must stay last"),
             "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
             "rebuildFile": tr("Rebuild-tool file"),
@@ -285,6 +291,21 @@ class ModsPresenter:
         for key, (label, help_text) in SETTING_TEXT.items():
             words[f"setting_{key}"] = tr(label)
             words[f"setting_{key}_help"] = tr(help_text)
+            words[f"setting_{key}_tip"] = tr("me3 setting: {key}").format(key=key)
+        words.update(
+            {
+                "setting_disable_arxan": tr("Turn off the game's anti-tamper"),
+                "setting_disable_arxan_help": tr(
+                    "Stops the game's built-in protection from blocking mods. Helps some mods stay stable."
+                ),
+                "setting_mem_patch": tr("Give the game more memory"),
+                "setting_mem_patch_help": tr(
+                    "Lifts the game's memory limit so heavy mods fit. Leave on the default unless a mod asks."
+                ),
+                "setting_mem_patch_heap_size": tr("Memory to give it (MB)"),
+                "setting_mem_patch_heap_size_help": tr("How much extra memory to allow. 0 means the default amount."),
+            }
+        )
         return words
 
     def page(
@@ -434,9 +455,11 @@ class ModsPresenter:
             tags.append(Tag(tr("Stays last"), "accent", "Pin"))
         lost = clashes.get(str(e.get("id") or e["name"]), 0)
         if lost:
-            tags.append(Tag(plural("Clash · {n} file", "Clash · {n} files", lost).format(n=lost), "warning", "Info"))
+            tags.append(
+                Tag(plural("Overridden · {n} file", "Overridden · {n} files", lost).format(n=lost), "warning", "Info")
+            )
         if e["kind"] == "native" and e.get("load_early"):
-            tags.append(Tag(tr("Loads early"), "muted", "Up"))
+            tags.append(Tag(tr("Starts early"), "muted", "Up"))
         if e.get("optional"):
             tags.append(Tag(tr("Optional"), "muted", "Help"))
         if i in facts.outside:

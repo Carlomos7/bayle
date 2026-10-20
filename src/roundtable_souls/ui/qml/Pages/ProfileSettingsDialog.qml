@@ -59,6 +59,8 @@ ModalDialog {
                 required property string modelData
 
                 help: dlg.words["setting_" + modelData + "_help"]
+                showHelpIcon: true
+                tooltip: dlg.words["setting_" + modelData + "_tip"]
                 title: dlg.words["setting_" + modelData]
                 width: parent ? parent.width : 0
 
@@ -88,6 +90,8 @@ ModalDialog {
         }
         FormRow {
             help: dlg.words.setting_mem_patch_heap_size_help
+            showHelpIcon: true
+            tooltip: dlg.words.setting_mem_patch_heap_size_tip
             last: true
             title: dlg.words.setting_mem_patch_heap_size
             width: parent ? parent.width : 0

@@ -7,13 +7,13 @@ import Components
 // Mod Configs (§8.10): left, the profile's mods with settings files (Seamless Co-op first) and their files; the app's
 // one vertical divider; right, the breadcrumb "Mod / file", the path, Edit as text, and the file as a form (INI,
 // flat TOML), Seamless Co-op's panel, Markdown or plain text. Footer: Reset all / Discard / Save (Ctrl+S). Under
-// 1000 px the tree and the file take turns, with Back. Everything shown and every word comes from the adapter.
+// 640 px the tree and the file take turns, with Back. Everything shown and every word comes from the adapter.
 Item {
     id: page
 
     required property var adapter
     readonly property var words: adapter.words
-    readonly property bool narrow: width < 1000
+    readonly property bool narrow: width < 640
     property bool showFile: false
 
     objectName: "modConfigsPage"
@@ -82,7 +82,7 @@ Item {
         clip: true
         contentHeight: treeColumn.implicitHeight + Theme.sp16
         visible: !page.narrow || !page.showFile
-        width: page.narrow ? page.width : 300
+        width: page.narrow ? page.width : (page.width < 900 ? 220 : 300)
 
         Column {
             id: treeColumn

@@ -4,10 +4,12 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Dialogs in the new window (UX pass): a long tick-box label (the New profile dialog's Seamless Co-op line) wraps
+  instead of running off the dialog's edge, and the first field's focus ring is no longer cut by the dialog body.
 - First run in the new window (UX pass): with no profile at all, the Mods page says what a profile is and offers a
   "Create a profile" button (before: a bare "Pick a profile first." and the only hint was in the top bar). The
   first-run "Launch" hint waits until Launch can actually start, so it no longer covers the page text.
-- Plainer words in the new window (UX pass): the Launch pill says "The game program is missing: eldenring.exe" and
+- Plainer words in the new window (UX pass): the Launch pill says "Game program missing: eldenring.exe" and
   names the missing me3 in plain words instead of "game exe set on Tools"; the Mods page calls the second list "DLL
   mods"; the Remove and Delete confirmations no longer quote profile file syntax ("[[packages]]", ".bak",
   "load_after"); Profile settings, Versions and an empty "Add existing" end with Close, not Cancel, because there is

@@ -16,6 +16,10 @@ PageScroll {
     readonly property var words: adapter.words
     property int dropTarget: -1      // the position a dragged row would land at (-1: none)
     property string dragKind: ""
+    property string dropReason: ""   // why the spot under a dragged row refuses it ("" : allowed)
+    property real dropTagX: 0        // where the reason is drawn (drag layer coordinates: right edge, under the line)
+    property real dropTagY: 0
+    property real dragY: 0           // the pointer's y in the page while a row is dragged (auto-scroll)
 
     objectName: "modsPage"
 
@@ -24,6 +28,21 @@ PageScroll {
     }
 
     Component.onCompleted: page.adapter.refresh()
+
+    Timer {  // a dragged row near the top or bottom edge scrolls the page
+        interval: 16
+        repeat: true
+        running: page.dragKind !== ""
+
+        onTriggered: {
+            const edge = 56;
+            const max = Math.max(0, page.contentHeight - page.height);
+            if (page.dragY < edge)
+                page.contentY = Math.max(0, page.contentY - 14);
+            else if (page.dragY > page.height - edge)
+                page.contentY = Math.min(max, page.contentY + 14);
+        }
+    }
 
     Connections {
         function onOptionsRequested(index) {
@@ -88,6 +107,28 @@ PageScroll {
         anchors.fill: parent
         parent: AppState.overlayLayer ? AppState.overlayLayer : page
         z: 100
+
+        Rectangle {  // why the spot under the lifted row refuses it, in words
+            border.color: Theme.statusDanger
+            color: Theme.surfaceCard
+            height: reasonText.implicitHeight + Theme.sp8
+            objectName: "dropReasonTag"
+            radius: Theme.radiusCard
+            visible: page.dropReason !== ""
+            width: reasonText.implicitWidth + Theme.sp16
+            x: Math.max(0, page.dropTagX - width)
+            y: page.dropTagY
+            z: 50
+
+            Txt {
+                id: reasonText
+
+                anchors.centerIn: parent
+                color: Theme.statusDanger
+                kind: "caption"
+                text: page.dropReason
+            }
+        }
     }
     Column {  // the InfoBars (at most two)
         spacing: Theme.sp8

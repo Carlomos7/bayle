@@ -24,6 +24,7 @@ ENABLED, BUSY, RUNNING, BLOCKED = "enabled", "busy", "running", "blocked"
 NEW_PROFILE = "new_profile"
 LOCATIONS = "settings:locations"
 MODS = "mods"
+PICK_PROFILE = "pick_profile"  # opens the top bar's profile drop-down (the one picker)
 MOD_CONFIGS = "mod_configs"
 ME3_UPDATE = "settings:me3"
 OPEN_STEAM = "open_steam"
@@ -46,6 +47,8 @@ class Facts:
     installed: bool = True  # the game's folder or exe is known
     profile_count: int = 0
     problems: tuple[str, ...] = ()  # the current setup's, from Setup.problems()
+    checking: bool = False  # the disk checks are taking a while
+    warnings: tuple[str, ...] = ()  # Setup.warnings(): Launch still works, a mod is left out
     busy: bool = False
     job_label: str = ""
     job_kind: str = ""  # "" | "launch" | "update" | "other"
@@ -68,6 +71,7 @@ class Pill:
     reason: str = ""  # why it is blocked, or the tooltip for the other states
     link: Link | None = None
     can_launch: bool = False
+    warn: bool = False  # Launch works, a mod is left out: amber
 
 
 @dataclass(frozen=True)
@@ -99,13 +103,15 @@ def _short(problem: str) -> str:
     low = problem.lower()
     name = Path(problem.split(": ", 1)[1]).name if ": " in problem else ""
     if low.startswith("game exe"):
-        return tr("Game program missing: {name}").format(name=name) if name else tr("Game program missing")
+        return tr("Game program not found: {name}").format(name=name) if name else tr("Game program not found")
     if low.startswith("me3 missing"):
-        return tr("me3 is missing: {name}").format(name=name) if name else tr("me3 is missing")
+        return tr("Mod loader (me3) not found: {name}").format(name=name) if name else tr("Mod loader (me3) not found")
     if low.startswith("me3 is not installed"):
-        return tr("me3 is not installed on this PC")
+        return tr("Mod loader (me3) not found")
     if low.startswith("profile missing"):
         return tr("The profile file is missing")
+    if low.startswith("this profile is for"):
+        return tr("This profile is for another game")
     if ": " not in problem:
         return problem
     kind, rest = problem.split(": ", 1)
@@ -115,7 +121,9 @@ def _short(problem: str) -> str:
 def _problem_link(problem: str) -> Link:
     low = problem.lower()
     if low.startswith(("me3 ", "game exe")) or "me3 is not installed" in low:
-        return Link(tr("Settings > Locations"), LOCATIONS)
+        return Link(tr("Fix in Settings > Locations"), LOCATIONS)
+    if low.startswith(("this profile is for", "profile missing")):
+        return Link(tr("Pick another profile"), PICK_PROFILE)
     return Link(tr("Mods"), MODS)
 
 
@@ -146,13 +154,26 @@ def pill(facts: Facts) -> Pill:
     if facts.busy:
         text = {"launch": tr("Launching..."), "update": tr("Updating...")}.get(facts.job_kind, tr("Working..."))
         return Pill(mode, words, BUSY, text, facts.job_label)
+    if facts.checking and mode != VANILLA:
+        return Pill(mode, words, BUSY, tr("Checking..."), tr("Checking the profile..."))
     why = blocked(facts, mode)
     if why is not None:
         return Pill(mode, words, BLOCKED, tr("Launch"), why[0], why[1])
-    return Pill(mode, words, ENABLED, tr("Launch"), tr("Launch {mode} (Ctrl+L)").format(mode=words), None, True)
+    tip = tr("Launch {mode} (Ctrl+L)").format(mode=words)
+    warn = bool(facts.warnings) and mode != VANILLA
+    if warn:
+        tip += "  ·  " + _warning_words(facts)
+    return Pill(mode, words, ENABLED, tr("Launch"), tip, None, True, warn)
 
 
 # ------------------------------------------------------------------------------------------------ status text
+def _warning_words(facts: Facts) -> str:
+    n = len(facts.warnings)
+    if n == 1:
+        return tr("{mod} folder is missing").format(mod=facts.warnings[0].removesuffix(" folder is missing"))
+    return tr("{n} mod folders are missing").format(n=n)
+
+
 def status(facts: Facts) -> Status:
     """The one line of launcher state, in order of importance. A running job and the running game come first; a
     failed job stays red until it is looked at; blocks and warnings follow; nothing to say is "Ready"."""
@@ -173,6 +194,8 @@ def status(facts: Facts) -> Status:
     why = blocked(facts, facts.mode if facts.mode in MODES else PROFILE)
     if why is not None:
         return Status(why[0], "danger", why[1], to_activity=False)
+    if facts.warnings and facts.mode != VANILLA:
+        return Status(_warning_words(facts), "warning", Link(tr("Open Mods"), MODS), to_activity=False)
     if facts.coop_unsaved:
         return Status(
             tr("Unsaved co-op settings apply on launch"),

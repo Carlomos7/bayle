@@ -180,6 +180,13 @@ def test_a_crash_while_adopting_is_undone_and_play_is_blocked_until_then(world, 
     assert tree(root.parent) == before and operations.problem(s / "a.me3") is None
     assert load_settings().setup == str(s / "a.me3")
 
+    # a prepared move step that is given up leaves both sides alone
+    kept = s / "mod" / "flora"
+    op = B.Operation(root / "scratch-ops", "x")
+    op.move_folder(kept, root / "elsewhere-flora")
+    op.discard()
+    assert kept.is_dir() and not (root / "elsewhere-flora").exists()
+
     # dying after every move but before the launcher's records were re-keyed: recovery finishes that
     with monkeypatch.context() as m:
         m.setattr(adopt, "finish_state", lambda op: (_ for _ in ()).throw(Crash()))

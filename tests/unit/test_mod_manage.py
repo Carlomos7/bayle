@@ -713,6 +713,23 @@ def test_a_lone_dll_installs_as_a_dll_mod(tmp_path):
     assert [e["path"] for e in out["entries"]] == ["natives/unlockthefps/UnlockTheFps.dll"] and dll.is_file()
 
 
+def test_a_dll_folder_name_windows_or_the_launcher_refuses_writes_nothing(tmp_path):
+    p = _profile(tmp_path / "p")
+    deep = _profile(tmp_path / ("d" * max(1, 200 - len(str(tmp_path)))))  # natives/<name>/Fps.dll goes over 220
+    dll = tmp_path / "dl" / "Fps.dll"
+    dll.parent.mkdir(parents=True)
+    dll.write_bytes(b"u")
+    for prof, name in ((p, "CON"), (p, "natives"), (deep, "a-long-enough-name")):
+        before, natives = prof.read_bytes(), sorted((prof.parent / "natives").iterdir())
+        plan = install.plan_install(prof, dll, name=name, loc=er())
+        assert plan["name_problem"], name
+        with pytest.raises(install.ModError):
+            install.install(prof, plan, loc=er())
+        assert prof.read_bytes() == before and sorted((prof.parent / "natives").iterdir()) == natives
+    (p.parent / "natives" / "Fps").mkdir(parents=True)  # the same folder in another case: updated, not doubled
+    assert install.plan_install(p, dll, name="fps", loc=er())["dest"].name == "Fps"
+
+
 def test_regulation_placement_follows_the_package_if_the_profile_changed_meanwhile(tmp_path):
     p = _revive_profile(tmp_path)
     src = tmp_path / "dl" / "Params"

@@ -71,6 +71,9 @@ class SelfTestHost:
     def pick_file(self, title: str, filters: str) -> None:
         return None
 
+    def pick_folder(self, title: str) -> None:
+        return None
+
     def save_file(self, title: str, name: str) -> None:
         return None
 

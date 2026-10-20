@@ -403,3 +403,282 @@ def test_importing_a_bundled_profile_renames_a_clash_keeps_the_rest_and_undo_put
     undo.run(rec, lambda s: None, loc=er())
     assert p.read_bytes() == before
     assert not (p.parent / "mod" / "flora-2").exists() and not (p.parent / "natives" / "cool").exists()
+
+
+# ----------------------------------------------------------------------------- renaming a mod's folder and id
+RENAME_PROFILE = (
+    '# my notes\r\nprofileVersion = "v1"\r\n\r\n[[supports]]\r\ngame = "eldenring"\r\n\r\n'
+    "[[natives]]\r\npath = 'natives/Cool/cool.dll'\r\nload_early = true\r\n\r\n"
+    "# the flora\r\n[[packages]]\r\nid = \"alpha\"\r\npath = 'mod/Alpha'\r\n\r\n"
+    "[[packages]]\r\npath = 'mod/beta'\r\nload_after = [{ id = \"alpha\", optional = false }]\r\n\r\n"
+    '[[packages]]\r\nid = "gamma"\r\npath = \'mod/gamma\'\r\nload_before = ["alpha"]\r\n'
+)
+
+
+def tree(root):
+    return {
+        p.relative_to(root).as_posix(): p.read_bytes()
+        for p in Path(root).rglob("*")
+        if p.is_file() and ".roundtable" not in p.relative_to(root).parts and p.suffix not in (".bak", ".lock")
+    }
+
+
+@pytest.fixture
+def world(tmp_path):
+    import json
+
+    from roundtable_souls.config import settings
+    from roundtable_souls.mods import library, profile_settings
+
+    root = tmp_path / "prof"
+    for name in ("Alpha", "beta", "gamma"):
+        (root / "mod" / name / "parts").mkdir(parents=True)
+        (root / "mod" / name / "parts" / "a.dcx").write_bytes(name.encode())
+    (root / "natives" / "Cool").mkdir(parents=True)
+    (root / "natives" / "Cool" / "cool.dll").write_bytes(b"dll")
+    (root / "natives" / "Cool" / "cool.ini").write_bytes(b"x = 1\n")
+    p = root / "my.me3"
+    p.write_bytes(RENAME_PROFILE.encode())
+    library.ensure_state(library.state_of(p))
+    profile_settings.path(p).write_text(
+        json.dumps({"version": 1, "schema": 1, "profiles": {"my.me3": {"after_overlay": ["alpha"]}}}), encoding="utf-8"
+    )
+    dll = root / "natives" / "Cool" / "cool.dll"
+    settings.settings_path().write_text(
+        json.dumps({"native_configs": {str(dll): [str(dll.with_name("cool.ini"))]}, "theme": "light"}), encoding="utf-8"
+    )
+    return p
+
+
+def snapshot(p):
+    from roundtable_souls.config import settings
+    from roundtable_souls.mods import profile_settings
+
+    return tree(p.parent), p.read_bytes(), profile_settings.path(p).read_bytes(), settings.settings_path().read_bytes()
+
+
+def entry_index(p, name):
+    from roundtable_souls.formats import me3_profile
+
+    return next(e["index"] for e in me3_profile.entries(p.read_text(encoding="utf-8")) if e["name"] == name)
+
+
+def no_leftovers(p):
+    assert not [
+        x for x in p.parent.rglob("*") if x.name.endswith(".tmp") or ".staging" in x.name or "rename-" in x.name
+    ]
+    assert operations.pending(p) == []
+
+
+def test_rename_then_undo_is_byte_exact(world):
+    import json
+    import tomllib
+
+    from roundtable_souls.config import settings
+    from roundtable_souls.mods import profile_settings, rename, undo
+
+    p, before = world, snapshot(world)
+    pre = rename.preview(p, entry_index(p, "alpha"), "flora", loc=er())
+    assert pre.ok, pre.refusals
+    out = rename.apply(pre, loc=er())
+    data = tomllib.loads(p.read_text(encoding="utf-8"))
+    pk = {x.get("id") or x["path"]: x for x in data["packages"]}
+    assert pk["flora"]["path"] == "mod/flora" and not (p.parent / "mod" / "Alpha").exists()
+    assert pk["mod/beta"]["load_after"] == [{"id": "flora", "optional": False}]
+    assert [d["id"] if isinstance(d, dict) else d for d in pk["gamma"]["load_before"]] == ["flora"]
+    assert "# my notes" in p.read_text(encoding="utf-8") and "# the flora" in p.read_text(encoding="utf-8")
+    assert json.loads(profile_settings.path(p).read_text())["profiles"]["my.me3"]["after_overlay"] == ["flora"]
+    assert tree(p.parent)["mod/flora/parts/a.dcx"] == b"Alpha"
+    # a native: the folder only, its attached config follows
+    pre = rename.preview(p, entry_index(p, "cool.dll"), "cooler", loc=er())
+    assert pre.ok, pre.refusals
+    out2 = rename.apply(pre, loc=er())
+    dll = p.parent / "natives" / "cooler" / "cool.dll"
+    assert json.loads(settings.settings_path().read_text())["native_configs"] == {
+        str(dll): [str(dll.with_name("cool.ini"))]
+    }
+    assert "natives/cooler/cool.dll" in p.read_text(encoding="utf-8")
+    for o in (out2, out):
+        rec = {"type": "rename", "profile": str(p), "name": o["name"], "operation": o["operation"]}
+        assert undo.available(rec)
+        undo.run(rec, lambda s: None, loc=er())
+    assert snapshot(p) == before
+    no_leftovers(p)
+
+
+def do_rename(p, name, new, **kw):
+    from roundtable_souls.mods import rename
+
+    pre = rename.preview(p, entry_index(p, name), new, loc=er())
+    assert pre.ok, pre.refusals
+    return rename.apply(pre, loc=er(), **kw)
+
+
+@pytest.mark.parametrize("crash", [False, True])
+@pytest.mark.parametrize("name", ["alpha", "cool.dll"])
+@pytest.mark.parametrize("fail_at", [1, 2, 3])
+def test_a_rename_that_fails_or_is_interrupted_at_any_step_leaves_the_original(
+    world, tmp_path, monkeypatch, fail_at, crash, name
+):
+    """Safety (players' files): the profile, the two settings files and the folder move are steps; dying after
+    any of them (an error, or the process itself) puts every byte back."""
+    p, before = world, snapshot(world)
+    real, commit = B.os.replace, B.Operation.commit
+    n = {"i": 0, "armed": False}
+
+    def dying(src, dst):
+        if n["armed"] and "journal" not in str(dst) and Path(dst).is_relative_to(tmp_path):
+            n["i"] += 1
+            if n["i"] == fail_at:
+                raise (Crash() if crash else OSError("denied"))
+        return real(src, dst)
+
+    def arming(self, *a, **k):
+        n["armed"] = True
+        return commit(self, *a, **k)
+
+    with monkeypatch.context() as m:
+        m.setattr(B.os, "replace", dying)
+        m.setattr(B.Operation, "commit", arming)
+        if crash:
+            m.setattr(B, "_undo", lambda op: None)
+        with pytest.raises(Crash if crash else Exception):
+            do_rename(p, name, "flora")
+    if crash:
+        assert "did not finish" in (operations.problem(p) or "")
+        assert operations.recover(p)
+    assert snapshot(p) == before
+    no_leftovers(p)
+
+
+def test_discarding_a_prepared_move_never_deletes_the_folder(tmp_path):
+    (tmp_path / "mine").mkdir()
+    (tmp_path / "mine" / "f").write_bytes(b"x")
+    op = B.Operation(tmp_path, "test")
+    op.move_folder(tmp_path / "mine", tmp_path / "yours")
+    op.discard()
+    assert (tmp_path / "mine" / "f").read_bytes() == b"x" and not (tmp_path / "yours").exists()
+
+
+def _edit_profile(p, extra):
+    p.write_bytes(p.read_bytes() + extra.encode())
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["game", "folder-taken", "same-folder", "other-profile", "seamless", "unknown-key", "unsafe", "same-name"],
+)
+def test_a_refused_rename_changes_nothing(world, monkeypatch, case):
+    import json
+
+    from roundtable_souls.game.locate import Locations
+    from roundtable_souls.mods import profile_settings, rename
+
+    p = world
+    new, name = "flora", "alpha"
+    if case == "game":
+        monkeypatch.setattr(Locations, "game_running", lambda self: True)
+    elif case == "folder-taken":
+        new = "BETA"
+    elif case == "same-folder":
+        _edit_profile(p, "\r\n[[packages]]\r\nid = \"twin\"\r\npath = 'mod/Alpha'\r\n")
+    elif case == "other-profile":
+        (p.parent / "other.me3").write_text("[[packages]]\npath = 'mod/Alpha'\n", encoding="utf-8")
+    elif case == "seamless":
+        (p.parent / "natives" / "Sea").mkdir()
+        (p.parent / "natives" / "Sea" / "ersc.dll").write_bytes(b"d")
+        _edit_profile(p, "\r\n[[natives]]\r\npath = 'natives/Sea/ersc.dll'\r\n")
+        name = "ersc.dll"
+    elif case == "unknown-key":
+        profile_settings.path(p).write_text(
+            json.dumps({"version": 1, "profiles": {"my.me3": {"mystery": {"keep": "alpha"}}}}), encoding="utf-8"
+        )
+    elif case == "unsafe":
+        new = "bad:name"
+    elif case == "same-name":
+        new = "Alpha"
+    before = snapshot(p)
+    pre = rename.preview(p, entry_index(p, name), new, loc=er())
+    assert not pre.ok and pre.refusals
+    with pytest.raises(rename.ModError):
+        rename.apply(pre, loc=er())
+    assert snapshot(p) == before
+    no_leftovers(p)
+
+
+def test_a_rename_is_refused_when_the_profile_changed_since_the_preview(world):
+    from roundtable_souls.mods import rename
+
+    p = world
+    pre = rename.preview(p, entry_index(p, "alpha"), "flora", loc=er())
+    assert pre.ok
+    _edit_profile(p, "# edited outside\r\n")
+    before = snapshot(p)
+    with pytest.raises(rename.ModError):
+        rename.apply(pre, loc=er())
+    assert snapshot(p) == before
+    no_leftovers(p)
+
+
+def test_undoing_a_rename_does_not_overwrite_later_changes(world, tmp_path):
+    import json
+
+    from roundtable_souls.config import settings
+    from roundtable_souls.mods import undo
+
+    p = world
+    out = do_rename(p, "alpha", "flora")
+    rec = {"type": "rename", "profile": str(p), "name": "alpha", "operation": out["operation"]}
+    # (b) a folder appeared at the old place: nothing moves
+    (p.parent / "mod" / "Alpha").mkdir()
+    after = snapshot(p)
+    with pytest.raises(undo.UndoError):
+        undo.run(rec, lambda s: None, loc=er())
+    assert snapshot(p) == after and (p.parent / "mod" / "flora").is_dir()
+    (p.parent / "mod" / "Alpha").rmdir()
+    # (a) the profile edited, (c) launcher_settings.json changed: the edit stays, the rename goes
+    _edit_profile(p, "# edited outside\r\n")
+    cur = json.loads(settings.settings_path().read_text())
+    settings.settings_path().write_text(json.dumps({**cur, "theme": "dark"}), encoding="utf-8")
+    notes: list[str] = []
+    undo.run(rec, notes.append, loc=er())
+    text = p.read_bytes().decode()
+    assert text.endswith("# edited outside\r\n") and "mod/Alpha" in text and "mod/flora" not in text
+    assert (p.parent / "mod" / "Alpha" / "parts" / "a.dcx").is_file() and not (p.parent / "mod" / "flora").exists()
+    assert json.loads(settings.settings_path().read_text())["theme"] == "dark"
+    no_leftovers(p)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a case-only rename is one folder only on Windows")
+def test_a_case_only_rename_works_and_undoes(world):
+    from roundtable_souls.mods import undo
+
+    p, before = world, snapshot(world)
+    out = do_rename(p, "beta", "Beta")
+    assert "Beta" in os.listdir(p.parent / "mod") and "beta" not in os.listdir(p.parent / "mod")
+    assert "mod/Beta" in p.read_text(encoding="utf-8")
+    undo.run({"type": "rename", "profile": str(p), "name": "beta", "operation": out["operation"]}, print, loc=er())
+    assert "beta" in os.listdir(p.parent / "mod") and snapshot(p) == before
+    no_leftovers(p)
+
+
+def test_renaming_makes_the_merged_build_stale_without_touching_its_record_and_never_the_last_mod(
+    tmp_path, monkeypatch
+):
+    from test_mod_merge import World
+
+    from roundtable_souls.mods import rebuild as merge
+    from roundtable_souls.mods import rename
+
+    w = World(tmp_path, monkeypatch)
+    w.pack("params")
+    merge.update_before_play(w.profile, lambda s: None, loc=er())
+    assert merge.needs_update(w.profile, loc=er()) is None
+    record = w.base / "Merger" / "installation.json"
+    kept = record.read_bytes()
+    last = entry_index(w.profile, "last")
+    pre = rename.preview(w.profile, last, "newest", loc=er())
+    assert not pre.ok and any("stay last" in r for r in pre.refusals)
+    do_rename(w.profile, "params", "params2")
+    assert record.read_bytes() == kept
+    assert merge.needs_update(w.profile, loc=er()) is not None

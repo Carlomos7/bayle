@@ -322,6 +322,12 @@ def target(profile: Path, loc: Locations) -> dict | None:
     return {"folder": folder, "own": own, "name": layer["name"]}
 
 
+def rename_refs(deps: list, renamed: dict[str, str]) -> list:
+    """load_after / load_before with the renamed ids changed (old id -> new id, case aside)."""
+    low = {k.lower(): v for k, v in renamed.items()}
+    return [{**d, "id": low.get(str(d.get("id", "")).lower(), d.get("id"))} for d in deps]
+
+
 def exceptions(profile: Path) -> set[str]:
     """Names (lower-case) kept after the mod that must stay last with Keep it after (the profile's settings.json)."""
     from roundtable_souls.mods import profile_settings

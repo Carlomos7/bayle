@@ -138,6 +138,23 @@ def set_block_options(text: str, index: int, opts: dict) -> str:
     return "".join(all_lines)
 
 
+_PATH_LINE = re.compile(r"""^([ \t]*(?:path|source)[ \t]*=[ \t]*)("(?:[^"\\]|\\.)*"|\'[^\']*\')([^\r\n]*)(\r?\n?)$""")
+
+
+def set_block_path(text: str, index: int, new: str) -> str:
+    """Point one block at a new path; the rest of the block, comments included, stays as it is."""
+    b = blocks(text)[index]
+    lines = list(b["lines"])
+    for i, l in enumerate(lines):
+        m = _PATH_LINE.match(l)
+        if m:
+            lines[i] = m.group(1) + me3_profile._path_lit(new) + m.group(3) + m.group(4)
+            all_lines = text.splitlines(keepends=True)
+            all_lines[b["start"] : b["end"]] = lines
+            return "".join(all_lines)
+    raise ModError("The entry has no path line to change.")
+
+
 _COMMENTED_TOML = re.compile(r"^\s*#+\s*(?:\[|\]|\{|[A-Za-z_][\w.-]*\s*=)")
 
 

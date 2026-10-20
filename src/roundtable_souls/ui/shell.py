@@ -281,6 +281,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.activity_window: PageWindow | None = None  # the QML Activity trial (S5)
         self.mods_window: PageWindow | None = None  # the QML Mods page (S6)
         self.mod_configs_window: PageWindow | None = None  # the QML Mod Configs page (S7b)
+        self.settings_window: PageWindow | None = None  # the QML Settings page (S9)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -802,10 +803,20 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         if select:
             self.mod_configs_window.adapter.select_mod(select)
 
+    def _open_settings_window(self):
+        """The new Settings page in a window of its own (the button goes when the QML shell lands)."""
+        if self.settings_window is None:
+            self.settings_window = PageWindow(qml_pages.page("settings"), LauncherHost(self), **_appearance())
+            self.settings_window.notifier.status(self._job_label if self.busy else tr("Ready"))
+        if not self.settings_window.show():
+            self._toast("The new Settings window did not open", "The details are in launcher.log.", error=True)
+            for line in self.settings_window.warnings:
+                core.run_logging.log_line(line)
+
     def _page_windows(self) -> list[PageWindow]:
-        """The QML page windows open now (Activity, Mods, Mod Configs): the hooks below keep them in step with this
+        """The QML page windows open now (Activity, Mods, Mod Configs, Settings): the hooks below keep them in step with this
         window."""
-        names = ("activity_window", "mods_window", "mod_configs_window")
+        names = ("activity_window", "mods_window", "mod_configs_window", "settings_window")
         return [w for w in (getattr(self, name, None) for name in names) if w is not None]
 
     def _mark_activity_seen(self):

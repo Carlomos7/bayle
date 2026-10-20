@@ -83,6 +83,12 @@ class ToolsView:
     def _build_tools(self):
         self.tools_page, lay = page("toolsPage")
         titled(lay, "Settings", FI.SETTING)
+        b = ghost_btn(sp.OPEN_WINDOW_TEXT, FI.LINK)
+        b.setToolTip(sp.OPEN_WINDOW_TIP)
+        b.clicked.connect(self._open_settings_window)
+        row_w, row = action_row()
+        row.addWidget(b)
+        lay.addWidget(row_w)
         c, cl = card("Launcher", FI.INFO)
         self.launcher_line = BodyLabel(f"{TITLE} {VERSION}  \u00b7  {sp.install_kind()}")
         tone_label(self.launcher_line, "muted")

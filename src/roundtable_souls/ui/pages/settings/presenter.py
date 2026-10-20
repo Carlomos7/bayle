@@ -26,6 +26,10 @@ LICENCE_FILES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
 GITHUB_BLOB = RELEASES_URL.removesuffix("/releases") + "/blob"  # + /v<version>/<file>
 
 
+OPEN_WINDOW_TEXT = tr("Open new Settings window")
+OPEN_WINDOW_TIP = tr("The new Settings page in a window of its own. This page stays until the new window replaces it.")
+
+
 # ----------------------------------------------------------------------------- the switches
 @dataclass(frozen=True)
 class SwitchSpec:

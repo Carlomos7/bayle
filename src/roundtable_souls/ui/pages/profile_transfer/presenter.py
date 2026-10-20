@@ -43,7 +43,7 @@ class ProfileTransferPresenter:
             ),
             "fullExportAbout": tr("A zip with the mods themselves, so your friend can import it into a new profile."),
             "name": tr("Name"),
-            "version": tr("Version"),
+            "version": tr("Version (optional)"),
             "author": tr("Author"),
             "mods": tr("Mods in the export"),
             "outside": tr("Outside your library: tick it to include it anyway."),
@@ -60,7 +60,7 @@ class ProfileTransferPresenter:
             "withSaveWarn": tr("A save holds your characters. Only share it with someone you trust."),
             "noSave": tr("No save was found for this profile."),
             "outFolder": tr("Output folder"),
-            "chooseFolder": tr("Choose..."),
+            "chooseFolder": tr("Choose output folder..."),
             "export": tr("Export"),
             "exporting": tr("Exporting..."),
             "exportingProfile": tr("Exporting {name}"),
@@ -113,8 +113,10 @@ class ProfileTransferPresenter:
         yes, no = tr("yes"), tr("no")
         pw = yes if password and configs else no
         if not full:
-            return tr("One small file: {mods}, settings files {c}, password {p}.").format(
-                mods=plural("{n} mod", "{n} mods", n).format(n=n), c=yes if configs else no, p=pw
+            return tr("Saves {mods}, {c}, {p}.").format(
+                mods=plural("{n} mod", "{n} mods", n).format(n=n),
+                c=tr("your mods' settings files") if configs else tr("no settings files"),
+                p=tr("with the password") if pw == yes else tr("no password"),
             )
         return tr("The zip will hold {mods}, about {size}. Settings files: {c}. Save: {s}. Password: {p}.").format(
             mods=plural("{n} mod", "{n} mods", n).format(n=n),

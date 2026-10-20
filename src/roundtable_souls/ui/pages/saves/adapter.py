@@ -132,9 +132,9 @@ class SavesAdapter(QObject):
     def _role(self, name: str) -> str:
         used = self._names or {}
         if name.lower() == str(used.get("active") or "").lower():
-            return tr("Play uses this")
+            return tr("Launch Profile uses this")
         if used.get("coop") and name.lower() == str(used.get("standard") or "").lower():
-            return tr("Play offline uses this")
+            return tr("Launch Vanilla and Launch Offline use this")
         return ""
 
     def _cards(self) -> list[dict]:

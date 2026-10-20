@@ -133,9 +133,9 @@ class SavesPresenter:
         active = names.get("active")
         if not active:
             return ""
-        line = tr("Play uses {name}.").format(name=active)
+        line = tr("Launch Profile uses {name}.").format(name=active)
         if names.get("coop") and names.get("standard"):
-            line += " " + tr("Play offline uses {name}.").format(name=names["standard"])
+            line += " " + tr("Launch Vanilla and Launch Offline use {name}.").format(name=names["standard"])
         return line
 
     def running_bar(self, game: str) -> str:

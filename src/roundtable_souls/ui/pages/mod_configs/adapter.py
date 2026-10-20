@@ -24,6 +24,15 @@ from roundtable_souls.ui.text import plural, tr
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 
 
+def _stamp(path: Path) -> tuple[int, int] | None:
+    """Modification time and size: what tells that a file changed under the page."""
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return st.st_mtime_ns, st.st_size
+
+
 class ModConfigsHost(Protocol):
     """What the page needs from the window that hosts it (the Widgets launcher until the shell, S9)."""
 
@@ -51,6 +60,7 @@ class ModConfigsAdapter(QObject):
     changed = Signal()  # the tree, the profile
     fileChanged = Signal()  # the open file: what it shows (not each keystroke)
     dirtyChanged = Signal()
+    diskChangedChanged = Signal()
     pickRequested = Signal(str, dict, list)  # a tick list: its key, its words (presenter.Pick), the rows' labels
 
     def __init__(
@@ -98,6 +108,7 @@ class ModConfigsAdapter(QObject):
     text = Property(str, lambda self: self._text, notify=fileChanged)
     editText = Property(bool, lambda self: self._edit_text, notify=fileChanged)
     dirty = Property(bool, lambda self: self._is_dirty(), notify=dirtyChanged)
+    diskChanged = Property(bool, lambda self: self._disk_changed, notify=diskChangedChanged)
     changedKeys = Property(list, lambda self: self._changed_keys(), notify=dirtyChanged)
     changeText = Property(str, lambda self: self._change_text(), notify=dirtyChanged)
     changeCount = Property(int, lambda self: self._change_count(), notify=dirtyChanged)
@@ -308,6 +319,7 @@ class ModConfigsAdapter(QObject):
 
         def work():  # the file is read off the UI thread
             try:
+                self._mtime = _stamp(path)
                 opened = mod_configs.open_file(path, form=not setup_file)
                 seamless = mod_configs.seamless(path) if node.kind == mod_configs.SEAMLESS else None
                 return opened, seamless, None
@@ -317,6 +329,7 @@ class ModConfigsAdapter(QObject):
         def got(result) -> None:
             if token != self._open_token or self._node is not node:  # a newer open or a close came first
                 return
+            self._set_disk_changed(False)
             self._opened, self._seamless, err = result
             try:
                 if err is None and node.kind != mod_configs.SEAMLESS and setup_file and node.setup:
@@ -330,6 +343,30 @@ class ModConfigsAdapter(QObject):
             self.dirtyChanged.emit()
 
         self.host.run_in_background(work, got)
+
+    _mtime: tuple[int, int] | None = None
+    _disk_changed = False
+
+    def _set_disk_changed(self, on: bool) -> None:
+        if on != self._disk_changed:
+            self._disk_changed = on
+            self.diskChangedChanged.emit()
+
+    @Slot()
+    def checkDisk(self) -> None:
+        """Has the open file changed on disk since it was read? (a stat, off the UI thread)"""
+        opened, seen = self._opened, self._mtime
+        if opened is None or seen is None or self._disk_changed:
+            return
+        path = opened.path
+        self.host.run_in_background(
+            lambda: _stamp(path), lambda now: self._set_disk_changed(now is not None and now != seen)
+        )
+
+    @Slot()
+    def reload(self) -> None:
+        """Read the file again, dropping the waiting edits (the InfoBar's Reload)."""
+        self._reopen()
 
     def _close(self) -> None:
         self._open_token = getattr(self, "_open_token", 0) + 1

@@ -206,3 +206,39 @@ def test_a_cancelled_full_export_leaves_no_zip_and_no_temp_file(tmp_path):
             cancelled=lambda: True,
         )
     assert list((tmp_path / "out").iterdir()) == []
+
+
+def test_importing_a_full_export_reuses_an_identical_installed_folder_and_undo_leaves_it(tmp_path):
+    src, dst = make(tmp_path / "a", 7), make(tmp_path / "b", 7)  # the same mod, byte for byte, on both sides
+    out = pt.full_export(
+        src,
+        loc=er(),
+        settings=load_settings(),
+        name="Pack",
+        version="1",
+        author="me",
+        readme="",
+        changelog="",
+        chosen={it.key for it in pt.items(src, full=True)},
+        out_dir=tmp_path / "out",
+    )
+    flora = tmp_path / "b/mod/flora"
+    before = {p.relative_to(flora).as_posix(): p.read_bytes() for p in flora.rglob("*") if p.is_file()}
+    inc = pt.read(out, loc=er())
+    try:
+        pre = pt.preview(inc, dst, loc=er(), settings=load_settings(), new_name="Imported")
+        assert not pre.refusals, pre.refusals
+        assert pre.zip_preview.reused and not pre.zip_preview.copies and pre.zip_preview.saved > 0
+        res = pt.apply(pre)
+        assert not (tmp_path / "b/mod/flora-2").exists()
+        assert "flora" in (dst.parent / "imported.me3").read_text(encoding="utf-8")
+        rec = {
+            "type": "profile-import",
+            "profile": res["profile"],
+            "name": "imported.me3",
+            "operation": res["operation"],
+        }
+        undo.run(rec, lambda s: None, loc=er())
+        assert {p.relative_to(flora).as_posix(): p.read_bytes() for p in flora.rglob("*") if p.is_file()} == before
+    finally:
+        pt.discard(inc)

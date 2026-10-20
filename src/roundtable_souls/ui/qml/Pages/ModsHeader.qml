@@ -130,7 +130,7 @@ Item {
         GhostButton {
             Layout.alignment: Qt.AlignVCenter
             ToolTip.text: header.words.profileFolder
-            ToolTip.visible: hovered && text === ""
+            ToolTip.visible: (hovered || visualFocus) && text === ""
             icon_: "Folder"
             implicitWidth: text === "" ? 40 : 140
             text: header.width >= 1060 ? header.words.profileFolder : ""
@@ -142,7 +142,7 @@ Item {
 
             Layout.alignment: Qt.AlignVCenter
             ToolTip.text: header.words.gearTip
-            ToolTip.visible: hovered && !gearMenu.opened
+            ToolTip.visible: (hovered || visualFocus) && !gearMenu.opened
             icon_: "Setting"
             implicitWidth: 40
             objectName: "gearButton"
@@ -196,7 +196,7 @@ Item {
 
             Layout.alignment: Qt.AlignVCenter
             ToolTip.text: header.words.more
-            ToolTip.visible: hovered && !moreMenu.opened
+            ToolTip.visible: (hovered || visualFocus) && !moreMenu.opened
             icon_: "More"
             implicitWidth: 40
             text: ""

@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Importing a full-export zip unpacks each mod once, straight into its place next to the final folder (before, every byte
+  was written twice, first into a temporary folder). The preview no longer unpacks the zip, the import checks for free
+  space before it writes, and the page shows how much has been unpacked.
 - Undo import of a profile the import created now removes the whole profile and every folder it copied, Seamless
   Co-op's copy included (before, the co-op entry and its folder were left behind). The co-op guard still protects
   your own profiles. Export opens on the small share list; the Full export tab shows its size.

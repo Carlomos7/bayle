@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from roundtable_souls.formats import config_model, me3_profile
-from roundtable_souls.mods import configs, extract, naming, operations, profile_edit, profile_import, profile_share
+from roundtable_souls.mods import configs, naming, operations, profile_edit, profile_import, profile_share
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile as profile_tools
 from roundtable_souls.mods.profile_edit import ModError
@@ -349,14 +349,15 @@ class Incoming:
     kind: str  # json | zip
     path: Path
     share: profile_share.Share
-    unpacked: Path | None = None  # zip: where it was unpacked (the launcher's temp folder)
+    unpacked: Path | None = None  # zip: the skeleton of its folders in the launcher's temp folder (small files only)
+    source: profile_import.ZipSource | None = None  # zip: where the mods are read from when applying
     readme: str = ""
     changelog: str = ""
 
 
 def read(path: Path, *, loc: Locations) -> Incoming:
-    """Open a file someone sent: a share list (.json) or a full export (.zip, unpacked into the launcher's temp
-    folder). Raises profile_share.ShareError / ModError with a sentence for the player; nothing else is touched."""
+    """Open a file someone sent: a share list (.json) or a full export (.zip: only its .me3 and settings files are
+    unpacked into the launcher's temp folder; the mods stay in the zip until apply). Raises profile_share.ShareError / ModError with a sentence for the player; nothing else is touched."""
     path = Path(path)
     if path.suffix.lower() != ".zip":
         if path.stat().st_size > profile_share.MAX_JSON:
@@ -384,11 +385,15 @@ def read(path: Path, *, loc: Locations) -> Incoming:
         raise profile_share.ShareError("That file is not a readable zip.") from e
     unpacked = data_folder.temp(f"profile-import-{uuid.uuid4().hex[:8]}")
     try:
-        extract.extract_zip(path, unpacked)
+        source = profile_import.ZipSource(path, unpacked)
+        source.skeleton(lambda name: name.lower().endswith(".me3") or configs.settings_name(name.rsplit("/", 1)[-1]))
+    except zipfile.BadZipFile as e:
+        shutil.rmtree(unpacked, ignore_errors=True)
+        raise profile_share.ShareError("That file is not a readable zip.") from e
     except BaseException:
         shutil.rmtree(unpacked, ignore_errors=True)
         raise
-    return Incoming("zip", path, share, unpacked, readme, changelog)
+    return Incoming("zip", path, share, unpacked, source, readme, changelog)
 
 
 def discard(incoming: Incoming) -> None:
@@ -701,7 +706,9 @@ def _preview_zip(
                 "when the game first uses it."
             )
 
-    prev = profile_import.preview_import(unpacked, pick, current, loc=loc, new_name=new_name, tune=tune)
+    prev = profile_import.preview_import(
+        unpacked, pick, current, loc=loc, new_name=new_name, tune=tune, archive=incoming.source
+    )
     out.zip_preview, out.profile, out.new = prev, prev.profile, prev.new
     out.skipped += prev.skipped
     out.refusals += prev.refusals
@@ -725,12 +732,17 @@ def _preview_zip(
 
 
 # ============================================================================= import: applying
-def apply(prev: Preview, skip: frozenset[str] | set[str] = frozenset()) -> dict:
+def apply(
+    prev: Preview,
+    skip: frozenset[str] | set[str] = frozenset(),
+    progress: Callable[[int, int], None] = lambda done, total: None,
+) -> dict:
     """Write the ticked cards as one operation, with an undo record (Undo import). Returns {operation, profile,
-    new}. A file changed on disk since the preview refuses the whole import, and nothing is written."""
+    new}. A file changed on disk since the preview refuses the whole import, and nothing is written. progress(done,
+    total): bytes of the zip's mods unpacked so far."""
     if prev.refusals:
         raise ModError("; ".join(prev.refusals))
-    out = _apply_zip(prev, skip) if prev.zip_preview is not None else _apply_json(prev, skip)
+    out = _apply_zip(prev, skip, progress) if prev.zip_preview is not None else _apply_json(prev, skip)
     run_logging.set_undo(
         {
             "type": "profile-import",
@@ -770,7 +782,7 @@ def _apply_json(prev: Preview, skip) -> dict:
     return {"operation": str(op.dir), "profile": str(profile), "new": False}
 
 
-def _apply_zip(prev: Preview, skip) -> dict:
+def _apply_zip(prev: Preview, skip, progress) -> dict:
     zp = prev.zip_preview
     assert zp is not None
     ticked = {c.key.lower(): c for c in prev.cards if c.key != PROFILE_CARD and c.key not in skip and c.data}
@@ -781,4 +793,4 @@ def _apply_zip(prev: Preview, skip) -> dict:
             if by_dest.get(dest, "").lower() == key.split("/")[0] and card.data is not None:
                 (staged / card.path.name).write_bytes(card.data)
 
-    return profile_import.apply_import(zp, log=run_logging.log, after_copy=after_copy)
+    return profile_import.apply_import(zp, log=run_logging.log, after_copy=after_copy, progress=progress)

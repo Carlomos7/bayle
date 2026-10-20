@@ -474,6 +474,12 @@ PageScroll {
             text: page.words.reading
             visible: page.adapter.working
         }
+        ProgressBar {
+            objectName: "importProgress"
+            value: page.s.imp.pct / 100
+            visible: page.adapter.working && page.s.imp.pct >= 0
+            width: parent ? parent.width : 0
+        }
         Txt {
             color: Theme.statusDanger
             elide: Text.ElideNone

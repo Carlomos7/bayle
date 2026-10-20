@@ -14,17 +14,19 @@ download: then the profile points at the installed folder and nothing is copied 
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import re
 import shutil
+import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from roundtable_souls.formats import me3_profile
-from roundtable_souls.mods import naming, operations
+from roundtable_souls.mods import extract, naming, operations
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods.profile_edit import ModError, roots
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
@@ -35,12 +37,101 @@ if TYPE_CHECKING:
 
 JUNK = {"__MACOSX", "Thumbs.db", ".DS_Store"}
 NEW_PROFILE = 'profileVersion = "v1"\n\n[[supports]]\ngame = "{game}"\n'
+CHUNK = 4 * 1024 * 1024
+SMALL = 8 * 1024 * 1024  # a settings file bigger than this is not read for the preview
+HEADROOM = 64 * 1024**2  # free space kept beyond the bytes written (at least; a tenth of them when more)
 
 
 def bundled(unpacked: Path) -> list[str]:
     """The .me3 profiles in an unpacked download, as paths from its top (what plan["profiles_inside"] lists)."""
     unpacked = Path(unpacked)
     return sorted((m.relative_to(unpacked).as_posix() for m in unpacked.rglob("*.me3")), key=str.lower)
+
+
+class ZipSource:
+    """A full-export zip read in place, so its mods are never unpacked twice. skeleton() makes the folder tree the
+    preview walks under root: the real bytes of the few small files the preview reads, empty placeholders for
+    everything else (never copied from: extract() writes the real bytes from the zip straight into the staging
+    folder). Names and sizes come from the zip's own list; identity with an installed folder hashes members as they
+    stream out of the zip."""
+
+    def __init__(self, archive: Path, root: Path):
+        self.archive, self.root = Path(archive), Path(root).resolve()
+        self.members: dict[str, tuple[str, zipfile.ZipInfo]] = {}  # lower-case name -> (name, info), files only
+        self.dirs: list[str] = []
+        self._z: zipfile.ZipFile | None = None
+        with zipfile.ZipFile(self.archive) as z:
+            for info in z.infolist():
+                extract.check_entry(info.filename)
+                name = info.filename.replace("\\", "/")
+                if JUNK.intersection(name.split("/")):
+                    continue
+                if info.is_dir():
+                    self.dirs.append(name)
+                else:
+                    self.members[name.lower()] = (name, info)
+
+    @contextlib.contextmanager
+    def reading(self):
+        with zipfile.ZipFile(self.archive) as z:
+            self._z = z
+            try:
+                yield self
+            finally:
+                self._z = None
+
+    def skeleton(self, wanted: Callable[[str], bool]) -> None:
+        """Create the tree; wanted(name): this small file is extracted for real."""
+        for d in self.dirs:
+            (self.root / d).mkdir(parents=True, exist_ok=True)
+        with self.reading():
+            assert self._z is not None
+            for name, info in self.members.values():
+                path = self.root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if not wanted(name):
+                    path.touch()
+                elif info.file_size <= SMALL:
+                    path.write_bytes(self._z.read(info))
+
+    def under(self, path: Path) -> dict[str, tuple[str, zipfile.ZipInfo]]:
+        """The members of a folder of the skeleton (lower-case path inside it -> (name, info)), or {"": ...} for a file."""
+        rel = Path(path).resolve().relative_to(self.root).as_posix().lower()
+        if rel in self.members:
+            return {"": self.members[rel]}
+        pre = rel + "/"
+        return {k[len(pre) :]: v for k, v in self.members.items() if k.startswith(pre)}
+
+    def size(self, path: Path) -> int:
+        return sum(i.file_size for _n, i in self.under(path).values())
+
+    def sha(self, path: Path, rel: str) -> str:
+        """sha256 of one member (rel: its lower-case path inside the folder), streamed out of the zip."""
+        assert self._z is not None
+        h = hashlib.sha256()
+        with self._z.open(self.under(path)[rel][1]) as f:
+            while chunk := f.read(CHUNK):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def extract(self, path: Path, staged: Path, tick: Callable[[int], None] = lambda n: None) -> None:
+        """The folder (or the lone file) at path in the skeleton, written into staged straight from the zip."""
+        found = self.under(path)
+        lone = "" in found
+        staged.mkdir(parents=True, exist_ok=True)
+        pre = Path(path).resolve().relative_to(self.root).as_posix()
+        try:
+            with self.reading():
+                assert self._z is not None
+                for name, info in found.values():
+                    target = staged / (Path(name).name if lone else name[len(pre) + 1 :])
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with self._z.open(info) as src, target.open("wb") as dst:
+                        while chunk := src.read(CHUNK):
+                            dst.write(chunk)
+                            tick(len(chunk))
+        except zipfile.BadZipFile as e:
+            raise ModError(f"The zip is damaged ({e}); nothing was imported.") from e
 
 
 @dataclass
@@ -60,6 +151,7 @@ class ImportPreview:
         default_factory=list
     )  # (a folder in the download, the identical installed one)
     saved: int = 0  # bytes not copied because of reuse
+    source: ZipSource | None = None  # the zip the folders in copies are read from (None: they are real folders)
 
     @property
     def ok(self) -> bool:
@@ -91,28 +183,30 @@ def _sha(path: Path) -> str:
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
-def identical(a: Path, b: Path) -> int | None:
+def identical(a: Path, b: Path, source: ZipSource | None = None) -> int | None:
     """The total size when two folders hold the same files byte for byte, else None. Names and sizes first; the
-    hashes (stopping at the first difference) only when those match."""
-    fa, fb = _files(a), _files(b)
+    hashes (stopping at the first difference) only when those match. source: a is a folder of that zip."""
+    fa = {k: i.file_size for k, (_n, i) in source.under(a).items()} if source else _files(a)
+    fb = _files(b)
     if fa != fb:
         return None
     for rel in fa:
-        if _sha(a / rel) != _sha(b / rel):
+        if (source.sha(a, rel) if source else _sha(a / rel)) != _sha(b / rel):
             return None
     return sum(fa.values())
 
 
-def _installed_twin(item: Path, root: Path) -> tuple[Path, int] | None:
+def _installed_twin(item: Path, root: Path, source: ZipSource | None = None) -> tuple[Path, int] | None:
     """An installed folder in root (the same name, or that name with -2, -3...) identical to the folder item."""
     base = naming.mod_id(item.name)
     if not item.is_dir() or not root.is_dir():
         return None
-    for p in sorted(root.iterdir(), key=lambda p: p.name.lower()):
-        if p.is_dir() and re.fullmatch(re.escape(base) + r"(-\d+)?", p.name, re.IGNORECASE):
-            size = identical(item, p)
-            if size is not None:
-                return p, size
+    with source.reading() if source else contextlib.nullcontext():
+        for p in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+            if p.is_dir() and re.fullmatch(re.escape(base) + r"(-\d+)?", p.name, re.IGNORECASE):
+                size = identical(item, p, source)
+                if size is not None:
+                    return p, size
     return None
 
 
@@ -124,10 +218,12 @@ def preview_import(
     loc: Locations,
     new_name: str | None = None,
     tune: Callable[[ProfileWriter], None] | None = None,
+    archive: ZipSource | None = None,
 ) -> ImportPreview:
     """What importing the bundled profile me3 (its path in the unpacked download) would do: into current, or, with
     new_name, into a new profile of that name beside current. tune(writer): more edits for the same write (a shared
-    profile's settings), made before it is planned. Raises ModError when it can't be read."""
+    profile's settings), made before it is planned. archive: unpacked is the skeleton of this zip (ZipSource.skeleton).
+    Raises ModError when it can't be read."""
     unpacked, current = Path(unpacked).resolve(), Path(current)
     source = (unpacked / me3).resolve()
     if not _inside(source, unpacked) or not source.is_file():
@@ -147,7 +243,7 @@ def preview_import(
     pk_root, nt_root = roots(target, writer.text)
     taken_ids = {str(e.get("id") or "").lower() for e in writer.entries() if e["kind"] == "package"}
     taken_dirs = {p.name.lower() for root in (pk_root, nt_root) if root.is_dir() for p in root.iterdir()}
-    out = ImportPreview(target, bool(new_name), writer, None, [], {}, [])
+    out = ImportPreview(target, bool(new_name), writer, None, [], {}, [], source=archive)
     place: dict[Path, Path] = {}  # a folder (or lone DLL) in the download -> where it goes
     rows: list[tuple[dict, Path]] = []
     for e in found:
@@ -161,7 +257,7 @@ def preview_import(
             item = path if path.parent in (source.parent, unpacked) else path.parent
         if item not in place:
             root = pk_root if e["kind"] == "package" else nt_root
-            twin = _installed_twin(item, root)
+            twin = _installed_twin(item, root, archive)
             if twin is not None:  # already installed, byte for byte: the profile points at it
                 place[item] = twin[0]
                 out.reused.append((item, twin[0]))
@@ -234,14 +330,48 @@ def _deepest(path: Path) -> int:
     )
 
 
+def _need_space(copies: list[tuple[Path, Path]], source: ZipSource) -> None:
+    """Refuse, before anything is written, when a drive can't hold the folders about to be unpacked onto it."""
+    per: dict[int, list] = {}
+    for src, dest in copies:
+        where = dest.parent
+        while not where.exists() and where != where.parent:
+            where = where.parent
+        row = per.setdefault(where.stat().st_dev, [where, 0])
+        row[1] += source.size(src)
+    for where, need in per.values():
+        want = need + max(HEADROOM, need // 10)
+        free = shutil.disk_usage(where).free
+        if free < want:
+            raise ModError(
+                f"There is not enough free space on {where.anchor or where}: the import needs about {_size(want)} "
+                f"and {_size(free)} is free. Nothing was imported."
+            )
+
+
 def apply_import(
-    preview: ImportPreview, *, log=lambda s: None, after_copy: Callable[[Path, Path], None] | None = None
+    preview: ImportPreview,
+    *,
+    log=lambda s: None,
+    after_copy: Callable[[Path, Path], None] | None = None,
+    progress: Callable[[int, int], None] = lambda done, total: None,
 ) -> dict:
     """Import as previewed, as one operation. after_copy(dest, staged): called for each folder copied, before it
-    goes live (a shared profile's settings files are written into the copy). Returns {operation, profile, new}."""
+    goes live (a shared profile's settings files are written into the copy). progress(done, total): bytes unpacked
+    from a zip. Returns {operation, profile, new}."""
     p = preview
     if not p.ok or p.change is None:
         raise ModError("; ".join(p.refusals) or "Nothing to import.")
+    total, done = 1, 0
+    if p.source is not None:
+        _need_space(p.copies, p.source)
+        total = sum(p.source.size(src) for src, _ in p.copies) or 1
+
+    def tick(n: int) -> None:
+        nonlocal done
+        done += n
+        progress(done, total)
+
     with operations.lock(p.profile):
         operations.recover(p.profile)
         op = operations.start(p.profile, f"import into {p.profile.name}")
@@ -249,13 +379,19 @@ def apply_import(
         try:
             for src, dest in p.copies:
                 staged = dest.with_name(f".{dest.name}.staging-{op.id}")
-                if src.is_file():
-                    staged.mkdir(parents=True)
-                    shutil.copy2(src, staged / src.name)
-                else:
-                    shutil.copytree(src, staged, ignore=shutil.ignore_patterns(*JUNK))
-                if after_copy is not None:
-                    after_copy(dest, staged)
+                try:  # not yet a step of the operation, so discard() would not remove it
+                    if p.source is not None:
+                        p.source.extract(src, staged, tick)
+                    elif src.is_file():
+                        staged.mkdir(parents=True)
+                        shutil.copy2(src, staged / src.name)
+                    else:
+                        shutil.copytree(src, staged, ignore=shutil.ignore_patterns(*JUNK))
+                    if after_copy is not None:
+                        after_copy(dest, staged)
+                except BaseException:
+                    shutil.rmtree(staged, ignore_errors=True)
+                    raise
                 made[str(dest)] = operations.manifest(staged)
                 op.replace_folder(dest, staged)
             p.writer.commit(p.change, operation=op)

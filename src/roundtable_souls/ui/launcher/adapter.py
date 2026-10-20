@@ -59,7 +59,7 @@ class ShellAdapter(QObject):
         self._next = 0
         self.closing_approved = False
         self._after_close_confirm: Any = None
-        self._current = "mods" if host.state.game.ready else "activity"
+        self._current = "mods" if host.state.game.ready else "placeholder"
         self._cache: dict[str, Any] = {}
         host.page_opener = self.open_page
         host.guard_prompt = self._ask_unsaved
@@ -69,6 +69,7 @@ class ShellAdapter(QObject):
         host.forwardRequested.connect(self.forwardRequested)
         host.quitRequested.connect(self._quit)
         host.pageRequested.connect(self.goTo)
+        host.gameChanged.connect(self._game_changed)
         self._recompute()
         self.open_page(self._current)  # the first page is made before the window asks for it
 
@@ -304,8 +305,11 @@ class ShellAdapter(QObject):
     @Slot(str)
     def goTo(self, name: str) -> None:
         """Go to a page, asking about unsaved edits on the page being left first."""
-        if not self.host.state.game.ready and SUB_PAGES.get(name, name) not in ALWAYS:
-            name = "activity"
+        ready = self.host.state.game.ready
+        if not ready and SUB_PAGES.get(name, name) not in ALWAYS:
+            name = "placeholder"  # a game without support yet: its placeholder, Activity and Settings only
+        elif ready and name == "placeholder":
+            name = self._last_page.get(self.host.state.game.key, "mods")
         if name == self._current:
             return
         leaving = self._unsaved_of(self._current)
@@ -324,7 +328,7 @@ class ShellAdapter(QObject):
         self._current = name
         st = self.host.state
         if st.game.ready and SUB_PAGES.get(name, name) not in ALWAYS:
-            self._last_page[st.game.key] = SUB_PAGES.get(name, name)
+            self._last_page[st.game.key] = SUB_PAGES.get(name, name)  # switching back returns here
         adapter = self.adapterFor(name)
         if name not in self._visited:
             self._visited.append(name)
@@ -352,6 +356,17 @@ class ShellAdapter(QObject):
         command = getattr(adapter, "command", None)
         if command is not None and self._unsaved_of(self._current):
             command("saveUnsaved", [])
+
+    def _game_changed(self) -> None:
+        """Another game: land on the page it was last on (Mods the first time); Activity and Settings stay."""
+        st = self.host.state
+        if self._current in ALWAYS:
+            self._host_changed()
+            return
+        target = self._last_page.get(st.game.key, "mods") if st.game.ready else "placeholder"
+        self._current = ""  # a switch to the same page name still counts
+        self._set_page(target)
+        self._host_changed()
 
     @Slot()
     def back(self) -> None:

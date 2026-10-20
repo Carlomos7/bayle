@@ -37,6 +37,12 @@ def _mod_configs(host, notifier: Notifier):
     return ModConfigsAdapter(host, notifier)
 
 
+def _placeholder(host, notifier: Notifier):
+    from roundtable_souls.ui.pages.placeholder.adapter import PlaceholderAdapter
+
+    return PlaceholderAdapter(host, notifier)
+
+
 def _profile_transfer(host, notifier: Notifier):
     from roundtable_souls.ui.pages.profile_transfer.adapter import ProfileTransferAdapter
 
@@ -62,6 +68,7 @@ QML_PAGES: tuple[QmlPage, ...] = (
     QmlPage("profileTransfer", "Pages/ProfileTransferPage.qml", _profile_transfer),
     QmlPage("saves", "Pages/SavesPage.qml", _saves),
     QmlPage("settings", "Pages/SettingsPage.qml", _settings),
+    QmlPage("placeholder", "Pages/PlaceholderPage.qml", _placeholder),  # a game without support yet (the shell)
 )
 
 

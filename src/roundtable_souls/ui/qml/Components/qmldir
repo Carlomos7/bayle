@@ -24,6 +24,7 @@ PageScroll 1.0 PageScroll.qml
 Pill 1.0 Pill.qml
 PopupMenu 1.0 PopupMenu.qml
 PrimaryButton 1.0 PrimaryButton.qml
+ProgressBar 1.0 ProgressBar.qml
 SidePanel 1.0 SidePanel.qml
 Smear 1.0 Smear.qml
 SoftShadow 1.0 SoftShadow.qml

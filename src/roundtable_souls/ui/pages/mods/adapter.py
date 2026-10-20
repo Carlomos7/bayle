@@ -906,7 +906,9 @@ class ModsAdapter(QObject):
     @Slot(int, str)
     def requestRenamePreview(self, index: int, name: str) -> None:
         """renamePreview off the UI thread; the answer comes on renamePreviewReady."""
-        self.host.run_in_background(lambda: self.renamePreview(index, name), self.renamePreviewReady.emit)
+        self.host.run_in_background(
+            lambda: {**self.renamePreview(index, name), "name": name}, self.renamePreviewReady.emit
+        )
 
     def renamePreview(self, index: int, name: str) -> dict:
         """Whether renaming to `name` is allowed and what it would change: {ok, lines, refusals}."""

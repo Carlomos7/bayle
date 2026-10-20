@@ -14,7 +14,7 @@ Item {
     property real maxWidth: 100000
     required property var shell
     readonly property var st: shell.status
-    readonly property color tone: st.tone === "danger" ? Theme.statusDanger : st.tone === "accent" ? Theme.accent : Theme.textSecondary
+    readonly property color tone: st.tone === "danger" ? Theme.statusDanger : st.tone === "warning" ? Theme.statusWarning : st.tone === "accent" ? Theme.accent : Theme.textSecondary
 
     height: 20
     width: Math.min(row.implicitWidth, maxWidth)

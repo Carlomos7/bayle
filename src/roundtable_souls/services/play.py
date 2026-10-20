@@ -145,16 +145,27 @@ class Setup:
         if self.me3 and not Path(self.me3).is_file():
             out.append(f"me3 missing: {self.me3}")
         if not self.me3 and not self.loc.me3_exe():
-            out.append("me3 is not installed on this PC (not on PATH, not in its default folder, not set on Tools)")
+            out.append("me3 is not installed on this PC (not on PATH, not in its default folder, not set in Settings)")
         if self.exe and not Path(self.exe).is_file():
             out.append(f"game exe missing: {self.exe}")
         custom = self.loc.overrides.game_exe
         if custom and not Path(custom).is_file():
-            out.append(f"game exe set on Tools is missing: {custom}")
+            out.append(f"game exe set in Settings is missing: {custom}")
         return out
 
+    def warnings(self):
+        """What will not stop Play but leaves a mod out: a mod folder that is gone (me3 skips it)."""
+        p = Path(self.profile)
+        if self.kind != "me3" or not p.is_file():
+            return []
+        try:
+            rows = profile_tools.package_rows(p.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            return []
+        return [f"{r['id']} folder is missing" for r in rows if not mod_manage.resolve(p, r["path"]).is_dir()]
+
     def launch_exe(self):
-        """What me3 launches with --exe: the installation's own exe, else the custom exe from Tools, else Steam (--game)."""
+        """What me3 launches with --exe: the installation's own exe, else the custom exe from Settings, else Steam (--game)."""
         return self.exe or self.loc.overrides.game_exe or None
 
 
@@ -443,11 +454,11 @@ def _after_play(opts, loc: Locations):
     elif opts[repair_key(loc.game)]:
         save_repair.repair_all(loc)
     else:
-        run_logging.log("repair after quitting is off (Tools > Play session)")
+        run_logging.log("repair after quitting is off (Settings > Launch)")
     if opts["play_clear_after"]:
         me3_session.clear_dead_shells(loc.game_exe_name(), "after exit")
     else:
-        run_logging.log("clearing leftover processes after quitting is off (Tools > Play session)")
+        run_logging.log("clearing leftover processes after quitting is off (Settings > Launch)")
 
 
 def job_play(setup: Setup, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
@@ -713,8 +724,8 @@ def play_headless(
             job_play(setup)
     except BackupBeforePlayFailed as e:
         why = (
-            f"Backing up your saves before Play failed: {e}. Fix that, turn 'back up saves before Play' off on the "
-            "Tools page, or start with --allow-without-backup to play anyway."
+            f"Backing up your saves before Play failed: {e}. Fix that, turn 'back up saves before Play' off in "
+            "Settings, or start with --allow-without-backup to play anyway."
         )
         if notice is not None:
             notice(game, why, f"{game.name} was not started: a backup before Play failed")

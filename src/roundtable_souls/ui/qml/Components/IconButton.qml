@@ -66,4 +66,6 @@ Button {
             size: root.iconSize
         }
     }
+    HandCursor {
+    }
 }

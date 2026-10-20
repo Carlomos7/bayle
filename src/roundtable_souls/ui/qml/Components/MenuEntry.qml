@@ -102,4 +102,6 @@ MenuItem {
             visible: root.subMenu !== null
         }
     }
+    HandCursor {
+    }
 }

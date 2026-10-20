@@ -187,6 +187,41 @@ class ModsAdapter(QObject):
         return self._state
 
     # ---- reading (on the job runner's worker thread)
+    # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
+    COMMANDS = {
+        "deleteProfile": "deleteProfile",
+        "profileSettings": "openProfileSettings",
+        "editText": "_edit_text_on",
+        "fixOrder": "fixOrder",
+        "versions": "openVersions",
+        "saveUnsaved": "saveText",
+        "discardUnsaved": "discardText",
+        "back": "_back",
+    }
+
+    def command(self, name: str, args) -> bool:
+        """Run a menu command; False when this page has none by that name."""
+        method = self.COMMANDS.get(name)
+        if method is None:
+            return False
+        getattr(self, method)(*args)
+        return True
+
+    def _edit_text_on(self) -> None:
+        self.setEditText(True)
+
+    def _back(self) -> None:
+        pass
+
+    def unsaved_words(self) -> list[str]:
+        return [tr("The me3 profile (edited as text)")] if self._text != self._saved_text else []
+
+    def load_order_broken(self) -> bool:
+        """The mod that must stay last is not last and Fix order would change the file (Profile > Fix load order)."""
+        order = getattr(self._state, "load_order", None)
+        stays = getattr(order, "stays_last", None)
+        return bool(stays is not None and stays.can_fix)
+
     @Slot()
     def refresh(self) -> None:
         if self._loading:

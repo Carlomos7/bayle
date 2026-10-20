@@ -87,6 +87,10 @@ ApplicationWindow {
         Component.onCompleted: page.setSource(win.pageUrl, {
             "adapter": win.adapter
         })
+        onLoaded: {
+            if (item.leave !== undefined)   // a page that finishes by itself closes its window
+                item.leave.connect(win.close);
+        }
     }
     Overlays {
         notifiers: [win.notifier]

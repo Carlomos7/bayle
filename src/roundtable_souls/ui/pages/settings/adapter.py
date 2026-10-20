@@ -277,6 +277,20 @@ class SettingsAdapter(QObject):
             ]
         return out
 
+    # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
+    COMMANDS = {
+        "checkForUpdates": "checkForUpdates",
+        "saveLogs": "saveLogs",
+    }
+
+    def command(self, name: str, args) -> bool:
+        """Run a menu command; False when this page has none by that name."""
+        method = self.COMMANDS.get(name)
+        if method is None:
+            return False
+        getattr(self, method)(*args)
+        return True
+
     @Slot()
     def refresh(self) -> None:
         s = load_settings()

@@ -33,6 +33,7 @@
   "qml_modules": [
     "App",
     "Components",
+    "QtQml.Models",
     "QtQuick",
     "QtQuick.Controls.Basic",
     "QtQuick.Controls.impl",

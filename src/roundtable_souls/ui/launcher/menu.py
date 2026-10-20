@@ -46,7 +46,7 @@ MODS, MOD_CONFIGS, SAVES, ACTIVITY, SETTINGS, TRANSFER = (
 )
 
 FILE = (
-    Entry("file.new", "New profile...", MODS, "newProfile", shortcut="Ctrl+N", icon="Add", rule="game_ready"),
+    Entry("file.new", "New profile...", SHELL, "newProfile", shortcut="Ctrl+N", icon="Add", rule="game_ready"),
     Entry("file.add", "Add existing profile...", SHELL, "addProfile", icon="FolderAdd", rule="game_ready"),
     Entry("file.import", "Import profile...", TRANSFER, "import", icon="Download", rule="game_ready"),
     Entry("file.export", "Export profile...", TRANSFER, "export", icon="Share", rule="profile"),

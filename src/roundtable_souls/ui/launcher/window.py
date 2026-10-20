@@ -85,6 +85,7 @@ class ShellWindow(QObject):
         self.warnings: list[str] = []
         host.pickers = QmlPickers(self)
         self.adapter.quitRequested.connect(self._quit)
+        host.appearanceChanged.connect(self.follow_theme)
 
     @property
     def window(self) -> QQuickWindow | None:
@@ -102,6 +103,7 @@ class ShellWindow(QObject):
         self.engine.addImportPath(str(QML_DIR))
         self.engine.warnings.connect(self._warned)
         self.engine.setInitialProperties({"shell": self.adapter, "visible": False})
+        self.follow_theme()
         self.engine.load(QUrl.fromLocalFile(str(MAIN_QML)))
         return self.window is not None
 
@@ -130,6 +132,17 @@ class ShellWindow(QObject):
         """A page's root item once loaded (tests and the self-test)."""
         win = self.window
         return win.findChild(QObject, f"{name}Page") if win is not None else None
+
+    def follow_theme(self) -> None:
+        """The OS window frame (title bar, caption glyphs) follows the app's theme, not only the system's: dark and
+        light are forced, System follows Windows again."""
+        from PySide6.QtCore import Qt
+
+        hints = QGuiApplication.styleHints()
+        theme = self.host.state.settings.theme
+        scheme = {"light": Qt.ColorScheme.Light, "system": Qt.ColorScheme.Unknown}.get(theme, Qt.ColorScheme.Dark)
+        if hints is not None and hints.colorScheme() != scheme:
+            hints.setColorScheme(scheme)
 
     def _quit(self) -> None:
         app = QGuiApplication.instance()

@@ -4,6 +4,26 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The new interface is the launcher. One window with a menu bar (File, Profile, Game, Saves, View, Help), a top bar and a
+  navigation rail: Mods, Mod Configs, Saves, Activity, and Settings at the bottom. The top bar has the Launch pill (the
+  mode word picks Profile, Offline or Vanilla, remembered per game; Ctrl+L launches, Ctrl+Shift+L opens the mode menu),
+  the game drop-down, the profile drop-down (New profile... last) and one line of status: Ready, the running job,
+  "Elden Ring running", why Launch is blocked with a link to the fix, a dead game process with Clear, Steam not signed
+  in with Open Steam, unsaved co-op settings (they apply on launch). What moved: Play became the Launch pill, Co-op
+  became Mod Configs, Maintenance became Saves. Ctrl+1 to 5 open the pages, Ctrl+Tab changes game, Esc backs out of a
+  sub-page. The old window is still there for now: start with `--widgets` to open it, and it opens by itself if the new
+  one cannot start.
+- Launch asks before the game starts when it must: a failed backup (Retry, Launch without backup, Cancel), merged mods
+  that are out of date (Rebuild now, Play anyway this once, Cancel; with automatic rebuilds on it says "Updating merged
+  mods..." and "Stop after the rebuild" lets the rebuild finish, then does not start the game), and a profile that would
+  go online with changed game data (Launch Offline instead, Launch online anyway, Cancel). Launch Vanilla starts the
+  game through Steam with no profile and no me3. Unsaved Seamless settings are saved first.
+- Seamless Co-op left in the game folder: a bar on Mods offers Move into this setup or Clean up the game folder. Cleaning
+  up never removes the settings file or the locale folder.
+- File > New profile, Add existing profile, Import and Export profile; Profile > Fix load order is enabled only when the
+  mod that must stay last is not last. The window frame follows the theme and keeps Windows' own corners and Snap
+  Layouts. The self-test now builds the new window in all three themes at two sizes.
+
 - Install mod, with "Install overhauls with the launcher (preview)" on: a download that ships its own installer, an
   me3 profile, or a regulation.bin with DLLs starts with "Set up as an overhaul" ticked and the reason shown; any
   other mod can tick it. The dialog shows what it will do (the Name gives the id) and the button reads "Install as

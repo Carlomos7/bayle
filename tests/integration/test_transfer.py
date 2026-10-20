@@ -84,3 +84,41 @@ def test_copying_a_whole_file_keeps_the_replaced_one_in_the_library(tmp_path):
     kept = Lib.entry_path(tmp_path, out["kept"])
     assert kept.read_bytes() == changed and out["kept"]["name"] == "my standard run"
     assert [h["action"] for h in Lib.load(tmp_path)["history"]] == ["replaced"]
+
+
+def _other_account(tmp_path, name="76561198000000001"):
+    acct = tmp_path / name
+    acct.mkdir()
+    return acct / "ER0000.sl2"
+
+
+def test_a_whole_file_from_another_account_is_signed_for_the_target(tmp_path):
+    co2, _ = _pair(tmp_path)
+    target = _other_account(tmp_path)
+    shutil.copy2(co2, target)
+    before = target.read_bytes()
+    out = T.copy_file(co2, target, ER)
+    r, src = L.parse(str(target)), L.parse(str(co2))
+    assert out["signed"] and r["ud10_md5_ok"]
+    assert r["ud10"]["steam_id"] == 76561198000000001
+    active = [i for i, on in enumerate(r["ud10"]["active_raw"]) if on]
+    assert active
+    for i in active:
+        assert r["slot_md5_ok"][i] and r["slots"][i]["steam_id"] == 76561198000000001
+        assert r["slots"][i]["pgd"]["name"] == src["slots"][i]["pgd"]["name"]
+        assert r["slots"][i]["pgd"]["level"] == src["slots"][i]["pgd"]["level"]
+    assert [(c["name"], c["level"], c["seconds"]) for c in Lib.characters(target)] == [
+        (c["name"], c["level"], c["seconds"]) for c in Lib.characters(co2)
+    ]
+    assert out["backup"].read_bytes() == before
+
+
+def test_a_signing_that_does_not_read_back_writes_nothing(tmp_path, monkeypatch):
+    co2, _ = _pair(tmp_path)
+    target = _other_account(tmp_path)
+    shutil.copy2(co2, target)
+    before = target.read_bytes()
+    monkeypatch.setattr(F, "_sign_slot", lambda data, i: None)  # the checksums stay stale
+    with pytest.raises(Lib.LibraryError):
+        T.copy_file(co2, target, ER)
+    assert target.read_bytes() == before

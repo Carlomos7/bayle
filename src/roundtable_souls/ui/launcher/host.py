@@ -482,7 +482,7 @@ class ShellHost(QObject):
             return
         if self.busy or self.game_running:
             self.notifier.toast(
-                tr("Play from Steam ignored: {game} or a job is already running here.").format(
+                tr("Launch from Steam ignored: {game} or a job is already running here.").format(
                     game=self.state.game.name
                 ),
                 error=True,

@@ -141,7 +141,7 @@ class SettingsAdapter(QObject):
             "offlineBlurb": sp.OFFLINE_BLURB,
             "offlineHelp": sp.OFFLINE_HELP,
             "steam": tr("Steam shortcut"),
-            "steamHelp": tr("Play from Steam without this window; one shortcut per game."),
+            "steamHelp": tr("Launch from Steam without this window; one shortcut per game."),
             "copyTarget": tr("Copy target"),
             "copyOptions": tr("Copy launch options"),
             "pointSteam": tr("Point Steam shortcuts here"),

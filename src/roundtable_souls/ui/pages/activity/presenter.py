@@ -258,7 +258,9 @@ class ActivityPresenter:
     # ---- text the page and its window carry
     title = property(lambda self: tr("Activity"))
     subtitle = property(
-        lambda self: tr("What the launcher did: every Play, repair, install and rebuild, with how it went and its log.")
+        lambda self: tr(
+            "What the launcher did: every launch, repair, install and rebuild, with how it went and its log."
+        )
     )
     open_window_text = property(lambda self: tr("Open new Activity window"))
     open_window_tip = property(
@@ -351,9 +353,9 @@ class ActivityPresenter:
             bits = [f"{day_word(w.date(), today).capitalize()} {w.strftime('%H:%M')}" if w else ""]
             bits.append(duration_text(play.get("seconds")))
             level = "danger" if play.get("outcome") in FAILED else "success"
-            cards.append(SummaryCard(tr("Last Play"), "  ·  ".join(b for b in bits if b), level))
+            cards.append(SummaryCard(tr("Last launch"), "  ·  ".join(b for b in bits if b), level))
         else:
-            cards.append(SummaryCard(tr("Last Play"), none, "muted"))
+            cards.append(SummaryCard(tr("Last launch"), none, "muted"))
         if install:
             value = "  ·  ".join(b for b in (title_text(install), when(install)) if b)
             cards.append(SummaryCard(tr("Last install"), value, "muted"))
@@ -533,7 +535,7 @@ class ActivityPresenter:
         changes = (
             tr("Its entry goes back into {profile}, where it was").format(profile=prof.name),
             tr("Its folder comes back from the Recycle Bin") if trash.exists(u.get("trash")) else "",
-            tr("Play rebuilds the merged mods with it before the game starts (or Rebuild on the Mods page)")
+            tr("Launching rebuilds the merged mods with it before the game starts (or Rebuild on the Mods page)")
             if u.get("merged")
             else "",
         )

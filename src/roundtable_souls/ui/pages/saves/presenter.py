@@ -76,7 +76,8 @@ class SavesPresenter:
             "back": tr("Back"),
             "empty": tr("Empty slot"),
             "noSaves": tr("No saves in this Windows account yet. Play once so the game creates its save folder."),
-            "noLibrary": tr("Nothing here yet. Save a copy of a live save, or import a file."),
+            "noLibraryTitle": tr("No saved copies yet"),
+            "noLibrary": tr("Save a copy of a live save from its menu, or import a save file, and it appears here."),
             "noBackups": tr("No backups yet. One is taken before the first change to a save."),
             "backUpNow": tr("Back up now"),
             "saveCopy": tr("Save a copy to the Library"),
@@ -95,7 +96,7 @@ class SavesPresenter:
             "keep": tr("Keep as a Library copy..."),
             "rename": tr("Rename..."),
             "remove": tr("Remove"),
-            "deleteAction": tr("Delete"),
+            "deleteAction": tr("Remove"),
             "putBack": tr("Put back"),
             "finish": tr("Finish removing"),
             "name": tr("Name"),
@@ -109,8 +110,8 @@ class SavesPresenter:
             "copyActions": tr("More"),
             "emptySlots": tr("Empty slots:"),
             "slot": tr("Slot"),
-            "replaceLibrary": tr("Replace with a Library copy"),
-            "replaceKind": tr("Replace {kind} with this..."),
+            "replaceLibrary": tr("Restore from a Library copy"),
+            "replaceKind": tr("Restore over {kind}..."),
             "restoreKind": tr("Restore over {kind}..."),
             "kept": tr("Kept"),
             "letAgeOut": tr("Let it age out"),
@@ -164,6 +165,10 @@ class SavesPresenter:
         if saves_service.repair_available(info):
             return (tr("Repair after you quit") if running else tr("Repair available")), "warning"
         return tr("Healthy"), "success"
+
+    @staticmethod
+    def kind_of(path: Path) -> str:
+        return tr("Seamless Co-op") if Path(path).suffix.lower() == ".co2" else tr("Standard")
 
     def card(self, info: dict, role: str, running: bool) -> dict:
         text, level = self.health(info, running)
@@ -353,9 +358,26 @@ class SavesPresenter:
         ]
 
     def replace(
-        self, source: str, target: str, rows: list[dict], signed: bool, mod_holders: int, standard: bool
+        self,
+        source: str,
+        target: str,
+        rows: list[dict],
+        signed: bool,
+        mod_holders: int,
+        standard: bool,
+        *,
+        restore: bool = False,
+        kinds: tuple[str, str] | None = None,
     ) -> Confirm:
+        """restore: the source is a Library copy (Restore, not Replace). kinds: (source's, target's) file kinds when
+        they differ (a Seamless .co2 over a Standard .sl2): the bytes are copied and the target keeps its name."""
         changes = [tr("{target} becomes a copy of {source}.").format(target=target, source=source)]
+        if kinds:
+            changes.append(
+                tr(
+                    "{source} is a {a} save and {target} is a {b} save. It is copied as it is; {target} keeps its name."
+                ).format(source=source, target=target, a=kinds[0], b=kinds[1])
+            )
         changes += self.compare_lines(rows)
         if signed:
             changes.append(tr("Signed for this account on copy."))
@@ -365,9 +387,9 @@ class SavesPresenter:
                 "{n} characters hold items the game does not define. Check & repair can take them off afterwards."
             ).format(n=mod_holders)
         return Confirm(
-            title=tr("Replace {target}").format(target=target),
+            title=(tr("Restore {target}") if restore else tr("Replace {target}")).format(target=target),
             changes=tuple(changes),
-            apply=tr("Replace"),
+            apply=tr("Restore") if restore else tr("Replace"),
             warning=warning,
             safety=tr("{target} is kept in the Library first, and backed up. Undo appears afterwards.").format(
                 target=target
@@ -401,13 +423,13 @@ class SavesPresenter:
 
     def delete_backup(self, row: dict) -> Confirm:
         return Confirm(
-            title=tr("Delete this backup"),
+            title=tr("Remove this backup"),
             changes=(
                 Path(row["path"]).name,
                 tr("Taken {when} before: {action}").format(when=row["time"], action=row["action"]),
             ),
-            apply=tr("Delete"),
-            warning=tr("Deleting a backup cannot be undone. The live save is not touched."),
+            apply=tr("Remove"),
+            warning=tr("Removing a backup cannot be undone. The live save is not touched."),
         )
 
     def changed_outside(self, name: str) -> Confirm:
@@ -713,9 +735,10 @@ class SavesPresenter:
         Pure: reads only what the drag carries, so it can judge every spot while the pointer moves.
         source: {type: character|live|copy|backup, path, slot, folder, id, missing}
         target: {type: slot|card|library|backups, path, slot, free, kind}."""
-        if running or busy:
-            return self.refusal_busy(game, running)
         kind, where = source.get("type"), target.get("type")
+        read_only = kind == "live" and where == "library"  # Save a copy only reads the live save: allowed while it runs
+        if busy or (running and not read_only):
+            return self.refusal_busy(game, running and not busy)
         on_save = where in ("slot", "card")
         if kind in ("character", "copychar"):
             if not on_save:
@@ -761,7 +784,11 @@ class SavesPresenter:
             return Drop("backUpNow", (source["path"],))
         if kind == "live" and on_save:
             return Refusal(tr("Not here"), tr("Drop a copy or a backup on a live save to replace it."))
-        return Refusal(tr("Not here"), tr("That cannot be dropped there."))
+        if kind == "copy" and where == "library":
+            return Refusal(tr("Already there"), tr("This copy is already in the Library."))
+        if kind == "backup" and where == "backups":
+            return Refusal(tr("Already there"), tr("This backup is already in the Backups."))
+        return Refusal(tr("Not here"), tr("Drop a character on a slot, or a copy or a backup on a live save."))
 
 
 def transfer_error(e: Exception) -> Refusal:

@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- One code editor everywhere (the .me3 text, a mod's config text, the README and changelog, a job's log): syntax colours for TOML, INI, JSON, Lua / HKS and Markdown picked by file type, line numbers, the current line marked, find and replace (Ctrl+F, F3), go to line (Ctrl+G), Tab / Shift+Tab indent, a Wrap switch, and the first error of a TOML, JSON or INI text marked on its line in plain words.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - Importing a profile or a full export now asks when a mod has the same name as one you have installed but other

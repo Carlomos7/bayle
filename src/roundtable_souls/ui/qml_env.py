@@ -9,6 +9,7 @@ from pathlib import Path
 from PySide6.QtGui import QFontDatabase
 
 from roundtable_souls.platform import data_folder
+from roundtable_souls.ui import code_editor  # noqa: F401  (registers Roundtable.Code for QML)
 
 UI = Path(__file__).resolve().parent
 QML_DIR = UI / "qml"

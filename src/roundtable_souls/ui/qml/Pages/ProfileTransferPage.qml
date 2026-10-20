@@ -309,10 +309,10 @@ PageScroll {
                         onClicked: page.readmePreview = !page.readmePreview
                     }
                 }
-                CodeArea {
+                CodeEditor {
                     enabled: !page.adapter.working
                     height: 200
-                    mono: false
+                    language: "markdown"
                     objectName: "exportReadme"
                     text: page.s.ex.readme
                     visible: !page.readmePreview
@@ -334,10 +334,10 @@ PageScroll {
 
                     onClicked: page.showChangelog = !page.showChangelog
                 }
-                CodeArea {
+                CodeEditor {
                     enabled: !page.adapter.working
                     height: 140
-                    mono: false
+                    language: "markdown"
                     objectName: "exportChangelog"
                     text: page.s.ex.changelog
                     visible: page.showChangelog

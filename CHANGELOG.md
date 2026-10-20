@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The mouse pointer is a hand over every button, switch, tick-box and menu item that can be clicked, and an arrow when it is off.
 - Launch: the reasons it is blocked are in plain words (no more "Tools"), each with a link that fixes it; a wrong-game or missing profile opens the profile drop-down. First-run hints close with Esc and no longer cover the navigation labels.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.

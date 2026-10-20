@@ -134,7 +134,7 @@ SidePanel {
 
                             required property var modelData
 
-                            width: parent.width
+                            width: parent ? parent.width : 0
 
                             CheckRow {
                                 checked: item.modelData.checked
@@ -148,9 +148,11 @@ SidePanel {
                                 color: item.modelData.note !== "" ? Theme.statusDanger : Theme.textSecondary
                                 kind: "caption"
                                 leftPadding: 30
+                                elide: Text.ElideNone
                                 text: item.modelData.note !== "" ? item.modelData.note : item.modelData.sub
                                 visible: text !== ""
                                 width: parent.width
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }

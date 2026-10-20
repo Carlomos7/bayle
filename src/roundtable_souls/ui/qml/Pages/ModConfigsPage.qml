@@ -20,6 +20,19 @@ Item {
 
     Component.onCompleted: page.adapter.refresh()
 
+    Connections {
+        function onPickRequested(key, words, rows) {
+            pickList.openFor(key, words, rows);
+        }
+
+        target: page.adapter
+    }
+    PickListDialog {
+        id: pickList
+
+        adapter: page.adapter
+    }
+
     Shortcut {
         sequences: [StandardKey.Save]
 
@@ -85,6 +98,15 @@ Item {
                 width: parent.width
                 wrapMode: Text.WordWrap
             }
+            GhostButton {
+                icon_: "Add"
+                implicitHeight: Theme.controlSmallH
+                objectName: "addOverhaulSetup"
+                text: page.words.addOverhaul
+                visible: page.adapter.hasProfile
+
+                onClicked: page.adapter.addOverhaulSetup("")
+            }
             Repeater {
                 model: page.adapter.nodes
 
@@ -134,6 +156,14 @@ Item {
                                 x: Theme.sp16
                             }
                         }
+                    }
+                    GhostButton {
+                        implicitHeight: Theme.controlSmallH
+                        objectName: "setUpAsOverhaul"
+                        text: page.words.setUpAsOverhaul
+                        visible: node.modelData.kind === "native" || node.modelData.kind === "package"
+
+                        onClicked: page.adapter.addOverhaulSetup(node.modelData.key)
                     }
                 }
             }
@@ -219,11 +249,13 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         kind: "caption"
                         text: page.words.editAsText
+                        visible: page.adapter.canEditText
                     }
                     ToggleSwitch {
                         anchors.verticalCenter: parent.verticalCenter
                         checked: page.adapter.editText
                         objectName: "editAsText"
+                        visible: page.adapter.canEditText
 
                         onToggled: page.adapter.setEditText(checked)
                     }
@@ -264,6 +296,11 @@ Item {
                 SeamlessPanel {
                     adapter: page.adapter
                     visible: page.adapter.fileKind === "seamless"
+                    width: parent.width
+                }
+                OverhaulSetupForm {
+                    adapter: page.adapter
+                    visible: page.adapter.fileKind === "overhaul"
                     width: parent.width
                 }
                 Txt {

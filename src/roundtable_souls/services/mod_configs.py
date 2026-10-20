@@ -19,19 +19,22 @@ from roundtable_souls.coop import scaling as coop_scaling
 from roundtable_souls.coop import share as coop_share
 from roundtable_souls.formats import config_model
 from roundtable_souls.mods import configs, profile_edit
-from roundtable_souls.services.mods import profile_entries
+from roundtable_souls.services.mods import overhaul_setup_of, profile_entries
 
 if TYPE_CHECKING:
     from roundtable_souls.config.settings import LauncherSettings
     from roundtable_souls.game.locate import Locations
 
 SEAMLESS = "seamless"
+OVERHAUL = (
+    "overhaul"  # the node of the profile's overhaul setup; its first file is the setup itself (how == "overhaul")
+)
 
 
 @dataclass(frozen=True)
 class ConfigFile:
     path: Path
-    how: str  # found (beside the mod) | attached | seamless
+    how: str  # found (beside the mod) | attached | seamless | overhaul (the overhaul's setup itself)
     exists: bool
     kind: str  # seamless | form | markdown | text
 
@@ -43,11 +46,12 @@ class ModNode:
 
     key: str
     name: str
-    kind: str  # seamless | native | package
+    kind: str  # seamless | overhaul | native | package
     enabled: bool
     loaded: bool
     target: Path | None
     files: tuple[ConfigFile, ...] = ()
+    setup: dict | None = None  # overhaul only: services.mods.overhaul_setup_of
 
 
 def _kind(path: Path, seamless_ini: str | None) -> str:
@@ -75,6 +79,9 @@ def tree(profile, *, loc: Locations, settings: LauncherSettings) -> list[ModNode
         out.append(
             ModNode(SEAMLESS, game.coop_dll, SEAMLESS, bool(entry and entry["enabled"]), ini is not None, None, files)
         )
+    node = _overhaul_node(prof, loc)
+    if node is not None:
+        out.append(node)
     for e in entries:
         if not e.get("path") or (
             e["kind"] == "native" and game.coop_dll and Path(e["path"]).name.lower() == game.coop_dll
@@ -98,6 +105,29 @@ def tree(profile, *, loc: Locations, settings: LauncherSettings) -> list[ModNode
         )
         out.append(ModNode(f"{e['kind']}:{where}", e["name"], e["kind"], bool(e["enabled"]), True, where, files))
     return out
+
+
+def _overhaul_node(profile: Path, loc: Locations) -> ModNode | None:
+    """The profile's overhaul setup, when it has one: the setup itself, then the settings files its builds keep for
+    the player (in the library's overhauls/<id>/)."""
+    from roundtable_souls.mods import library
+
+    try:
+        setup = overhaul_setup_of(profile, loc=loc)
+    except Exception:  # a config or record that does not read: no node
+        return None
+    if setup is None or setup["path"] is None:
+        return None
+    config = setup["config"]
+    files = [ConfigFile(Path(setup["path"]), "overhaul", True, OVERHAUL)]
+    lib = library.ModLibrary.for_game(loc)
+    kept = [s.to for b in config.builds for s in b.steps if s.do == "config"]
+    if lib is not None:
+        for name in dict.fromkeys(kept):
+            f = lib.overhaul(config.id) / name
+            if f.is_file():
+                files.append(ConfigFile(f, "found", True, _kind(f, loc.game.coop_ini)))
+    return ModNode(OVERHAUL, config.label, OVERHAUL, True, True, None, tuple(files), setup)
 
 
 def _package_files(settings: LauncherSettings, folder: Path) -> list[dict]:
@@ -146,11 +176,12 @@ class Opened:
     doc: config_model.Document | None = None
 
 
-def open_file(path: Path) -> Opened:
-    """Raises configs.ConfigError for a file too big or not text, OSError when it can't be read."""
+def open_file(path: Path, form: bool = True) -> Opened:
+    """Raises configs.ConfigError for a file too big or not text, OSError when it can't be read. form False: as text
+    only (an overhaul config's TOML has tables of tables the form does not read)."""
     got = configs.read(Path(path))
     lang = config_model.lang_of(Path(path).name)
-    doc = config_model.parse(got["text"], lang) if lang else None
+    doc = config_model.parse(got["text"], lang) if lang and form else None
     return Opened(Path(path), got["text"], got["encoding"], got["crlf"], got["sha"], doc)
 
 
@@ -173,6 +204,87 @@ def reset_value(setting: config_model.Setting) -> tuple[str, str]:
     if setting.default is not None:
         return setting.default, "default"
     return setting.value, "disk"
+
+
+# ----------------------------------------------------------------------------- the Overhaul setup form
+def overhaul_choices(setup: dict) -> dict:
+    """What the basic form offers: {natives: the DLLs as set, keep: [(file, ticked)], merged: [(file, ticked)]}. Empty
+    lists without the mod's folder (the launcher's copy of its download)."""
+    from roundtable_souls.overhauls import basic
+
+    config, folder = setup["config"], setup["folder"]
+    b = config.basic
+    if b is None or folder is None:
+        return {"natives": [], "keep": [], "merged": []}
+    files = basic.files_of(folder)
+    keep = [f for f in files if Path(f).suffix.lower() in basic.SETTINGS_SUFFIXES]
+    low_keep = {k.lower() for k in b.keep}
+    binders = sorted({f for f in files if f.lower().endswith(basic.MERGED_ENDING) and "/" in f}, key=str.lower)
+    low_off = {k.lower() for k in b.not_merged}
+    return {
+        "natives": [n.model_dump() for n in b.natives],
+        "keep": [(f, f.lower() in low_keep) for f in keep],
+        "merged": [(f, f.lower() not in low_off) for f in binders],
+    }
+
+
+def with_basic(config, *, natives: list[dict], keep: list[str], not_merged: list[str]):
+    """The config with the form's values (overhauls.config.Basic) in place of its basic part."""
+    from roundtable_souls.overhauls.config import Basic, BasicNative
+
+    old = config.basic
+    new = Basic(
+        version=old.version if old is not None else None,
+        natives=[BasicNative(**n) for n in natives],
+        keep=keep,
+        not_merged=not_merged,
+    )
+    return config.model_copy(update={"basic": new})
+
+
+def step_lines(config) -> list[str]:
+    """What the config's builds do, one plain line per step (the advanced level shows them read-only)."""
+    words = {
+        "copy_tree": "Copy the folder",
+        "copy": "Copy",
+        "config": "Keep your copy of",
+        "params": "Combine the parameters in",
+        "merge": "Merge",
+        "text": "Add the texts to",
+        "hook": "Add a script fragment to",
+        "remove": "Leave out",
+    }
+    out = []
+    for b in config.builds:
+        for s in b.steps:
+            d = s.model_dump(by_alias=True, exclude_unset=True)
+            what = d.get("file") or d.get("from") or d.get("glob") or d.get("folder") or ""
+            out.append(f"{words.get(s.do, s.do)} {what}".strip())
+    return out
+
+
+def parse_overhaul_text(text: str):
+    """The config a TOML text describes. Raises ValueError (the text or the model says what is wrong)."""
+    import tomllib
+
+    from roundtable_souls.overhauls.config import OverhaulConfig
+
+    return OverhaulConfig.model_validate(tomllib.loads(text))
+
+
+def mods_to_set_up(profile) -> list[dict]:
+    """The profile's mods an overhaul setup can be made for: {name, id, folder} (a package's folder, or the folder
+    of a DLL), in profile order."""
+    prof = Path(profile)
+    out = []
+    for e in profile_entries(prof):
+        if not e.get("path"):
+            continue
+        where = profile_edit.resolve(prof, e["path"])
+        folder = where if e["kind"] == "package" else where.parent
+        if folder.is_dir():
+            out.append({"name": e["name"], "id": e["id"] or "", "folder": folder})
+    return out
 
 
 # ----------------------------------------------------------------------------- Seamless Co-op

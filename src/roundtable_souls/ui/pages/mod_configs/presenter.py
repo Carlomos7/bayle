@@ -13,7 +13,7 @@ from typing import Any
 
 from roundtable_souls.formats import config_model
 from roundtable_souls.services import mod_configs
-from roundtable_souls.ui.pages.mods.presenter import Confirm, Refusal
+from roundtable_souls.ui.pages.mods.presenter import Confirm, Pick, Refusal
 from roundtable_souls.ui.text import plural, tr
 
 # ----------------------------------------------------------------------------- Seamless Co-op's words
@@ -200,6 +200,9 @@ class ModConfigsPresenter:
             "paste": tr("Paste settings"),
             "load": tr("Load settings..."),
             "saveAs": tr("Save settings..."),
+            "addOverhaul": tr("Add overhaul setup..."),
+            "setUpAsOverhaul": tr("Set up as overhaul..."),
+            "turnOff": tr("Turn off"),
         }
 
     # ---- the tree
@@ -218,6 +221,7 @@ class ModConfigsPresenter:
             sub = "" if node.enabled else tr("Switched off in this profile")
         return {
             "key": node.key,
+            "kind": node.kind,
             "name": name,
             "sub": sub,
             "muted": not node.loaded or not node.enabled,
@@ -226,6 +230,144 @@ class ModConfigsPresenter:
                 for f in node.files
             ],
         }
+
+    def overhaul_node(self, node: mod_configs.ModNode) -> dict[str, Any]:
+        """The tree's entry for the overhaul setup: its label, and whether the launcher verified it."""
+        setup = node.setup or {}
+        return {
+            "key": node.key,
+            "kind": node.kind,
+            "muted": False,
+            "name": tr("Overhaul setup") + ": " + node.name,
+            "sub": self.overhaul_status(bool(setup.get("verified"))),
+            "files": [
+                {
+                    "path": str(f.path),
+                    "name": tr("Setup") if f.how == "overhaul" else f.path.name,
+                    "kind": f.kind,
+                    "attached": False,
+                }
+                for f in node.files
+            ],
+        }
+
+    @staticmethod
+    def overhaul_status(verified: bool) -> str:
+        return tr("verified") if verified else tr("your config, not verified")
+
+    def overhaul_label(self, label: str, verified: bool) -> str:
+        """How the overhaul is named wherever its state is said (this page, the Mods page's Parameters card)."""
+        return f"{label} ({self.overhaul_status(verified)})"
+
+    def overhaul(self, setup: dict, choices: dict, values: dict, steps: list[str], new: bool) -> dict[str, Any]:
+        """The Overhaul setup form: setup is services.mods.overhaul_setup_of (or the proposal for a new one); values
+        the working copy (natives, keep, off: the binders used whole). The basic level is generated rows (the page's
+        ConfigForm); the advanced level and a verified setup are shown read-only."""
+        config, verified = setup["config"], bool(setup.get("verified"))
+        basic_level = setup["level"] == "basic" and config.basic is not None and not verified
+        sections: list[dict] = []
+        if basic_level:
+            for n in values["natives"]:
+                f = n["file"]
+                rows = [
+                    self._ov_row(f, "early:" + f, tr("Load early"), "bool", str(bool(n["load_early"])).lower()),
+                    self._ov_row(
+                        f, "after:" + f, tr("Load after the other DLLs"), "bool", str(bool(n["after_others"])).lower()
+                    ),
+                    self._ov_row(f, "init:" + f, tr("Initializer function"), "text", n.get("initializer") or ""),
+                ]
+                sections.append({"title": Path(f).name, "rows": rows})
+            if choices["keep"]:
+                sections.append(
+                    {
+                        "title": tr("Settings files kept when the mod updates"),
+                        "rows": [
+                            self._ov_row("keep", "keep:" + f, f, "bool", str(f in values["keep"]).lower())
+                            for f, _on in choices["keep"]
+                        ],
+                    }
+                )
+            if choices["merged"]:
+                sections.append(
+                    {
+                        "title": tr("Merged with the other mods"),
+                        "rows": [
+                            self._ov_row("merge", "merge:" + f, f, "bool", str(f not in values["off"]).lower())
+                            for f, _on in choices["merged"]
+                        ],
+                    }
+                )
+        if verified:
+            note = tr(
+                "This setup comes with the launcher and is verified. To take it out, use Remove {label} on the Mods page."
+            ).format(label=config.short_label)
+        elif not basic_level:
+            note = tr("This setup's steps were edited by hand. They are shown below; Edit as text changes them.")
+        elif new:
+            note = tr("Check the settings, then Save to set this mod up as an overhaul. You see what it does first.")
+        else:
+            note = ""
+        return {
+            "label": config.label,
+            "status": self.overhaul_status(verified),
+            "loadsLast": tr("Loads after all the other mods, whatever is set here."),
+            "note": note,
+            "sections": sections,
+            "steps": steps if not basic_level else [],
+            "stepsTitle": tr("What it does"),
+            "isNew": new,
+            "editable": not verified,
+            "canTurnOff": not verified and not new,
+        }
+
+    @staticmethod
+    def _ov_row(section: str, key: str, label: str, kind: str, value: str) -> dict[str, Any]:
+        return {
+            "section": section,
+            "key": key,
+            "label": label,
+            "blurb": "",
+            "help": "",
+            "kind": kind,
+            "value": value,
+            "choices": [],
+            "lo": 0,
+            "hi": 0,
+            "tip": "",
+            "onValue": "true",
+            "offValue": "false",
+        }
+
+    def turn_off(self, preview) -> Confirm | Refusal:
+        """The confirmation for overhaul_install.TurnOffPreview, or why it can't go ahead."""
+        if not preview.ok:
+            return Refusal(tr("Can't turn it off"), " ".join(preview.refusals))
+        label = preview.remove.config.label
+        return Confirm(
+            title=tr("Turn off the overhaul setup of {label}").format(label=label),
+            changes=tuple(preview.lines),
+            apply=tr("Turn off"),
+            safety=tr("It's one step, and Undo turn off in Activity puts it all back."),
+        )
+
+    def install_setup(self, preview) -> Confirm | Refusal:
+        """The confirmation for overhaul_install.InstallPreview of a new setup."""
+        if not preview.ok:
+            return Refusal(tr("Can't set it up"), " ".join(preview.refusals))
+        return Confirm(
+            title=tr("Set up {label} as an overhaul").format(label=preview.label),
+            changes=(*preview.lines, *preview.notes),
+            apply=tr("Set up"),
+            safety=tr("It's one step: if anything fails, nothing changes, and you can undo it from Activity."),
+        )
+
+    def pick_overhaul_mod(self) -> Pick:
+        return Pick(
+            title=tr("Set up which mod as an overhaul?"),
+            body=tr("An overhaul loads after all the other mods and can merge their files. Tick the mod to set up."),
+            apply=tr("Next"),
+            none="",
+        )
 
     def crumb(self, mod_name: str, path: Path | None) -> str:
         return f"{mod_name} / {path.name}" if path else mod_name

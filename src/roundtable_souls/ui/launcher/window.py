@@ -129,9 +129,22 @@ class ShellWindow(QObject):
             win.requestActivate()
 
     def page_item(self, name: str) -> QObject | None:
-        """A page's root item once loaded (tests and the self-test)."""
+        """A page's root item once loaded (tests and the self-test); pages live in Loaders, so the item tree is
+        walked."""
         win = self.window
-        return win.findChild(QObject, f"{name}Page") if win is not None else None
+        if win is None:
+            return None
+        want = f"{name}Page"
+        todo = [win.contentItem()]
+        while todo:
+            item = todo.pop()
+            try:
+                if item.objectName() == want:
+                    return item
+                todo.extend(item.childItems())
+            except RuntimeError:  # an item that went away while looking
+                continue
+        return None
 
     def follow_theme(self) -> None:
         """The OS window frame (title bar, caption glyphs) follows the app's theme, not only the system's: dark and

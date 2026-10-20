@@ -5,8 +5,8 @@ ROUNDTABLE_SOULS_DATA there before anything else runs) with a fake host: nothing
 no game or me3 is started, no update feed is contacted.
 
 What it does not verify: visual correctness, behaviour against a real game, saves or me3, or native integration
-(window manager, high-DPI, file dialogs, shortcuts, the installer, the updater). Until the QML shell (S9) it covers
-the QML page windows only, not the Widgets window, which the release workflow's --shots step still exercises.
+(window manager, high-DPI, file dialogs, shortcuts, the installer, the updater). It covers the QML shell (Main.qml
+with every registered page in every theme at 740 and 1100 px) and the QML page windows.
 
 One line per check, then a summary; exit code 0 only when every check passed."""
 
@@ -167,11 +167,11 @@ def run(data_dir: Path, out: Callable[[str], None] = print) -> int:
         report.check(f"file {spec.get('path') or spec.get('glob')}", lambda spec=spec: _files(spec))
     report.check("SQLite version", _sqlite)
     report.check("database opens at the current schema", lambda: _database(data_dir))
-    _qml(report, need["qml_modules"])
+    _qml(report, need["qml_modules"], data_dir)
     out(f"{report.passed} passed, {report.failed} failed")
     out(
         "Limits: packaging and initialization only; not visual correctness, real games, saves or me3, native "
-        "integration, the installer or the updater; the Widgets window is not covered until the QML shell (S9)."
+        "integration, the installer or the updater."
     )
     return 1 if report.failed else 0
 
@@ -223,7 +223,7 @@ def _database(data_dir: Path) -> None:
     database.close()
 
 
-def _qml(report: Report, modules: list[str]) -> None:
+def _qml(report: Report, modules: list[str], data_dir: Path) -> None:
     """The QML modules import, and every registered page loads in its window in every theme with no warning."""
     from PySide6.QtCore import QCoreApplication
     from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
@@ -270,7 +270,87 @@ def _qml(report: Report, modules: list[str]) -> None:
             raise RuntimeError(f"no compiled QML in {cache}: Qt's cache went somewhere else")
         return str(cache)
 
+    _shell(report, app, data_dir)
+
     report.check("QML cache in the temporary data folder", cache_stays_in_the_data_folder)
+
+
+class _Context:
+    """The app context of the shell checks: no database, no real profile or save folder (the temporary data folder's
+    own empty ones), the settings in memory."""
+
+    def __init__(self, data_dir: Path, theme: str):
+        from roundtable_souls.config.settings import LauncherSettings
+        from roundtable_souls.game import catalog
+        from roundtable_souls.game.locate import Locations
+
+        (data_dir / "profiles").mkdir(exist_ok=True)
+        (data_dir / "saves").mkdir(exist_ok=True)
+        self.data_dir = data_dir
+        self.settings = LauncherSettings(
+            theme=theme,  # type: ignore[arg-type]
+            me3_profile_dir=str(data_dir / "profiles"),
+            saves_dir=str(data_dir / "saves"),
+            tips_seen=["launch", "rail"],
+        )
+        self.game = catalog.ELDEN_RING
+        self.locations = Locations.from_settings(self.settings, self.game)
+
+    def select_game(self, game):
+        from roundtable_souls.game.locate import Locations
+
+        self.game = game
+        self.locations = Locations.from_settings(self.settings, game)
+        return self.locations
+
+    def note_setup_saves(self, names):
+        return self.locations
+
+    def reload_settings(self):
+        return self.settings
+
+    def start_imports(self):
+        return None
+
+
+def _settle(ms: int) -> None:
+    from PySide6.QtCore import QEventLoop, QTimer
+
+    loop = QEventLoop()
+    QTimer.singleShot(ms, loop.quit)
+    loop.exec()
+
+
+def _shell(report: Report, app, data_dir: Path) -> None:
+    """The QML shell: Main.qml loads in every theme at the narrow and the wide size, and every registered page loads
+    in it, with no QML warning."""
+    from roundtable_souls.ui.launcher.host import ShellHost
+    from roundtable_souls.ui.launcher.window import ShellWindow
+    from roundtable_souls.ui.pages.registry import QML_PAGES
+
+    for theme in THEMES:
+        for width in (740, 1100):
+
+            def shell(theme=theme, width=width) -> None:
+                host = ShellHost(_Context(data_dir, theme))  # type: ignore[arg-type]
+                w = ShellWindow(host)
+                try:
+                    if not w.build() or w.window is None:
+                        raise RuntimeError("Main.qml did not load: " + "; ".join(w.warnings))
+                    w.window.resize(width, 760)
+                    w.window.show()
+                    for entry in QML_PAGES:
+                        w.adapter.open_page(entry.name)
+                        _settle(200)
+                        if w.page_item(entry.name) is None:
+                            raise RuntimeError(f"page {entry.name} did not load: " + "; ".join(w.warnings))
+                    if w.warnings:
+                        raise RuntimeError(f"{len(w.warnings)} QML warning(s): " + "; ".join(w.warnings))
+                finally:
+                    w.dispose()
+                    app.processEvents()
+
+            report.check(f"shell in the {theme} theme at {width} px, every page", shell)
 
 
 def _qml_module(name: str) -> None:

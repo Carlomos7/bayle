@@ -1,12 +1,12 @@
 """--self-test (technical specification §8.5): proves that a build, as packaged, starts and initializes: the modules,
-data and QML the bundler had to collect are there, the database opens at the current schema, and every registered
-QML page loads in every theme with no QML warning. It runs off-screen in a temporary data folder (cli.py points
-ROUNDTABLE_SOULS_DATA there before anything else runs) with a fake host: nothing of the user's is read or written,
-no game or me3 is started, no update feed is contacted.
+data and QML the bundler had to collect are there, the database opens at the current schema, and the shell loads
+with every registered page in every theme with no QML warning. It runs off-screen in a temporary data folder
+(cli.py points ROUNDTABLE_SOULS_DATA there before anything else runs) over an empty context: nothing of the user's
+is read or written, no game or me3 is started, no update feed is contacted.
 
 What it does not verify: visual correctness, behaviour against a real game, saves or me3, or native integration
 (window manager, high-DPI, file dialogs, shortcuts, the installer, the updater). It covers the QML shell (Main.qml
-with every registered page in every theme at 740 and 1100 px) and the QML page windows.
+with every registered page in every theme at 740 and 1100 px).
 
 One line per check, then a summary; exit code 0 only when every check passed."""
 
@@ -19,113 +19,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 from roundtable_souls.resources import DATA_DIR, PACKAGE_DIR
-from roundtable_souls.ui.host import Host
 
 THEMES = ("dark", "tarnished", "light")
 LIST_FILE = DATA_DIR / "self-test.json"
-
-
-class SelfTestHost:
-    """The host a page sees during the self-test: idle, no game, jobs refused, background work run at once."""
-
-    busy = False
-    game_running = False
-    locations = None
-    profile = None  # no profile: a page shows its empty state, nothing is read
-    settings = None
-    game = None
-    setup = None
-
-    def run_job(self, job, status: str) -> None:
-        raise RuntimeError("the self-test runs no jobs")
-
-    def mark_seen(self) -> None:
-        pass
-
-    def run_in_background(self, work, on_result) -> None:
-        on_result(work())
-
-    def profile_changed(self, note: str) -> None:
-        pass
-
-    def profile_deleted(self, profile, moved_to) -> None:
-        pass
-
-    def install(self, from_folder: bool) -> None:
-        pass
-
-    def install_paths(self, paths) -> None:
-        pass
-
-    def open_path(self, path) -> None:
-        pass
-
-    def profiles(self) -> list[str]:
-        return []
-
-    def profile_index(self) -> int:
-        return -1
-
-    def pick_profile(self, index: int) -> None:
-        pass
-
-    def pick_file(self, title: str, filters: str) -> None:
-        return None
-
-    def pick_folder(self, title: str) -> None:
-        return None
-
-    def save_file(self, title: str, name: str) -> None:
-        return None
-
-    def open_mod_configs(self, select: str = "") -> None:
-        pass
-
-    def open_profile_transfer(self, mode: str) -> None:
-        pass
-
-    def open_profile_import(self, unpacked, profiles, staging=None) -> None:
-        pass
-
-    def saves_in_use(self) -> dict:
-        return {}
-
-    def settings_changed(self, key: str) -> None:
-        pass
-
-    def set_appearance(self) -> None:
-        pass
-
-    def check_for_updates(self) -> None:
-        raise RuntimeError("the self-test checks no updates")
-
-    def update_state(self) -> dict:
-        return {"line": "", "tone": "muted", "notices": []}
-
-    def watch_updates(self, call) -> None:
-        pass
-
-    def notice_action(self, notice_id: str, key: str) -> None:
-        raise RuntimeError("the self-test updates nothing")
-
-    def dismiss_notice(self, notice_id: str) -> None:
-        pass
-
-    def point_steam_shortcuts(self) -> None:
-        raise RuntimeError("the self-test changes no Steam shortcut")
-
-    def save_logs_for_support(self) -> None:
-        raise RuntimeError("the self-test saves no logs")
-
-    def open_logs_folder(self) -> None:
-        pass
-
-    def me3_facts(self) -> dict:
-        return {}
-
-
-def _declares_host(host: SelfTestHost) -> Host:  # pyright checks the fake against the one host contract
-    return host
 
 
 class Report:
@@ -224,44 +120,19 @@ def _database(data_dir: Path) -> None:
 
 
 def _qml(report: Report, modules: list[str], data_dir: Path) -> None:
-    """The QML modules import, and every registered page loads in its window in every theme with no warning."""
+    """The QML modules import, and the shell loads with every registered page in every theme with no warning."""
     from PySide6.QtCore import QCoreApplication
+    from PySide6.QtGui import QGuiApplication
     from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
-    from PySide6.QtWidgets import QApplication
 
-    from roundtable_souls.ui.page_window import PageWindow, use_qml_cache_folder
-    from roundtable_souls.ui.pages.registry import QML_PAGES
+    from roundtable_souls.ui.qml_env import use_qml_cache_folder
 
     cache = use_qml_cache_folder()  # before the first engine: Qt's compiled QML stays in the temporary data folder
     if QCoreApplication.instance() is None:
         QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)
-    app = QApplication.instance() or QApplication([])
+    app = QGuiApplication.instance() or QGuiApplication([])
     for name in modules:
         report.check(f"QML module {name}", lambda name=name: _qml_module(name))
-
-    for entry in QML_PAGES:
-        for theme in THEMES:
-
-            def page(entry=entry, theme=theme) -> None:
-                w = PageWindow(entry, SelfTestHost(), theme)
-                try:
-                    if not w.build():
-                        raise RuntimeError("the window did not load: " + "; ".join(w.warnings))
-                    win = w.window
-                    if win is None:
-                        raise RuntimeError("no window")
-                    win.show()
-                    for _ in range(10):
-                        app.processEvents()
-                    if w.page_item() is None:
-                        raise RuntimeError("the page did not load: " + "; ".join(w.warnings))
-                    if w.warnings:
-                        raise RuntimeError(f"{len(w.warnings)} QML warning(s): " + "; ".join(w.warnings))
-                finally:
-                    w.dispose()
-                    app.processEvents()
-
-            report.check(f"page {entry.name} in the {theme} theme", page)
 
     def cache_stays_in_the_data_folder() -> str:
         if os.environ.get("QML_DISABLE_DISK_CACHE"):
@@ -356,7 +227,7 @@ def _shell(report: Report, app, data_dir: Path) -> None:
 def _qml_module(name: str) -> None:
     from PySide6.QtQml import QQmlComponent, QQmlEngine
 
-    from roundtable_souls.ui.page_window import QML_DIR
+    from roundtable_souls.ui.qml_env import QML_DIR
 
     engine = QQmlEngine()
     engine.addImportPath(str(QML_DIR))

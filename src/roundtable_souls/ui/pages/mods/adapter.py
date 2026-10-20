@@ -109,6 +109,9 @@ class ModsHost(Protocol):
 
     def pick_profile(self, index: int) -> None: ...
 
+    def request_new_profile(self) -> None:
+        """Ask the shell for its New profile dialog (the page's first-run button)."""
+
 
 class ModsAdapter(QObject):
     changed = Signal()
@@ -146,6 +149,7 @@ class ModsAdapter(QObject):
     title = Property(str, lambda self: self._state.title, notify=changed)
     counts = Property(str, lambda self: self._state.counts, notify=changed)
     empty = Property(str, lambda self: self._state.empty, notify=changed)
+    noProfiles = Property(bool, lambda self: self._state.empty != "" and not self.host.profiles(), notify=changed)
     health = Property(dict, lambda self: plain(self._state.health) or {}, notify=changed)
     packageGroup = Property(dict, lambda self: self._group("package"), notify=changed)
     nativeGroup = Property(dict, lambda self: self._group("native"), notify=changed)
@@ -172,6 +176,10 @@ class ModsAdapter(QObject):
             return
         self.host.pick_profile(index)
         self.refresh()
+
+    @Slot()
+    def createProfile(self) -> None:
+        self.host.request_new_profile()
 
     def _group(self, kind: str) -> dict:
         group = next((g for g in self._state.groups if g.kind == kind), None)
@@ -296,6 +304,7 @@ class ModsAdapter(QObject):
             recovered=self._recovered,
             adopt=self._adopt[0].folder.name if self._adopt[0] is not None and self._adopt[1] else "",
             seamless=self._seamless_found.kind if getattr(self, "_seamless_found", None) else "",
+            no_profiles=not self.host.profiles(),
         )
         groups = {g.kind: g for g in self._state.groups}
         self._packages.set_rows([_row(r) for r in (groups["package"].rows if "package" in groups else ())])

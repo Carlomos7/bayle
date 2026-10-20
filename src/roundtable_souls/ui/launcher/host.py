@@ -115,6 +115,7 @@ class ShellHost(QObject):
     gameChanged = Signal()  # another game is the current one
     appearanceChanged = Signal()  # theme, effects or grain were saved
     pageRequested = Signal(str)  # show this page (a registered page's name)
+    newProfileAsked = Signal()  # a page asks for the shell's New profile dialog
     quitRequested = Signal()
     forwardRequested = Signal()  # a second start asked this window to come forward
     _line = Signal(str, str)  # a job's log line (from a worker thread) and its level
@@ -335,6 +336,9 @@ class ShellHost(QObject):
 
     def profile_index(self) -> int:
         return self.state.index
+
+    def request_new_profile(self) -> None:
+        self.newProfileAsked.emit()
 
     def pick_profile(self, index: int) -> None:
         """Make the index'th profile the current one, as the profile drop-down does."""

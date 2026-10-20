@@ -419,11 +419,6 @@ def places(setup, loc: Locations) -> dict:
     return out
 
 
-def route_logs(sink):
-    """Send every logged line to the window as well as the run log."""
-    run_logging.attach_sink(sink)
-
-
 def repair_key(game) -> str:
     """The setting that turns the after-Play save repair on for this game. Elden Ring's has its own key (off by
     default: the game never reads the save's regulation copy back; only save editors do); Nightreign's re-signs

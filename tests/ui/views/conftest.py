@@ -13,8 +13,8 @@ import pytest
 os.environ["QT_QPA_PLATFORM"] = "offscreen"  # always: these tests must never open a window on screen
 
 pytest.importorskip("PySide6.QtQuick")
+from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from roundtable_souls.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter  # noqa: E402
@@ -84,7 +84,7 @@ class FakeHost:
 @pytest.fixture(scope="session")
 def qt_app():
     QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)
-    return QApplication.instance() or QApplication([])
+    return QGuiApplication.instance() or QGuiApplication([])
 
 
 @pytest.fixture

@@ -89,6 +89,7 @@ class SavesAdapter(QObject):
         self._sheet_open = False
 
     # ---- what QML reads
+    title = Property(str, lambda self: self._words["title"], constant=True)
     words = Property(dict, lambda self: self._words, constant=True)
     loading = Property(bool, lambda self: self._loading, notify=changed)
     running = Property(bool, lambda self: bool(self.host.game_running), notify=changed)

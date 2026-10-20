@@ -74,6 +74,9 @@ class Host:
     def open_mod_configs(self, select=""):
         self.changes.append(f"mod configs: {select}")
 
+    def saves_in_use(self):
+        return {}
+
     def profiles(self):
         return [self.profile.name]
 

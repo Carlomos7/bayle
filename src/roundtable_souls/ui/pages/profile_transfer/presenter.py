@@ -63,6 +63,8 @@ class ProfileTransferPresenter:
             "chooseFolder": tr("Choose..."),
             "export": tr("Export"),
             "exporting": tr("Exporting..."),
+            "exportingProfile": tr("Exporting {name}"),
+            "importingInto": tr("Importing into {name}"),
             "cancel": tr("Cancel"),
             "openFile": tr("Open file..."),
             "importAbout": tr("Open a share list (.json) or a full export (.zip) someone sent you."),

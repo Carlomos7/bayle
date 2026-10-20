@@ -26,32 +26,20 @@ PageScroll {
 
     Component.onCompleted: page.adapter.refresh()
 
-    Item {  // the header: the profile, and the Export / Import tabs
+    Item {  // the header: the profile's name, and the Export / Import tabs
         height: Theme.controlH
         visible: page.mode !== "bundled"
         width: parent ? parent.width : 0
 
-        DropButton {
+        Txt {  // the shell's profile (the top bar's drop-down is the only picker)
             anchors.left: parent.left
+            anchors.right: modeTabs.left
+            anchors.rightMargin: Theme.sp8
             anchors.verticalCenter: parent.verticalCenter
-            enabled: !page.adapter.working
-            implicitHeight: Theme.controlH
-            objectName: "profilePicker"
-            text: page.s.profileName !== "" ? page.s.profileName : page.words.noProfile
-
-            Repeater {
-                model: page.adapter.profiles
-
-                MenuEntry {
-                    required property int index
-                    required property string modelData
-
-                    checked: index === page.adapter.profileIndex
-                    text: modelData
-
-                    onTriggered: page.adapter.pickProfile(index)
-                }
-            }
+            elide: Text.ElideRight
+            kind: "strong"
+            objectName: "profileName"
+            text: page.s.profileName === "" ? page.words.noProfile : (page.mode === "import" ? page.words.importingInto : page.words.exportingProfile).replace("{name}", page.s.profileName)
         }
         TabRow {
             id: modeTabs

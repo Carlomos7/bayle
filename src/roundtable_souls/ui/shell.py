@@ -57,6 +57,7 @@ from roundtable_souls.game.locate import Locations, installed_dir
 from roundtable_souls.platform import data_folder, desktop, instance
 from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.services import play as core
+from roundtable_souls.services.mods import me3_facts
 from roundtable_souls.services.play import (
     TITLE,
     VERSION,
@@ -106,6 +107,7 @@ from roundtable_souls.ui.theme import (
     tokens,
     tone_label,
     use_theme_text,
+    widgets_dark,
 )
 from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard, GlassCard, card, count_label
 from roundtable_souls.ui.widgets.layout import (
@@ -125,6 +127,12 @@ from roundtable_souls.updates import inno as migration
 
 
 # ----------------------------------------------------------------------------- QML page windows
+def _appearance() -> dict[str, str]:
+    """The saved look, as PageWindow keyword arguments."""
+    st = load_settings()
+    return {"theme": st.theme, "effects": st.effects, "grain": st.grain}
+
+
 class LauncherHost:
     """The Widgets launcher as the host of a QML page window (ui/page_window.py) until the QML shell (S9): whether
     a job or the game is running, the locations, logged jobs through the window's own start(), background reads
@@ -237,6 +245,43 @@ class LauncherHost:
         got, _ = QFileDialog.getSaveFileName(self._w, title, name)
         return Path(got) if got else None
 
+    # ---- the Settings page: the window's own paths, reused (the updater is never called from the page)
+    def settings_changed(self, key: str) -> None:
+        self._w._settings_changed(key)
+
+    def set_appearance(self) -> None:
+        self._w._settings_changed("theme")
+
+    def check_for_updates(self) -> None:
+        self._w._check_launcher_update(force=True)
+
+    def update_state(self) -> dict:
+        """The launcher line and the update notices the window shows: one flow, shown by both windows."""
+        return self._w.update_state()
+
+    def watch_updates(self, call) -> None:
+        self._w._update_listeners.append(call)
+
+    def notice_action(self, notice_id: str, key: str) -> None:
+        """A notice button (Update now, Restart now, Skip...): the window's own path, with its checks."""
+        self._w._run_notice_action(notice_id, key)
+
+    def dismiss_notice(self, notice_id: str) -> None:
+        self._w._dismiss_notice(notice_id)
+
+    def point_steam_shortcuts(self) -> None:
+        self._w._point_steam_shortcuts()
+
+    def save_logs_for_support(self) -> None:
+        self._w._save_logs_for_support()
+
+    def open_logs_folder(self) -> None:
+        self._w._open_logs_folder()
+
+    def me3_facts(self) -> dict:
+        """me3 asked now (runs me3 info: call it on a worker thread)."""
+        return me3_facts(self._w.setup, self._w.ctx.locations)
+
 
 # ----------------------------------------------------------------------------- window
 class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow):
@@ -254,6 +299,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.mod_configs_window: PageWindow | None = None  # the QML Mod Configs page (S7b)
         self.profile_transfer_window: PageWindow | None = None  # the QML Export / Import profile page (S7e)
         self.saves_window: PageWindow | None = None  # the QML Saves page (S9)
+        self.settings_window: PageWindow | None = None  # the QML Settings page (S9)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -315,6 +361,12 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.bus.line.connect(self._on_line)
         self._update_bar = None
         self._offered = None  # the version the update notice shows
+        self._offer_info = None  # the release it shows, for Update now and Skip
+        self._prepared = None  # a downloaded and checked update, for Restart now
+        self._launcher_tone = "muted"
+        self._notices = {}  # the update notices on show, by id (ui.pages.settings.presenter.UpdateNotice)
+        self._notice_bars = {}
+        self._update_listeners = []  # called when the launcher line or a notice changes
         self._instance_hold = None
         self._instance_server = None
         self.stackedWidget.currentChanged.connect(self._on_page_changed)
@@ -738,7 +790,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
     def _open_activity_window(self):
         """The new Activity page in a window of its own (the S5 trial; the button goes when the QML shell lands)."""
         if self.activity_window is None:
-            self.activity_window = PageWindow(qml_pages.page("activity"), LauncherHost(self), load_settings().theme)
+            self.activity_window = PageWindow(qml_pages.page("activity"), LauncherHost(self), **_appearance())
             self.activity_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.activity_window.show():
             self._toast("The new Activity window did not open", "The details are in launcher.log.", error=True)
@@ -748,7 +800,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
     def _open_mods_window(self):
         """The new Mods page in a window of its own (owner, D1; the button goes when the QML shell lands)."""
         if self.mods_window is None:
-            self.mods_window = PageWindow(qml_pages.page("mods"), LauncherHost(self), load_settings().theme)
+            self.mods_window = PageWindow(qml_pages.page("mods"), LauncherHost(self), **_appearance())
             self.mods_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.mods_window.show():
             self._toast("The new Mods window did not open", "The details are in launcher.log.", error=True)
@@ -759,9 +811,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         """The new Mod Configs page in a window of its own (owner, D6 A; the button goes when the QML shell lands).
         select: a mod to show (its name), from the new Mods window's links."""
         if self.mod_configs_window is None:
-            self.mod_configs_window = PageWindow(
-                qml_pages.page("modConfigs"), LauncherHost(self), load_settings().theme
-            )
+            self.mod_configs_window = PageWindow(qml_pages.page("modConfigs"), LauncherHost(self), **_appearance())
             self.mod_configs_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.mod_configs_window.show():
             self._toast("The new Mod Configs window did not open", "The details are in launcher.log.", error=True)
@@ -776,7 +826,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         mode: "export", "import" or "bundled" (bundled: the unpacked download, its .me3 profiles, its staging)."""
         if self.profile_transfer_window is None:
             self.profile_transfer_window = PageWindow(
-                qml_pages.page("profileTransfer"), LauncherHost(self), load_settings().theme
+                qml_pages.page("profileTransfer"), LauncherHost(self), **_appearance()
             )
             self.profile_transfer_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.profile_transfer_window.show():
@@ -795,17 +845,34 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
     def _open_saves_window(self):
         """The new Saves page in a window of its own (until the QML shell; the button is on the Saves page)."""
         if self.saves_window is None:
-            self.saves_window = PageWindow(qml_pages.page("saves"), LauncherHost(self), load_settings().theme)
+            self.saves_window = PageWindow(qml_pages.page("saves"), LauncherHost(self), **_appearance())
             self.saves_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.saves_window.show():
             self._toast("The new Saves window did not open", "The details are in launcher.log.", error=True)
             for line in self.saves_window.warnings:
                 core.run_logging.log_line(line)
 
+    def _open_settings_window(self):
+        """The new Settings page in a window of its own (the button goes when the QML shell lands)."""
+        if self.settings_window is None:
+            self.settings_window = PageWindow(qml_pages.page("settings"), LauncherHost(self), **_appearance())
+            self.settings_window.notifier.status(self._job_label if self.busy else tr("Ready"))
+        if not self.settings_window.show():
+            self._toast("The new Settings window did not open", "The details are in launcher.log.", error=True)
+            for line in self.settings_window.warnings:
+                core.run_logging.log_line(line)
+
     def _page_windows(self) -> list[PageWindow]:
-        """The QML page windows open now (Activity, Mods, Mod Configs, Export / Import, Saves): the hooks below keep
-        them in step with this window."""
-        names = ("activity_window", "mods_window", "mod_configs_window", "profile_transfer_window", "saves_window")
+        """The QML page windows open now (Activity, Mods, Mod Configs, Export / Import, Saves, Settings): the hooks below
+        keep them in step with this window."""
+        names = (
+            "activity_window",
+            "mods_window",
+            "mod_configs_window",
+            "profile_transfer_window",
+            "saves_window",
+            "settings_window",
+        )
         return [w for w in (getattr(self, name, None) for name in names) if w is not None]
 
     def _mark_activity_seen(self):
@@ -1107,7 +1174,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
 
     def _restyle(self):
         for page_window in self._page_windows():
-            page_window.set_theme("dark" if isDarkTheme() else "light")
+            page_window.set_appearance(**_appearance())
         for b in self.findChildren(QPushBtn):
             if b.objectName() == "cta" or b.property("role"):
                 style_button(b)
@@ -1229,7 +1296,7 @@ def main(ctx):
     app = QApplication(sys.argv)
     app.setApplicationName(TITLE)
     use_theme_text()
-    dark = load_settings().theme == "dark"
+    dark = widgets_dark(load_settings().theme)
     setTheme(Theme.DARK if dark else Theme.LIGHT)
     setThemeColor(ACCENT if dark else ACCENT_LIGHT)
     hold = None

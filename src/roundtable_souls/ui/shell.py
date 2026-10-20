@@ -57,6 +57,7 @@ from roundtable_souls.game.locate import Locations, installed_dir
 from roundtable_souls.platform import data_folder, desktop, instance
 from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.services import play as core
+from roundtable_souls.services.mods import me3_facts
 from roundtable_souls.services.play import (
     TITLE,
     VERSION,
@@ -228,6 +229,43 @@ class LauncherHost:
         got, _ = QFileDialog.getSaveFileName(self._w, title, name)
         return Path(got) if got else None
 
+    # ---- the Settings page: the window's own paths, reused (the updater is never called from the page)
+    def settings_changed(self, key: str) -> None:
+        self._w._settings_changed(key)
+
+    def set_appearance(self) -> None:
+        self._w._settings_changed("theme")
+
+    def check_for_updates(self) -> None:
+        self._w._check_launcher_update(force=True)
+
+    def update_state(self) -> dict:
+        """The launcher line and the update notices the window shows: one flow, shown by both windows."""
+        return self._w.update_state()
+
+    def watch_updates(self, call) -> None:
+        self._w._update_listeners.append(call)
+
+    def notice_action(self, notice_id: str, key: str) -> None:
+        """A notice button (Update now, Restart now, Skip...): the window's own path, with its checks."""
+        self._w._run_notice_action(notice_id, key)
+
+    def dismiss_notice(self, notice_id: str) -> None:
+        self._w._dismiss_notice(notice_id)
+
+    def point_steam_shortcuts(self) -> None:
+        self._w._point_steam_shortcuts()
+
+    def save_logs_for_support(self) -> None:
+        self._w._save_logs_for_support()
+
+    def open_logs_folder(self) -> None:
+        self._w._open_logs_folder()
+
+    def me3_facts(self) -> dict:
+        """me3 asked now (runs me3 info: call it on a worker thread)."""
+        return me3_facts(self._w.setup, self._w.ctx.locations)
+
 
 # ----------------------------------------------------------------------------- window
 class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow):
@@ -306,6 +344,10 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self._offered = None  # the version the update notice shows
         self._offer_info = None  # the release it shows, for Update now and Skip
         self._prepared = None  # a downloaded and checked update, for Restart now
+        self._launcher_tone = "muted"
+        self._notices = {}  # the update notices on show, by id (ui.pages.settings.presenter.UpdateNotice)
+        self._notice_bars = {}
+        self._update_listeners = []  # called when the launcher line or a notice changes
         self._instance_hold = None
         self._instance_server = None
         self.stackedWidget.currentChanged.connect(self._on_page_changed)
@@ -1060,7 +1102,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
 
     def _restyle(self):
         for page_window in self._page_windows():
-            page_window.set_theme(load_settings().theme)
+            page_window.set_appearance(**_appearance())
         for b in self.findChildren(QPushBtn):
             if b.objectName() == "cta" or b.property("role"):
                 style_button(b)

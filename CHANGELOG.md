@@ -57,6 +57,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   file, never the copies in Revive's download (which can be from an older game version); the output is the same
   bytes. Because the build's config changed, a Revive build the launcher made is rebuilt once at the next Play, and a
   language file missing from the game's archives stops that build with its name.
+- A character script that uses a number above 16,777,216 that the game's 4-byte script numbers can't hold exactly now gets a warning (it
+  would be rounded); the build still goes ahead.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

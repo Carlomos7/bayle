@@ -325,3 +325,14 @@ def test_revive_array_profile_lists_seamless_and_revive(tmp_path):
     assert coop_service.ersc_ini_for(str(p)) == seamless / "ersc_settings.ini"
     off = g.offline_profile_text(text)
     assert "enabled = false" in off and "RevivePrototype.dll" in off and 'id = "ersc.dll"' in off
+
+
+def test_setup_warnings_name_a_missing_mod_folder_but_do_not_block(tmp_path):
+    (tmp_path / "here").mkdir()
+    prof = tmp_path / "p.me3"
+    prof.write_text(
+        'profileVersion = "v1"\n\n[[packages]]\nid = "flora"\npath = "gone"\n\n[[packages]]\nid = "ok"\npath = "here"\n',
+        encoding="utf-8",
+    )
+    s = g.setup_from_path(str(prof), er())
+    assert s and s.warnings() == ["flora folder is missing"]

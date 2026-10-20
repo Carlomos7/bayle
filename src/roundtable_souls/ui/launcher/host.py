@@ -17,7 +17,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from roundtable_souls.config.settings import data_dir
 from roundtable_souls.game import catalog as games
@@ -118,6 +118,7 @@ class ShellHost(QObject):
     newProfileAsked = Signal()  # a page asks for the shell's New profile dialog
     quitRequested = Signal()
     forwardRequested = Signal()  # a second start asked this window to come forward
+    checksChanged = Signal()  # the disk checks behind the pill came back different (or are slow)
     _line = Signal(str, str)  # a job's log line (from a worker thread) and its level
 
     def __init__(self, ctx: Context, parent: QObject | None = None):
@@ -134,6 +135,8 @@ class ShellHost(QObject):
         self.step = ""  # the Launch flow's step before its job runs ("Backing up saves...")
         self.job_detail = ""  # the newest line of the running job that says how it is going
         self.steam_bad = False
+        self._slow: tuple[tuple, tuple[str, ...], tuple[str, ...], dict[str, bool]] | None = None  # the disk checks
+        self._check_running = self._check_late = self._check_dirty = False
         self.dead_shells = 0
         self.failed_job = ""  # a job that failed and was not looked at yet
         self.unseen = 0  # failed jobs since Activity was last looked at (the rail badge)
@@ -526,11 +529,18 @@ class ShellHost(QObject):
         st = self.state
         s = st.setup
         busy = self.busy
+        if self._slow is None:  # the very first read, before any window: nothing to show a wait on yet
+            self._slow = (self._checks_key(), *self._read_checks(s))
+        key, problems, warnings, _installed = self._slow
+        if key != self._checks_key():
+            problems, warnings = (), ()  # another profile than the one checked: say nothing until its check is back
         return topbar.Facts(
             game=st.game,
             installed=bool(st.locations.game_dir()),
             profile_count=len(st.setups),
-            problems=tuple(s.problems()) if s else (),
+            problems=problems,
+            warnings=warnings,
+            checking=self._check_late and not busy,
             busy=busy,
             job_label=(self.job_detail or st.job_label) if st.busy else self.step,
             job_kind=st.job_kind if st.busy else ("launch" if self.flow.active else ""),
@@ -544,8 +554,49 @@ class ShellHost(QObject):
             mode=self.mode(),
         )
 
+    def _checks_key(self) -> tuple:
+        s = self.state.setup
+        return (id(s), str(s.profile) if s else "")
+
+    @staticmethod
+    def _read_checks(s) -> tuple[tuple[str, ...], tuple[str, ...], dict[str, bool]]:
+        """The disk reads behind the pill: the setup's problems and warnings, which games are installed."""
+        return (
+            tuple(s.problems()) if s else (),
+            tuple(s.warnings()) if s else (),
+            {g.key: bool(installed_dir(g)) for g in games.GAMES},
+        )
+
+    def schedule_checks(self) -> None:
+        """Read the disk checks again off the UI thread; the view updates when they are back, and says "Checking..."
+        only when that takes over 200 ms. Not while a job runs (its progress lines come fast, nothing edits then)."""
+        if self.busy:
+            return
+        if self._check_running:
+            self._check_dirty = True
+            return
+        self._check_running, self._check_late = True, False
+        key, s = self._checks_key(), self.state.setup
+        QTimer.singleShot(200, self._checks_late)
+        self.run_in_background(lambda: self._read_checks(s), lambda r: self._checks_back(key, r))
+
+    def _checks_late(self) -> None:
+        if self._check_running and not self._check_late:
+            self._check_late = True
+            self.checksChanged.emit()
+
+    def _checks_back(self, key: tuple, result) -> None:
+        self._check_running, was_late, self._check_late = False, self._check_late, False
+        old = self._slow
+        self._slow = (key, *result)
+        if old != self._slow or was_late:
+            self.checksChanged.emit()
+        if self._check_dirty or key != self._checks_key():
+            self._check_dirty = False
+            self.schedule_checks()
+
     def installed_games(self) -> dict[str, bool]:
-        return {g.key: bool(installed_dir(g)) for g in games.GAMES}
+        return self._slow[3] if self._slow else {}
 
     def mark_seen(self) -> None:
         save_settings(activity_seen=time.time())

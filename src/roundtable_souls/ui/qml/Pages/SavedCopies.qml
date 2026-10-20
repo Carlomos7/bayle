@@ -11,6 +11,7 @@ Column {
     id: root
 
     required property var adapter
+    readonly property int listH: 280   // five rows; more scroll
     property int tab: 0
     property Flickable scroller   // the page, for the drag's auto-scroll
     readonly property var words: adapter.words
@@ -78,6 +79,20 @@ Column {
                 wrapMode: Text.WordWrap
                 kind: "hint"
             }
+            Flickable {  // a fixed-height area: the list scrolls inside it
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                contentHeight: libCol.height
+                height: root.listH
+                width: parent.width
+                ScrollBar.vertical: ScrollBar {
+                }
+
+                Column {
+                    id: libCol
+
+                    width: parent.width
+
             Repeater {
                 model: root.adapter.libraryRows
 
@@ -270,6 +285,8 @@ Column {
                     }
                 }
             }
+                }
+            }
             Row {
                 leftPadding: Theme.padCard
                 spacing: Theme.sp8
@@ -322,6 +339,20 @@ Column {
                 width: parent.width
                 wrapMode: Text.WordWrap
             }
+            Flickable {  // a fixed-height area: the list scrolls inside it
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                contentHeight: bakCol.height
+                height: root.listH
+                width: parent.width
+                ScrollBar.vertical: ScrollBar {
+                }
+
+                Column {
+                    id: bakCol
+
+                    width: parent.width
+
             Repeater {
                 model: root.adapter.backupDays
 
@@ -453,6 +484,8 @@ Column {
                             }
                         }
                     }
+                }
+            }
                 }
             }
             Row {

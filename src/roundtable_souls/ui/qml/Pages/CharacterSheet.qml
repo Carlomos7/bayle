@@ -38,13 +38,6 @@ SidePanel {
 
                 onCurrentChanged: root.tab = current
             }
-            GhostButton {
-                ToolTip.text: root.words.sheetReadOnly
-                ToolTip.visible: hovered || visualFocus
-                enabled: false
-                icon_: "Edit"
-                text: root.words.edit
-            }
         }
         Txt {
             color: Theme.textSecondary

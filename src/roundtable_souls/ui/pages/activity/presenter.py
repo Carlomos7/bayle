@@ -9,6 +9,7 @@ Undo plans. Every string goes through tr(). Background housekeeping is not liste
 from __future__ import annotations
 
 import datetime
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -201,10 +202,31 @@ def matches(rec: dict, game: str, group: str, failed_only: bool) -> bool:
     return not failed_only or rec.get("outcome") in FAILED
 
 
+# (pattern in the recorded problem, plain words): the record keeps its raw text, only the row is reworded
+PROBLEM_WORDS = (
+    (r"clash|conflict", tr("Two mods change the same game data file. Details are in the log.")),
+    (
+        r"permission|access is denied|in use|being used|locked",
+        tr("A file was in use. Close the game and other programs using it, then try again."),
+    ),
+    (r"game is running|is running|still running", tr("The game was running. Close it, then try again.")),
+    (r"disk|no space|not enough space", tr("There was not enough disk space.")),
+    (r"no such file|not found|does not exist|missing", tr("A file it needed was missing. Details are in the log.")),
+)
+
+
+def plain_problem(raw: str) -> str:
+    """A failed job's recorded problem in words for the player; the log keeps the original."""
+    for pattern, words in PROBLEM_WORDS:
+        if re.search(pattern, raw, re.IGNORECASE):
+            return words
+    return tr("It did not finish. Details are in the log.")
+
+
 def result_line(rec: dict) -> str:
     """The one line under a job: its problem when it failed, else its summary."""
     line = rec.get("problem") if rec.get("outcome") in FAILED else ""
-    line = line or rec.get("summary") or ""
+    line = plain_problem(line) if line else rec.get("summary") or ""
     if rec.get("outcome") == "interrupted" and not line:
         line = tr("The launcher closed before this job finished.")
     return line

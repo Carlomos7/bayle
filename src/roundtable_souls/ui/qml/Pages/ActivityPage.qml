@@ -49,9 +49,11 @@ PageScroll {
                     }
                     Txt {
                         color: summaryCard.level === "danger" ? Theme.statusDanger : summaryCard.level === "muted" ? Theme.textSecondary : Theme.textPrimary
+                        elide: Text.ElideNone
                         kind: "strong"
                         text: summaryCard.value
                         width: parent ? parent.width : 0
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
@@ -254,13 +256,13 @@ PageScroll {
                                 width: parent ? parent.width : 0
                                 y: 60
 
-                                Row {
+                                Flow {  // wraps at narrow widths
                                     spacing: Theme.gapInline
+                                    width: parent ? parent.width : 0
 
                                     CheckRow {
                                         ToolTip.text: page.words.showDetailsTip
                                         ToolTip.visible: hovered || visualFocus
-                                        anchors.verticalCenter: parent.verticalCenter
                                         checked: page.adapter.logDetail
                                         text: page.words.showDetails
                                         visible: page.adapter.logSource === "" || page.adapter.logSource === job.modelData.sources[0].key

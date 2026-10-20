@@ -66,7 +66,12 @@ def test_a_row_says_when_how_it_ended_what_it_was_and_its_result():
     assert play.meta == "2h 10m  ·  Elden Ring"
     assert install.title == "Install mod Grand Merchant"  # capitalised
     failed = presenter().refresh().days[1].jobs[0]
-    assert (failed.outcome, failed.level, failed.failed, failed.line) == ("Failed", "danger", True, "regulation clash")
+    assert (failed.outcome, failed.level, failed.failed, failed.line) == (
+        "Failed",
+        "danger",
+        True,
+        "Two mods change the same game data file. Details are in the log.",
+    )
     interrupted = presenter().refresh().days[2].jobs[0]
     assert interrupted.line == "The launcher closed before this job finished."
 

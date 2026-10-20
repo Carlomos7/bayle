@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QApplication
 from roundtable_souls.config.settings import LauncherSettings
 from roundtable_souls.game import catalog as games
 from roundtable_souls.services.mods import profile_entries
+from roundtable_souls.ui.host import Host as HostContract
 from roundtable_souls.ui.page_window import PageWindow
 from roundtable_souls.ui.pages.registry import page as registered
 from support import er
@@ -42,6 +43,9 @@ class Host:
 
     def run_job(self, job, status):
         self.jobs.append(status)
+
+    def mark_seen(self):
+        pass
 
     def run_in_background(self, work, on_result):
         on_result(work())
@@ -126,6 +130,10 @@ class Host:
         self.changes.append(f"picked profile {index}")
 
     folder = None
+
+
+def _declares_host(host: Host) -> HostContract:  # pyright checks the fake against the one host contract
+    return host
 
 
 @pytest.fixture

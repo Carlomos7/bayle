@@ -34,6 +34,7 @@ Item {
     }
 
     Shortcut {
+        enabled: page.visible   // the shell keeps pages alive: only the one on show saves
         sequences: [StandardKey.Save]
 
         onActivated: page.adapter.save()

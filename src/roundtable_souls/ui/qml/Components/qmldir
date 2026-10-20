@@ -1,5 +1,6 @@
 module Components
 Acrylic 1.0 Acrylic.qml
+Atmosphere 1.0 Atmosphere.qml
 Card 1.0 Card.qml
 CheckRow 1.0 CheckRow.qml
 CodeArea 1.0 CodeArea.qml
@@ -20,6 +21,7 @@ InfoBar 1.0 InfoBar.qml
 MenuEntry 1.0 MenuEntry.qml
 MenuSep 1.0 MenuSep.qml
 ModalDialog 1.0 ModalDialog.qml
+Overlays 1.0 Overlays.qml
 PageScroll 1.0 PageScroll.qml
 Pill 1.0 Pill.qml
 PopupMenu 1.0 PopupMenu.qml
@@ -27,11 +29,14 @@ PrimaryButton 1.0 PrimaryButton.qml
 ProgressBar 1.0 ProgressBar.qml
 SidePanel 1.0 SidePanel.qml
 Smear 1.0 Smear.qml
+Spinner 1.0 Spinner.qml
 SoftShadow 1.0 SoftShadow.qml
 SpinField 1.0 SpinField.qml
 TabRow 1.0 TabRow.qml
+TeachingTip 1.0 TeachingTip.qml
 TextBox 1.0 TextBox.qml
 Thumb 1.0 Thumb.qml
 Toast 1.0 Toast.qml
+ToolTipText 1.0 ToolTipText.qml
 ToggleSwitch 1.0 ToggleSwitch.qml
 Txt 1.0 Txt.qml

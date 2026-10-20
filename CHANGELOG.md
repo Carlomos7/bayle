@@ -8,6 +8,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Launch warns when a mod's folder is missing (the status line says which, with a link to Mods; Launch still works). The top bar no longer re-reads the disk on every progress line of a running job, and its small status dot has a name for screen readers.
 - The mouse pointer is a hand over every button, switch, tick-box and menu item that can be clicked, and an arrow when it is off.
 - Launch: the reasons it is blocked are in plain words (no more "Tools"), each with a link that fixes it; a wrong-game or missing profile opens the profile drop-down. First-run hints close with Esc and no longer cover the navigation labels.
+- Mod Configs now reads TOML settings files with the real TOML library (tomlkit): nested tables, dotted keys, inline tables, lists and `[[arrays of tables]]` (one group per table) show in the form, and saving keeps every comment and all spacing, changing only the value you edited.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - Importing a profile or a full export now asks when a mod has the same name as one you have installed but other

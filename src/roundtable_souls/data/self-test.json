@@ -27,6 +27,7 @@
     "py7zr",
     "pydantic",
     "sqlalchemy",
+    "tomlkit",
     "velopack"
   ],
   "qml_modules": [

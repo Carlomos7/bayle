@@ -65,6 +65,9 @@ class GameConfig(BaseModel):
     dflt_fallback: list[str]  # file name endings, lower-case; "*" = every type
     mod_folders: list[str]  # top-level folders of a package that me3 serves game files from, lower-case
     file_categories: list[FileCategory]  # in order: the first rule that matches a path names it
+    me3_heap_setting: bool = (
+        True  # whether me3 uses the profile's heap_size for this game (it ignores it for Nightreign)
+    )
     ignored_dlls: list[str]  # DLLs in a mod download that are not mods (loaders, runtimes), lower-case
 
     def dflt_fallback_for(self, rel: str) -> bool:

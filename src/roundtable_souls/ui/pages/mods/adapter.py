@@ -1047,6 +1047,15 @@ class ModsAdapter(QObject):
         )
 
     # ---- Profile settings
+    def _heap_shown(self) -> bool:
+        """Whether me3 uses a heap size for this game (data/games/<game>.json); shown when the game is not described."""
+        from roundtable_souls.game import config as game_config
+
+        try:
+            return game_config.load(self.host.locations.game.key).me3_heap_setting
+        except Exception:
+            return True
+
     @Slot(result=dict)
     def settingsFor(self) -> dict:
         profile = self.host.profile
@@ -1064,6 +1073,7 @@ class ModsAdapter(QObject):
             "mem_patch": tri(vals.get("mem_patch")),
             "mem_patch_heap_size": int(vals.get("mem_patch_heap_size") or 0),
             "heapApplies": profile_mods.heap_size_applies(vals),
+            "heapShown": self._heap_shown(),
         }
 
     @Slot(str, "QVariant")

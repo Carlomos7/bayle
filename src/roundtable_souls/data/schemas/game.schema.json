@@ -165,6 +165,11 @@
    "title": "File Categories",
    "type": "array"
   },
+  "me3_heap_setting": {
+   "default": true,
+   "title": "Me3 Heap Setting",
+   "type": "boolean"
+  },
   "ignored_dlls": {
    "items": {
     "type": "string"

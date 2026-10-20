@@ -124,6 +124,13 @@ PageScroll {
         width: parent ? parent.width : 0
         wrapMode: Text.WordWrap
     }
+    PrimaryButton {  // first run: no profile anywhere, so the one thing to do is here, not only in the top bar
+        objectName: "createProfile"
+        text: page.words.createProfile
+        visible: page.adapter.noProfiles
+
+        onClicked: page.adapter.createProfile()
+    }
     ModsHeader {
         adapter: page.adapter
         visible: page.adapter.hasProfile

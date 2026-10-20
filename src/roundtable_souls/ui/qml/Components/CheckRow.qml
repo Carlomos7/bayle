@@ -17,7 +17,9 @@ CheckBox {
     contentItem: Txt {
         color: root.enabled ? Theme.textPrimary : Theme.textDisabled
         leftPadding: root.indicator.width + root.spacing
+        elide: Text.ElideNone
         text: root.text
+        wrapMode: Text.WordWrap   // a long label wraps inside a narrow dialog instead of running off its edge
     }
     indicator: Rectangle {
         border.color: Theme.textSecondary

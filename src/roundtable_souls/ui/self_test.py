@@ -69,6 +69,9 @@ class SelfTestHost:
     def pick_profile(self, index: int) -> None:
         pass
 
+    def request_new_profile(self) -> None:
+        pass
+
     def pick_file(self, title: str, filters: str) -> None:
         return None
 

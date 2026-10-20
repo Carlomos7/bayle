@@ -38,7 +38,7 @@ ModalDialog {
             }
         },
         GhostButton {
-            text: dlg.words.cancel
+            text: dlg.rows.length === 0 ? dlg.words.close : dlg.words.cancel
 
             onClicked: dlg.close()
         }

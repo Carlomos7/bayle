@@ -6,15 +6,15 @@ through the profile writer."""
 from pathlib import Path
 
 import pytest
+from page_window import PageWindow
 from PySide6.QtCore import QEventLoop, QObject, QPoint, Qt, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.config.settings import LauncherSettings
 from roundtable_souls.game import catalog as games
 from roundtable_souls.services.mods import profile_entries
 from roundtable_souls.ui.host import Host as HostContract
-from roundtable_souls.ui.page_window import PageWindow
 from roundtable_souls.ui.pages.registry import page as registered
 from support import er
 
@@ -153,7 +153,7 @@ def settle(ms: int = 80) -> None:
     loop = QEventLoop()
     QTimer.singleShot(ms, loop.quit)
     loop.exec()
-    QApplication.processEvents()
+    QGuiApplication.processEvents()
 
 
 def opened(host: Host, theme: str = "dark", width: int = 1100) -> PageWindow:

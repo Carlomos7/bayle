@@ -87,7 +87,7 @@ def rows(state, kind="package"):
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
         "import sys; import roundtable_souls.ui.pages.mods.presenter; "
-        "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6', 'qfluentwidgets')))"
+        "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
     assert out == "[]"

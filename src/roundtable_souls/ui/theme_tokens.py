@@ -2,9 +2,7 @@
 
 The theme's roles as plain data, the same ones as ui/qml/Theme/Theme.qml: DARK, LIGHT and TARNISHED map a role
 name to a QColor-ready string (#RRGGBB, or #AARRGGBB when translucent) or a number; SPACING, RADIUS, TYPE,
-MOTION, GEOMETRY, CEILING and GRAIN are shared by all themes. No Qt here, so anything can read it; ui/theme.py
-turns it into colours and style sheets. legacy_tokens(theme) maps the roles onto the Widgets views' older keys
-until those views are replaced."""
+MOTION, GEOMETRY, CEILING and GRAIN are shared by all themes. No Qt here, so anything can read it."""
 
 from __future__ import annotations
 
@@ -331,60 +329,6 @@ GRAIN = {
     "grainFilmDark": 0.14,
     "grainFilmLight": 0.12,
 }
-
-# the Widgets views' keys -> role names
-LEGACY = {
-    "text": "textPrimary",
-    "surf": "surfaceCard",
-    "border": "borderEdge",
-    "line": "borderHairline",
-    "hero_a": "surfaceCard",
-    "hero_b": "surfacePage",
-    "hero_border": "borderEdge",
-    "accent": "accent",
-    "accent_hover": "accentHover",
-    "accent_press": "accentPress",
-    "on_accent": "textOnAccent",
-    "ghost": "fillGhost",
-    "ghost_fg": "textPrimary",
-    "ghost_bd": "borderHairline",
-    "ghost_hv": "fillGhostHover",
-    "selected": "accentSoft",
-    "sidebar_bg": "surfaceBar",
-    "sidebar_hover": "surfaceRow",
-    "sidebar_selected": "accentSoft",
-    "sidebar_selected_fg": "accent",
-    "dialog_body": "surfaceCard",
-    "dialog_border": "borderHairline",
-    "dialog_footer": "surfaceInput",
-    "accent_off_fg": "textDisabled",
-    "accent_off_bd": "borderHairline",
-    "pending": "accentSoft",
-    "pending_border": "accentPress",
-    "editor": "surfaceInput",
-    "editor_fg": "textPrimary",
-    "drop_surf": "surfaceBar",
-    "focus": "accent",
-    "focus_on_accent": "textOnAccent",
-    "focus_inner": "textOnAccent",
-    "success_fg": "statusSuccess",
-    "success_bg": "statusSuccessBg",
-    "warning_fg": "statusWarning",
-    "warning_bg": "statusWarningBg",
-    "danger": "statusDanger",
-    "danger_bg": "statusDangerBg",
-    "busy_bg": "accentSoft",
-    "muted_bg": "statusInfoBg",
-    "muted": "textSecondary",
-    "shadow": "shadowColor",
-    "hero_glow": "glowSoft",
-}
-
-
-def legacy_tokens(theme: str) -> dict[str, str]:
-    """The Widgets views' keys (tokens_dark() / tokens_light() in ui/theme.py), filled from the roles."""
-    roles = THEMES[theme]
-    return {old: str(roles[new]) for old, new in LEGACY.items()}
 
 
 def font_family(available: list[str] | None = None) -> str:

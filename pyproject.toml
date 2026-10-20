@@ -9,7 +9,6 @@ authors = [{ name = "Carlos Ray Segarra" }]
 requires-python = ">=3.14"
 dependencies = [
     "PySide6>=6.11.2",
-    "PySide6-Fluent-Widgets>=1.11.3",
     "pydantic>=2.13.5",
     "py7zr>=1.1.3",
     "cryptography>=50.0.1",
@@ -126,4 +125,4 @@ source_modules = [
     "roundtable_souls.config",
     "roundtable_souls.platform",
 ]
-forbidden_modules = ["PySide6", "qfluentwidgets", "shiboken6"]
+forbidden_modules = ["PySide6", "shiboken6"]

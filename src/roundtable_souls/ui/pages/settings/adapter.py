@@ -190,7 +190,7 @@ class SettingsAdapter(QObject):
             "logLevel": tr("Log level"),
             "logLevelHelp": tr("Verbose also writes the fine detail to launcher.log. It applies from the next start."),
             "about": tr("About"),
-            "aboutHelp": tr("GPL-3.0. Built on PySide6, PySide6-Fluent-Widgets and me3."),
+            "aboutHelp": tr("GPL-3.0. Built on PySide6 and me3."),
             "licence": tr("Licence"),
             "notices": tr("Third-party notices"),
             "browse": tr("Browse..."),

@@ -304,6 +304,8 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.bus.line.connect(self._on_line)
         self._update_bar = None
         self._offered = None  # the version the update notice shows
+        self._offer_info = None  # the release it shows, for Update now and Skip
+        self._prepared = None  # a downloaded and checked update, for Restart now
         self._instance_hold = None
         self._instance_server = None
         self.stackedWidget.currentChanged.connect(self._on_page_changed)

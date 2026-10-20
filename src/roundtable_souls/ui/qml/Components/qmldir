@@ -20,6 +20,7 @@ InfoBar 1.0 InfoBar.qml
 MenuEntry 1.0 MenuEntry.qml
 MenuSep 1.0 MenuSep.qml
 ModalDialog 1.0 ModalDialog.qml
+Overlays 1.0 Overlays.qml
 PageScroll 1.0 PageScroll.qml
 Pill 1.0 Pill.qml
 PopupMenu 1.0 PopupMenu.qml

@@ -16,6 +16,7 @@ class QmlPage:
     name: str
     qml: str  # relative to ui/qml
     make_adapter: Callable[[Any, Notifier], Any]  # (host, notifier) -> the page's adapter
+    commands: tuple[str, ...] = ()  # what the shell's menu may ask of its adapter (adapter.command(name, args))
 
 
 def _activity(host, notifier: Notifier):

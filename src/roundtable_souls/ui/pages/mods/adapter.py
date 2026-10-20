@@ -91,7 +91,7 @@ class ModsHost(Protocol):
         """The page deleted the profile: the host forgets it and picks another."""
 
     @property
-    def setup(self) -> Any:
+    def launch_profile(self) -> Any:
         """The current setup (its profile and kind), for the rules about deleting it."""
 
     def open_path(self, path: Path) -> None: ...
@@ -228,7 +228,7 @@ class ModsAdapter(QObject):
         profile = self.host.profile
         self._loading = True
         self.loadingChanged.emit()
-        setup = self.host.setup
+        launch = self.host.launch_profile
         loc, settings, game = self.host.locations, self.host.settings, self.host.game
         recover = not self.host.busy  # a running job holds the folder: nothing of it is interrupted
 
@@ -236,7 +236,7 @@ class ModsAdapter(QObject):
             if profile is None or not Path(profile).is_file():
                 return None, None, None, None, (), (False, None, False), (None, False)
             try:
-                self._seamless_found = coop_service.game_folder_seamless(setup) if setup is not None else None
+                self._seamless_found = coop_service.game_folder_seamless(launch) if launch is not None else None
             except Exception:  # a game folder that cannot be read: nothing to offer
                 self._seamless_found = None
             recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
@@ -372,7 +372,7 @@ class ModsAdapter(QObject):
                 return
             name = entry["name"]
 
-            def job(_setup, loc):
+            def job(_launch, loc):
                 from roundtable_souls.platform import logging as run_logging
 
                 run_logging.start_log(f"launcher: remove {name}", loc.game.key)
@@ -638,8 +638,8 @@ class ModsAdapter(QObject):
     def _seamless_action(self) -> None:
         """Move Seamless Co-op from the game folder into this profile, or clean up what it left there (a job; the
         files go to the Recycle Bin, the profile's own copy and the settings file in use are never touched)."""
-        found, setup = getattr(self, "_seamless_found", None), self.host.setup
-        if found is None or setup is None or self.host.busy or self.host.game_running:
+        found, launch = getattr(self, "_seamless_found", None), self.host.launch_profile
+        if found is None or launch is None or self.host.busy or self.host.game_running:
             return
         move = found.kind == "move"
         changes = [
@@ -658,13 +658,13 @@ class ModsAdapter(QObject):
             if not ok:
                 return
 
-            def job(_setup, _loc):
-                run_logging.start_log("launcher: seamless co-op in the game folder", setup.game.key)
+            def job(_launch, _loc):
+                run_logging.start_log("launcher: seamless co-op in the game folder", launch.game.key)
                 try:
                     if move:
-                        coop_service.move_seamless_into_setup(setup, found, run_logging.log)
+                        coop_service.move_seamless_into_profile(launch, found, run_logging.log)
                     else:
-                        coop_service.clean_up_game_folder_seamless(setup, found, run_logging.log)
+                        coop_service.clean_up_game_folder_seamless(launch, found, run_logging.log)
                 except Exception as e:
                     run_logging.log(f"error: {e}")
                     raise SystemExit(1) from e
@@ -749,7 +749,7 @@ class ModsAdapter(QObject):
                 if not ok or self.host.busy:
                     return
 
-                def job(_setup, loc):
+                def job(_launch, loc):
                     from roundtable_souls.platform import logging as run_logging
 
                     verb = "update" if preview.update else "install"
@@ -792,7 +792,7 @@ class ModsAdapter(QObject):
                         self._refuse(self.presenter.overhaul_remove_failed(label, " ".join(final.refusals)))
                         return
 
-                def job(_setup, loc):
+                def job(_launch, loc):
                     from roundtable_souls.platform import logging as run_logging
 
                     run_logging.start_log(f"launcher: remove overhaul {label}", loc.game.key)
@@ -898,7 +898,7 @@ class ModsAdapter(QObject):
             if not picked or self.host.busy:
                 return
 
-            def job(_setup, loc):
+            def job(_launch, loc):
                 from roundtable_souls.platform import logging as run_logging
 
                 run_logging.start_log("launcher: clean up overhaul installer leftovers", loc.game.key)
@@ -975,7 +975,7 @@ class ModsAdapter(QObject):
             return
         old, loc = entry["name"], self.host.locations
 
-        def job(_setup, _loc):
+        def job(_launch, _loc):
             from roundtable_souls.platform import logging as run_logging
 
             run_logging.start_log(f"launcher: rename {old} to {name}", loc.game.key)
@@ -1211,7 +1211,7 @@ class ModsAdapter(QObject):
     def deleteProfile(self) -> None:
         profile = self.host.profile
         refusal = self.presenter.delete_refusal(
-            profile_mods.delete_refusal(self._setup_like(), self.host.busy, loc=self.host.locations),
+            profile_mods.delete_refusal(self._launch_profile_like(), self.host.busy, loc=self.host.locations),
             Path(profile).stem if profile else "",
         )
         if refusal is not None:
@@ -1236,9 +1236,9 @@ class ModsAdapter(QObject):
         kept = profile_mods.overhaul_to_keep(profile, loc=self.host.locations)
         self.notifier.ask(self.presenter.delete_profile(profile, kept), answered, destructive=True)
 
-    def _setup_like(self):
+    def _launch_profile_like(self):
         """The host's current setup as delete_refusal reads it (profile and kind)."""
-        return getattr(self.host, "setup", None)
+        return getattr(self.host, "launch_profile", None)
 
     # ---- Edit as text
     editText = Property(bool, lambda self: self._edit_text, notify=textChanged)

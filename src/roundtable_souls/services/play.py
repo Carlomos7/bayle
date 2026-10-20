@@ -87,7 +87,7 @@ def logo_path(theme_dark: bool, logo: str = "auto") -> Path:
     return p if p.is_file() else ASSETS_DIR / "icon.ico"
 
 
-class Setup:
+class LaunchProfile:
     """What to launch and how. kind: 'me3' (installed me3, --game) or 'manifest' (an overhaul installer's manifest,
     installation.json, --exe).
     loc: where the game it launches is on this machine (its game is loc.game)."""
@@ -103,8 +103,8 @@ class Setup:
 
     def locations(self) -> Locations:
         """The game's locations with the save files this setup uses (me3's savefile, Seamless Co-op's extension)."""
-        names = setup_saves(self)
-        return self.loc.with_setup_save_names({k: names[k] for k in ("standard", "coop")})
+        names = profile_saves(self)
+        return self.loc.with_profile_save_names({k: names[k] for k in ("standard", "coop")})
 
     @property
     def ini(self):
@@ -169,7 +169,7 @@ class Setup:
         return self.exe or self.loc.overrides.game_exe or None
 
 
-def setup_from_installation(path: Path, loc: Locations) -> Setup | None:
+def launch_profile_from_installation(path: Path, loc: Locations) -> LaunchProfile | None:
     try:
         cfg = json.loads(Path(path).read_text(encoding="utf-8"))
     except Exception:
@@ -181,7 +181,7 @@ def setup_from_installation(path: Path, loc: Locations) -> Setup | None:
         cand = Path(cfg["seamless"]).parent / "ersc_settings.ini"
         if cand.is_file():
             ini = cand
-    return Setup("manifest", cfg["profile"], cfg.get("me3"), cfg.get("game"), source=path, ini=ini, loc=loc)
+    return LaunchProfile("manifest", cfg["profile"], cfg.get("me3"), cfg.get("game"), source=path, ini=ini, loc=loc)
 
 
 def same_source(a, b) -> bool:
@@ -190,15 +190,15 @@ def same_source(a, b) -> bool:
     return bool(a) and bool(b) and os.path.normcase(str(a)) == os.path.normcase(str(b))
 
 
-def setup_from_path(p: str | Path, loc: Locations) -> Setup | None:
+def launch_profile_from_path(p: str | Path, loc: Locations) -> LaunchProfile | None:
     """A setup for a picked file: a .me3 profile, or an overhaul's installer manifest (installation.json) for a game
     it has a config for."""
     p = Path(p)
     if p.name.lower() in {o.recognise.manifest.lower() for o in overhauls.load()}:
         manifests = {o.recognise.manifest.lower() for o in overhauls.load(loc.game.key)}
-        return setup_from_installation(p, loc) if p.name.lower() in manifests else None
+        return launch_profile_from_installation(p, loc) if p.name.lower() in manifests else None
     if p.suffix.lower() == ".me3" and p.is_file():
-        return Setup("me3", p, loc=loc)
+        return LaunchProfile("me3", p, loc=loc)
     return None
 
 
@@ -216,15 +216,15 @@ def discover(remembered: str | None, loc: Locations):
             found.append(s)
 
     if remembered:
-        add(setup_from_path(remembered, loc))
+        add(launch_profile_from_path(remembered, loc))
     for prof in loc.me3_profiles():
         if prof.name.lower().endswith(".offline.me3"):
             continue  # our own generated copies
-        add(Setup("me3", prof, loc=loc))
+        add(LaunchProfile("me3", prof, loc=loc))
         for folder, manifest in places:
             inst = prof.parent / folder / manifest
             if inst.is_file():
-                add(setup_from_installation(inst, loc))
+                add(launch_profile_from_installation(inst, loc))
     if not places:
         return found
     # an edition may install into the game folder itself (the overhaul's Standalone: Launch.cmd next to eldenring.exe)
@@ -236,23 +236,23 @@ def discover(remembered: str | None, loc: Locations):
         for folder, manifest in places:
             inst = Path(gd) / folder / manifest
             if inst.is_file():
-                add(setup_from_installation(inst, loc))
+                add(launch_profile_from_installation(inst, loc))
     return found
 
 
-def overhauls_in(setup: Setup) -> list[str]:
+def overhauls_in(launch: LaunchProfile) -> list[str]:
     """The short labels of the overhauls a setup includes: launched from one's manifest, its folder beside the
     profile, or one of its entries in the profile. Every config is asked, whatever the setup's game, as before S3a."""
     from roundtable_souls.services.mods import read_profile_mods
 
-    profile = Path(setup.profile)
+    profile = Path(launch.profile)
     ids = {m["id"].lower() for m in read_profile_mods(profile)} if profile.is_file() else set()
-    source = Path(setup.source).name.lower() if setup.source else ""
+    source = Path(launch.source).name.lower() if launch.source else ""
     out = []
     for o in overhauls.load():
         r = o.recognise
         if (
-            (setup.kind == "manifest" and source == r.manifest.lower())
+            (launch.kind == "manifest" and source == r.manifest.lower())
             or (profile.parent / r.folder).is_dir()
             or ids & {i.lower() for i in r.mod_ids}
         ):
@@ -260,22 +260,22 @@ def overhauls_in(setup: Setup) -> list[str]:
     return out
 
 
-def remembered_setup(settings: LauncherSettings | None, game: games.Game) -> str | None:
+def remembered_profile(settings: LauncherSettings | None, game: games.Game) -> str | None:
     """The setup Play last used for the game."""
     s = load_settings() if settings is None else settings
     return game_setting(s, game.key, "setup")
 
 
-def remember_setup(source: str, game: games.Game) -> None:
+def remember_profile(source: str, game: games.Game) -> None:
     save_game_settings(game.key, setup=source)
 
 
-def forget_setup(game: games.Game) -> None:
+def forget_profile(game: games.Game) -> None:
     """Drop the setup Play remembered for the game (its profile was deleted, say)."""
     save_game_settings(game.key, setup=None)
 
 
-def setup_saves(setup: Setup | None, game: games.Game | None = None) -> dict:
+def profile_saves(launch: LaunchProfile | None, game: games.Game | None = None) -> dict:
     """The save files a setup plays on, by name in the account's save folder:
 
     standard  what the game writes: me3's per-profile savefile, else ER0000.sl2 (NR0000.sl2, ...).
@@ -284,24 +284,24 @@ def setup_saves(setup: Setup | None, game: games.Game | None = None) -> dict:
     active    the one Play uses (co-op when Seamless is loaded; Play offline always uses the standard one).
     why       role -> where the name comes from, for the Saves page.
     game: the game without a setup."""
-    game = setup.game if setup else game
+    game = launch.game if launch else game
     if game is None:
         raise ValueError("setup or game required")
     standard = f"{game.save_stem}.sl2"
     why = {"standard": "the game's default"}
-    if setup and Path(setup.profile).is_file():
+    if launch and Path(launch.profile).is_file():
         try:
-            named = profile_tools.read_settings(Path(setup.profile).read_text(encoding="utf-8", errors="replace"))
+            named = profile_tools.read_settings(Path(launch.profile).read_text(encoding="utf-8", errors="replace"))
         except OSError:
             named = {}
         if named.get("savefile"):
             standard = str(named["savefile"])
-            why["standard"] = f"savefile in {Path(setup.profile).name}"
+            why["standard"] = f"savefile in {Path(launch.profile).name}"
     coop_name = None
-    if setup and setup.ini and Path(setup.ini).is_file():
-        ext = (read_keys(setup.ini, ["save_file_extension"]).get("save_file_extension") or "co2").strip().lstrip(".")
+    if launch and launch.ini and Path(launch.ini).is_file():
+        ext = (read_keys(launch.ini, ["save_file_extension"]).get("save_file_extension") or "co2").strip().lstrip(".")
         coop_name = f"{Path(standard).stem}.{ext or 'co2'}"
-        why["coop"] = f"save_file_extension in {Path(setup.ini).name}" if ext != "co2" else "Seamless Co-op's default"
+        why["coop"] = f"save_file_extension in {Path(launch.ini).name}" if ext != "co2" else "Seamless Co-op's default"
     return {"standard": standard, "coop": coop_name, "active": coop_name or standard, "why": why}
 
 
@@ -394,11 +394,11 @@ def _backup_before_play(opts: dict, loc: Locations, backup: str) -> None:
         run_logging.log(f"warning: starting without a backup of every save, as asked ({e})")
 
 
-def places(setup, loc: Locations) -> dict:
+def places(launch, loc: Locations) -> dict:
     """Folders worth a button: me3, game, saves, this setup's profile and its mod folder. Missing ones are None."""
     out: dict[str, Path | None] = {"me3": None, "game": None, "saves": None, "profile": None, "mods": None}
     try:
-        me3 = setup.me3_path() if setup else loc.me3_exe()
+        me3 = launch.me3_path() if launch else loc.me3_exe()
         if me3 and Path(me3).is_file():
             out["me3"] = Path(me3).parent
     except Exception:
@@ -419,11 +419,11 @@ def places(setup, loc: Locations) -> dict:
                 out["saves"] = roots[0]
     except Exception:
         pass
-    if setup and Path(setup.profile).is_file():
-        out["profile"] = Path(setup.profile).parent
+    if launch and Path(launch.profile).is_file():
+        out["profile"] = Path(launch.profile).parent
         try:
-            text = Path(setup.profile).read_bytes().decode("utf-8", "replace")
-            pk, _nt = mod_manage.roots(Path(setup.profile), text)
+            text = Path(launch.profile).read_bytes().decode("utf-8", "replace")
+            pk, _nt = mod_manage.roots(Path(launch.profile), text)
             out["mods"] = pk if pk.is_dir() else out["profile"]
         except Exception:
             out["mods"] = out["profile"]
@@ -461,26 +461,26 @@ def _after_play(opts, loc: Locations):
         run_logging.log("clearing leftover processes after quitting is off (Settings > Launch)")
 
 
-def job_play(setup: Setup, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
+def job_play(launch: LaunchProfile, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
     """Play online. loc: the game's locations (default: the setup's, with the saves it uses). backup: how a failed
     'back up saves before Play' is handled (BACKUP_*)."""
-    loc = loc or setup.locations()
+    loc = loc or launch.locations()
     run_logging.start_log("launcher: play", loc.game.key)
     opts = play_options()
     _backup_before_play(opts, loc, backup)
     me3_session.ensure_steam(120)
     if opts["play_clear_before"]:
         me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
-    online = game_checks.online_warning(Path(setup.profile), loc)
+    online = game_checks.online_warning(Path(launch.profile), loc)
     if online is not None:
         run_logging.log(f"warning: {online}")
     me3_session.launch(
-        setup.game.key,
-        setup.profile,
-        me3=setup.me3_path(),
+        launch.game.key,
+        launch.profile,
+        me3=launch.me3_path(),
         exe_name=loc.game_exe_name(),
-        exe=setup.launch_exe(),
-        extra_args=launch_extra_args(opts, me3_info.me3_version(setup.me3_path())),
+        exe=launch.launch_exe(),
+        extra_args=launch_extra_args(opts, me3_info.me3_version(launch.me3_path())),
     )
     time.sleep(3)
     _after_play(opts, loc)
@@ -604,9 +604,9 @@ def steam_state():
 
 
 def job_play_offline(
-    setup, loc: Locations | None = None, strip_overhaul=False, start_steam=True, backup: str = BACKUP_REQUIRED
+    launch, loc: Locations | None = None, strip_overhaul=False, start_steam=True, backup: str = BACKUP_REQUIRED
 ):
-    loc = loc or setup.locations()
+    loc = loc or launch.locations()
     run_logging.start_log("launcher: play offline", loc.game.key)
     opts = play_options()
     _backup_before_play(opts, loc, backup)
@@ -615,18 +615,18 @@ def job_play_offline(
     if opts["play_clear_before"]:
         me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
     me3_session.launch(
-        setup.game.key,
-        str(offline_profile_for(setup.profile, strip_overhaul=strip_overhaul, coop_dll=setup.game.coop_dll)),
-        me3=setup.me3_path(),
+        launch.game.key,
+        str(offline_profile_for(launch.profile, strip_overhaul=strip_overhaul, coop_dll=launch.game.coop_dll)),
+        me3=launch.me3_path(),
         exe_name=loc.game_exe_name(),
-        exe=setup.launch_exe(),
-        extra_args=("--skip-steam-init", "true", *launch_extra_args(opts, me3_info.me3_version(setup.me3_path()))),
+        exe=launch.launch_exe(),
+        extra_args=("--skip-steam-init", "true", *launch_extra_args(opts, me3_info.me3_version(launch.me3_path()))),
     )
     time.sleep(3)
     _after_play(opts, loc)
 
 
-def job_play_vanilla(setup, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
+def job_play_vanilla(launch, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
     """Launch Vanilla: the game started through Steam, with no me3 and no profile, so it plays the standard save with
     its own anti-cheat (game model, 2026-10-20). Nothing of a profile is read or written, and the after-Play
     regulation repair is not run: me3 did not touch the save. setup is not used (the caller may pass none)."""
@@ -646,12 +646,12 @@ def job_play_vanilla(setup, loc: Locations | None = None, backup: str = BACKUP_R
         me3_session.clear_dead_shells(loc.game_exe_name(), "after exit")
 
 
-def job_repair(setup, loc: Locations):
+def job_repair(launch, loc: Locations):
     run_logging.start_log("launcher: repair", loc.game.key)
     save_repair.repair_all(loc)
 
 
-def job_clear(setup, loc: Locations):
+def job_clear(launch, loc: Locations):
     run_logging.start_log("launcher: clear dead shells", loc.game.key)
     me3_session.clear_dead_shells(loc.game_exe_name(), "manual")
 
@@ -696,22 +696,25 @@ def play_headless(
         run_logging.start_log("launcher: play (no window)", game.key)
         run_logging.log(f"error: Roundtable Souls cannot launch {game.name} yet")
         return 1
-    remembered = remembered_setup(settings, game)
+    remembered = remembered_profile(settings, game)
     if remembered and Path(remembered).is_file():
         try:
             mod_operations.recover(Path(remembered))  # an install the window left half done: undone first
         except Exception:
             pass  # then problems() says why Play cannot start
-    setups = [s for s in discover(remembered, loc) if not s.problems()]
-    setup = next((s for s in setups if same_source(s.source, remembered)), setups[0] if setups else None)
-    if setup is None:
+    launch_profiles = [s for s in discover(remembered, loc) if not s.problems()]
+    launch = next(
+        (s for s in launch_profiles if same_source(s.source, remembered)),
+        launch_profiles[0] if launch_profiles else None,
+    )
+    if launch is None:
         run_logging.start_log("launcher: play (no window)", game.key)
         run_logging.log(
             f"error: no working {game.name} setup found; open Roundtable Souls once, pick the {game.name} tab, "
             "and choose one on the Play page"
         )
         return 1
-    why = update_merge_headless(setup, automatic=play_options(settings)["play_update_merge"])
+    why = update_merge_headless(launch, automatic=play_options(settings)["play_update_merge"])
     if why:
         run_logging.log(f"error: the game was not started: {why}")
         if notice is not None:
@@ -719,9 +722,9 @@ def play_headless(
         return 1
     try:
         if allow_without_backup:
-            job_play(setup, backup=BACKUP_ALLOW_FAILURE)
+            job_play(launch, backup=BACKUP_ALLOW_FAILURE)
         else:
-            job_play(setup)
+            job_play(launch)
     except BackupBeforePlayFailed as e:
         why = (
             f"Backing up your saves before Play failed: {e}. Fix that, turn 'back up saves before Play' off in "
@@ -735,20 +738,20 @@ def play_headless(
     return 0
 
 
-def update_merge_headless(setup, automatic: bool = True) -> str | None:
+def update_merge_headless(launch, automatic: bool = True) -> str | None:
     """--play without the window: bring the merged mods up to date first. None when the game may start (nothing to
     do, or updated); otherwise why it must not start: the game never runs with merged mods that no longer match the
     profile (a removed mod still inside them, say). Nothing can ask here, so a rebuild tool runs only when it was
     already allowed. automatic False (the setting "rebuild ... automatically" off): nothing is rebuilt
     without being asked, so the game is not started either."""
-    prof = Path(setup.profile) if getattr(setup, "profile", None) else None
+    prof = Path(launch.profile) if getattr(launch, "profile", None) else None
     if prof is None:
         return None
-    loc = setup.loc
+    loc = launch.loc
     h = mod_merge.play_check(prof, loc=loc)
     if h is None:
         return None
-    run_logging.start_log("launcher: update merged mods before Play (no window)", setup.game.key)
+    run_logging.start_log("launcher: update merged mods before Play (no window)", launch.game.key)
     reason = (h.get("reasons") or [h.get("text") or "the merged mods are out of date"])[0]
     if h["blocked"]:
         run_logging.log(f"error: the merged mods are out of date ({reason}) and cannot be rebuilt: {h['blocked']}")
@@ -789,10 +792,10 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
     installed = [g.name for g in games.GAMES if installed_dir(g)]
     lines.append(f"game: {game.name}{'' if game.ready else ' (not supported yet)'}")
     lines.append(f"installed games: {', '.join(installed) or 'none found'}")
-    remembered = remembered_setup(settings, game)
-    setups = discover(remembered, loc) if game.ready else []
-    lines.append(f"setups found: {len(setups)}")
-    for s in setups:
+    remembered = remembered_profile(settings, game)
+    launch_profiles = discover(remembered, loc) if game.ready else []
+    lines.append(f"setups found: {len(launch_profiles)}")
+    for s in launch_profiles:
         spec = scaling_spec(s.ini) if s.ini else None
         sc = read_scaling(s.ini, spec) if s.ini else None
         if not s.ini or not has_password(s.ini):

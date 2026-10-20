@@ -160,12 +160,13 @@ def test_ersc_ini_found_relative_to_profile(tmp_path):
     assert coop_service.ersc_ini_for(str(other)) is None
 
 
-def test_setup_label_is_the_profile_name(tmp_path):
+def test_launch_profile_label_is_the_profile_name(tmp_path):
     p = tmp_path / "any.me3"
     p.write_text("")
-    assert g.Setup("me3", p, loc=er()).label == "any.me3"
+    assert g.LaunchProfile("me3", p, loc=er()).label == "any.me3"
     assert (
-        g.Setup("manifest", p, source=tmp_path / "installation.json", loc=er()).label == "any.me3  ·  installation.json"
+        g.LaunchProfile("manifest", p, source=tmp_path / "installation.json", loc=er()).label
+        == "any.me3  ·  installation.json"
     )
 
 
@@ -177,7 +178,7 @@ def test_places_are_folders_or_none(tmp_path):
     prof = tmp_path / "p.me3"
     prof.write_text('profileVersion = "v1"\n[[packages]]\npath = "mod/x"\n', encoding="utf-8")
     (tmp_path / "mod" / "x").mkdir(parents=True)
-    pl = g.places(g.Setup("me3", prof, loc=er()), er())
+    pl = g.places(g.LaunchProfile("me3", prof, loc=er()), er())
     assert pl["profile"] == tmp_path and pl["mods"] == tmp_path / "mod"
 
 
@@ -196,7 +197,7 @@ def test_location_overrides_reach_the_tools_layer(tmp_path, monkeypatch):
     )
     assert loc.me3_exe() == me3 and loc.game_dir() == game.parent and loc.me3_profiles_dir() == prof
     assert [p.name for p in loc.me3_profiles()] == ["a.me3"] and loc.game_exe_name() == "eldenring.exe"
-    s = g.Setup("me3", prof / "a.me3", loc=loc)
+    s = g.LaunchProfile("me3", prof / "a.me3", loc=loc)
     assert s.launch_exe() == str(game) and not s.problems()
     cached = Locations.from_settings(LauncherSettings.from_raw({"me3_info_cache": {"profile_dir": str(prof)}}), ER)
     assert cached.overrides.in_effect()["profile_dir"] == str(prof)
@@ -205,7 +206,7 @@ def test_location_overrides_reach_the_tools_layer(tmp_path, monkeypatch):
     assert Locations.from_settings(LauncherSettings.from_raw({}), ER).overrides == Overrides()
 
 
-def test_setup_from_installation_json(tmp_path):
+def test_launch_profile_from_installation_json(tmp_path):
     inst = tmp_path / "ExampleOverhaul" / "installation.json"
     inst.parent.mkdir()
     inst.write_text(
@@ -217,10 +218,10 @@ def test_setup_from_installation_json(tmp_path):
             }
         )
     )
-    s = g.setup_from_path(str(inst), er())
+    s = g.launch_profile_from_path(str(inst), er())
     assert s and s.kind == "manifest" and s.exe.endswith("eldenring.exe")
     assert any("missing" in x for x in s.problems())  # nothing exists in tmp, so it must say so
-    assert g.setup_from_path(str(tmp_path / "nothing.txt"), er()) is None
+    assert g.launch_profile_from_path(str(tmp_path / "nothing.txt"), er()) is None
 
 
 def test_settings_meta_types_from_comments(tmp_path):
@@ -327,12 +328,12 @@ def test_overhaul_array_profile_lists_seamless_and_overhaul(tmp_path):
     assert "enabled = false" in off and "OverhaulPrototype.dll" in off and 'id = "ersc.dll"' in off
 
 
-def test_setup_warnings_name_a_missing_mod_folder_but_do_not_block(tmp_path):
+def test_profile_warnings_name_a_missing_mod_folder_but_do_not_block(tmp_path):
     (tmp_path / "here").mkdir()
     prof = tmp_path / "p.me3"
     prof.write_text(
         'profileVersion = "v1"\n\n[[packages]]\nid = "flora"\npath = "gone"\n\n[[packages]]\nid = "ok"\npath = "here"\n',
         encoding="utf-8",
     )
-    s = g.setup_from_path(str(prof), er())
+    s = g.launch_profile_from_path(str(prof), er())
     assert s and s.warnings() == ["flora folder is missing"]

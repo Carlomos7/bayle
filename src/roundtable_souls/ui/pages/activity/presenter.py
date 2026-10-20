@@ -117,7 +117,7 @@ class UndoPlan:
         """The job for the window's runner (job(setup, loc)): it takes the job back and records that it did."""
         u, job_id, name = dict(self.undo), self.job_id, self.name
 
-        def job(_setup, loc):
+        def job(_launch, loc):
             run_logging.start_log(
                 f"launcher: {'redo' if u.get('redo') else 'undo'} the rebuild"
                 if u.get("type") == "rebuild"

@@ -184,10 +184,10 @@ class FakeMe3:
         return self.returncode
 
 
-def setup_for(game, profile="p.me3", me3="me3.exe", exe=None, loc=None):
+def launch_profile_for(game, profile="p.me3", me3="me3.exe", exe=None, loc=None):
     """A Play setup with what job_play reads."""
     return type(
-        "FakeSetup",
+        "FakeLaunchProfile",
         (),
         {
             "profile": profile,
@@ -201,4 +201,4 @@ def setup_for(game, profile="p.me3", me3="me3.exe", exe=None, loc=None):
     )()
 
 
-__all__ = ["FakeHost", "GAME_THREADS", "STEAM_EXE", "setup_for", "subprocess"]
+__all__ = ["FakeHost", "GAME_THREADS", "STEAM_EXE", "launch_profile_for", "subprocess"]

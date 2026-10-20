@@ -99,12 +99,12 @@ def gate(state: LauncherState, mode: str, problems: tuple[str, ...] | None = Non
         return tr("Wait for the current job to finish.")
     if state.game_running:
         return tr("{game} is already running. Close it first.").format(game=state.game.name)
-    setup = state.setup
+    launch_profile = state.launch_profile
     facts = topbar.Facts(
         game=state.game,
         installed=bool(state.locations.game_dir()),
-        profile_count=1 if setup else 0,
-        problems=tuple(setup.problems()) if setup and problems is None else (problems or ()),
+        profile_count=1 if launch_profile else 0,
+        problems=tuple(launch_profile.problems()) if launch_profile and problems is None else (problems or ()),
     )
     why = topbar.blocked(facts, mode)
     return why[0] if why else ""
@@ -143,12 +143,12 @@ class LaunchFlow:
             self.ports.toast(why, error=True)
             return False
         self.active = True
-        setup = self.state.setup
+        launch_profile = self.state.launch_profile
         run = self._run = _Run(mode, allow_without_backup=allow_without_backup)
         self.ports.progress(tr("Checking..."))
 
         def check():  # the profile's disk checks, read fresh now (never a cached answer), off the UI thread
-            return tuple(setup.problems()) if setup and mode != topbar.VANILLA else ()
+            return tuple(launch_profile.problems()) if launch_profile and mode != topbar.VANILLA else ()
 
         self.ports.background(check, lambda problems: self._gated(run, mode, problems))
         return not run.refused
@@ -161,8 +161,8 @@ class LaunchFlow:
             self.ports.toast(why, error=True)
             self._end()
             return
-        setup = self.state.setup
-        run.profile = Path(setup.profile) if setup and mode != topbar.VANILLA else None
+        launch_profile = self.state.launch_profile
+        run.profile = Path(launch_profile.profile) if launch_profile and mode != topbar.VANILLA else None
         self.ports.progress(tr("Starting..."))
         self._pending_edits(run)
 
@@ -358,7 +358,7 @@ class LaunchFlow:
     def _rebuild(self, run: _Run, prof: Path, key: tuple, reason: str) -> None:
         services = self.services
 
-        def job(_setup, job_loc):
+        def job(_launch_profile, job_loc):
             run_logging.start_log("launcher: update merged mods before Play", job_loc.game.key)
             try:
                 out = services.update_before_play(prof, run_logging.log, loc=job_loc)
@@ -489,15 +489,15 @@ class LaunchFlow:
         services = self.services
         if run.mode == topbar.VANILLA:
 
-            def job(setup, job_loc):
-                services.job_play_vanilla(setup, job_loc, backup=backup)
+            def job(launch_profile, job_loc):
+                services.job_play_vanilla(launch_profile, job_loc, backup=backup)
 
             label = tr("Starting {game}...").format(game=self.state.game.name)
         elif run.mode == topbar.OFFLINE:
 
-            def job(setup, job_loc):
+            def job(launch_profile, job_loc):
                 services.job_play_offline(
-                    setup,
+                    launch_profile,
                     job_loc,
                     strip_overhaul=settings.offline_strip_overhaul,
                     start_steam=settings.offline_start_steam,
@@ -507,8 +507,8 @@ class LaunchFlow:
             label = tr("Starting offline...")
         else:
 
-            def job(setup, job_loc):
-                services.job_play(setup, job_loc, backup=backup)
+            def job(launch_profile, job_loc):
+                services.job_play(launch_profile, job_loc, backup=backup)
 
             label = tr("Starting...")
         self._end()
@@ -517,5 +517,5 @@ class LaunchFlow:
     # ---------------------------------------------------------------- helpers
     def _locations(self):
         """The game's locations with the save files the setup in use names."""
-        setup = self.state.setup
-        return setup.locations() if setup is not None else self.state.locations
+        launch_profile = self.state.launch_profile
+        return launch_profile.locations() if launch_profile is not None else self.state.locations

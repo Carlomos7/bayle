@@ -28,7 +28,7 @@ from roundtable_souls.saves import vanilla as save_vanilla
 def save_kind(path: Path, *, loc: Locations) -> str:
     """Seamless Co-op for a .co2 or the co-op name the setup in use configures, else Standard."""
     path = Path(path)
-    coop = loc.setup_save_names.get("coop") or ""
+    coop = loc.profile_save_names.get("coop") or ""
     return "Seamless Co-op" if path.suffix.lower() == ".co2" or path.name.lower() == coop.lower() else "Standard"
 
 

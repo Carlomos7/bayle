@@ -68,15 +68,15 @@ class Locations:
     overrides: Overrides = field(default_factory=Overrides)
     # Save names the setup in use configures beyond the defaults (me3's savefile, Seamless Co-op's
     # save_file_extension): role -> file name, so those files are listed and repaired too.
-    setup_save_names: Mapping[str, str] = field(default_factory=dict)
+    profile_save_names: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_settings(cls, settings: LauncherSettings, game: catalog.Game) -> Locations:
         return cls(game, Overrides.from_settings(settings, game))
 
-    def with_setup_save_names(self, names: Mapping[str, str]) -> Locations:
+    def with_profile_save_names(self, names: Mapping[str, str]) -> Locations:
         """names: role -> file name, e.g. {"standard": "ER0000.sl2", "coop": "ER0000.co3"}."""
-        return replace(self, setup_save_names={k: v for k, v in names.items() if v})
+        return replace(self, profile_save_names={k: v for k, v in names.items() if v})
 
     def for_game(self, game: catalog.Game, settings: LauncherSettings) -> Locations:
         """The same machine's answers for another game (its own exe override; no setup save names yet)."""
@@ -116,7 +116,7 @@ class Locations:
     def save_names(self) -> list[str]:
         """The default names (ER0000.sl2, ER0000.co2) and any the setup in use configures, without repeats."""
         out: list[str] = []
-        for n in (*self.game.save_names, *self.setup_save_names.values()):
+        for n in (*self.game.save_names, *self.profile_save_names.values()):
             if n.lower() not in (x.lower() for x in out):
                 out.append(n)
         return out

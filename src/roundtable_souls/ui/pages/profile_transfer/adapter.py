@@ -410,7 +410,7 @@ class ProfileTransferAdapter(QObject):
                 last[0] = now
                 self._progressed.emit(done, total, current, n, count)
 
-        def job(_setup, _loc):
+        def job(_launch, _loc):
             from roundtable_souls.platform import logging as run_logging
 
             run_logging.start_log(f"launcher: export profile {args['name']}", loc.game.key)
@@ -589,7 +589,7 @@ class ProfileTransferAdapter(QObject):
                 last[0] = now
                 self._bytes_in.emit(done, total)
 
-        def job(_setup, loc):
+        def job(_launch, loc):
             from roundtable_souls.platform import logging as run_logging
 
             run_logging.start_log(f"launcher: import a shared profile into {prev.profile.name}", loc.game.key)
@@ -652,7 +652,7 @@ class ProfileTransferAdapter(QObject):
         self._working = True
         self._emit()
 
-        def job(_setup, loc):
+        def job(_launch, loc):
             from roundtable_souls.platform import logging as run_logging
 
             run_logging.start_log(f"launcher: import profile {prev.profile.name}", loc.game.key)

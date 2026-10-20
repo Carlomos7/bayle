@@ -79,11 +79,11 @@ def set_profile_mod_enabled(profile, index: int, enabled: bool) -> bool:
     return True
 
 
-def me3_facts(setup, loc: Locations) -> dict:
+def me3_facts(launch, loc: Locations) -> dict:
     """Installed version, `me3 info` folders, and (cached daily) the latest release. Never raises. reload: True when
     me3 reported its folders (cached in settings): the caller reads the settings again, as the profile folder falls
     back to that cache."""
-    me3 = setup.me3_path() if setup else loc.me3_exe()
+    me3 = launch.me3_path() if launch else loc.me3_exe()
     facts = {
         "path": str(me3) if me3 else "",
         "version": me3_info.me3_version(me3),
@@ -230,10 +230,10 @@ def create_first_profile(name: str, include_seamless: bool, *, loc: Locations, l
     path = create_profile(name, loc=loc)
     log(f"profile: created {path}")
     if include_seamless:
-        setup = play_service.Setup("me3", path, loc=loc)
-        found = coop_service.game_folder_seamless(setup)
+        launch = play_service.LaunchProfile("me3", path, loc=loc)
+        found = coop_service.game_folder_seamless(launch)
         if found is not None and found.kind == "move":
-            coop_service.move_seamless_into_setup(setup, found, log)
+            coop_service.move_seamless_into_profile(launch, found, log)
     return path
 
 

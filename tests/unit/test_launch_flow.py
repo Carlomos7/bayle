@@ -13,7 +13,7 @@ from roundtable_souls.ui.launcher.launch import Ask, LaunchFlow, Services
 from roundtable_souls.ui.launcher.topbar import OFFLINE, PROFILE, VANILLA
 
 
-class Setup:
+class LaunchProfile:
     profile = "main.me3"
     source = "main.me3"
     kind = "me3"
@@ -37,9 +37,9 @@ class Locations:
 
 
 class State:
-    def __init__(self, setup="default", game=catalog.ELDEN_RING, busy=False, running=False, exe=True):
+    def __init__(self, launch_profile="default", game=catalog.ELDEN_RING, busy=False, running=False, exe=True):
         self.busy, self.game_running, self.game = busy, running, game
-        self.setup = Setup() if setup == "default" else setup
+        self.launch_profile = LaunchProfile() if launch_profile == "default" else launch_profile
         self.settings = LauncherSettings(offline_skip_confirm=True)
         self.locations = SimpleNamespace(game_dir=lambda: Path("game") if exe else None)
 
@@ -173,8 +173,8 @@ def test_a_blocked_state_starts_nothing():
     blocked = (
         State(game=catalog.SEKIRO),  # not supported yet
         State(exe=False),  # the game is not installed
-        State(setup=None),  # no profile
-        State(setup=Setup(["this setup was not finished"])),  # an incomplete managed setup
+        State(launch_profile=None),  # no profile
+        State(launch_profile=LaunchProfile(["this setup was not finished"])),  # an incomplete managed setup
     )
     for state in blocked:
         f, ports, calls = flow(state=state)
@@ -302,11 +302,11 @@ def test_a_failed_update_offers_play_anyway_and_is_not_retried_silently():
 
 
 def test_launch_reads_the_profile_checks_fresh_each_time():
-    setup = Setup()
-    state = State(setup=setup)
+    launch_profile = LaunchProfile()
+    state = State(launch_profile=launch_profile)
     f, ports, calls = flow(state=state)
     f.start(PROFILE)
     assert calls.started  # a clean setup starts
     calls.started.clear()
-    setup._problems = ["profile missing: gone.me3"]  # changed on disk since: the next Launch must see it
+    launch_profile._problems = ["profile missing: gone.me3"]  # changed on disk since: the next Launch must see it
     assert f.start(PROFILE) is False and calls.started == []

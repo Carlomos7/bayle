@@ -10,18 +10,20 @@ from __future__ import annotations
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QEventLoop, QObject, QUrl
+from PySide6.QtCore import QEventLoop, QObject, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon, QWindow
 from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.platform import instance
 from roundtable_souls.resources import ASSETS_DIR
-from roundtable_souls.services.play import TITLE, VERSION
+from roundtable_souls.services.play import TITLE
 from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
 from roundtable_souls.ui.page_window import QML_DIR, load_fonts, use_qml_cache_folder
@@ -173,14 +175,24 @@ class ShellWindow(QObject):
             self.engine = None
 
 
-def main(ctx) -> int:
+FIRST_PAGE_WAIT = 3.0  # seconds the shell has to show Main.qml and its first page before it counts as failed
+
+
+def main(ctx, fallback: Callable[[object], int] | None = None) -> int:
     """The program with the QML shell as its window (ctx: app.create_app). Returns the exit code; 0 when a running
-    launcher was asked to come forward instead."""
+    launcher was asked to come forward instead. If Main.qml or the first page does not load, the reason is logged,
+    the version is NOT reported ready (an update's watchdog then rolls back a build that never gets there), and
+    `fallback(ctx)` (the Widgets window, while it exists) opens instead."""
+    import threading
+
     from roundtable_souls.config import identity
+    from roundtable_souls.platform import logging as run_logging
+    from roundtable_souls.services.play import report_exception
 
     if identity.get().qt_platform:  # an isolated test build (Velopack starts it with the user's own environment)
         os.environ["QT_QPA_PLATFORM"] = identity.get().qt_platform
-    app = QGuiApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv)  # Widgets only while the fallback window exists
+    assert isinstance(app, QApplication)
     app.setApplicationName(TITLE)
     app.setWindowIcon(QIcon(str(ASSETS_DIR / "icon.ico")))
     hold = instance.acquire(instance.WINDOW)
@@ -193,17 +205,31 @@ def main(ctx) -> int:
     if hold is None:
         sys.stderr.write(f"{TITLE} is already open but does not answer. Close it, then start it again.\n")
         return 1
+    sys.excepthook = lambda t, e, tb: report_exception(t, e, tb, "main thread")
+    threading.excepthook = lambda a: report_exception(
+        a.exc_type, a.exc_value, a.exc_traceback, f"thread {a.thread.name}"
+    )
     host = ShellHost(ctx)
     window = ShellWindow(host)
     window.adapter.forwardRequested.connect(window.bring_forward)
-    if not window.show():
-        for line in window.warnings:
-            sys.stderr.write(line + "\n")
+    first = host.state.game.ready and "mods" or "placeholder"
+    shown = window.show()
+    end = time.monotonic() + FIRST_PAGE_WAIT
+    while shown and window.page_item(first) is None and time.monotonic() < end:
+        app.processEvents()
+        time.sleep(0.02)
+    if not shown or window.page_item(first) is None:
+        run_logging.log(
+            "error: the new interface did not load: " + ("; ".join(window.warnings) or "its first page did not show")
+        )
+        window.dispose()
         hold.release()
+        if fallback is not None:
+            return int(fallback(ctx) or 0)
         return 1
     host.instance.take(hold)
     host.start_background()
-    app.setApplicationDisplayName(f"{TITLE} {VERSION}")
+    QTimer.singleShot(0, host.after_show)  # marks the version ready, reports the last update, starts the imports
     code = app.exec()
     host.shutdown()
     return int(code)

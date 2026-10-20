@@ -8,7 +8,7 @@ The inputs are one frozen `Facts` snapshot; every output is a pure function of i
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from roundtable_souls.config.settings import LauncherSettings, game_setting
 from roundtable_souls.game import catalog as games
@@ -101,7 +101,8 @@ def mode_menu(current: str) -> list[dict]:
 def _short(problem: str) -> str:
     """The reason in plain words, without a long path (so the line is not this PC's folder tree)."""
     low = problem.lower()
-    name = Path(problem.split(": ", 1)[1]).name if ": " in problem else ""
+    # PureWindowsPath splits on both / and \, so a Windows path gives its file name on Linux too
+    name = PureWindowsPath(problem.split(": ", 1)[1]).name if ": " in problem else ""
     if low.startswith("game exe"):
         return tr("Game program not found: {name}").format(name=name) if name else tr("Game program not found")
     if low.startswith("me3 missing"):

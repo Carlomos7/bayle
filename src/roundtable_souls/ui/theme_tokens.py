@@ -73,6 +73,12 @@ DARK: dict[str, str | float] = {
     "smearSelected": "#33F9C043",
     "frameBorder": "#80C9B478",
     "frameInner": "#33C9B478",
+    "syntaxKeyword": "#E8A070",
+    "syntaxString": "#A6C98F",
+    "syntaxNumber": "#C7A6E8",
+    "syntaxComment": "#9C9784",
+    "syntaxKey": "#7CC3D9",
+    "syntaxHeader": "#F9C043",
     "statBar": "#6BDED7C1",
 }
 
@@ -143,6 +149,12 @@ LIGHT: dict[str, str | float] = {
     "smearSelected": "#4263B5F5",
     "frameBorder": "#80245BC4",
     "frameInner": "#33245BC4",
+    "syntaxKeyword": "#A23B00",
+    "syntaxString": "#2C6A1A",
+    "syntaxNumber": "#6A3FA0",
+    "syntaxComment": "#5B6270",
+    "syntaxKey": "#0B5E7A",
+    "syntaxHeader": "#8A5200",
     "statBar": "#5220324E",
 }
 
@@ -213,6 +225,12 @@ TARNISHED: dict[str, str | float] = {
     "smearSelected": "#33F9C043",
     "frameBorder": "#80C9B478",
     "frameInner": "#33C9B478",
+    "syntaxKeyword": "#E8A070",
+    "syntaxString": "#A6C98F",
+    "syntaxNumber": "#C7A6E8",
+    "syntaxComment": "#9C9784",
+    "syntaxKey": "#7CC3D9",
+    "syntaxHeader": "#F9C043",
     "statBar": "#6BDED7C1",
 }
 

@@ -32,6 +32,7 @@ from roundtable_souls.mods.profile_edit import (
     slug,
 )
 from roundtable_souls.mods.profile_writer import ProfileWriter
+from roundtable_souls.overhauls.basic import INSTALLER_SUFFIXES
 
 REGULATION = games.ELDEN_RING.regulation  # the parameter file a package may ship
 
@@ -91,6 +92,30 @@ SETTINGS_SUFFIXES = {".ini", ".toml", ".json", ".cfg", ".conf", ".yaml", ".yml",
 LOADER_DLLS = {"dinput8.dll", "modengine2.dll", "mod_loader.dll", "me3-mod-host.dll"}  # me3 loads mods itself
 
 
+def _top_dlls(root: Path) -> list[Path]:
+    """The DLLs directly in a mod folder (mod loaders and runtimes left out)."""
+    return [
+        c for c in _children(root) if c.is_file() and c.suffix.lower() == ".dll" and c.name.lower() not in IGNORED_DLLS
+    ]
+
+
+def overhaul_hint(unpacked: Path, root: Path) -> dict | None:
+    """Why a download probably needs an overhaul setup (a hint, never a decision): {reason, file} with reason
+    "installer" (it ships its own installer), "profile" (it ships a .me3) or "regulation_with_dlls"; None otherwise."""
+    unpacked, root = Path(unpacked), Path(root)
+    files = sorted(p for p in unpacked.rglob("*") if p.is_file())
+    for reason, hit in (
+        ("installer", lambda p: p.suffix.lower() in INSTALLER_SUFFIXES),
+        ("profile", lambda p: p.suffix.lower() == ".me3"),
+    ):
+        found = next((p for p in files if hit(p)), None)
+        if found is not None:
+            return {"reason": reason, "file": found.relative_to(unpacked).as_posix()}
+    if (root / REGULATION).is_file() and _top_dlls(root):
+        return {"reason": "regulation_with_dlls", "file": REGULATION}
+    return None
+
+
 def contents(root: Path, kind: str) -> list[dict]:
     """What sits at the top of a mod, grouped, with whether it installs by default:
     game (game folders and files), regulation (regulation.bin), dll, settings (a DLL mod's own files), doc
@@ -98,6 +123,7 @@ def contents(root: Path, kind: str) -> list[dict]:
     replaces) and other (not recognised: kept as shipped, since a mod may need a file this launcher does not know)."""
     root = Path(root)
     loose = {Path(f).name for f, _ in loose_files(root)}
+    has_dlls = kind == "native" or bool(_top_dlls(root))  # a mixed package's DLLs have settings files too
     out = []
     for c in sorted(_children(root), key=lambda x: (x.is_file(), x.name.lower())):
         low, suf = c.name.lower(), c.suffix.lower()
@@ -116,7 +142,7 @@ def contents(root: Path, kind: str) -> list[dict]:
             group = "dll" if low not in IGNORED_DLLS else "loader" if low in LOADER_DLLS else "other"
         elif suf == ".me3":
             group = "profile"
-        elif kind == "native" and (
+        elif has_dlls and (
             suf in SETTINGS_SUFFIXES
             or (suf == ".txt" and not re.match(r"(?i)^(readme|license|licence|changelog|credits)", low))
         ):
@@ -232,6 +258,7 @@ def detect(source: Path, root: Path | None = None) -> dict:
     return {
         "root": root,
         "kind": kind,
+        "mixed": kind == "package" and bool(_top_dlls(root)),  # game data and DLLs: both kinds of entries
         "assets": assets,
         "dlls": dlls,
         "me3": me3,
@@ -320,6 +347,7 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
         plan["error"] = (
             "This is a whole me3 profile, not a mod. Copy its .me3 next to yours and pick it as a setup instead."
         )
+        plan["profiles_inside"] = [str(m.relative_to(folder)) for m in folder.rglob("*.me3")]
     elif d["kind"] == "unknown":
         plan["error"] = (
             "No game folders (parts, chr, msg, ...), no regulation.bin, no known game file and no DLL found in here."
@@ -329,6 +357,9 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
         ident = slug(pkg_id) if pkg_id else base
         plan["id"] = ident
         plan["entries"] = [{"kind": "package", "id": ident, "path": rel(profile, plan["dest"])}]
+        plan["entries"] += [  # a mixed package's own DLLs (only those directly in it; nested ones are its files)
+            {"kind": "native", "path": rel(profile, plan["dest"] / p.name)} for p in _top_dlls(d["root"])
+        ]
         taken = {(e.get("id") or "").lower() for e in entries(profile) if e["kind"] == "package"}
         plan["id_taken"] = ident.lower() in taken
     else:
@@ -357,12 +388,30 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
     if d["kind"] in ("package", "native"):
         plan["contents"] = contents(d["root"], d["kind"]) + extras(folder, d["root"])
         plan["profiles_inside"] = [str(m.relative_to(folder)) for m in folder.rglob("*.me3")]
+        plan["overhaul_hint"] = overhaul_hint(folder, d["root"])
+        plan["overhaul"] = _overhaul_of(folder, loc)
     if d["kind"] == "package" and (d["root"] / REGULATION).is_file():
         plan.update(regulation_order(profile, skip=plan.get("dest")))
         from roundtable_souls.mods import rebuild as merge
 
         plan.update(merge.offer(profile, d["root"], plan["regulation_packages"], loc=loc))
     return plan
+
+
+def _overhaul_of(folder: Path, loc: Locations) -> dict | None:
+    """The overhaul config that describes the download, if one does: {id, label, version, verified}, or {refusal}
+    when one fits it but not this version or edition (no opt-in: the way out is named); None when none fits."""
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+
+    try:
+        found = overhaul_install.find_download(folder, loc.game.key, overhauls.load(loc.game.key))
+    except overhaul_install.NotAnOverhaul:
+        return None
+    except overhaul_install.OverhaulError as e:
+        return {"refusal": str(e)}
+    cfg = found.config
+    return {"id": cfg.id, "label": cfg.label, "version": found.version, "verified": overhauls.verified(cfg.id)}
 
 
 def regulation_order(profile: Path, skip: Path | None = None) -> dict:

@@ -68,6 +68,7 @@ class Bin:
         return bool(record) and Path(record["item"]).exists()
 
     def restore(self, record) -> Path:
+        Path(record["original"]).parent.mkdir(parents=True, exist_ok=True)  # as platform.trash.restore does
         Path(record["item"]).replace(record["original"])
         return Path(record["original"])
 
@@ -166,7 +167,7 @@ def files(folder: Path) -> dict[str, bytes]:
         p.relative_to(folder).as_posix(): p.read_bytes()
         for p in Path(folder).rglob("*")
         if p.is_file()
-        and not p.relative_to(folder).as_posix().startswith(B.OPS)
+        and not p.relative_to(folder).as_posix().startswith(".roundtable")
         and ".bak" not in p.suffixes
         and "history" not in p.parts
     }
@@ -351,7 +352,7 @@ def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
     with pytest.raises(engine.EngineError):
         world.install()
     assert files(world.base) == before
-    assert not [p for p in world.base.iterdir() if p.name.startswith(".") and not p.name.startswith(B.OPS)]
+    assert not [p for p in world.base.iterdir() if p.name.startswith(".") and not p.name.startswith(".roundtable")]
     assert not list((world.library / "sources").iterdir())  # no staged copy left
     assert operations.pending(world.profile) == []
 
@@ -569,6 +570,28 @@ def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch)
     assert undo.available(undos[-1]) and service.profile_overhaul(world.profile, loc=world.loc) is None
 
 
+def test_a_profile_its_overhauls_installer_made_cannot_be_deleted_one_the_launcher_made_can(world):
+    from types import SimpleNamespace
+
+    from roundtable_souls.services import profile_mods as pm
+
+    def refusal(kind="me3", source=None):
+        return pm.delete_refusal(
+            SimpleNamespace(profile=str(world.profile), kind=kind, source=str(source or world.profile)),
+            False,
+            loc=world.loc,
+        )
+
+    world.install()
+    manifest = world.own / "installation.json"
+    assert refusal() is None and refusal("manifest", manifest) is None
+    assert pm.overhaul_to_keep(world.profile, loc=world.loc) == "the overhaul"
+    overhaul_install.remove(overhaul_install.preview_remove(world.profile, loc=world.loc))
+    legacy(world)  # the same profile, as its installer sets it up: refused through the .me3 and the manifest
+    assert refusal() == pm.DELETE_MANAGED and refusal("manifest", manifest) == pm.DELETE_MANAGED
+    assert pm.overhaul_to_keep(world.profile, loc=world.loc) == ""
+
+
 def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
     from roundtable_souls.services import mods as service
 
@@ -594,3 +617,68 @@ def test_the_switch_and_button_words_come_from_the_configs(world):
     assert "only the overhauls the launcher has an install description for (the overhaul LITE 0.1.33-rc3)" in text
     assert "in rs-eldenring, in me3's profiles folder" in text
     assert "install description for: the overhaul LITE 0.1.33-rc3." in service.overhaul_button_tip("eldenring")
+
+
+# ----------------------------------------------------------------------------- the Overhaul setup form (S3g)
+def mixed_mod(world) -> Path:
+    """A mod no config describes: game files and a DLL with its settings."""
+    m = world.tmp / "Downloads" / "Mixed Mod"
+    (m / "chr").mkdir(parents=True)
+    (m / "chr/c0000_a00_hi.anibnd.dcx").write_bytes(dcx(bnd({**GAME_CLIPS, "mine.hkx": b"mine"})))
+    (m / "regulation.bin").write_bytes(pack({"EquipParamWeapon": set_word(2000, 0, 9)}))
+    (m / "MixedMod.dll").write_bytes(b"d")
+    (m / "MixedMod.ini").write_text("[a]\nb=1\n")
+    return m
+
+
+def set_up(world) -> tuple[Path, Path, dict]:
+    from roundtable_souls.overhauls import basic
+
+    folder = mixed_mod(world)
+    config = basic.make(id="mixed-mod", label="Mixed Mod", game="eldenring", basic=basic.propose(folder), folder=folder)
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert p.ok, p.refusals
+    out = overhaul_install.install_setup(p, loc=world.loc)
+    local = overhauls.local_dir()
+    assert local is not None
+    toml = local / "mixed-mod.toml"
+    assert overhauls.read(toml) == config
+    return folder, toml, out
+
+
+def test_a_setup_made_with_the_form_is_undone_with_its_config(world):
+    before = world.profile.read_bytes()
+    _folder, toml, out = set_up(world)
+    assert "mixed-mod" in world.text() and (world.base / "mixed-mod" / "mod").is_dir()
+    rec = {"type": "overhaul-install", "profile": str(world.profile), "name": "x", "operation": out["operation"]}
+    undo.run(rec, lambda s: None, loc=world.loc)
+    assert world.profile.read_bytes() == before
+    assert not toml.exists() and not (world.base / "mixed-mod").exists()
+
+
+def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
+    _folder, toml, _out = set_up(world)
+    before, setup = world.profile.read_bytes(), toml.read_bytes()
+    own = files(world.base / "mixed-mod")
+    t = overhaul_install.preview_turn_off(world.profile, loc=world.loc)
+    assert t.ok, t.refusals
+    out = overhaul_install.turn_off(t)
+    off = toml.with_name(toml.name + ".off")
+    plain = world.base / "mod" / "mixed-mod"
+    assert not toml.exists() and off.read_bytes() == setup
+    assert not (world.base / "mixed-mod").exists() and (plain / "MixedMod.dll").is_file()
+    assert not (plain / "roundtable.json").exists()
+    data = world.data()
+    assert {"id": "mixed-mod", "path": "mod/mixed-mod"}.items() <= data["packages"][-1].items()
+    assert data["natives"][-1]["path"] == "mod/mixed-mod/MixedMod.dll"
+    rec = {
+        "type": "overhaul-turn-off",
+        "profile": str(world.profile),
+        "name": out["name"],
+        "operation": out["operation"],
+        "trash": out["trash"],
+    }
+    assert undo.available(rec) and undo.label(rec) == "Undo turn off"
+    undo.run(rec, lambda s: None, loc=world.loc)
+    assert world.profile.read_bytes() == before and toml.read_bytes() == setup and not off.exists()
+    assert not plain.exists() and files(world.base / "mixed-mod") == own

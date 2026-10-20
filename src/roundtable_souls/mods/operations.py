@@ -16,7 +16,11 @@ back.
 Shared dependencies (Seamless Co-op: a folder holding the game's co-op DLL, its entry in the profile) are never
 removed or switched off by an undo or a rollback. An operation that did not finish blocks Play (problem()).
 
-The records live beside the profile (.roundtable-ops/<id>/): they protect the files beside them (§8.8).
+The records live in the profile's .roundtable folder (ops/<id>/, mods.library.state_of): they protect the files
+beside them (§8.8); an update's previous copy goes to its previous/ when on the same drive. Launchers before 3.23 kept
+them in .roundtable-ops/ beside the profile: those are still read, recovered and taken back where they are, and that
+folder's lock (.roundtable-ops.lock) is still the one held for existing setups, so an older launcher and this one never
+work on one folder at once (until 3.24).
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from pathlib import Path
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.game import catalog as games
 from roundtable_souls.merging import build
+from roundtable_souls.mods import library
 from roundtable_souls.mods.checks import same_folder
 
 
@@ -40,20 +45,35 @@ def _root(profile: Path) -> Path:
     return Path(profile).parent
 
 
-def lock(profile: Path):
-    """Held around an operation on this profile's folder, by every launcher process."""
-    return build.ops_lock(_root(profile))
+def _bases(profile: Path) -> list[tuple[Path, str]]:
+    """Where this profile's operations are: its .roundtable/ops, then .roundtable-ops beside it (before 3.23)."""
+    return [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
+
+
+def lock(profile: Path, timeout: float = 30.0):
+    """Held around an operation on this profile's folder, by every launcher process: the library's ops.lock for a
+    library profile, else the lock launchers before 3.23 hold too (.roundtable-ops.lock beside the profile)."""
+    state = library.state_of(profile)
+    if state.root.parent != _root(profile):
+        return build.ops_lock(state.root, timeout, library.OPS)
+    return build.ops_lock(_root(profile), timeout)
+
+
+def _active(profile: Path) -> list[build.Operation]:
+    return [o for root, ops in _bases(profile) for o in build.active(root, ops)]
 
 
 def recover(profile: Path, timeout: float = 30.0) -> list[str]:
-    """Finish or undo what an interrupted operation in this profile's folder left (see merging.build). Raises
-    merging.build.BuildError when another launcher process holds the folder past timeout."""
-    root = _root(profile)
-    if not (root / build.OPS).is_dir():
+    """Finish or undo what an interrupted operation in this profile's folder left (see merging.build), wherever its
+    journal is. Raises merging.build.BuildError when another launcher process holds the folder past timeout."""
+    bases = [(root, ops) for root, ops in _bases(profile) if (root / ops).is_dir()]
+    if not bases:
         return []  # nothing ever ran here: not even the lock file is made
-    said = build.recover_operations(root, timeout)
-    with build.ops_lock(root, timeout):
-        for o in build.active(root):
+    said: list[str] = []
+    with lock(profile, timeout):  # first, so every process takes the locks in one order
+        for root, ops in bases:
+            said += build.recover_operations(root, timeout, ops)
+        for o in _active(profile):
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
                 o.release()
@@ -61,7 +81,10 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
 
 
 def start(profile: Path, what: str) -> build.Operation:
-    op = build.Operation(_root(profile), what)
+    state = library.state_of(profile)
+    library.ensure_state(state)
+    op = build.Operation(state.root, what, ops=library.OPS)
+    op.aside = state.previous
     op.note(profile=str(Path(profile)))
     return op
 
@@ -77,13 +100,13 @@ def _release_others(op: build.Operation) -> None:
     dest = op.info.get("dest")
     if not dest:
         return
-    for other in build.active(op.dir.parent.parent):
+    for other in _active(Path(op.info["profile"])) if op.info.get("profile") else []:
         if other.id != op.id and other.info.get("dest") and same_folder(Path(other.info["dest"]), Path(dest)):
             other.release()
 
 
 def pending(profile: Path) -> list[str]:
-    return build.pending(_root(profile))
+    return [w for root, ops in _bases(profile) for w in build.pending(root, ops)]
 
 
 def problem(profile: Path) -> str | None:
@@ -142,7 +165,7 @@ def describe(op: build.Operation, profile: Path, plan: dict, dest: Path, in_plac
 def _last_record(profile: Path, dest: Path) -> build.Operation | None:
     found = [
         o
-        for o in build.active(_root(profile))
+        for o in _active(profile)
         if o.info.get("dest") and same_folder(Path(o.info["dest"]), dest) and o.info.get("created") is not None
     ]
     return found[-1] if found else None
@@ -385,5 +408,5 @@ def kept_versions(profile: Path) -> list[dict]:
     """The finished operations in this profile's folder that can still be taken back: {dir, kind, name, what}."""
     return [
         {"dir": str(o.dir), "kind": o.info.get("kind", ""), "name": o.info.get("name", ""), "what": o.what}
-        for o in build.active(_root(profile))
+        for o in _active(profile)
     ]

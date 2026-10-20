@@ -12,6 +12,7 @@ from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services import mods as mods_service
 from roundtable_souls.services import play as g
 from roundtable_souls.services import saves as saves_service
+from roundtable_souls.ui.pages.mod_configs import presenter as mod_configs_words
 from support import er
 
 INI = (
@@ -164,7 +165,7 @@ def test_setup_label_is_the_profile_name(tmp_path):
     p.write_text("")
     assert g.Setup("me3", p, loc=er()).label == "any.me3"
     assert (
-        g.Setup("overhaul", p, source=tmp_path / "installation.json", loc=er()).label == "any.me3  ·  installation.json"
+        g.Setup("manifest", p, source=tmp_path / "installation.json", loc=er()).label == "any.me3  ·  installation.json"
     )
 
 
@@ -217,7 +218,7 @@ def test_setup_from_installation_json(tmp_path):
         )
     )
     s = g.setup_from_path(str(inst), er())
-    assert s and s.kind == "overhaul" and s.exe.endswith("eldenring.exe")
+    assert s and s.kind == "manifest" and s.exe.endswith("eldenring.exe")
     assert any("missing" in x for x in s.problems())  # nothing exists in tmp, so it must say so
     assert g.setup_from_path(str(tmp_path / "nothing.txt"), er()) is None
 
@@ -238,14 +239,15 @@ def test_settings_meta_types_from_comments(tmp_path):
     assert by["default_boot_master_volume"]["kind"] == "int" and by["default_boot_master_volume"]["extra"] == (0, 10)
     assert by["enemy_health_scaling"]["kind"] == "int" and by["enemy_health_scaling"]["extra"] == (0, 500)
     assert (
-        by["cooppassword"]["kind"] == "password" and coop_service.label_of("skip_splash_screens") == "Skip intro logos"
+        by["cooppassword"]["kind"] == "password"
+        and mod_configs_words.label_of("skip_splash_screens") == "Skip intro logos"
     )
-    assert coop_service.label_of("allow_invaders") == "Invaders"
-    assert coop_service.choice_label("overhead_player_display", 2, "Display player ping") == "Ping"
-    _label, blurb, help_text = coop_service.setting_face("allow_invaders", "Invaders join.  0=FALSE  1=TRUE")
+    assert mod_configs_words.label_of("allow_invaders") == "Invaders"
+    assert mod_configs_words.choice_label("overhead_player_display", 2, "Display player ping") == "Ping"
+    _label, blurb, help_text = mod_configs_words.setting_face("allow_invaders", "Invaders join.  0=FALSE  1=TRUE")
     assert "FALSE" not in blurb and "0=" not in help_text and "invade" in help_text.lower()
-    _label, _blurb, fallback = coop_service.setting_face("made_up_flag", "Does a thing.  0=FALSE  1=TRUE")
-    assert fallback == "Does a thing." and coop_service.label_of("made_up_flag") == "Made up flag"
+    _label, _blurb, fallback = mod_configs_words.setting_face("made_up_flag", "Does a thing.  0=FALSE  1=TRUE")
+    assert fallback == "Does a thing." and mod_configs_words.label_of("made_up_flag") == "Made up flag"
 
 
 PROFILE = (
@@ -268,7 +270,7 @@ def test_profile_mods_are_the_ones_me3_loads(tmp_path):
     ]
     assert mods_service.set_profile_mod_enabled(p, 1, False)
     assert [m["id"] for m in mods_service.read_profile_mods(p)] == ["flora", "example-overhaul"]
-    assert (tmp_path / "profile.me3.bak").is_file()
+    assert (tmp_path / ".roundtable/backups/profile.me3.bak").is_file()
 
 
 def test_offline_profile_disables_only_seamless():

@@ -95,12 +95,12 @@ def test_play_finds_each_overhauls_installations_beside_the_profiles_and_in_the_
     found = play.discover(None, loc)
     assert [(s.kind, Path(s.source)) for s in found] == [
         ("me3", profiles / "er.me3"),
-        ("overhaul", beside),
-        ("overhaul", standalone),
+        ("manifest", beside),
+        ("manifest", standalone),
     ]
     local("toy.toml", TOY)
-    assert ("overhaul", toy) in [(s.kind, Path(s.source)) for s in play.discover(None, loc)]
-    assert play.setup_from_path(toy, loc).kind == "overhaul"
+    assert ("manifest", toy) in [(s.kind, Path(s.source)) for s in play.discover(None, loc)]
+    assert play.setup_from_path(toy, loc).kind == "manifest"
     nightreign = Locations(games.NIGHTREIGN, Overrides(profiles_dir=str(profiles)))
     assert play.discover(None, nightreign) == [] and play.setup_from_path(beside, nightreign) is None
 
@@ -150,3 +150,35 @@ def test_a_config_with_the_old_script_append_step_is_left_out_and_says_where_it_
     assert said.endswith(
         '(script_append: since 3.20 a script fragment is added with do = "hook" (append is fragment, refuse is markers))'
     )
+
+
+def test_the_writer_reads_back_and_never_overwrites_a_file_changed_since_it_was_read(tmp_path):
+    import tomllib
+
+    import pytest
+
+    from roundtable_souls.overhauls import basic, writer
+
+    (overhaul,) = overhauls.load()
+    back = overhaul_config.OverhaulConfig.model_validate(tomllib.loads(writer.render(overhaul)))
+    assert back.recipe(back.builds[0]) == overhaul.recipe(overhaul.builds[0])  # same build: nothing goes out of date
+    mod = tmp_path / "My Mod"
+    (mod / "chr").mkdir(parents=True)
+    (mod / "chr" / "c0000.anibnd.dcx").write_bytes(b"a")
+    (mod / "My.dll").write_bytes(b"d")
+    (mod / "My.ini").write_text("a = 1")
+    made = basic.make(id="my-mod", label="My Mod", game="eldenring", basic=basic.propose(mod, "1.0"), folder=mod)
+    path = writer.save_local(made, expect=None)
+    assert overhauls.read(path) == made and basic.level(overhauls.read(path), mod) == "basic"
+    read_sha = writer.sha256_of(path)
+    hand = path.read_text(encoding="utf-8") + "# the player's note\n"
+    path.write_text(hand, encoding="utf-8")
+    with pytest.raises(writer.WriteRefused):
+        writer.save_local(made, expect=read_sha)
+    with pytest.raises(writer.WriteRefused):
+        writer.save_local(made, expect=None)
+    assert path.read_text(encoding="utf-8") == hand  # the hand edit is still there
+    writer.save_local(made, expect=writer.sha256_of(path))
+    assert path.with_name(path.name + ".bak").read_text(encoding="utf-8") == hand
+    with pytest.raises(writer.WriteRefused):  # a form config can't take a shipped config's id
+        writer.save_local(made.model_copy(update={"id": "example-overhaul"}), expect=None)

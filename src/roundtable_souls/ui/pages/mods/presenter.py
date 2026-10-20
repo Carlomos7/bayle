@@ -79,11 +79,14 @@ class Parameters:
     packs: str
     action: str  # the main button's words: "Combine", "Rebuild" or "" (none)
     blocked: str  # why it cannot run now ("" when it can)
+    fingerprint: str = ""  # "Parameters fingerprint: 1A2B3C4D (flora's regulation.bin)", "" without one
+    fingerprint_note: str = ""  # what co-op partners do with it
 
 
 @dataclass(frozen=True)
 class Notice:
-    """One InfoBar: key says what it is (stale, allow-tool, recovered), so the adapter knows what its action does."""
+    """One InfoBar: key says what it is (online, stale, allow-tool, recovered), so the adapter knows what its action
+    does."""
 
     key: str
     severity: str  # info | success | warning | error
@@ -124,13 +127,36 @@ class Refusal:
     body: str
 
 
+@dataclass(frozen=True)
+class Pick:
+    """A tick list's words: none is the button that goes on with nothing ticked ("" when one must be ticked)."""
+
+    title: str
+    body: str
+    apply: str
+    none: str = ""
+
+
+@dataclass(frozen=True)
+class OverhaulMenu:
+    """The header overflow's overhaul entries (an overhaul installed with the launcher, a preview): shown while the
+    switch is on and the game has an overhaul the launcher can install (owner, D4 A)."""
+
+    visible: bool
+    install: str
+    remove: str
+    can_remove: bool
+    clean: str
+    can_clean: bool
+
+
 # ----------------------------------------------------------------------------- the presenter
 @dataclass
 class ModsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
     notices_shown: int = 2  # InfoBars at once; the rest wait
-    _closed: set[str] = field(default_factory=set)
+    _closed: set[tuple[str, str]] = field(default_factory=set)  # (profile, notice kind) closed this session
 
     # ---- the page's fixed words
     install_text = property(lambda self: tr("Install mod"))
@@ -182,6 +208,7 @@ class ModsPresenter:
             "openRebuildLog": tr("Open rebuild log"),
             "allowTool": tr("Allow rebuild tool"),
             "details": tr("Details"),
+            "copy": tr("Copy"),
             "loadOrder": tr("Load order"),
             "staysLast": tr("Stays last"),
             "fixOrder": tr("Fix order"),
@@ -226,6 +253,7 @@ class ModsPresenter:
             "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
             "rebuildFile": tr("Rebuild-tool file"),
             "configFiles": tr("Config files"),
+            "openOnModConfigs": tr("Open on Mod Configs"),
             "noDeps": tr("No other entry of this kind to depend on."),
             "settingsTitle": tr("Profile settings"),
             "meDefault": tr("me3 default"),
@@ -292,8 +320,10 @@ class ModsPresenter:
             counts=counts,
             health=self.health(scan),
             groups=groups,
-            parameters=self.parameters(health, game_running),
-            notices=self.notices(health, tool_to_allow, recovered),
+            parameters=self.parameters(health, game_running, facts.fingerprint, facts.regulation),
+            notices=self.notices(
+                health, tool_to_allow, recovered, facts.online_with, facts.regulation, str(facts.profile)
+            ),
         )
 
     # ---- header
@@ -435,8 +465,11 @@ class ModsPresenter:
         return "  ·  ".join(bits)
 
     # ---- the Parameters card
-    def parameters(self, health: dict | None, game_running: bool) -> Parameters:
-        """Shown only when a package ships parameters (v2.1 A)."""
+    def parameters(
+        self, health: dict | None, game_running: bool, fingerprint=None, regulation: str = "regulation.bin"
+    ) -> Parameters:
+        """Shown only when a package ships parameters (v2.1 A). fingerprint: game_checks.Fingerprint of the
+        parameters the game will use (owner, D3 A: on this card, for co-op partners to compare)."""
         health = health or {}
         state = health.get("state") or ""
         packs = list(health.get("packs") or [])
@@ -479,11 +512,52 @@ class ModsPresenter:
             packs=", ".join(packs),
             action=action,
             blocked=tr("Blocked while the game runs") if game_running and action else "",
+            fingerprint=self.fingerprint(fingerprint, regulation),
+            fingerprint_note=tr(
+                "Co-op partners should use the same parameters. Compare this fingerprint with theirs: if it differs, "
+                "expect desyncs or a failed session."
+            )
+            if fingerprint is not None
+            else "",
         )
 
+    @staticmethod
+    def fingerprint(fingerprint, regulation: str = "regulation.bin") -> str:
+        if fingerprint is None:
+            return ""
+        whose = (
+            tr("{package}'s {file}").format(package=fingerprint.source, file=regulation)
+            if fingerprint.source
+            else tr("the game's own {file}").format(file=regulation)
+        )
+        return tr("Parameters fingerprint: {short} ({whose})").format(short=fingerprint.short, whose=whose)
+
     # ---- InfoBars
-    def notices(self, health: dict | None, tool_to_allow, recovered: tuple[str, ...]) -> tuple[Notice, ...]:
+    def notices(
+        self,
+        health: dict | None,
+        tool_to_allow,
+        recovered: tuple[str, ...],
+        online_with: str = "",
+        regulation: str = "regulation.bin",
+        profile: str = "",
+    ) -> tuple[Notice, ...]:
+        """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
+        permission, interrupted changes put right."""
         out = []
+        if online_with:
+            out.append(
+                Notice(
+                    "online",
+                    "warning",
+                    tr(
+                        "This profile goes online with changed parameters ({package}'s {file}). FromSoftware's "
+                        "servers can see the change."
+                    ).format(package=online_with, file=regulation),
+                    tr("Play offline"),
+                    True,
+                )
+            )
         if (health or {}).get("state") == "stale":
             reasons = list((health or {}).get("reasons") or [])
             out.append(
@@ -518,10 +592,11 @@ class ModsPresenter:
                     True,
                 )
             )
-        return tuple(n for n in out if n.key not in self._closed)[: self.notices_shown]
+        return tuple(n for n in out if (profile, n.key) not in self._closed)[: self.notices_shown]
 
-    def close_notice(self, key: str) -> None:
-        self._closed.add(key)
+    def close_notice(self, key: str, profile: str = "") -> None:
+        """A closed InfoBar stays closed for this profile only."""
+        self._closed.add((profile, key))
 
     # ---- confirmations and refusals (the Widgets page uses these words too)
     def removal(self, profile, plan: Removal) -> Confirm:
@@ -614,11 +689,17 @@ class ModsPresenter:
             ),
         )
 
-    def delete_profile(self, profile) -> Confirm:
+    def delete_profile(self, profile, overhaul: str = "") -> Confirm:
+        """overhaul: the label of an overhaul the launcher installed in it (profile_mods.overhaul_to_keep)."""
         p = Path(profile)
+        kept = (
+            (tr("{label}'s shared files stay; Remove overhaul first to take them out too.").format(label=overhaul),)
+            if overhaul
+            else ()
+        )
         return Confirm(
             title=tr("Delete profile {name}?").format(name=p.stem),
-            changes=(tr("The .me3 moves to Deleted profiles."), tr("Its mod folders stay on disk.")),
+            changes=(tr("The .me3 moves to Deleted profiles."), tr("Its mod folders stay on disk."), *kept),
             apply=tr("Delete"),
         )
 
@@ -652,3 +733,111 @@ class ModsPresenter:
 
     def edit_options_text(self) -> str:
         return tr("Edit options")
+
+    # ---- overhauls installed with the launcher (preview); the Widgets Overhaul button uses these words too
+    def overhaul_menu(self, on: bool, has: dict | None, leftovers: bool) -> OverhaulMenu:
+        """on: services.mods.overhaul_preview_on; has: services.mods.profile_overhaul; leftovers: any to clean."""
+        return OverhaulMenu(
+            visible=on,
+            install=tr("Install an overhaul with the launcher (preview)..."),
+            remove=tr("Remove {label}...").format(label=has["label"]) if has else tr("Remove overhaul..."),
+            can_remove=has is not None,
+            clean=tr("Clean up installer leftovers..."),
+            can_clean=leftovers,
+        )
+
+    def overhaul_folder_title(self) -> str:
+        return tr("Install an overhaul: pick the folder you unpacked it into")
+
+    def overhaul_unreadable(self, folder, why: str) -> Refusal:
+        return Refusal(tr("Can't install from {name}").format(name=Path(folder).name), why)
+
+    def overhaul_install(self, profile, preview) -> Confirm | Refusal:
+        """The confirmation for install.preview (overhaul_install.InstallPreview), or why it can't go ahead."""
+        if not preview.ok:
+            return Refusal(
+                tr("{label} can't be installed here").format(label=preview.label), " ".join(preview.refusals)
+            )
+        return Confirm(
+            title=(tr("Update {label} in {profile}") if preview.update else tr("Install {label} in {profile}")).format(
+                label=preview.label, profile=Path(profile).name
+            ),
+            changes=(*preview.lines, *preview.notes),
+            apply=tr("Update") if preview.update else tr("Install"),
+            safety=tr(
+                "It's one step: if anything fails, nothing changes, and you can undo it from Activity. Nothing of the "
+                "overhaul's own installer runs."
+            ),
+        )
+
+    def overhaul_installing(self, preview) -> str:
+        return (tr("Updating {label}...") if preview.update else tr("Installing {label}...")).format(
+            label=preview.label
+        )
+
+    def overhaul_put_back(self, label: str) -> Pick:
+        return Pick(
+            title=tr("Put back what {label}'s installer changed?").format(label=label),
+            body=tr(
+                "Its installer changed these in your profile (compared with its oldest backup of it). Tick the ones "
+                "to put back; the others stay as they are now."
+            ),
+            apply=tr("Put back"),
+            none=tr("Leave them"),
+        )
+
+    def overhaul_remove(self, profile, label: str, preview) -> Confirm | Refusal:
+        """The confirmation for overhaul_install.RemovePreview: switching a shared dependency back off is its
+        option, unticked (owner, 3.22-A)."""
+        if not preview.ok:
+            return self.overhaul_remove_failed(label, " ".join(preview.refusals))
+        asked = ", ".join(str(e.entry) for e in preview.asked)
+        return Confirm(
+            title=tr("Remove {label} from {profile}").format(label=label, profile=Path(profile).name),
+            changes=tuple(preview.lines),
+            apply=tr("Remove"),
+            safety=tr("It's one step, and Restore in Activity puts it all back. Folders go to the Recycle Bin."),
+            option=tr("Also switch {names} back off, as it was before the install").format(names=asked)
+            if asked
+            else "",
+        )
+
+    def overhaul_remove_failed(self, label: str, why: str) -> Refusal:
+        return Refusal(tr("Can't remove {label}").format(label=label), why)
+
+    def overhaul_removing(self, label: str) -> str:
+        return tr("Removing {label}...").format(label=label)
+
+    def overhaul_leftovers_later(self, label: str) -> Refusal:
+        """The note after removing a setup its installer made (a toast, not a refusal)."""
+        return Refusal(
+            tr("{label}'s installer left folders behind").format(label=label),
+            tr("Clean up installer leftovers shows them with their sizes once the removal is done."),
+        )
+
+    def leftovers(self, more_after: bool) -> Pick:
+        """more_after: the installer's backups are asked about next, so going on with nothing ticked is allowed."""
+        return Pick(
+            title=tr("Clean up installer leftovers"),
+            body=tr(
+                "What an overhaul's own installer left beside your profile, which no profile there uses any more. The "
+                "ticked ones go to the Recycle Bin."
+            ),
+            apply=tr("Move to Recycle Bin"),
+            none=tr("Next") if more_after else "",
+        )
+
+    def leftover_backups(self, leftover) -> Confirm:
+        """Asked one at a time, last: the only copy of the profile from before the overhaul."""
+        return Confirm(
+            title=tr("Also remove {name}?").format(name=leftover.path.name),
+            changes=(tr("{what} goes to the Recycle Bin").format(what=leftover.label),),
+            apply=tr("Move to Recycle Bin"),
+            warning=tr(
+                "These are its installer's backups of your profiles: the only copy from before the overhaul was "
+                "installed. Keep them unless you're sure you don't need them."
+            ),
+        )
+
+    def leftovers_moving(self) -> str:
+        return tr("Moving leftovers to the Recycle Bin...")

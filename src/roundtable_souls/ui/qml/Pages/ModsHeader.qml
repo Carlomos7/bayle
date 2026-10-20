@@ -25,14 +25,27 @@ Item {
         anchors.fill: parent
         spacing: Theme.gapInline
 
-        Txt {
+        DropButton {  // the profile: every setup on the Play list, picked here as on Play
             Layout.alignment: Qt.AlignVCenter
-            Layout.fillWidth: true
-            Layout.maximumWidth: Math.ceil(implicitWidth)
+            Layout.maximumWidth: 360
             Layout.minimumWidth: 80
-            Layout.preferredWidth: Math.ceil(implicitWidth)
-            kind: "page"
+            implicitHeight: Theme.controlH
+            objectName: "profilePicker"
             text: header.adapter.title
+
+            Repeater {
+                model: header.adapter.profiles
+
+                MenuEntry {
+                    required property int index
+                    required property string modelData
+
+                    checked: index === header.adapter.profileIndex
+                    text: modelData
+
+                    onTriggered: header.adapter.pickProfile(index)
+                }
+            }
         }
         Txt {
             Layout.alignment: Qt.AlignVCenter
@@ -205,6 +218,39 @@ Item {
                     text: header.words.addExisting
 
                     onTriggered: header.adapter.addExisting("package")
+                }
+                MenuSep {  // overhauls installed with the launcher (a preview, shown while its switch is on)
+                    height: visible ? implicitHeight : 0
+                    visible: header.adapter.overhaul.visible === true
+                }
+                MenuEntry {
+                    height: visible ? implicitHeight : 0
+                    icon_: "Folder"
+                    objectName: "installOverhaul"
+                    text: header.adapter.overhaul.install || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.installOverhaul()
+                }
+                MenuEntry {
+                    enabled: header.adapter.overhaul.can_remove === true
+                    height: visible ? implicitHeight : 0
+                    icon_: "Delete"
+                    objectName: "removeOverhaul"
+                    text: header.adapter.overhaul.remove || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.removeOverhaul()
+                }
+                MenuEntry {
+                    enabled: header.adapter.overhaul.can_clean === true
+                    height: visible ? implicitHeight : 0
+                    icon_: "Broom"
+                    objectName: "cleanLeftovers"
+                    text: header.adapter.overhaul.clean || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.cleanLeftovers()
                 }
             }
         }

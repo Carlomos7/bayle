@@ -154,14 +154,20 @@ def open_file(path: Path) -> Opened:
     return Opened(Path(path), got["text"], got["encoding"], got["crlf"], got["sha"], doc)
 
 
-def save_values(opened: Opened, changes: dict[tuple[str | None, str], str]) -> Path:
-    """Write the changed values ((section, key) -> value), nothing else; returns the .bak. Raises ConfigError when the
-    file changed on disk since it was read, ValueError for a setting only text can change."""
+def merged_text(opened: Opened, changes: dict[tuple[str | None, str], str]) -> str:
+    """The file's text with these values ((section, key) -> value) changed, nothing else. Raises ValueError for a
+    setting the file no longer has or only text can change."""
     doc = config_model.parse(opened.text, config_model.lang_of(opened.path.name) or config_model.INI)
     for (section, key), value in changes.items():
         if not doc.set(key, value, section):
             raise ValueError(f"{key} is no longer in {opened.path.name}")
-    return configs.write(opened.path, doc.text(), opened.encoding, opened.crlf, expect=opened.sha)
+    return doc.text()
+
+
+def save_values(opened: Opened, changes: dict[tuple[str | None, str], str]) -> Path:
+    """Write the changed values, nothing else; returns the .bak. Raises ConfigError when the file changed on disk
+    since it was read, ValueError for a setting only text can change."""
+    return configs.write(opened.path, merged_text(opened, changes), opened.encoding, opened.crlf, expect=opened.sha)
 
 
 def save_text(opened: Opened, text: str) -> Path:

@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import shutil
+import time
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
@@ -193,7 +194,14 @@ def _state(op_dir: Path) -> str | None:
 
 def _move(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(src, dst)
+    for attempt in range(10):  # an editor or a virus scanner can hold a folder for a moment
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.5)
 
 
 def _same_drive(a: Path, b: Path) -> bool:
@@ -225,7 +233,6 @@ class Operation:
     """
 
     def __init__(self, root: Path, what: str, op_id: str | None = None, ops: str = OPS):
-        import time
         import uuid
 
         self.id = op_id or time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]

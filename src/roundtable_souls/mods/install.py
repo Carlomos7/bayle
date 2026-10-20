@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 from roundtable_souls.game import catalog as games
-from roundtable_souls.mods import naming
+from roundtable_souls.mods import library, naming
 from roundtable_souls.mods.checks import (
     ACCEPTABLE_FOLDERS,
     IGNORED_DLLS,
@@ -331,7 +331,11 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
     d = detect(folder, candidates[pick] if candidates else folder)
     text = read_text(profile)
     pk_root, nt_root = roots(profile, text)
-    base = slug(name) if name else slug(default_name).lower()  # typed names are kept as typed
+    lib = library.library_of(profile)
+    if lib is not None:  # the library names folders with the launcher's one rule (mods.naming.mod_id)
+        base = naming.unique(naming.mod_id(name or default_name), [])
+    else:
+        base = slug(name) if name else slug(default_name).lower()  # typed names are kept as typed
     if not name and not temp and same_folder(Path(d["root"]).parent, pk_root if d["kind"] == "package" else nt_root):
         base = Path(d["root"]).name  # already in place: keep the folder's own name
     plan = {
@@ -372,6 +376,8 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
         ]
     if plan.get("dest") and Path(plan["dest"]).exists():
         plan["exists"] = True
+        if lib is not None:  # an update changes the folder for every profile that lists it
+            plan["used_by"] = lib.folder_users(Path(plan["dest"]), besides=profile)
         try:
             plan["in_place"] = Path(plan["dest"]).resolve() == Path(d["root"]).resolve()
         except OSError:
@@ -514,7 +520,11 @@ def install(profile: Path, plan: dict, overwrite: bool = False, then=None, *, lo
     in_place = bool(plan.get("in_place"))
     update = dest.exists() and not in_place
     if update and not overwrite:
-        raise ModError(f"{dest.name} already exists in {dest.parent}")
+        who = plan.get("used_by") or []
+        raise ModError(
+            f"{dest.name} already exists in {dest.parent}"
+            + (f" and {', '.join(who)} also use{'s' if len(who) == 1 else ''} it" if who else "")
+        )
     with operations.lock(profile):
         operations.recover(profile)
         op = operations.start(profile, f"{'update' if update else 'install'} of {plan['name']}")

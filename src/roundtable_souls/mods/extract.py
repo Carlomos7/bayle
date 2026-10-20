@@ -25,6 +25,12 @@ def _unsafe(name: str) -> bool:
     return name.startswith("/") or ".." in name.split("/") or (len(name) > 1 and name[1] == ":")
 
 
+def check_entry(name: str) -> None:
+    """Refuse an archive entry that would land outside the folder it is unpacked into."""
+    if _unsafe(name):
+        raise ModError(f"archive entry escapes the folder: {name}")
+
+
 def extract_zip(archive: Path, dest: Path) -> Path:
     """Extract a .zip into dest, refusing entries that would escape it."""
     archive = Path(archive)
@@ -32,8 +38,7 @@ def extract_zip(archive: Path, dest: Path) -> Path:
     dest.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as z:
         for info in z.infolist():
-            if _unsafe(info.filename):
-                raise ModError(f"archive entry escapes the folder: {info.filename}")
+            check_entry(info.filename)
         z.extractall(dest)
     return dest
 

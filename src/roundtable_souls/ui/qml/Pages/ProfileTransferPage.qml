@@ -32,6 +32,7 @@ PageScroll {
         DropButton {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            enabled: !page.adapter.working
             implicitHeight: Theme.controlH
             objectName: "profilePicker"
             text: page.s.profileName !== "" ? page.s.profileName : page.words.noProfile
@@ -54,6 +55,7 @@ PageScroll {
             id: modeTabs
 
             anchors.right: parent.right
+            enabled: !page.adapter.working
             objectName: "modeTabs"
             tabs: [page.words.tabExport, page.words.tabImport]
 
@@ -148,6 +150,7 @@ PageScroll {
         TabRow {
             id: kindTabs
 
+            enabled: !page.adapter.working
             objectName: "kindTabs"
             tabs: [page.words.shareList, page.s.ex.fullLabel]
 
@@ -186,6 +189,7 @@ PageScroll {
                     }
                 }
                 TextBox {
+                    enabled: !page.adapter.working
                     error: page.s.ex.nameError
                     objectName: "exportName"
                     text: page.s.ex.name
@@ -201,6 +205,7 @@ PageScroll {
                     text: page.words.version
                 }
                 TextBox {
+                    enabled: !page.adapter.working
                     objectName: "exportVersion"
                     text: page.s.ex.version
 
@@ -215,6 +220,7 @@ PageScroll {
                     text: page.words.author
                 }
                 TextBox {
+                    enabled: !page.adapter.working
                     objectName: "exportAuthor"
                     text: page.s.ex.author
 
@@ -246,6 +252,7 @@ PageScroll {
 
                         CheckRow {
                             checked: modRow.modelData.checked
+                            enabled: !page.adapter.working
                             text: modRow.modelData.name
 
                             onToggled: page.adapter.toggleMod(modRow.modelData.key, checked)
@@ -301,6 +308,7 @@ PageScroll {
                     }
                 }
                 CodeArea {
+                    enabled: !page.adapter.working
                     height: 200
                     mono: false
                     objectName: "exportReadme"
@@ -325,6 +333,7 @@ PageScroll {
                     onClicked: page.showChangelog = !page.showChangelog
                 }
                 CodeArea {
+                    enabled: !page.adapter.working
                     height: 140
                     mono: false
                     objectName: "exportChangelog"
@@ -355,6 +364,7 @@ PageScroll {
                 }
                 CheckRow {
                     checked: page.s.ex.withConfigs
+                    enabled: !page.adapter.working
                     objectName: "withConfigs"
                     text: page.words.withConfigs
 
@@ -362,7 +372,7 @@ PageScroll {
                 }
                 CheckRow {
                     checked: page.s.ex.withPassword
-                    enabled: page.s.ex.withConfigs
+                    enabled: page.s.ex.withConfigs && !page.adapter.working
                     objectName: "withPassword"
                     text: page.words.withPassword
 
@@ -375,7 +385,7 @@ PageScroll {
                 }
                 CheckRow {
                     checked: page.s.ex.withSave
-                    enabled: page.s.ex.saveName !== ""
+                    enabled: page.s.ex.saveName !== "" && !page.adapter.working
                     objectName: "withSave"
                     text: page.words.withSave + (page.s.ex.saveName !== "" ? " (" + page.s.ex.saveName + ")" : "")
                     visible: page.s.ex.kind === "full"
@@ -414,6 +424,7 @@ PageScroll {
             spacing: Theme.sp12
 
             GhostButton {
+                enabled: !page.adapter.working
                 objectName: "chooseFolder"
                 text: page.words.outFolder + ": " + (page.s.ex.folder !== "" ? page.s.ex.folder : page.words.chooseFolder)
 
@@ -473,6 +484,12 @@ PageScroll {
             kind: "caption"
             text: page.words.reading
             visible: page.adapter.working
+        }
+        ProgressBar {
+            objectName: "importProgress"
+            value: page.s.imp.pct / 100
+            visible: page.adapter.working && page.s.imp.pct >= 0
+            width: parent ? parent.width : 0
         }
         Txt {
             color: Theme.statusDanger

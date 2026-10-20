@@ -371,7 +371,7 @@ class LaunchFlow:
             tr("The merged mods could not be updated"),
             (failed.get("message") or tr("The rebuild stopped; its log is on Activity."),),
             (
-                Choice(PLAY_ANYWAY, tr("Play anyway"), "primary"),
+                Choice(PLAY_ANYWAY, tr("Play anyway this once"), "primary"),
                 Choice(DETAILS, tr("View details")),
                 Choice(CANCEL, tr("Cancel")),
             ),

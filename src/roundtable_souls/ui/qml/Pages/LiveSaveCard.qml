@@ -14,6 +14,12 @@ Card {
     required property var adapter
     required property var card
     readonly property bool locked: adapter.running
+    property Flickable scroller   // the page, for the drag's auto-scroll
+    readonly property var cardSpec: ({
+            "type": "card",
+            "path": card.path,
+            "free": card.freeSlots
+        })
     readonly property var words: adapter.words
 
     signal nameRequested(string mode, string path)
@@ -23,6 +29,13 @@ Card {
     implicitHeight: 64 + 32 + listH + footer.implicitHeight
     padding: 0
 
+    DropTarget {  // the card body: a character goes into the first free slot; a copy or backup replaces the save
+        anchors.fill: parent
+        objectName: "dropCard_" + root.card.file
+        reasonOf: p => root.adapter.dropReason(p, root.cardSpec)
+
+        onDropPayload: p => root.adapter.drop(p, root.cardSpec)
+    }
     Column {
         id: body
 
@@ -32,10 +45,26 @@ Card {
             height: 64
             width: parent.width
 
+            DragHandle {  // the whole save, dragged to the Library (Save a copy) or the Backups (Back up now)
+                id: cardGrip
+
+                anchors.right: pill.left
+                anchors.rightMargin: Theme.sp8
+                anchors.verticalCenter: parent.verticalCenter
+                implicitHeight: 40
+                label: root.card.kind + "  ·  " + root.card.file
+                objectName: "dragLive_" + root.card.file
+                payload: ({
+                        "type": "live",
+                        "path": root.card.path
+                    })
+                scroller: root.scroller
+                visible: !root.locked
+            }
             Column {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.padCard
-                anchors.right: pill.left
+                anchors.right: cardGrip.visible ? cardGrip.left : pill.left
                 anchors.rightMargin: Theme.sp12
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.sp2
@@ -97,6 +126,20 @@ Card {
             Accessible.name: root.card.kind
 
             Keys.onPressed: event => {
+                const cur = root.card.slots[slotList.currentIndex];
+                if ((event.modifiers & Qt.ControlModifier) && cur) {   // Ctrl+C on a character, Ctrl+V on a slot
+                    if (event.key === Qt.Key_C && !cur.empty && root.card.canCopyCharacters) {
+                        root.adapter.copyCharacterKey(root.card.path, cur.slot);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_V) {
+                        root.adapter.pasteInto({
+                            "type": "slot",
+                            "path": root.card.path,
+                            "slot": cur.slot
+                        });
+                        event.accepted = true;
+                    }
+                }
                 if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
                     slotList.contentY = Math.max(0, Math.min(slotList.contentHeight - slotList.height, slotList.contentY + (event.key === Qt.Key_PageDown ? 1 : -1) * slotList.height));
                     event.accepted = true;
@@ -111,6 +154,11 @@ Card {
 
                 readonly property bool isEmpty: modelData.empty
                 readonly property int slotNumber: modelData.slot
+                readonly property var slotSpec: ({
+                        "type": "slot",
+                        "path": root.card.path,
+                        "slot": modelData.slot
+                    })
 
                 required property int index
                 required property var modelData
@@ -126,9 +174,36 @@ Card {
                         root.adapter.openSheet(root.card.path, row.modelData.slot);
                 }
 
+                DropTarget {  // this slot (empty, or the character in it is replaced after the usual confirmation)
+                    anchors.fill: parent
+                    anchors.leftMargin: -row.padding
+                    anchors.rightMargin: -row.padding
+                    objectName: "dropSlot_" + root.card.file + "_" + row.modelData.slot
+                    radius: 0
+                    reasonOf: p => root.adapter.dropReason(p, row.slotSpec)
+
+                    onDropPayload: p => root.adapter.drop(p, row.slotSpec)
+                }
+                DragHandle {
+                    id: rowGrip
+
+                    anchors.left: parent.left
+                    anchors.leftMargin: -Theme.sp8
+                    implicitHeight: row.height
+                    label: row.modelData.name + "  ·  " + row.modelData.levelText
+                    objectName: "dragChar_" + root.card.file + "_" + row.modelData.slot
+                    payload: ({
+                            "type": "character",
+                            "path": root.card.path,
+                            "slot": row.modelData.slot
+                        })
+                    scroller: root.scroller
+                    visible: !row.isEmpty && !root.locked && root.card.canCopyCharacters && row.modelData.runes !== ""
+                }
                 Txt {
                     id: slotText
 
+                    anchors.left: rowGrip.visible ? rowGrip.right : parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.textSecondary
                     kind: "caption"

@@ -419,7 +419,7 @@ class SavesAdapter(QObject):
         save, game = Path(path), self._game()
 
         def body(loc):
-            e = save_library.add(save.parent, save, name, game, action="stash")
+            e = save_library.add(save.parent, save, name, game, action="save copy")
             return {"text": tr("Saved a copy of {file} as '{name}'").format(file=save.name, name=e["name"])}
 
         self._write(f"save a copy of {save.name}", tr("Saving a copy of {name}...").format(name=save.name), body)

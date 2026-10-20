@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves: a Library copy is logged as "save copy" in its history; older history lines keep their old wording.
 - Activity: the job list is virtualized (only the days on screen are built), with the summary and filters scrolling as its header.
 - Saves: an empty Library says "No saved copies yet" with one sentence and one Import button; the Library and Backups lists are virtualized (they stay smooth with hundreds of copies), and an expanded copy stays open when it scrolls out of view.
 - Text sizes: the shortcut hints and the navigation badge use the theme's type scale; nothing is below 12 px any more.

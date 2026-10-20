@@ -178,11 +178,11 @@ class ShellWindow(QObject):
 FIRST_PAGE_WAIT = 3.0  # seconds the shell has to show Main.qml and its first page before it counts as failed
 
 
-def main(ctx, fallback: Callable[[object], int] | None = None, run: Callable[[], int] | None = None) -> int:
+def main(ctx, run: Callable[[], int] | None = None) -> int:
     """The program with the QML shell as its window (ctx: app.create_app). Returns the exit code; 0 when a running
     launcher was asked to come forward instead. If Main.qml or the first page does not load, the reason is logged,
-    the version is NOT reported ready (an update's watchdog then rolls back a build that never gets there), and
-    `fallback(ctx)` (the Widgets window, while it exists) opens instead. run: the event loop (tests give their own)."""
+    and the version is NOT reported ready (an update's watchdog then rolls back a build that never gets there).
+    run: the event loop (tests give their own)."""
     import threading
 
     from roundtable_souls.config import identity
@@ -224,8 +224,6 @@ def main(ctx, fallback: Callable[[object], int] | None = None, run: Callable[[],
         )
         window.dispose()
         hold.release()
-        if fallback is not None:
-            return int(fallback(ctx) or 0)
         return 1
     host.instance.take(hold)
     host.start_background()

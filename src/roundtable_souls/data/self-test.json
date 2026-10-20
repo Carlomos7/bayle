@@ -14,7 +14,6 @@
     "roundtable_souls.saves",
     "roundtable_souls.services.play",
     "roundtable_souls.storage.db",
-    "roundtable_souls.ui.shell",
     "roundtable_souls.ui.page_window",
     "roundtable_souls.ui.launcher.window",
     "roundtable_souls.updates.apply",

@@ -133,8 +133,10 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
         SwitchSpec(
             "play_clear_before",
             tr("Clear leftover processes before launch"),
-            tr("Ends dead copies of the game so Steam agrees to start it."),
-            tr("A dead shell is a copy of the game's exe with no window. Steam refuses to launch while one exists."),
+            tr("Closes copies of the game that are stuck in the background so Steam agrees to start it."),
+            tr(
+                "A leftover game process is a copy of the game with no window. Steam refuses to launch while one exists."
+            ),
             "launch",
         ),
         SwitchSpec(
@@ -151,14 +153,14 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
         SwitchSpec(
             "play_clear_after",
             tr("Clear leftover processes after quitting"),
-            tr("Ends dead shells so Discord and Steam stop showing the game as running."),
+            tr("Closes stuck copies of the game so Discord and Steam stop showing it as running."),
             tr("Needs admin once. Turn it off if you prefer to handle processes yourself."),
             "launch",
         ),
         SwitchSpec(
             "warn_dead_shells",
             tr("Warn about leftover processes"),
-            tr("The bar at the top of the window when a dead copy of the game is found."),
+            tr("A bar at the top of the window when a leftover game process is found."),
             tr("Clearing them by hand still works with the warning off."),
             "launch",
         ),
@@ -197,7 +199,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "offline_skip_confirm",
             tr("Skip the confirmation"),
             tr("Go straight to launch next time."),
-            tr("Stops the Play offline prompt. You can turn this back off here."),
+            tr("Stops the Launch Offline prompt. You can turn this back off here."),
             "offline",
         ),
     )

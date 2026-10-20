@@ -109,6 +109,14 @@ QtObject {
     readonly property color frameBorder: dark ? "#80C9B478" : "#80245BC4"
     readonly property color frameInner: dark ? "#33C9B478" : "#33245BC4"
 
+    // ---- syntax
+    readonly property color syntaxKeyword: dark ? "#E8A070" : "#A23B00"
+    readonly property color syntaxString: dark ? "#A6C98F" : "#2C6A1A"
+    readonly property color syntaxNumber: dark ? "#C7A6E8" : "#6A3FA0"
+    readonly property color syntaxComment: dark ? "#9C9784" : "#5B6270"
+    readonly property color syntaxKey: dark ? "#7CC3D9" : "#0B5E7A"
+    readonly property color syntaxHeader: dark ? "#F9C043" : "#8A5200"
+
     // ---- stat: the character sheet
     readonly property color statBar: dark ? "#6BDED7C1" : "#5220324E"
 

@@ -194,9 +194,14 @@ ModalDialog {
                 id: earlyBox
 
                 text: dlg.words.loadEarly
+                ToolTip.text: dlg.words.loadEarlyHelp + "  (" + dlg.words.loadEarlyTip + ")"
+                ToolTip.visible: hovered
             }
             FormRow {
+                help: dlg.words.initializerHelp
+                showHelpIcon: true
                 title: dlg.words.initializer
+                tooltip: dlg.words.initializerTip
                 width: parent ? parent.width : 0
 
                 Row {
@@ -236,7 +241,9 @@ ModalDialog {
                 }
             }
             FormRow {
+                showHelpIcon: true
                 title: dlg.words.finalizer
+                tooltip: dlg.words.finalizerTip
                 width: parent ? parent.width : 0
 
                 TextBox {

@@ -62,29 +62,29 @@ LOCATIONS = (
     (
         "me3_path",
         "me3",
-        "Blank means detect: me3 from PATH, then its default install folder. Set one only for a portable or custom me3.",
+        "Leave empty to find me3 automatically. Set it only if you keep me3 somewhere unusual, such as a portable copy.",
         False,
         "me3 (me3.exe)",
     ),
     (
         "game_exe",
         "Game executable",
-        "Blank means the Steam library that holds the game. Per game. me3 launches a custom exe directly.",
+        "Leave empty to use the game from your Steam library. Set it only to launch a different copy of the game. Saved per game.",
         False,
         "Game (*.exe)",
     ),
     (
         "me3_profile_dir",
         "Profile folder",
-        "Blank means the folder me3 info reports. Where .me3 profiles are listed from.",
+        "Leave empty to use the folder me3 uses. This is where your profiles are listed from.",
         True,
         "",
     ),
     (
         "saves_dir",
         "Saves folder",
-        "Blank means detect from your Steam account. Per game. It must hold your Steam account's folder with the "
-        "game's save in it; backups, repairs and the Saves page all use it.",
+        "Leave empty to find your saves automatically. Set it only if the game keeps them somewhere else. The Saves page, "
+        "backups and repairs all use this folder. Saved per game.",
         True,
         "",
     ),
@@ -150,7 +150,7 @@ class SettingsAdapter(QObject):
                 "install) start this copy instead. Steam must be closed; a backup of each changed file is kept."
             ),
             "leftover": tr("Leftover processes"),
-            "leftoverHelp": tr("A dead copy of the game can make Discord think it is still open."),
+            "leftoverHelp": tr("A leftover game process can make Discord think the game is still open."),
             "clearNow": tr("Clear now"),
             "backups": tr("Backups"),
             "backupsLocation": tr("Location"),
@@ -161,10 +161,7 @@ class SettingsAdapter(QObject):
             ),
             "appearance": tr("Appearance"),
             "theme": tr("Theme"),
-            "themeHelp": tr(
-                "System follows the OS. Tarnished is the dark theme in the Lands Between olive. The older window "
-                "shows Tarnished as Dark."
-            ),
+            "themeHelp": tr("System follows Windows. Tarnished is a dark theme in the olive of the Lands Between."),
             "effects": tr("Effects"),
             "effectsHelp": tr("Off: no blur, no grain; blooms stay. Reduced: no blur, lighter grain."),
             "grain": tr("Grain"),

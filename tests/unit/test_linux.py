@@ -23,7 +23,7 @@ def fake_proc(root, pid, argv, comm, rss_kb):
     d.mkdir(parents=True)
     (d / "cmdline").write_bytes(b"\0".join(a.encode() for a in argv) + b"\0")
     (d / "comm").write_text(comm + "\n")
-    (d / "status").write_text(f"Name:\t{comm}\nVmRSS:\t {rss_kb} kB\n")
+    (d / "status").write_text(f"Name:\t{comm}\nVmRSS:\t {rss_kb} kB\nThreads:\t8\n")
 
 
 def test_proton_game_and_steam_are_found_in_proc(tmp_path):
@@ -38,8 +38,8 @@ def test_proton_game_and_steam_are_found_in_proc(tmp_path):
     fake_proc(proc, 101, ["/home/deck/.local/share/Steam/ubuntu12_32/steam", "-silent"], "steam", 300_000)
     fake_proc(proc, 102, ["/usr/bin/python3"], "python3", 10_000)
     (proc / "self").mkdir()
-    assert process_list._linux_processes("eldenring.exe", proc) == [(100, 5_000_000)]
-    assert process_list._linux_processes("steam", proc) == [(101, 300_000)]
+    assert process_list._linux_processes("eldenring.exe", proc) == [(100, 8)]
+    assert process_list._linux_processes("steam", proc) == [(101, 8)]
     assert process_list._linux_processes("missing.exe", proc) == []
 
 

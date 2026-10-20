@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
+from roundtable_souls.mods import library, profile_edit, profile_writer
 from roundtable_souls.mods import order as mod_order
-from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods import rename as mod_rename
@@ -69,6 +69,9 @@ def removal(profile, entry: dict, *, loc: Locations, scan: dict | None = None) -
             path = profile_edit.resolve(prof, other["path"])
             if path == folder or folder in path.parents:
                 users.append(other["name"])
+        lib = library.library_of(prof)
+        if lib is not None:  # a library mod is shared: another profile listing it keeps the folder
+            users += [f"profile {n}" for n in lib.folder_users(folder, besides=prof)]
     merged = merged_from(prof, entry, loc=loc, scan=scan)
     return Removal(
         kind=entry["kind"],

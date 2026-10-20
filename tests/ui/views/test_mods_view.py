@@ -74,6 +74,12 @@ class Host:
     def open_mod_configs(self, select=""):
         self.changes.append(f"mod configs: {select}")
 
+    def open_profile_transfer(self, mode):
+        self.changes.append(f"profile transfer: {mode}")
+
+    def open_profile_import(self, unpacked, profiles, staging=None):
+        self.changes.append(f"profile import: {profiles}")
+
     def profiles(self):
         return [self.profile.name]
 

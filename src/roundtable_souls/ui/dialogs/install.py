@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
-from qfluentwidgets import BodyLabel, CheckBox, ComboBox, LineEdit, ScrollArea, SubtitleLabel
+from qfluentwidgets import BodyLabel, CheckBox, ComboBox, HyperlinkButton, LineEdit, ScrollArea, SubtitleLabel
 
 from roundtable_souls.ui.dialogs.common import Dialog
 from roundtable_souls.ui.theme import hint, tone_label
@@ -64,6 +64,13 @@ class InstallDialog(Dialog):
         self.what = hint("")
         self.what.setWordWrap(True)
         self.viewLayout.addWidget(self.what)
+
+        # a download that also ships a profile: the Export / Import page can take it instead (Cancel here leaves it)
+        self.import_instead = False
+        if plan.get("profiles_inside"):
+            link = HyperlinkButton("", "This download has a profile too. Import it instead...")
+            link.clicked.connect(self._import_instead)
+            self.viewLayout.addWidget(link)
 
         self.variant = None
         if plan.get("variants"):
@@ -167,6 +174,10 @@ class InstallDialog(Dialog):
         self._show()
 
     # -------------------------------------------------------------- edits
+    def _import_instead(self, *_):
+        self.import_instead = True
+        self.reject()
+
     def _id_edited(self, *_):
         self._id_follows_name = False
         self._changed()

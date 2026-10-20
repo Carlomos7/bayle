@@ -185,6 +185,8 @@ class ModsPresenter:
             "profileSettings": settings,
             "versions": versions,
             "deleteProfile": delete,
+            "exportProfile": tr("Export profile..."),
+            "importProfile": tr("Import profile..."),
             "rescan": tr("Rescan"),
             "addExisting": tr("Add existing..."),
             "more": tr("More"),

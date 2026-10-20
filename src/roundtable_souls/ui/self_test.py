@@ -77,6 +77,15 @@ class SelfTestHost:
     def open_mod_configs(self, select: str = "") -> None:
         pass
 
+    def pick_folder(self, title: str) -> None:
+        return None
+
+    def open_profile_transfer(self, mode: str) -> None:
+        pass
+
+    def open_profile_import(self, unpacked, profiles, staging=None) -> None:
+        pass
+
 
 class Report:
     def __init__(self, out: Callable[[str], None] = print):

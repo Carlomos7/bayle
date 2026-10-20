@@ -79,6 +79,9 @@ class ModsHost(Protocol):
     def open_mod_configs(self, select: str = "") -> None:
         """Open the Mod Configs window, showing the mod called select."""
 
+    def open_profile_transfer(self, mode: str) -> None:
+        """Open the Export / Import profile window on its "export" or "import" view."""
+
     def profile_deleted(self, profile: Path, moved_to: Path) -> None:
         """The page deleted the profile: the host forgets it and picks another."""
 
@@ -733,6 +736,10 @@ class ModsAdapter(QObject):
     def openProfileSettings(self) -> None:
         if self.host.profile is not None:
             self.dialogRequested.emit("profile-settings", -1)
+
+    @Slot(str)
+    def openProfileTransfer(self, mode: str) -> None:
+        self.host.open_profile_transfer(mode)
 
     @Slot()
     def openVersions(self) -> None:

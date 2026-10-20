@@ -192,6 +192,14 @@ class LauncherHost:
     def open_mod_configs(self, select: str = "") -> None:
         self._w._open_mod_configs_window(select)
 
+    def open_profile_transfer(self, mode: str) -> None:
+        self._w._open_profile_transfer_window(mode)
+
+    def open_profile_import(self, unpacked: Path, profiles: list[str], staging: Path | None = None) -> None:
+        """The bundled-profile view for a mod download that also ships .me3 profiles (S3g); the page clears
+        staging when it is done."""
+        self._w._open_profile_transfer_window("bundled", (unpacked, profiles, staging))
+
     def open_path(self, path: Path) -> None:
         desktop.open_path(str(path))
 
@@ -236,6 +244,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.activity_window: PageWindow | None = None  # the QML Activity trial (S5)
         self.mods_window: PageWindow | None = None  # the QML Mods page (S6)
         self.mod_configs_window: PageWindow | None = None  # the QML Mod Configs page (S7b)
+        self.profile_transfer_window: PageWindow | None = None  # the QML Export / Import profile page (S7e)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -753,10 +762,31 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         if select:
             self.mod_configs_window.adapter.select_mod(select)
 
+    def _open_profile_transfer_window(self, mode: str, bundled: tuple | None = None):
+        """The new Export / Import profile page in a window of its own (the button goes when the QML shell lands).
+        mode: "export", "import" or "bundled" (bundled: the unpacked download, its .me3 profiles, its staging)."""
+        if self.profile_transfer_window is None:
+            self.profile_transfer_window = PageWindow(
+                qml_pages.page("profileTransfer"), LauncherHost(self), load_settings().theme
+            )
+            self.profile_transfer_window.notifier.status(self._job_label if self.busy else tr("Ready"))
+        if not self.profile_transfer_window.show():
+            self._toast(
+                "The new Export / Import profile window did not open", "The details are in launcher.log.", error=True
+            )
+            for line in self.profile_transfer_window.warnings:
+                core.run_logging.log_line(line)
+            return
+        adapter = self.profile_transfer_window.adapter
+        if bundled is not None:
+            adapter.open_profile_import(*bundled)
+        else:
+            adapter.open_transfer(mode)
+
     def _page_windows(self) -> list[PageWindow]:
         """The QML page windows open now (Activity, Mods, Mod Configs): the hooks below keep them in step with this
         window."""
-        names = ("activity_window", "mods_window", "mod_configs_window")
+        names = ("activity_window", "mods_window", "mod_configs_window", "profile_transfer_window")
         return [w for w in (getattr(self, name, None) for name in names) if w is not None]
 
     def _mark_activity_seen(self):

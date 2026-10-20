@@ -36,10 +36,17 @@ def _mod_configs(host, notifier: Notifier):
     return ModConfigsAdapter(host, notifier)
 
 
+def _profile_transfer(host, notifier: Notifier):
+    from roundtable_souls.ui.pages.profile_transfer.adapter import ProfileTransferAdapter
+
+    return ProfileTransferAdapter(host, notifier)
+
+
 QML_PAGES: tuple[QmlPage, ...] = (
     QmlPage("activity", "Pages/ActivityPage.qml", _activity),
     QmlPage("mods", "Pages/ModsPage.qml", _mods),
     QmlPage("modConfigs", "Pages/ModConfigsPage.qml", _mod_configs),
+    QmlPage("profileTransfer", "Pages/ProfileTransferPage.qml", _profile_transfer),
 )
 
 

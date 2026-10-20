@@ -76,8 +76,8 @@ class SavesPresenter:
             "openFolder": tr("Open the folder"),
             "postSession": tr("Run post-session repair"),
             "postSessionTip": tr(
-                "Checks every save of this game and puts the regulation block right where the game left it dirty. "
-                "The game does not read that block; only save editors need it."
+                "Checks every save of this game and tidies the game-rules section the launcher leaves marked as changed. "
+                "The game does not read it; only save editors need it."
             ),
             "dropImport": tr("Drop to import into the Library"),
             "undo": tr("Undo"),
@@ -89,8 +89,7 @@ class SavesPresenter:
             "putBack": tr("Put back"),
             "finish": tr("Finish removing"),
             "name": tr("Name"),
-            "sheetReadOnly": tr("Read-only. Editing stats and attributes comes later."),
-            "edit": tr("Edit"),
+            "sheetReadOnly": tr("This is a read-only view of the character as last saved."),
             "overview": tr("Overview"),
             "stats": tr("Stats"),
             "atLastSave": tr("at last save (with equipment)"),
@@ -421,8 +420,10 @@ class SavesPresenter:
                 items.append(
                     self._item(
                         ("checksum", s),
-                        prefix(s) + tr("Checksum does not match"),
-                        tr("The game refuses a save whose checksums do not match. Repair recomputes them."),
+                        prefix(s) + tr("Character data is out of step"),
+                        tr(
+                            "The game may refuse this character. Ticked: repair makes its integrity data match again. Unticked: it stays as it is."
+                        ),
                         True,
                     )
                 )
@@ -430,8 +431,10 @@ class SavesPresenter:
             items.append(
                 self._item(
                     ("checksum", "ud10"),
-                    tr("Profile summary checksum does not match"),
-                    tr("The game refuses a save whose checksums do not match. Repair recomputes them."),
+                    tr("Profile summary is out of step"),
+                    tr(
+                        "The game may refuse the save. Ticked: repair makes its integrity data match again. Unticked: it stays as it is."
+                    ),
                     True,
                 )
             )
@@ -441,7 +444,7 @@ class SavesPresenter:
                     "id": "load",
                     "title": tr("May not load"),
                     "hint": tr(
-                        "These states hang the loading screen or make the game refuse the save. Ticked by default."
+                        "These can hang the loading screen or make the game refuse the save. Ticked by default; untick one to leave it as it is."
                     ),
                     "items": items,
                 }
@@ -526,13 +529,17 @@ class SavesPresenter:
             groups.append(
                 {
                     "id": "editors",
-                    "title": tr("For save editors"),
-                    "hint": tr("The game does not read this part of the save. Only save editors need it repaired."),
+                    "title": tr("Only for save editors"),
+                    "hint": tr(
+                        "The game does not read this part of the save, so leaving it unticked changes nothing in play. Only save editors need it."
+                    ),
                     "items": [
                         self._item(
                             ("regulation",),
-                            tr("Repair the regulation block"),
-                            tr("Puts the game's regulation.bin back; me3 dirties it every session."),
+                            tr("Tidy the save's game-rules section"),
+                            tr(
+                                "The launcher leaves this section marked as changed after each play session. Ticked: it is put back as the game wrote it."
+                            ),
                             False,
                         )
                     ],
@@ -576,9 +583,11 @@ class SavesPresenter:
         if kinds.get("orphans"):
             bits.append(tr("clear leftover rows"))
         if kinds.get("checksum"):
-            bits.append(plural("{n} checksum", "{n} checksums", kinds["checksum"]).format(n=kinds["checksum"]))
+            bits.append(
+                plural("{n} integrity repair", "{n} integrity repairs", kinds["checksum"]).format(n=kinds["checksum"])
+            )
         if kinds.get("regulation"):
-            bits.append(tr("regulation block repair"))
+            bits.append(tr("tidy game-rules section"))
         return ", ".join(bits) + ". " + tr("A backup is made first.")
 
     def repair_button(self, n: int) -> str:
@@ -624,9 +633,9 @@ class SavesPresenter:
                 bits.append(tr("clear leftover rows"))
             lines.append(f"{names.get(sl, sl)}: " + ", ".join(bits))
         if calls["checksums"]:
-            lines.append(tr("Recompute the stale checksums"))
+            lines.append(tr("Make the integrity data match again"))
         if calls["regulation"]:
-            lines.append(tr("Repair the regulation block"))
+            lines.append(tr("Tidy the save's game-rules section"))
         return Confirm(
             title=plural("Repair {n} item in {file}", "Repair {n} items in {file}", len(keys)).format(
                 n=len(keys), file=info["name"]

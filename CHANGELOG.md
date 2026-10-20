@@ -4,6 +4,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Check & repair says in plain words what each box does and what happens if you leave it unticked (no more "checksum" or "regulation block"), and its descriptions wrap instead of being cut off.
+- The character sheet no longer shows a disabled Edit button or a "comes later" promise.
 - Export / Import profile no longer has its own profile picker: it uses the profile chosen in the top bar and shows its name in the header ("Exporting <name>").
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.

@@ -106,6 +106,7 @@ from roundtable_souls.ui.theme import (
     tokens,
     tone_label,
     use_theme_text,
+    widgets_dark,
 )
 from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard, GlassCard, card, count_label
 from roundtable_souls.ui.widgets.layout import (
@@ -125,6 +126,12 @@ from roundtable_souls.updates import inno as migration
 
 
 # ----------------------------------------------------------------------------- QML page windows
+def _appearance() -> dict[str, str]:
+    """The saved look, as PageWindow keyword arguments."""
+    st = load_settings()
+    return {"theme": st.theme, "effects": st.effects, "grain": st.grain}
+
+
 class LauncherHost:
     """The Widgets launcher as the host of a QML page window (ui/page_window.py) until the QML shell (S9): whether
     a job or the game is running, the locations, logged jobs through the window's own start(), background reads
@@ -720,7 +727,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
     def _open_activity_window(self):
         """The new Activity page in a window of its own (the S5 trial; the button goes when the QML shell lands)."""
         if self.activity_window is None:
-            self.activity_window = PageWindow(qml_pages.page("activity"), LauncherHost(self), load_settings().theme)
+            self.activity_window = PageWindow(qml_pages.page("activity"), LauncherHost(self), **_appearance())
             self.activity_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.activity_window.show():
             self._toast("The new Activity window did not open", "The details are in launcher.log.", error=True)
@@ -730,7 +737,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
     def _open_mods_window(self):
         """The new Mods page in a window of its own (owner, D1; the button goes when the QML shell lands)."""
         if self.mods_window is None:
-            self.mods_window = PageWindow(qml_pages.page("mods"), LauncherHost(self), load_settings().theme)
+            self.mods_window = PageWindow(qml_pages.page("mods"), LauncherHost(self), **_appearance())
             self.mods_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.mods_window.show():
             self._toast("The new Mods window did not open", "The details are in launcher.log.", error=True)
@@ -741,9 +748,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         """The new Mod Configs page in a window of its own (owner, D6 A; the button goes when the QML shell lands).
         select: a mod to show (its name), from the new Mods window's links."""
         if self.mod_configs_window is None:
-            self.mod_configs_window = PageWindow(
-                qml_pages.page("modConfigs"), LauncherHost(self), load_settings().theme
-            )
+            self.mod_configs_window = PageWindow(qml_pages.page("modConfigs"), LauncherHost(self), **_appearance())
             self.mod_configs_window.notifier.status(self._job_label if self.busy else tr("Ready"))
         if not self.mod_configs_window.show():
             self._toast("The new Mod Configs window did not open", "The details are in launcher.log.", error=True)
@@ -1053,7 +1058,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
 
     def _restyle(self):
         for page_window in self._page_windows():
-            page_window.set_theme("dark" if isDarkTheme() else "light")
+            page_window.set_theme(load_settings().theme)
         for b in self.findChildren(QPushBtn):
             if b.objectName() == "cta" or b.property("role"):
                 style_button(b)
@@ -1175,7 +1180,7 @@ def main(ctx):
     app = QApplication(sys.argv)
     app.setApplicationName(TITLE)
     use_theme_text()
-    dark = load_settings().theme == "dark"
+    dark = widgets_dark(load_settings().theme)
     setTheme(Theme.DARK if dark else Theme.LIGHT)
     setThemeColor(ACCENT if dark else ACCENT_LIGHT)
     hold = None

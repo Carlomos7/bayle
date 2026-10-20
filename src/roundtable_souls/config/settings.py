@@ -157,7 +157,10 @@ class LauncherSettings(BaseModel):
     setup: str | None = None  # Elden Ring's remembered setup; other games keep theirs under `games`
     game: str = "eldenring"  # the tab the window opens on
     games: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-game values for games other than Elden Ring
-    theme: Literal["dark", "light"] = "dark"
+    theme: Literal["dark", "tarnished", "light", "system"] = "dark"  # the Widgets window: tarnished is dark
+    effects: Literal["full", "reduced", "off"] = "full"  # the QML windows' glow, grain and blur
+    grain: Literal["off", "subtle", "film"] = "subtle"
+    log_level: Literal["normal", "verbose"] = "normal"  # verbose: debug lines in launcher.log, from the next start
     logo: Literal["auto", "dark", "light"] = "auto"
     native_configs: dict[str, list[str]] = Field(default_factory=dict)  # DLL path -> settings files tied to it
     parameter_overlays: dict[str, Any] = Field(default_factory=dict)  # profile -> {package, rebuild} set in Options

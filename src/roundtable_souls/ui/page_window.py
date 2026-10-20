@@ -52,18 +52,27 @@ def use_qml_cache_folder() -> Path | None:
 
 
 def theme_mode(setting: str) -> str:
-    """The window's theme from the launcher's theme setting (dark | light today; tarnished and system later)."""
+    """The window's theme from the launcher's theme setting."""
     return setting if setting in ("dark", "light", "tarnished", "system") else "dark"
 
 
 class PageWindow(QObject):
     """The window for one registered page. show() builds it the first time and brings it forward after that."""
 
-    def __init__(self, entry: QmlPage, host, theme: str = "dark", parent: QObject | None = None):
+    def __init__(
+        self,
+        entry: QmlPage,
+        host,
+        theme: str = "dark",
+        parent: QObject | None = None,
+        effects: str = "full",
+        grain: str = "subtle",
+    ):
         super().__init__(parent)
         self.entry = entry
         self.host = host
         self.theme = theme_mode(theme)
+        self.effects, self.grain = effects, grain
         self.notifier = Notifier(self)
         self.adapter = entry.make_adapter(host, self.notifier)
         if isinstance(self.adapter, QObject) and self.adapter.parent() is None:
@@ -92,6 +101,8 @@ class PageWindow(QObject):
                 "notifier": self.notifier,
                 "pageUrl": QUrl.fromLocalFile(str(QML_DIR / self.entry.qml)),
                 "themeMode": self.theme,
+                "effects": self.effects,
+                "grain": self.grain,
                 "visible": False,
             }
         )
@@ -114,6 +125,14 @@ class PageWindow(QObject):
         self.theme = theme_mode(theme)
         if self.window is not None:
             self.window.setProperty("themeMode", self.theme)
+
+    def set_appearance(self, theme: str, effects: str, grain: str) -> None:
+        """Settings > Appearance, applied live."""
+        self.set_theme(theme)
+        self.effects, self.grain = effects, grain
+        if self.window is not None:
+            self.window.setProperty("effects", effects)
+            self.window.setProperty("grain", grain)
 
     def page_item(self):
         """The page's root item once loaded (tests and the self-test)."""

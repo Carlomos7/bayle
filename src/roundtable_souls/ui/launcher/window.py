@@ -19,14 +19,13 @@ from PySide6.QtGui import QGuiApplication, QIcon, QWindow
 from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
-from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.platform import instance
 from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.services.play import TITLE
 from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
-from roundtable_souls.ui.page_window import QML_DIR, load_fonts, use_qml_cache_folder
+from roundtable_souls.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
 
 MAIN_QML = QML_DIR / "Main.qml"
 
@@ -191,8 +190,7 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
 
     if identity.get().qt_platform:  # an isolated test build (Velopack starts it with the user's own environment)
         os.environ["QT_QPA_PLATFORM"] = identity.get().qt_platform
-    app = QApplication.instance() or QApplication(sys.argv)  # Widgets only while the fallback window exists
-    assert isinstance(app, QApplication)
+    app = QGuiApplication.instance() or QGuiApplication(sys.argv)
     app.setApplicationName(TITLE)
     app.setWindowIcon(QIcon(str(ASSETS_DIR / "icon.ico")))
     hold = instance.acquire(instance.WINDOW)

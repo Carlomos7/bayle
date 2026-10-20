@@ -2,13 +2,12 @@
 wide sizes, follows the theme's tokens, opens a job's log on a click, and Undo asks first and runs as a job."""
 
 import pytest
+from page_window import PageWindow
 from PySide6.QtCore import QEventLoop, QPoint, Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.ui import theme_tokens
-from roundtable_souls.ui.page_window import PageWindow
 
 THEMES = ("dark", "tarnished", "light")
 WIDTHS = (740, 1100)
@@ -19,7 +18,7 @@ def settle(ms: int = 60) -> None:
     loop = QEventLoop()
     QTimer.singleShot(ms, loop.quit)
     loop.exec()
-    QApplication.processEvents()
+    QGuiApplication.processEvents()
 
 
 def opened(entry, host, theme="dark", width=1100) -> PageWindow:

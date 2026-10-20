@@ -1,6 +1,5 @@
-"""The QML pages, registered once: each entry names its QML file and how its adapter is made. A window (the S5 page
-window today, the QML shell from S9) and the self-test build every page from this list, so a page added here is
-covered by both without editing either."""
+"""The QML pages, registered once: each entry names its QML file and how its adapter is made. The shell and the
+self-test build every page from this list, so a page added here is covered by both without editing either."""
 
 from __future__ import annotations
 
@@ -87,7 +86,7 @@ QML_PAGES: tuple[QmlPage, ...] = (
         ("backUpNow", "transferCharacter", "importSave", "openSavesFolder", "openLibrary", "openBackups", "back"),
     ),
     QmlPage("settings", "Pages/SettingsPage.qml", _settings, ("checkForUpdates", "saveLogs")),
-    QmlPage("placeholder", "Pages/PlaceholderPage.qml", _placeholder),  # a game without support yet (the shell)
+    QmlPage("placeholder", "Pages/PlaceholderPage.qml", _placeholder),  # a game without support yet
 )
 
 

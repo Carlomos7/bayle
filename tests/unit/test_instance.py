@@ -6,8 +6,8 @@ import uuid
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalServer
-from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.platform import filelock, instance
 
@@ -37,7 +37,7 @@ def _wait(ms):
 
 
 def test_a_second_start_reaches_the_window(name):
-    app = QApplication.instance() or QApplication([])
+    app = QGuiApplication.instance() or QGuiApplication([])
     server_name = name if os.name == "nt" else str(instance._lock_dir() / f"{name}.sock")
     server = QLocalServer()
     server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)

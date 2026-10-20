@@ -166,6 +166,8 @@ class LauncherSettings(BaseModel):
     parameter_overlays: dict[str, Any] = Field(default_factory=dict)  # profile -> {package, rebuild} set in Options
     rebuild_approved: list[str] = Field(default_factory=list)  # rebuild tools the user allowed to run
     activity_seen: float = 0.0  # when the Activity page was last looked at: failures after it are counted
+    rail_collapsed: bool = False  # the shell's navigation rail folded to icons (the top bar's menu button)
+    launch_mode: str | None = None  # Elden Ring's Launch mode ("profile" | "offline" | "vanilla"); others under `games`
 
     offline_strip_overhaul: bool = False
     offline_start_steam: bool = True
@@ -291,7 +293,7 @@ def save_settings(**changes: Any) -> None:
     change_settings(lambda current: changes)
 
 
-GAME_KEYS = ("setup", "game_exe", "saves_dir")  # values each game keeps for itself
+GAME_KEYS = ("setup", "game_exe", "saves_dir", "launch_mode")  # values each game keeps for itself
 
 
 def game_setting(settings: LauncherSettings, game: str, key: str, default: Any = None) -> Any:

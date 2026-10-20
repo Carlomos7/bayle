@@ -30,6 +30,7 @@ Item {
     property int count: 0
     property Item dragLayer
     property var page
+    property bool cancelled: false   // Esc during a drag: the drop does nothing
     readonly property bool held: grip.drag.active
     readonly property var words: adapter.words
     readonly property int entryIndex: holder.entry   // the profile block index
@@ -37,6 +38,14 @@ Item {
     height: Theme.rowH
     objectName: "row_" + holder.name
 
+    Keys.onEscapePressed: event => {
+        if (holder.held) {
+            holder.cancelled = true;
+            holder.page.dropTarget = -1;
+            holder.page.dropReason = "";
+            event.accepted = true;
+        }
+    }
     Keys.onPressed: event => {
         if (!(event.modifiers & Qt.ControlModifier))
             return;
@@ -57,17 +66,19 @@ Item {
             if (src && src !== holder && src.kind === holder.kind) {
                 holder.page.dropTarget = holder.position - 1;
                 holder.page.dragKind = holder.kind;
+                holder.page.dropReason = holder.adapter.dropReason(src.entryIndex, holder.position - 1);
+                const p = holder.mapToItem(holder.dragLayer, holder.width - Theme.sp16, 0);
+                holder.page.dropTagX = p.x;
+                holder.page.dropTagY = p.y + 4;
             }
         }
     }
-    Rectangle {  // the gold insertion line where the lifted row will land
+    DropIndicator {  // the gold insertion line where the lifted row will land (red, with the reason, when refused)
         anchors.left: parent.left
         anchors.leftMargin: Theme.sp16
         anchors.right: parent.right
         anchors.rightMargin: Theme.sp16
-        color: Theme.accent
-        height: 2
-        radius: 1
+        reason: holder.page ? holder.page.dropReason : ""
         visible: holder.page && holder.page.dragKind === holder.kind && holder.page.dropTarget === holder.position - 1 && !holder.held
         y: 0
         z: 3
@@ -186,22 +197,33 @@ Item {
                 ToolTip.text: holder.words.lockedTip
                 ToolTip.visible: containsMouse && holder.locked
                 anchors.fill: parent
-                cursorShape: enabled ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ForbiddenCursor
+                cursorShape: !enabled || (holder.held && holder.page.dropReason !== "") ? Qt.ForbiddenCursor : (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
                 drag.axis: Drag.YAxis
                 drag.target: row
                 enabled: !holder.locked
                 hoverEnabled: true
                 objectName: "grip_" + holder.name
 
+                onPositionChanged: mouse => {
+                    if (holder.held)
+                        holder.page.dragY = grip.mapToItem(holder.page, mouse.x, mouse.y).y;
+                }
                 onPressed: {
+                    holder.cancelled = false;
+                    holder.forceActiveFocus();   // Esc reaches the row
+                    holder.adapter.beginDrag(holder.entryIndex);   // one read; the spots are judged in memory
                     holder.page.dropTarget = -1;
+                    holder.page.dropReason = "";
                     holder.page.dragKind = holder.kind;
                 }
                 onReleased: {
+                    holder.adapter.endDrag();
                     const to = holder.page.dropTarget;
                     holder.page.dropTarget = -1;
+                    holder.page.dropReason = "";
                     holder.page.dragKind = "";
-                    if (to >= 0 && to !== holder.position - 1)
+                    // a refused drop still asks: moveTo says why in a toast (with Edit options) and puts the row back
+                    if (!holder.cancelled && to >= 0 && to !== holder.position - 1)
                         holder.adapter.moveTo(holder.entryIndex, to);
                 }
             }

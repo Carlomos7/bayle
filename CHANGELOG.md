@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mods: dragging a row now says why a drop is refused, in words at the drop spot (red line), the page scrolls when the row nears an edge, Esc cancels the drag, and a running job refuses the move with a message. The spots are judged in memory while you drag; the real check runs on drop.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - Importing a profile or a full export now asks when a mod has the same name as one you have installed but other

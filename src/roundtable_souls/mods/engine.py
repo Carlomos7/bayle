@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import time
@@ -375,7 +374,7 @@ def build(
             seconds = time.time() - started
             log(f"engine: {recipe['label']} built in {seconds:.0f}s, staged")
             return {"output": stage, "previous": None, "restore": None, "sources": sources, "seconds": seconds}
-        previous, restore = _swap(own, stage, log)
+        previous, restore = _swap(profile, own, stage, log)
     except BaseException:
         shutil.rmtree(stage, ignore_errors=True)
         raise
@@ -637,39 +636,30 @@ def input_reasons(manifest: dict, recipe: dict, loc: Locations) -> list[str]:
     return merge_record.reasons(recorded, loc.game.key, now=now, label=recipe["label"])
 
 
-def _rename(src: Path, dst: Path) -> None:
-    """A rename that retries briefly: an editor or a virus scanner can hold a folder for a moment."""
-    for attempt in range(10):
-        try:
-            os.replace(src, dst)
-            return
-        except PermissionError:
-            if attempt == 9:
-                raise
-            time.sleep(0.5)
+def _swap(profile: Path, own: Path, stage: Path, log) -> tuple[Path | None, Path | None]:
+    """The live build goes to previous/ and the staged one takes its place, as one journaled operation: a kill
+    between the two renames is undone at the next launcher start (operations.recover), so the mod folder is never
+    left missing. The journal is dropped once both renames are done; without one, previous/ is never touched."""
+    from roundtable_souls.mods import operations
 
-
-def _swap(own: Path, stage: Path, log) -> tuple[Path | None, Path | None]:
     work = own.parent / WORK
     previous = work / "previous"
     work.mkdir(exist_ok=True)
     if previous.exists():
         shutil.rmtree(previous)  # the build before last: rebuildable from the download at any time
     had = own.exists()
+    op = operations.start(profile, f"rebuild of {own.name}")
+    if had:
+        op.move_folder(own, previous)
+    op.move_folder(stage, own)
     try:
-        if had:
-            _rename(own, previous)
-        try:
-            _rename(stage, own)
-        except OSError:
-            if had:
-                _rename(previous, own)
-            raise
+        operations.commit(op)  # an OSError undoes the applied steps: the old build is back
     except OSError as e:
         raise EngineError(
             f"The new build could not replace {own.name} ({e}). Something has the folder open (an editor, a file "
             "window or the game); close it and rebuild. The old build is unchanged."
         ) from e
+    op.release()
     if not had:
         return None, None
     restore = work / "restore.json"

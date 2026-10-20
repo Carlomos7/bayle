@@ -200,6 +200,14 @@ class LauncherHost:
         staging when it is done."""
         self._w._open_profile_transfer_window("bundled", (unpacked, profiles, staging))
 
+    def saves_in_use(self) -> dict:
+        """The save files the setup in use plays on (Play uses, Play offline uses), by name; the locations learn them
+        too, so the page finds a setup's custom save names."""
+        w = self._w
+        names = core.setup_saves(w.setup, w.game)
+        w.ctx.note_setup_saves({k: names[k] for k in ("standard", "coop")})
+        return names
+
     def open_path(self, path: Path) -> None:
         desktop.open_path(str(path))
 
@@ -245,6 +253,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.mods_window: PageWindow | None = None  # the QML Mods page (S6)
         self.mod_configs_window: PageWindow | None = None  # the QML Mod Configs page (S7b)
         self.profile_transfer_window: PageWindow | None = None  # the QML Export / Import profile page (S7e)
+        self.saves_window: PageWindow | None = None  # the QML Saves page (S9)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -783,10 +792,20 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         else:
             adapter.open_transfer(mode)
 
+    def _open_saves_window(self):
+        """The new Saves page in a window of its own (until the QML shell; the button is on the Saves page)."""
+        if self.saves_window is None:
+            self.saves_window = PageWindow(qml_pages.page("saves"), LauncherHost(self), load_settings().theme)
+            self.saves_window.notifier.status(self._job_label if self.busy else tr("Ready"))
+        if not self.saves_window.show():
+            self._toast("The new Saves window did not open", "The details are in launcher.log.", error=True)
+            for line in self.saves_window.warnings:
+                core.run_logging.log_line(line)
+
     def _page_windows(self) -> list[PageWindow]:
-        """The QML page windows open now (Activity, Mods, Mod Configs): the hooks below keep them in step with this
-        window."""
-        names = ("activity_window", "mods_window", "mod_configs_window", "profile_transfer_window")
+        """The QML page windows open now (Activity, Mods, Mod Configs, Export / Import, Saves): the hooks below keep
+        them in step with this window."""
+        names = ("activity_window", "mods_window", "mod_configs_window", "profile_transfer_window", "saves_window")
         return [w for w in (getattr(self, name, None) for name in names) if w is not None]
 
     def _mark_activity_seen(self):

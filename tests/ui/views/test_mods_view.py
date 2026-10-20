@@ -80,6 +80,9 @@ class Host:
     def open_profile_import(self, unpacked, profiles, staging=None):
         self.changes.append(f"profile import: {profiles}")
 
+    def saves_in_use(self):
+        return {}
+
     def profiles(self):
         return [self.profile.name]
 

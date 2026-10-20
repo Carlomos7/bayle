@@ -59,6 +59,7 @@ class GameConfig(BaseModel):
     note: str = ""
     archive_names: list[str]
     archives: dict[str, str]  # archive name -> PEM public key of its header
+    languages: list[str]  # the game's text languages: the msg/<language>/ folders
     oodle_library: str  # a glob in the game folder
     dcx_writer: DcxWriter
     dflt_fallback: list[str]  # file name endings, lower-case; "*" = every type

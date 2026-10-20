@@ -15,6 +15,24 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Importing into the current profile never adds a second entry for a folder the profile already lists (same mod,
   reused or replaced): the existing entry is kept, takes the incoming options and load order (Keep mine leaves it as
   it is), and the incoming mod's load_after / load_before references point at it.
+- Keyboard and screen readers in the new window (UX pass): icon-only buttons (a mod's gear and bin, the header's
+  folder, profile and More buttons, the log's chevron) have a name a screen reader reads, and Tab shows their tooltip
+  as the mouse does. The hint bar's labels and the "Empty slots" line use the secondary text colour, which passes
+  4.5:1 on the light theme (the tertiary grey was 3.5:1 there).
+- Top bar and Mods list at narrow widths (UX pass): under 820 px the status (why Launch is blocked, what is running)
+  gets a line of its own under the bar, with its fix link, instead of only a coloured dot; the status text gives way
+  with a tooltip before its link does, and the link is reachable with Tab. A mod's tags and its status line ("Folder
+  missing", "after flora") show at every width, and "Edit as text" keeps its label down to 760 px.
+- Dialogs in the new window (UX pass): a long tick-box label (the New profile dialog's Seamless Co-op line) wraps
+  instead of running off the dialog's edge, and the first field's focus ring is no longer cut by the dialog body.
+- First run in the new window (UX pass): with no profile at all, the Mods page says what a profile is and offers a
+  "Create a profile" button (before: a bare "Pick a profile first." and the only hint was in the top bar). The
+  first-run "Launch" hint waits until Launch can actually start, so it no longer covers the page text.
+- Plainer words in the new window (UX pass): the Launch pill says "Game program missing: eldenring.exe" and
+  names the missing me3 in plain words instead of "game exe set on Tools"; the Mods page calls the second list "DLL
+  mods"; the Remove and Delete confirmations no longer quote profile file syntax ("[[packages]]", ".bak",
+  "load_after"); Profile settings, Versions and an empty "Add existing" end with Close, not Cancel, because there is
+  nothing left to cancel.
 - A rebuild of an engine mod (the overhaul and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.

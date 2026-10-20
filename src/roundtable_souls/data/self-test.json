@@ -21,7 +21,6 @@
     "PySide6.QtQuick",
     "PySide6.QtQuickControls2",
     "PySide6.QtSvg",
-    "qfluentwidgets",
     "alembic",
     "constrata",
     "cryptography",

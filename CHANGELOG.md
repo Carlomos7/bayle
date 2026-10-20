@@ -62,6 +62,15 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Whether the game is running is now decided by its threads, not its memory: a game that is still starting (even one
   held back at launch) counts as running, so saves and mods are not touched while it comes up; only a leftover copy
   with no threads counts as a dead shell.
+- Settings, a first look at the new page: a new button on the Settings page, Open new Settings window, opens
+  Locations (with a saves folder override, per game), Launch, Backups, Appearance, Updates, Logs and About. New
+  settings: how many backups are kept per save (5 to 200, default 20; the last 7 days and any Keep stay), the
+  theme (Dark, Tarnished, Light or System; the older window shows Tarnished as Dark and System as the OS scheme),
+  Effects, Grain and Log level (Verbose writes the fine detail to launcher.log from the next start). Update offers,
+  downloads and Restart now show in both windows and run the same checks as before. Boot boost, Repair saves and
+  Offline play now say what the game does and does not do.
+- Play offline now always turns online play off in its temporary copy of the profile. Before, a profile set to
+  go online (start_online = true) went online during an offline launch.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

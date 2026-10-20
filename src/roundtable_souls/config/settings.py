@@ -157,7 +157,10 @@ class LauncherSettings(BaseModel):
     setup: str | None = None  # Elden Ring's remembered setup; other games keep theirs under `games`
     game: str = "eldenring"  # the tab the window opens on
     games: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-game values for games other than Elden Ring
-    theme: Literal["dark", "light"] = "dark"
+    theme: Literal["dark", "tarnished", "light", "system"] = "dark"  # the Widgets window: tarnished is dark
+    effects: Literal["full", "reduced", "off"] = "full"  # the QML windows' glow, grain and blur
+    grain: Literal["off", "subtle", "film"] = "subtle"
+    log_level: Literal["normal", "verbose"] = "normal"  # verbose: debug lines in launcher.log, from the next start
     logo: Literal["auto", "dark", "light"] = "auto"
     native_configs: dict[str, list[str]] = Field(default_factory=dict)  # DLL path -> settings files tied to it
     parameter_overlays: dict[str, Any] = Field(default_factory=dict)  # profile -> {package, rebuild} set in Options
@@ -192,6 +195,8 @@ class LauncherSettings(BaseModel):
     me3_path: str = ""
     game_exe: str = ""
     me3_profile_dir: str = ""
+    saves_dir: str = ""  # Elden Ring's save-folder override (blank = detect); other games under `games`
+    backups_keep: int = 20  # the newest backups kept per save (5 to 200; saves.backups.keep_newest reads it)
 
     me3_latest: dict[str, Any] | None = None
     me3_latest_checked: float = 0.0
@@ -286,7 +291,7 @@ def save_settings(**changes: Any) -> None:
     change_settings(lambda current: changes)
 
 
-GAME_KEYS = ("setup", "game_exe")  # values each game keeps for itself
+GAME_KEYS = ("setup", "game_exe", "saves_dir")  # values each game keeps for itself
 
 
 def game_setting(settings: LauncherSettings, game: str, key: str, default: Any = None) -> Any:

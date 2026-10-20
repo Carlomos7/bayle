@@ -23,7 +23,9 @@ def main() -> int:
     from roundtable_souls.platform import logging as run_logging
 
     use_data_folder()  # before anything logs: the platform layer is told where the data folder is
-    run_logging.setup_logging()
+    from roundtable_souls.config.settings import load_settings
+
+    run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO")
 
     def crashed(exc_type, exc, tb):  # the window replaces this with one that also shows a message
         run_logging.log_crash(exc_type, exc, tb, "command line")

@@ -1,3 +1,4 @@
 module Shell
+LaunchPill 1.0 LaunchPill.qml
 Rail 1.0 Rail.qml
 TopBar 1.0 TopBar.qml

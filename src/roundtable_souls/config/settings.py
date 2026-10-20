@@ -166,6 +166,7 @@ class LauncherSettings(BaseModel):
     parameter_overlays: dict[str, Any] = Field(default_factory=dict)  # profile -> {package, rebuild} set in Options
     rebuild_approved: list[str] = Field(default_factory=list)  # rebuild tools the user allowed to run
     activity_seen: float = 0.0  # when the Activity page was last looked at: failures after it are counted
+    tips_seen: list[str] = Field(default_factory=list)  # the shell's first-run hints already dismissed
     rail_collapsed: bool = False  # the shell's navigation rail folded to icons (the top bar's menu button)
     launch_mode: str | None = None  # Elden Ring's Launch mode ("profile" | "offline" | "vanilla"); others under `games`
 

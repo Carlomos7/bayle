@@ -248,6 +248,20 @@ class ShellAdapter(QObject):
         save_settings(rail_collapsed=not self._rail_collapsed())
         self.host.settings_changed("rail_collapsed")
 
+    # ---- first-run hints: the ones not dismissed yet (a flyout only for help, never for state)
+    TIPS = ("launch", "rail")
+
+    def _tips(self) -> list:
+        seen = set(self.host.state.settings.tips_seen)
+        return [t for t in self.TIPS if t not in seen] if self.host.state.game.ready else []
+
+    tips = Property(list, _tips, notify=changed)
+
+    @Slot(str)
+    def dismissTip(self, name: str) -> None:
+        save_settings(tips_seen=[*self.host.state.settings.tips_seen, name])
+        self.host.settings_changed("tips_seen")
+
     # ---------------------------------------------------------------- pages
     @Slot(str, result=QUrl)
     def pageUrl(self, name: str) -> QUrl:

@@ -15,7 +15,52 @@ Column {
     property var sections: []
     readonly property var words: adapter.words
 
+    readonly property int total: sections.reduce((n, s) => n + s.rows.length, 0)
+    property string query: ""
+    readonly property string needle: query.trim().toLowerCase()
+    readonly property int matchCount: sections.reduce((n, s) => n + s.rows.filter(r => form.matches(r)).length, 0)
+
+    function matches(r) {
+        return needle === "" || (r.label + " " + r.key + " " + r.blurb + " " + r.help).toLowerCase().indexOf(needle) >= 0;
+    }
+
     spacing: Theme.sp16
+
+    Shortcut {
+        enabled: form.visible && form.total > 8
+        sequence: "Ctrl+F"
+
+        onActivated: find.forceActiveFocus()
+    }
+    Row {  // a big file: find one setting
+        spacing: Theme.sp8
+        visible: form.total > 8
+
+        TextBox {
+            id: find
+
+            Accessible.name: form.words.findSetting
+            implicitWidth: Theme.inputW
+            objectName: "findSetting"
+            placeholderText: form.words.findSetting
+
+            Keys.onEscapePressed: text = ""
+            onTextChanged: findDelay.restart()
+        }
+        Txt {
+            anchors.verticalCenter: parent.verticalCenter
+            Accessible.role: Accessible.AlertMessage
+            kind: "hint"
+            text: form.needle === "" ? "" : form.matchCount === 0 ? form.words.noMatch : form.words.matchCount.replace("{n}", form.matchCount)
+        }
+    }
+    Timer {
+        id: findDelay
+
+        interval: 200
+
+        onTriggered: form.query = find.text
+    }
 
     Repeater {
         model: form.sections
@@ -26,6 +71,7 @@ Column {
             required property var modelData
 
             spacing: Theme.sp8
+            visible: modelData.rows.some(r => form.matches(r))
             width: form.width
 
             Txt {
@@ -50,12 +96,15 @@ Column {
                             required property var modelData
                             property string current: modelData.value
 
+                            readonly property bool edited: form.adapter.changedKeys.indexOf(modelData.section + "|" + modelData.key) >= 0
+
                             divider: index < sectionBlock.modelData.rows.length - 1
                             help: modelData.blurb !== "" ? modelData.blurb : modelData.help
                             objectName: "setting_" + modelData.key
                             showHelpIcon: true
                             title: modelData.label
                             tooltip: modelData.tip !== "" ? modelData.tip : modelData.help
+                            visible: form.matches(modelData)
 
                             function changed(value) {
                                 row.current = value;
@@ -65,6 +114,13 @@ Column {
                             Row {
                                 spacing: Theme.sp8
 
+                                Txt {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Theme.accent
+                                    kind: "caption"
+                                    text: "● " + form.words.changed
+                                    visible: row.edited
+                                }
                                 ToggleSwitch {
                                     anchors.verticalCenter: parent.verticalCenter
                                     checked: row.current === row.modelData.onValue
@@ -122,6 +178,9 @@ Column {
                                 GhostButton {
                                     anchors.verticalCenter: parent.verticalCenter
                                     implicitHeight: Theme.controlSmallH
+                                    ToolTip.delay: Theme.mTooltipDelay
+                                    ToolTip.text: row.modelData.tip
+                                    ToolTip.visible: (hovered || visualFocus) && row.modelData.tip !== ""
                                     text: form.words.reset
                                     visible: row.modelData.tip !== "" && row.modelData.kind !== "readonly"
 

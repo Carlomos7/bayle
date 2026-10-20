@@ -68,25 +68,43 @@ Card {
             leftPadding: Theme.padCard
             rightPadding: Theme.padCard
             elide: Text.ElideRight
-            height: 32
+            height: text !== "" ? 32 : 0   // no empty band; the list takes the room instead
             maximumLineCount: 2
             text: root.card.error !== "" ? root.card.error : root.card.contents
             verticalAlignment: Text.AlignVCenter
+            visible: text !== ""
             width: parent.width
             wrapMode: Text.WordWrap
         }
         ListView {  // all ten slots, empty ones too (they are where a character can be dropped or copied to)
             id: slotList
 
+            activeFocusOnTab: true
             boundsBehavior: Flickable.StopAtBounds
             clip: true
-            height: root.listH
+            height: root.listH + (root.card.error !== "" || root.card.contents !== "" ? 0 : 32)
+            highlight: Rectangle {  // the keyboard focus ring
+                border.color: Theme.accent
+                border.width: 2
+                color: "transparent"
+                visible: slotList.activeFocus
+            }
+            highlightMoveDuration: 0
+            keyNavigationEnabled: true
             model: root.card.slots
             objectName: "slotList"
             width: parent.width
             Accessible.name: root.card.kind
 
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
+                    slotList.contentY = Math.max(0, Math.min(slotList.contentHeight - slotList.height, slotList.contentY + (event.key === Qt.Key_PageDown ? 1 : -1) * slotList.height));
+                    event.accepted = true;
+                }
+            }
             ScrollBar.vertical: ScrollBar {
+                policy: slotList.contentHeight > slotList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff   // the cue that more slots are below
+                width: 8
             }
             delegate: HoverRow {
                 id: row

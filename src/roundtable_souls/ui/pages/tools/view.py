@@ -9,7 +9,6 @@ from ui/window.py as it was; the page's presenter (plain Python, no Qt) comes in
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -32,7 +31,7 @@ from qfluentwidgets import (
 )
 from qfluentwidgets import FluentIcon as FI
 
-from roundtable_souls.config.settings import FROZEN, appimage, is_installed, is_portable
+from roundtable_souls.config.settings import FROZEN
 from roundtable_souls.platform import desktop
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import play as play_service
@@ -59,6 +58,7 @@ from roundtable_souls.services.settings import (
     save_settings,
 )
 from roundtable_souls.services.updates import RELEASES_URL
+from roundtable_souls.ui.pages.settings import presenter as sp
 from roundtable_souls.ui.theme import (
     ACCENT,
     ACCENT_LIGHT,
@@ -84,7 +84,7 @@ class ToolsView:
         self.tools_page, lay = page("toolsPage")
         titled(lay, "Settings", FI.SETTING)
         c, cl = card("Launcher", FI.INFO)
-        self.launcher_line = BodyLabel(f"{TITLE} {VERSION}  \u00b7  {self._install_kind()}")
+        self.launcher_line = BodyLabel(f"{TITLE} {VERSION}  \u00b7  {sp.install_kind()}")
         tone_label(self.launcher_line, "muted")
         self.launcher_line.setWordWrap(True)
         cl.addWidget(self.launcher_line)
@@ -108,15 +108,8 @@ class ToolsView:
         sw.setChecked(bool(self.settings.check_launcher_updates))
         sw.checkedChanged.connect(lambda checked: self._remember_play("check_launcher_updates", checked))
         self.play_sw = {"check_launcher_updates": sw}
-        cl.addWidget(
-            SettingRow(
-                "Check for updates on start",
-                "At most once an hour, from this project's GitHub releases. A notice only; you choose when to install.",
-                sw,
-                "Update now downloads the release, checks its signature and checksum, installs it and restarts. "
-                "Skip hides one version.",
-            )
-        )
+        spec = sp.switch("check_launcher_updates")
+        cl.addWidget(SettingRow(spec.title, spec.blurb, sw, spec.help))
         self.channel_box = ComboBox()
         self.channel_box.addItems(["Stable", "Beta"])
         self.channel_box.setMinimumWidth(140)
@@ -221,86 +214,10 @@ class ToolsView:
                 "off; the launch itself always runs."
             )
         )
-        rows = (
-            (
-                "play_update_merge",
-                "Rebuild merged mods automatically before Play",
-                "When mods, their load order or the game changed, Play rebuilds the merged ones first (combined "
-                "parameters, and a mod's own rebuild tool such as the overhaul's), then starts the game.",
-                "Off: Play asks first (rebuild, or play this once with the previous result); a Steam shortcut "
-                "does not start the game and says why. A failed rebuild keeps the previous result and asks before "
-                "starting. After an automatic rebuild only the newest 3 of a rebuild tool's backups are kept; older "
-                "ones go to the Recycle Bin.",
-            ),
-            (
-                "build_merges",
-                "Build the overhaul in the launcher (preview)",
-                "For a mod the launcher has a config for (the overhaul LITE 0.1.33), a rebuild merges it from its "
-                "own download instead of running its installer: the launcher merges its animations, effects, menu "
-                "text, grace menu and parameters itself, and runs nothing from the download.",
-                "Still being compared with what its installer makes, and not yet checked in game: a preview. Your "
-                "profile is never rewritten, "
-                "OverhaulPrototype.ini keeps your values (a new version only adds its new settings), and one previous "
-                "build is kept in .roundtable-build for Undo rebuild instead of a full backup on every run. Other "
-                "versions still use their own installer. Off: the installer runs, as before.",
-            ),
-            (
-                "overhaul_install",
-                "Install overhauls with the launcher (preview)",
-                mod_service.overhaul_switch_text(self.game.key),
-                "Every change is shown before it happens, and each install or removal can be undone from Activity. "
-                "The launcher keeps a copy of the download and its notes in its own folder in me3's profiles folder; "
-                "the overhaul's own folder stays beside your profile. An overhaul its own installer set up isn't "
-                "changed: remove it first. Off: the button is hidden; nothing installed with it changes.",
-            ),
-            (
-                "play_boot_boost",
-                "Boot boost",
-                "me3 caches the decrypted game archives so the game starts faster.",
-                "Turn off only if a mod misbehaves with the cache; me3 passes --no-boot-boost.",
-            ),
-            (
-                "play_show_logos",
-                "Show intro logos",
-                "Play the publisher logos me3 skips by default.",
-                "Passes --show-logos to me3.",
-            ),
-            (
-                "play_diagnostics",
-                "me3 diagnostics",
-                "Ask me3 for extra diagnostics on this launch (slower start, bigger log).",
-                "Passes --diagnostics; me3's output is kept with that Play in the logs folder.",
-            ),
-            (
-                "play_backup_before",
-                "Back up saves before Play",
-                "A backup of every save before each session, listed under Backups on the Saves page.",
-                "Off by default: the game keeps its own .bak, and each repair makes a copy anyway. Turn it on for a copy before every session. When a backup fails, the game waits: you choose Retry, Launch without backup or Cancel (a Steam shortcut stops unless it has --allow-without-backup).",
-            ),
-            (
-                "play_clear_before",
-                "Clear leftover processes before launch",
-                "Ends dead copies of the game so Steam agrees to start it.",
-                "A dead shell is a copy of the game's exe with no window. Steam refuses to launch while one exists.",
-            ),
-            (
-                "play_repair_after",
-                "Repair saves after quitting",
-                "After me3, puts the save's regulation section back in order. Elden Ring: only save editors need this (the game never reads that section back), so it is off unless you use one. Nightreign: re-signs its encrypted sections; leave it on.",
-                "Each game keeps its own setting. Elden Ring copies regulation.bin into the save so editors can read it; Nightreign never writes Game\\regulation.bin into the save (that file is a different encoding).",
-            ),
-            (
-                "play_clear_after",
-                "Clear leftover processes after quitting",
-                "Ends dead shells so Discord and Steam stop showing the game as running.",
-                "Needs admin once. Turn it off if you prefer to handle processes yourself.",
-            ),
-            (
-                "warn_dead_shells",
-                "Warn about leftover processes",
-                "The bar at the top of the window when a dead copy of the game is found.",
-                "The Clear button on Tools still works with the warning off.",
-            ),
+        rows = tuple(
+            (sw.key, sw.title, sw.blurb, sw.help)
+            for sw in sp.switches(mod_service.overhaul_switch_text(self.game.key), self.game.key)
+            if sw.group == "launch"
         )
         self.play_rows = {}
         for key, title, blurb, help_text in rows:
@@ -379,25 +296,15 @@ class ToolsView:
         sw.setChecked(bool(self.settings.check_me3_updates))
         sw.checkedChanged.connect(lambda checked: self._remember_play("check_me3_updates", checked))
         self.play_sw["check_me3_updates"] = sw
-        cl.addWidget(
-            SettingRow(
-                "Check for me3 updates",
-                "Once a day, from me3's GitHub releases. A notice only; nothing is installed.",
-                sw,
-                "Roundtable Souls never replaces me3 itself: the overhaul setups ship their own copy.",
-            )
-        )
+        spec = sp.switch("check_me3_updates")
+        cl.addWidget(SettingRow(spec.title, spec.blurb, sw, spec.help))
         lay.addWidget(c)
-        offline = ExpandGroupSettingCard(FI.CLOUD, "Offline play", "Solo on the standard save.")
+        offline = ExpandGroupSettingCard(FI.CLOUD, sp.OFFLINE_TITLE, "Solo on the standard save.")
         body = QWidget()
         bl = QVBoxLayout(body)
         bl.setContentsMargins(8, 4, 8, 12)
         bl.setSpacing(4)
-        bl.addWidget(
-            hint(
-                "Starts this setup without Seamless, so the game uses the standard save. Steam still needs to be running; pick Start in Offline Mode if it asks. Co-op needs Steam online."
-            )
-        )
+        bl.addWidget(hint(sp.OFFLINE_BLURB + " " + sp.OFFLINE_HELP))
         self.off_overhaul = SwitchButton()
         self.off_overhaul.setOnText("On")
         self.off_overhaul.setOffText("Off")
@@ -410,29 +317,16 @@ class ToolsView:
         self.off_quiet.setOnText("On")
         self.off_quiet.setOffText("Off")
         self.off_quiet.setChecked(bool(self.settings.offline_skip_confirm))
+        off = {x.key: x for x in sp.switches() if x.group == "offline"}
         self.off_overhaul_row = SettingRow(
-            "Skip the overhaul too",
-            "Leave the overhaul (an Elden Ring mod) off for this launch.",
+            off["offline_strip_overhaul"].title,
+            off["offline_strip_overhaul"].blurb,
             self.off_overhaul,
-            "Turns the overhaul packages and natives off in a temporary copy. Your real profile is not changed.",
+            off["offline_strip_overhaul"].help,
         )
         bl.addWidget(self.off_overhaul_row)
-        bl.addWidget(
-            SettingRow(
-                "Start Steam if needed",
-                "Open Steam before launch if it is not running.",
-                self.off_steam,
-                "Turn this off if Steam is already open. Seamless still stays off.",
-            )
-        )
-        bl.addWidget(
-            SettingRow(
-                "Skip the confirmation",
-                "Go straight to launch next time.",
-                self.off_quiet,
-                "Stops the Play offline prompt. You can turn this back off here.",
-            )
-        )
+        for key, sw in (("offline_start_steam", self.off_steam), ("offline_skip_confirm", self.off_quiet)):
+            bl.addWidget(SettingRow(off[key].title, off[key].blurb, sw, off[key].help))
         for sw in (self.off_overhaul, self.off_steam, self.off_quiet):
             sw.checkedChanged.connect(self._remember_offline)
         row = QHBoxLayout()
@@ -549,16 +443,6 @@ class ToolsView:
 
         self.jobs.start(work, on_result=self._on_me3)
 
-    @staticmethod
-    def _install_kind() -> str:
-        if not FROZEN:
-            return "running from source"
-        if is_installed():
-            return "installed"
-        if is_portable():
-            return "portable"
-        return "AppImage" if appimage() else "not installed"
-
     def _check_launcher_update(self, force=False):
         def work(_progress):
             try:
@@ -580,114 +464,64 @@ class ToolsView:
         self._offered = None
         self._check_launcher_update(force=True)
 
-    def _launcher_status(self, check) -> tuple[str, str]:
-        """The Settings line: version, kind of copy, and what the last check found (never 'up to date' after a check
-        that failed)."""
-        parts = [f"{TITLE} {VERSION}", self._install_kind()]
-        if self.settings.launcher_channel == "beta":
-            parts.append("beta channel")
-        tone = "muted"
-        if check.offer:
-            parts.append(f"{check.offer['version']} is available")
-            tone = "accent"
-        elif check.failed or check.status == "waiting":
-            parts.append(f"could not check: {check.reason}" if check.reason else "could not check")
-            tone = "warning"
-        elif check.status == "off":
-            parts.append("update checks off")
-        else:
-            parts.append("up to date")
-        if check.checked:
-            same_day = time.strftime("%Y%m%d", time.localtime(check.checked)) == time.strftime("%Y%m%d")
-            stamp = time.strftime("%H:%M" if same_day else "%d %b %H:%M", time.localtime(check.checked))
-            parts.append(f"last checked {stamp}")
-        return "  ·  ".join(parts), tone
-
     def _on_update(self, payload):
         check, advisory, force = payload["check"], payload.get("advisory"), payload.get("force")
-        text, tone = self._launcher_status(check)
+        text, tone = sp.launcher_status(check, self.settings.launcher_channel)
         self.launcher_line.setText(text)
         tone_label(self.launcher_line, tone)
         if advisory:
             self._show_advisory(advisory, check.offer)
-        if force:
-            if check.failed:
-                later = (
-                    f" The next automatic check is after {time.strftime('%H:%M', time.localtime(check.retry_at))}."
-                    if check.retry_at
-                    else ""
-                )
-                self._toast("Could not check", f"{check.reason}.{later}", error=True)
-            elif check.blocked:
-                self._toast(
-                    "Not offered again",
-                    f"{check.blocked} failed to start here and was undone. A newer release will be offered.",
-                    info=True,
-                )
-            elif not check.offer:
-                self._toast("Up to date", f"{TITLE} {VERSION} is the latest release.", info=True)
+        said = sp.check_toast(check) if force else None
+        if said:
+            self._toast(said[0], said[1], error=said[2] == "error", info=said[2] == "info")
         if check.offer and check.offer["version"] != self._offered:
             self._offer_update(check.offer)
+
+    def _show_notice(self, n):
+        """A presenter notice as a Widgets notice; its buttons run through _notice_action."""
+        icons = {"download": FI.DOWNLOAD, "releases": FI.LINK, "details": FI.LINK, "again": FI.UPDATE}
+        box = []
+        buttons = []
+        for a in n.actions:
+            b = primary_btn(a.label) if a.primary else ghost_btn(a.label, icons.get(a.key))
+            if a.tip:
+                b.setToolTip(a.tip)
+            b.clicked.connect(lambda _=False, a=a: self._notice_action(a, box[0]))
+            buttons.append(b)
+        bar = notice(self, n.level, n.title, n.body, actions=buttons, closable=n.closable)
+        box.append(bar)
+        return bar
+
+    def _notice_action(self, a, bar):
+        if a.url:
+            desktop.open_path(a.url)
+        elif a.key == "update":
+            self._start_update(self._offer_info, bar)
+        elif a.key == "skip":
+            feed.skip_update(self._offer_info["version"])
+            bar.close()
+        elif a.key == "restart":
+            self._restart_updated(self._prepared)
+        elif a.key == "later":
+            bar.close()
+        elif a.key == "again":
+            self._check_launcher_update(force=True)
 
     def _show_advisory(self, advisory, offer):
         """The project asks everyone below a version to update (advisory.json on main). A notice only."""
         if getattr(self, "_advisory_shown", False):
             return
         self._advisory_shown = True
-        msg = advisory.get("message") or "This version has a known problem."
-        target = f" Update to {offer['version']}." if offer else " Update to the newest release."
-        go = ghost_btn("Details", FI.LINK)
-        go.clicked.connect(lambda: desktop.open_path(advisory.get("url") or RELEASES_URL))
-        notice(self, "warning", f"{TITLE} {VERSION} should be updated", msg + target, actions=(go,))
+        self._show_notice(sp.advisory_notice(advisory, offer))
 
     def _offer_update(self, info):
-        version = info["version"]
-        self._offered = version
-        signed = updates.can_self_update(info)
-        can_apply = FROZEN and signed
-        if can_apply:
-            go = primary_btn("Update now")
-            go.setToolTip("Download it, check its signature and checksum, install it and restart.")
-        else:
-            go = ghost_btn("Download", FI.DOWNLOAD)
-            go.setToolTip(
-                "Open the releases page in the browser."
-                if signed or not FROZEN
-                else "This copy cannot update itself (or the release has no signed feed): install it from the "
-                "releases page."
-            )
-        notes = ghost_btn("Notes")
-        notes.setToolTip("The full release notes, on GitHub.")
-        notes.clicked.connect(lambda: desktop.open_path(info.get("url") or RELEASES_URL))
-        skip = ghost_btn("Skip this version")
-        skip.setToolTip("Do not mention this version again; the next one will show.")
-        summary = feed.release_notes(info.get("notes", ""), lines=4)
-        how = (
-            "One click, then a restart. Settings stay."
-            if can_apply
-            else "Get it from the releases page. Settings stay."
-        )
-        kind = "pre-release " if info.get("prerelease") else ""
-        bar = notice(
-            self,
-            "info",
-            f"{TITLE} {kind}{version} is available",
-            f"{summary}\n\n{how}" if summary else how,
-            actions=(go, notes, skip),
-        )
-        if can_apply:
-            go.clicked.connect(lambda: self._start_update(info, bar))
-        else:
-            go.clicked.connect(lambda: desktop.open_path(info.get("url") or RELEASES_URL))
-        skip.clicked.connect(lambda: (feed.skip_update(version), bar.close()))
+        self._offered = info["version"]
+        self._offer_info = info
+        self._show_notice(sp.offer_notice(info, FROZEN))
 
     def _cannot_update(self) -> str:
         """Why the program cannot be replaced now, or ''."""
-        if self.game_running:
-            return f"Close {self.game.name} first."
-        if self.busy:
-            return "Wait for the current job."
-        return updates.busy_reason()
+        return sp.cannot_update(self.game_running, self.game.name, self.busy, updates.busy_reason())
 
     def _start_update(self, info, bar):
         why = self._cannot_update()
@@ -695,8 +529,8 @@ class ToolsView:
             self._toast("Cannot update now", why, error=True)
             return
         bar.close()
-        self._update_bar = notice(self, "info", f"Downloading {TITLE} {info['version']}", "Starting...", closable=False)
         version = info["version"]
+        self._update_bar = self._show_notice(sp.downloading_notice(version))
 
         def work(report):
             def progress(done, total):
@@ -731,23 +565,10 @@ class ToolsView:
             self._update_bar = None
         if result.get("error"):
             self._offered = None  # the next check offers it again
-            notice(self, "error", "Update not applied", result["error"])
+            self._show_notice(sp.failed_notice(result["error"]))
             return
-        prepared = result["prepared"]
-        go = primary_btn("Restart now")
-        later = ghost_btn("Later")
-        later.setToolTip("Keep using this version; the download is kept and the notice returns next time.")
-        kind = "an update of" if prepared.delta else "the full"
-        bar = notice(
-            self,
-            "success",
-            f"{TITLE} {result['version']} is ready",
-            f"Checked: signature and {kind} package. Restart to finish; if it does not start, this version comes "
-            "back by itself.",
-            actions=(go, later),
-        )
-        go.clicked.connect(lambda: self._restart_updated(prepared))
-        later.clicked.connect(bar.close)
+        self._prepared = result["prepared"]
+        self._show_notice(sp.ready_notice(result["version"], bool(self._prepared.delta)))
 
     def _restart_updated(self, prepared):
         why = self._cannot_update()
@@ -771,52 +592,20 @@ class ToolsView:
         """How the last update went, shown once."""
         if not result:
             return
-        status, version = result.get("status"), result.get("version", "")
         updates.clear_outcome()
-        if status == "ok":
-            was = f" (was {result['from']})" if result.get("from") else ""
-            self._toast("Updated", f"{TITLE} {version} is running{was}.")
+        n = sp.outcome_notice(result)
+        if n is None:
+            title, body = sp.outcome_ok_text(result)
+            self._toast(title, body)
             return
         self._offered = None
-        releases = ghost_btn("Releases", FI.LINK)
-        releases.clicked.connect(lambda: desktop.open_path(RELEASES_URL))
-        actions = [releases]
-        if status == "rolled_back":
-            title = f"{TITLE} {version} did not start; this version was put back"
-            detail = (
-                f"{version} {result.get('error') or 'did not start'}. It is not offered again; a newer release will "
-                "be. Your settings and data were not touched."
-            )
-        else:
-            title = f"The update to {TITLE} {version} did not finish"
-            detail = result.get("error") or ""
-            again = ghost_btn("Try again", FI.UPDATE)
-            again.clicked.connect(lambda: self._check_launcher_update(force=True))
-            actions.insert(0, again)
-        notice(self, "error", title, detail, actions=actions)
+        self._show_notice(n)
 
     def _on_migration(self, record):
         """The move from the old (Inno Setup) install, reported once per state."""
-        if not record:
-            return
-        status = record.get("status")
-        if status == "waiting":
-            notice(self, "warning", "The old Roundtable Souls is still open", record.get("reason", ""))
-        elif status == "failed":
-            notice(self, "error", "The old install could not be removed", record.get("reason", ""))
-        elif status in ("done", "steam_pending"):
-            steam = record.get("steam_changed") or []
-            lines = [
-                f"The old install ({record.get('old_version') or 'Inno Setup'}) was removed; settings, logs and "
-                "backups stayed where they were.",
-                "Start menu shortcut updated"
-                + (" and desktop shortcut recreated." if record.get("had_desktop") else "."),
-            ]
-            if steam:
-                lines.append(f"Steam shortcuts now start this copy: {', '.join(steam)}.")
-            if status == "steam_pending":
-                lines.append("Close Steam, then Settings > Steam shortcut > Point Steam shortcuts here.")
-            notice(self, "success" if status == "done" else "warning", "Moved to the new installer", "\n".join(lines))
+        n = sp.migration_notice(record)
+        if n is not None:
+            self._show_notice(n)
 
     def _point_steam_shortcuts(self):
         def work(_progress):
@@ -846,27 +635,18 @@ class ToolsView:
             self.ctx.reload_settings()
         if getattr(self, "_conf_result", None):  # the Load order card may need the version note
             self._fill_conflicts(self._conf_result)
-        if f.get("error"):
-            self.me3_line.setText(f"me3: {f['error']}")
+        line = sp.me3_line(f)
+        self.me3_line.setText(line.text)
+        if line.error:
             return
-        v = f.get("version")
-        latest = (f.get("latest") or {}).get("version")
-        text = f"me3 {v}" if v else "me3 version unknown"
-        if f.get("update") and latest:
-            text += f"  \u00b7  {latest} is available"
-        elif v and latest:
-            text += "  \u00b7  up to date"
-        self.me3_line.setText(text)
-        tone_label(self.me3_line, "accent" if f.get("update") else "muted")
-        self.me3_line.setToolTip(f.get("path") or "")
-        info = f.get("info") or {}
-        where = info.get("install_prefix") or (str(Path(f["path"]).parent) if f.get("path") else "")
-        self.me3_dir_btn.setEnabled(bool(where and Path(where).is_dir()))
-        self.me3_dir_btn.setToolTip(where or "me3 was not found")
-        self.me3_logs_btn.setEnabled(bool(info.get("logs_dir")))
-        self.me3_prof_btn.setEnabled(bool(info.get("profile_dir")))
-        self.me3_logs_btn.setToolTip(info.get("logs_dir") or "me3 info did not report a logs folder")
-        self.me3_prof_btn.setToolTip(info.get("profile_dir") or "")
+        tone_label(self.me3_line, line.tone)
+        self.me3_line.setToolTip(line.path)
+        self.me3_dir_btn.setEnabled(bool(line.folder))
+        self.me3_dir_btn.setToolTip(line.folder or "me3 was not found")
+        self.me3_logs_btn.setEnabled(bool(line.logs))
+        self.me3_prof_btn.setEnabled(bool(line.profiles))
+        self.me3_logs_btn.setToolTip(line.logs or "me3 info did not report a logs folder")
+        self.me3_prof_btn.setToolTip(line.profiles)
         self._update_plan()
 
     def _remember_play(self, key, checked):

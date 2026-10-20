@@ -21,6 +21,7 @@ class Notifier(QObject):
     confirmRequested = Signal(int, str, list, str, str, bool)
     toastActionRequested = Signal(str, bool, str, int)  # text, is an error, the action's words, token
     confirmFullRequested = Signal(int, dict)  # token, the words (see ask)
+    chooseRequested = Signal(int, dict)  # token, the words (see choose)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -29,6 +30,7 @@ class Notifier(QObject):
         self._waiting: dict[int, Callable[[bool], None]] = {}
         self._full: dict[int, Callable[[bool, bool], None]] = {}
         self._actions: dict[int, Callable[[], None]] = {}
+        self._choosing: dict[int, Callable[[str], None]] = {}
         self._next = 0
 
     # ---- the status text
@@ -98,6 +100,40 @@ class Notifier(QObject):
         if call is not None:
             call(ok, option_on)
 
+    # ---- a fork with named choices (Retry / Launch without backup / Cancel)
+    def choose(
+        self,
+        title: str,
+        lines: list[str] | tuple[str, ...],
+        choices: list[tuple[str, str, str]] | tuple[tuple[str, str, str], ...],
+        on_answer: Callable[[str], None],
+        warning: str = "",
+        safety: str = "",
+        cancel: str = "cancel",
+    ) -> int:
+        """Ask which way to go. choices: (key, label, role) in order, role "primary" | "danger" | "normal", Cancel
+        last; on_answer(key) gets the chosen key, or `cancel` when the dialog is closed (Esc)."""
+        self._next += 1
+        self._choosing[self._next] = on_answer
+        self.chooseRequested.emit(
+            self._next,
+            {
+                "title": title,
+                "lines": list(lines),
+                "choices": [{"key": k, "label": label, "role": role} for k, label, role in choices],
+                "warning": warning,
+                "safety": safety,
+                "cancel": cancel,
+            },
+        )
+        return self._next
+
+    @Slot(int, str)
+    def chosen(self, token: int, key: str) -> None:
+        call = self._choosing.pop(token, None)
+        if call is not None:
+            call(key)
+
     # ---- the confirmation dialog
     def confirm(
         self,
@@ -122,4 +158,4 @@ class Notifier(QObject):
 
     def waiting(self) -> int:
         """How many confirmations are still unanswered."""
-        return len(self._waiting) + len(self._full)
+        return len(self._waiting) + len(self._full) + len(self._choosing)

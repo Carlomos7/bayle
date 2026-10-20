@@ -83,7 +83,78 @@ class ProfileTransferPresenter:
             ),
             "newFile": tr("New file"),
             "openZipFolder": tr("Open the zip's folder"),
+            "cancelExport": tr("Cancel export"),
+            "cancelling": tr("Cancelling..."),
+            "showInFolder": tr("Show in folder"),
+            "required": tr("Required"),
+            "tickOne": tr("Tick at least one mod."),
+            "reading": tr("Working on it. A big zip can take a minute..."),
         }
+
+    def seconds(self, s: float) -> str:
+        s = int(round(s))
+        if s < 60:
+            return tr("{n} s").format(n=max(1, s))
+        m, s = divmod(s, 60)
+        return tr("{m} min {s} s").format(m=m, s=s) if m < 60 else tr("{h} h {m} min").format(h=m // 60, m=m % 60)
+
+    def summary(self, full: bool, n: int, size: int, configs: bool, save: bool, password: bool) -> str:
+        yes, no = tr("yes"), tr("no")
+        pw = yes if password and configs else no
+        if not full:
+            return tr("One small file: {mods}, settings files {c}, password {p}.").format(
+                mods=plural("{n} mod", "{n} mods", n).format(n=n), c=yes if configs else no, p=pw
+            )
+        return tr("The zip will hold {mods}, about {size}. Settings files: {c}. Save: {s}. Password: {p}.").format(
+            mods=plural("{n} mod", "{n} mods", n).format(n=n),
+            size=size_text(size),
+            c=yes if configs else no,
+            s=yes if save else no,
+            p=pw,
+        )
+
+    def reason(self, name_ok: bool, folder_ok: bool, mods_ok: bool, busy: str) -> str:
+        """Why Export is off, in one line ("" when it is on)."""
+        if busy:
+            return busy
+        if not name_ok:
+            return tr("Give the export a name.")
+        if not folder_ok:
+            return tr("Choose an output folder.")
+        return "" if mods_ok else tr("Tick at least one mod.")
+
+    def big_warning(self, total: int, biggest: list[tuple[str, int]]) -> str:
+        names = ", ".join(f"{n} ({size_text(sz)})" for n, sz in biggest)
+        return tr(
+            "This export is about {size}. The biggest: {names}. Untick mods your friend already has to make it smaller."
+        ).format(size=size_text(total), names=names)
+
+    def confirm_big(self, total: int) -> tuple[str, list[str]]:
+        t = self.seconds(total / (pt.EXPORT_MBPS * 1024**2))
+        return tr("Export a big file?"), [
+            tr("The zip will be about {size}. This may take around {t}.").format(size=size_text(total), t=t)
+        ]
+
+    def progress(self, done: int, total: int, n: int, count: int, elapsed: float) -> dict:
+        pct = int(100 * done / total) if total else 0
+        left = elapsed / done * (total - done) if done and elapsed >= 2 else -1
+        return {
+            "pct": pct,
+            "title": tr("{pct}%  ·  file {n} of {count}").format(pct=pct, n=n, count=count),
+            "bytes": tr("{done} of {total}").format(done=size_text(done), total=size_text(total)),
+            "eta": tr("About {t} left").format(t=self.seconds(left))
+            if left >= 0
+            else tr("Working out the time left..."),
+        }
+
+    def done_text(self, path: Path, size: int, took: float) -> str:
+        return tr("Done: {name} ({size}, took {t}).").format(name=path.name, size=size_text(size), t=self.seconds(took))
+
+    def cancelled(self) -> str:
+        return tr("Export cancelled. Nothing was written.")
+
+    def failed(self, why: str) -> str:
+        return tr("The export did not finish: {why} Nothing was written.").format(why=why.rstrip(".") + ".")
 
     # ---- export
     def total(self, picked: int, size: int) -> str:

@@ -32,6 +32,8 @@ PageScroll {
         function onDialogRequested(which, index) {
             if (which === "options")
                 modOptions.openFor(index);
+            else if (which === "rename")
+                renameMod.openFor(index);
             else if (which === "profile-settings")
                 profileSettings.openNow();
             else if (which === "versions")
@@ -47,6 +49,11 @@ PageScroll {
     }
     ModOptionsDialog {
         id: modOptions
+
+        adapter: page.adapter
+    }
+    RenameDialog {
+        id: renameMod
 
         adapter: page.adapter
     }

@@ -257,8 +257,8 @@ def launcher_status(check, channel: str) -> tuple[str, str]:
     return "  ·  ".join(parts), tone
 
 
-def check_toast(check) -> tuple[str, str, str] | None:
-    """What a check the user asked for says: (title, body, kind) with kind error | info; None when an offer follows."""
+def check_toast(check, channel: str = "stable") -> tuple[str, str, str]:
+    """What a check the user asked for says: (title, body, kind) with kind error | info."""
     if check.failed:
         later = (
             " "
@@ -280,10 +280,16 @@ def check_toast(check) -> tuple[str, str, str] | None:
     if not check.offer:
         return (
             tr("Up to date"),
-            tr("{title} {version} is the latest release.").format(title=TITLE, version=VERSION),
+            tr("{version} is the newest on the {channel} channel").format(
+                version=VERSION, channel=tr("Beta") if channel == "beta" else tr("Stable")
+            ),
             "info",
         )
-    return None
+    return (
+        tr("Update available"),
+        tr("{version} is ready to download in Settings.").format(version=check.offer["version"]),
+        "info",
+    )
 
 
 @dataclass(frozen=True)

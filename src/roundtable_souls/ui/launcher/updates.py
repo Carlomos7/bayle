@@ -33,6 +33,7 @@ class UpdateFlow:
         self._cannot, self._restart, self._open_url = cannot_update, restart, open_url
         self.line = ""
         self.tone = "muted"
+        self.checking = False  # a check the user asked for is running (the button waits)
         self.notices: dict[str, sp.UpdateNotice] = {}
         self._offered: str | None = None  # the version the notice shows
         self._offer_info: dict | None = None
@@ -43,7 +44,7 @@ class UpdateFlow:
 
     # ---- what the Settings page reads
     def state(self) -> dict:
-        return {"line": self.line, "tone": self.tone, "notices": list(self.notices.values())}
+        return {"line": self.line, "tone": self.tone, "checking": self.checking, "notices": list(self.notices.values())}
 
     def watch(self, call: Callable[[], None]) -> None:
         self._listeners.append(call)
@@ -57,6 +58,12 @@ class UpdateFlow:
 
     # ---- checking
     def check(self, force: bool = False) -> None:
+        if force:
+            if self.checking:
+                return
+            self.checking, self.line, self.tone = True, tr("Checking for updates..."), "muted"
+            self._notify()
+
         def work(_progress):
             try:
                 check = feed.check_launcher_update(force=force)
@@ -80,12 +87,14 @@ class UpdateFlow:
 
     def _checked(self, payload) -> None:
         check, advisory, force = payload["check"], payload.get("advisory"), payload.get("force")
-        self.line, self.tone = sp.launcher_status(check, self._settings().launcher_channel)
+        self.checking = False
+        channel = self._settings().launcher_channel
+        self.line, self.tone = sp.launcher_status(check, channel)
         self._notify()
         if advisory and not self._advisory_shown:
             self._advisory_shown = True
             self._show(sp.advisory_notice(advisory, check.offer))
-        said = sp.check_toast(check) if force else None
+        said = sp.check_toast(check, channel) if force else None
         if said:
             self._toast(said[0], said[1], said[2])
         if check.offer and check.offer["version"] != self._offered:

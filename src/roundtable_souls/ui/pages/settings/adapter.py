@@ -230,6 +230,7 @@ class SettingsAdapter(QObject):
     launcherLine = Property(
         str, lambda self: self._update.get("line") or self._values["launcher_line"], notify=updatesChanged
     )
+    updateChecking = Property(bool, lambda self: bool(self._update.get("checking")), notify=updatesChanged)
     launcherTone = Property(str, lambda self: self._update.get("tone", "muted"), notify=updatesChanged)
     me3Text = Property(str, lambda self: self._me3.text, notify=me3Changed)
     me3Tone = Property(str, lambda self: self._me3.tone, notify=me3Changed)

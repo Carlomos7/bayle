@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Export / Import: name and readme start over when the top bar's profile changes, and the name, version and author fields wrap at narrow widths.
 - Check & repair: plainer words for mod items and leftover entries.
 - Activity: a failed job's row says what went wrong in plain words (the log keeps the original text).
 - Settings: long paths keep the drive and file name (the middle is cut), the Steam shortcut buttons stack at narrow widths, and "dead copy" became "leftover game process".

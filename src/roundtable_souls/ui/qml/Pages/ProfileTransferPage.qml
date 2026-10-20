@@ -158,8 +158,9 @@ PageScroll {
             width: parent ? parent.width : 0
             wrapMode: Text.WordWrap
         }
-        Row {
+        Flow {  // wraps at narrow widths
             spacing: Theme.sp12
+            width: parent ? parent.width : 0
 
             Column {
                 spacing: Theme.sp4

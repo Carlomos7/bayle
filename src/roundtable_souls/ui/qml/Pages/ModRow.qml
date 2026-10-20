@@ -162,6 +162,11 @@ Item {
 
                 onTriggered: holder.adapter.moveBy(holder.entryIndex, 1000)
             }
+            MenuEntry {
+                text: holder.words.rename
+
+                onTriggered: holder.adapter.openRename(holder.entryIndex)
+            }
         }
         Item {  // the grip at x 16
             anchors.left: parent.left

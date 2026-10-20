@@ -91,11 +91,65 @@ PageScroll {
         visible: page.mode === "export" && page.s.hasProfile
         width: parent ? parent.width : 0
 
+        Card {  // a running export: progress, what file, how long, Cancel
+            objectName: "exportRun"
+            visible: page.s.ex.run.phase === "running"
+            width: parent ? parent.width : 0
+
+            Column {
+                spacing: Theme.sp8
+                width: parent ? parent.width : 0
+
+                Txt {
+                    kind: "strong"
+                    text: page.s.ex.run.title || page.words.exporting
+                }
+                ProgressBar {
+                    objectName: "exportProgress"
+                    value: (page.s.ex.run.pct || 0) / 100
+                    width: parent ? parent.width : 0
+                }
+                Txt {
+                    color: Theme.textSecondary
+                    kind: "caption"
+                    text: page.s.ex.run.file || ""
+                    width: parent ? parent.width : 0
+                }
+                Txt {
+                    color: Theme.textSecondary
+                    kind: "caption"
+                    text: (page.s.ex.run.bytes || "") + (page.s.ex.run.eta ? "  ·  " + page.s.ex.run.eta : "")
+                }
+                GhostButton {
+                    enabled: !page.s.ex.run.cancelling
+                    objectName: "cancelExport"
+                    text: page.s.ex.run.cancelling ? page.words.cancelling : page.words.cancelExport
+
+                    onClicked: page.adapter.cancelExport()
+                }
+            }
+        }
+        Repeater {  // how the last export ended: a new bar each time, so a closed one comes back
+            model: ["done", "error", "cancelled"].indexOf(page.s.ex.run.phase) >= 0 ? [page.s.ex.run] : []
+
+            InfoBar {
+                required property var modelData
+
+                actionLabel: modelData.phase === "done" ? page.words.showInFolder : ""
+                objectName: "exportResult"
+                severity: modelData.phase === "done" ? "success" : modelData.phase === "error" ? "error" : "info"
+                text: modelData.text
+                width: exportView.width
+
+                onActionClicked: page.adapter.showExport()
+                onClosed: page.adapter.dismissRun()
+            }
+        }
         TabRow {
             id: kindTabs
 
             objectName: "kindTabs"
-            tabs: [page.words.shareList, page.words.fullExport]
+            tabs: [page.words.shareList, page.s.ex.fullLabel]
 
             onCurrentChanged: page.adapter.setText("kind", current === 1 ? "full" : "list")
         }
@@ -117,11 +171,22 @@ PageScroll {
             Column {
                 spacing: Theme.sp4
 
-                Txt {
-                    kind: "caption"
-                    text: page.words.name
+                Row {
+                    spacing: Theme.sp8
+
+                    Txt {
+                        kind: "caption"
+                        text: page.words.name
+                    }
+                    Txt {
+                        color: Theme.statusDanger
+                        kind: "caption"
+                        text: page.words.required
+                        visible: page.s.ex.nameError
+                    }
                 }
                 TextBox {
+                    error: page.s.ex.nameError
                     objectName: "exportName"
                     text: page.s.ex.name
 
@@ -185,11 +250,17 @@ PageScroll {
 
                             onToggled: page.adapter.toggleMod(modRow.modelData.key, checked)
                         }
+                        Pill {
+                            anchors.verticalCenter: parent.verticalCenter
+                            level: modRow.modelData.large ? "warning" : "muted"
+                            text: modRow.modelData.size
+                        }
                         Txt {
                             anchors.verticalCenter: parent.verticalCenter
                             color: Theme.textSecondary
                             kind: "caption"
-                            text: modRow.modelData.size + (modRow.modelData.note !== "" ? "  ·  " + modRow.modelData.note : "")
+                            text: modRow.modelData.note
+                            visible: text !== ""
                         }
                     }
                 }
@@ -197,6 +268,12 @@ PageScroll {
                     color: Theme.textSecondary
                     kind: "caption"
                     text: page.s.ex.total
+                }
+                Txt {
+                    color: Theme.statusDanger
+                    kind: "caption"
+                    text: page.words.tickOne
+                    visible: page.s.ex.modsError
                 }
             }
         }
@@ -316,7 +393,24 @@ PageScroll {
                 }
             }
         }
-        Row {  // the footer: output folder, Export
+        Txt {
+            color: Theme.textSecondary
+            elide: Text.ElideNone
+            kind: "caption"
+            objectName: "exportSummary"
+            text: page.s.ex.summary
+            width: parent ? parent.width : 0
+            wrapMode: Text.WordWrap
+        }
+        InfoBar {  // a big export: the size and what is biggest
+            closable: false
+            objectName: "exportWarn"
+            severity: "warning"
+            text: page.s.ex.warn
+            visible: page.s.ex.warn !== ""
+            width: parent ? parent.width : 0
+        }
+        Row {  // the footer: output folder, Export, and why it is off
             spacing: Theme.sp12
 
             GhostButton {
@@ -331,6 +425,14 @@ PageScroll {
                 text: page.adapter.working ? page.words.exporting : page.words.export
 
                 onClicked: page.adapter.exportNow()
+            }
+            Txt {
+                anchors.verticalCenter: parent.verticalCenter
+                color: page.s.ex.nameError || page.s.ex.folderError || page.s.ex.modsError ? Theme.statusDanger : Theme.textSecondary
+                kind: "caption"
+                objectName: "exportReason"
+                text: page.s.ex.reason
+                visible: text !== "" && !page.adapter.working
             }
         }
     }
@@ -365,6 +467,12 @@ PageScroll {
                 kind: "strong"
                 text: page.s.imp.file
             }
+        }
+        Txt {
+            color: Theme.textSecondary
+            kind: "caption"
+            text: page.words.reading
+            visible: page.adapter.working
         }
         Txt {
             color: Theme.statusDanger

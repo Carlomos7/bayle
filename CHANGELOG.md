@@ -4,6 +4,18 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves, a first look at the new page: a button on the Saves page, Open new Saves window, shows the two live saves
+  (Standard first) with their characters, the Library and the Backups grouped by day. A character's menu copies it into
+  any slot of either save (or duplicates it in the same file); a save's menu backs it up, saves a copy to the Library,
+  or replaces it with a file or a Library copy (the old file is kept first); Import takes a .sl2 or .co2 from disk
+  or dropped on the page. Check & repair opens beside the page with the findings in cards, and a click on a
+  character opens its sheet (read-only for now). Every write waits for the game to let go of the file, backs up
+  first and offers Undo in a toast and in Activity. A whole file from another Steam account is signed for the
+  account it goes into (profile summary, every character, all checksums) and read back before anything is written;
+  this has not been tested in the game yet.
+- Saves, in both windows: the repair notes for a stale character or profile-summary checksum now say what the game
+  does with it (it refuses the save as corrupted), and every save write waits for the game to release the file and
+  stops, with a message, if it does not.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

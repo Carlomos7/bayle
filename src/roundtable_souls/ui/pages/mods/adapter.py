@@ -14,7 +14,9 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from roundtable_souls.mods import conflicts as mod_overview
 from roundtable_souls.mods import profile_edit
+from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import adopt as adopt_service
+from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import profile_mods
 from roundtable_souls.ui.models import RowsModel, plain
@@ -230,12 +232,17 @@ class ModsAdapter(QObject):
         profile = self.host.profile
         self._loading = True
         self.loadingChanged.emit()
+        setup = self.host.setup
         loc, settings, game = self.host.locations, self.host.settings, self.host.game
         recover = not self.host.busy  # a running job holds the folder: nothing of it is interrupted
 
         def work():
             if profile is None or not Path(profile).is_file():
                 return None, None, None, None, (), (False, None, False), (None, False)
+            try:
+                self._seamless_found = coop_service.game_folder_seamless(setup) if setup is not None else None
+            except OSError:
+                self._seamless_found = None
             recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
             facts = profile_mods.page_facts(profile, loc=loc, settings=settings)
             try:
@@ -288,6 +295,7 @@ class ModsAdapter(QObject):
             tool_to_allow=self._tool,
             recovered=self._recovered,
             adopt=self._adopt[0].folder.name if self._adopt[0] is not None and self._adopt[1] else "",
+            seamless=self._seamless_found.kind if getattr(self, "_seamless_found", None) else "",
         )
         groups = {g.kind: g for g in self._state.groups}
         self._packages.set_rows([_row(r) for r in (groups["package"].rows if "package" in groups else ())])
@@ -582,6 +590,54 @@ class ModsAdapter(QObject):
             self.setSetting("start_online", 2)  # Online matchmaking off: a Version, with Undo
         elif key == "adopt":
             self.adoptIntoLibrary()
+        elif key == "seamless":
+            self._seamless_action()
+
+    def _seamless_action(self) -> None:
+        """Move Seamless Co-op from the game folder into this profile, or clean up what it left there (a job; the
+        files go to the Recycle Bin, the profile's own copy and the settings file in use are never touched)."""
+        found, setup = getattr(self, "_seamless_found", None), self.host.setup
+        if found is None or setup is None or self.host.busy or self.host.game_running:
+            return
+        move = found.kind == "move"
+        changes = [
+            tr("{n} file(s) in {folder} {what}").format(
+                n=len(found.files),
+                folder=found.folder,
+                what=tr("move into this profile, settings included") if move else tr("go to the Recycle Bin"),
+            )
+        ]
+        if found.launcher is not None:
+            changes.append(
+                tr("{name}, Seamless Co-op's own launcher, goes to the Recycle Bin").format(name=found.launcher.name)
+            )
+
+        def answered(ok: bool) -> None:
+            if not ok:
+                return
+
+            def job(_setup, _loc):
+                run_logging.start_log("launcher: seamless co-op in the game folder", setup.game.key)
+                try:
+                    if move:
+                        coop_service.move_seamless_into_setup(setup, found, run_logging.log)
+                    else:
+                        coop_service.clean_up_game_folder_seamless(setup, found, run_logging.log)
+                except Exception as e:
+                    run_logging.log(f"error: {e}")
+                    raise SystemExit(1) from e
+
+            self.host.run_job(job, tr("Moving Seamless Co-op...") if move else tr("Cleaning up the game folder..."))
+
+        self.notifier.confirm(
+            tr("Move Seamless Co-op into this profile?") if move else tr("Clean up the game folder?"),
+            changes,
+            tr("The profile is written first with a Version you can undo; if that fails, nothing moves.")
+            if move
+            else tr("Your profile's own copy is not touched."),
+            tr("Move") if move else tr("Clean up"),
+            answered,
+        )
 
     @Slot()
     def copyFingerprint(self) -> None:

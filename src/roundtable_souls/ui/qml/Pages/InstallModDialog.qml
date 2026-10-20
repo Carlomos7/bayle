@@ -300,6 +300,110 @@ ModalDialog {
                 onToggled: dlg.inst.setAfterLast(checked)
             }
         }
+        Column {  // the overhaul option (S3g), only while the preview switch is on
+            id: optionCol
+
+            readonly property var option: dlg.v.option || ({})
+
+            spacing: Theme.sp4
+            visible: !!option.shown
+            width: parent.width
+
+            Hairline {
+                endInset: 0
+                inset: 0
+            }
+            CheckRow {
+                checked: !!optionCol.option.ticked
+                enabled: !optionCol.option.locked
+                objectName: "installOverhaul"
+                text: dlg.w.overhaulOption
+
+                onToggled: dlg.inst.setOverhaul(checked)
+            }
+            Row {
+                leftPadding: 30
+                spacing: Theme.gapInline
+                width: parent.width
+
+                Pill {
+                    id: badge
+
+                    icon_: "Accept"
+                    level: optionCol.option.badgeLevel || "muted"
+                    text: optionCol.option.badge || ""
+                    visible: text !== ""
+                }
+                Txt {
+                    color: dlg.tone(optionCol.option.level)
+                    elide: Text.ElideNone
+                    kind: "hint"
+                    text: optionCol.option.text || ""
+                    width: parent.width - 30 - (badge.visible ? badge.width + Theme.gapInline : 0)
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+        Txt {  // the switch is off: one line naming it
+            elide: Text.ElideNone
+            kind: "hint"
+            text: (dlg.v.option || ({})).hint || ""
+            visible: text !== ""
+            width: parent.width
+            wrapMode: Text.WordWrap
+        }
+        Column {  // what installing as an overhaul does
+            id: previewCol
+
+            readonly property var pv: dlg.v.overhaul || ({})
+
+            spacing: Theme.sp4
+            visible: !!pv.shown
+            width: parent.width
+
+            Txt {
+                kind: "hint"
+                text: dlg.w.working
+                visible: !previewCol.pv.ready
+            }
+            Repeater {
+                model: previewCol.pv.lines || []
+
+                Txt {
+                    required property string modelData
+
+                    elide: Text.ElideNone
+                    text: modelData
+                    width: previewCol.width
+                    wrapMode: Text.WordWrap
+                }
+            }
+            Repeater {
+                model: previewCol.pv.notes || []
+
+                Txt {
+                    required property string modelData
+
+                    elide: Text.ElideNone
+                    kind: "hint"
+                    text: modelData
+                    width: previewCol.width
+                    wrapMode: Text.WordWrap
+                }
+            }
+            Repeater {
+                model: previewCol.pv.refusals || []
+
+                InfoBar {
+                    required property string modelData
+
+                    closable: false
+                    severity: "error"
+                    text: modelData
+                    width: previewCol.width
+                }
+            }
+        }
         Txt {  // what will happen
             color: dlg.tone(dlg.v.noteLevel)
             elide: Text.ElideNone

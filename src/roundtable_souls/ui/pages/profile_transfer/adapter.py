@@ -262,7 +262,9 @@ class ProfileTransferAdapter(QObject):
         """Read the profile and what an export lists (also the host's call after a job)."""
         self._finished()
         profile = self.host.profile
-        self._profile = Path(profile) if profile else None
+        before, self._profile = self._profile, Path(profile) if profile else None
+        if before is not None and before != self._profile:  # another profile in the top bar: name and readme start over
+            self._ex.update(name="", readme="", readmeEdited=False)
         self._emit()
         if self._mode == IMPORT and self._incoming is not None:  # the top bar's profile may have changed
             self._make_preview()

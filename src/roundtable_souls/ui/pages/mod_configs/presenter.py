@@ -167,7 +167,7 @@ class ModConfigsPresenter:
             "noMods": tr(
                 "No mod in this profile has a settings file. A DLL's file icon on the Mods page attaches one."
             ),
-            "pickFile": tr("Pick a mod's file on the left."),
+            "pickFile": tr("Pick a file to edit it."),
             "editAsText": tr("Edit as text"),
             "save": tr("Save"),
             "discard": tr("Discard"),
@@ -281,7 +281,7 @@ class ModConfigsPresenter:
                         f, "after:" + f, tr("Load after the other DLLs"), "bool", str(bool(n["after_others"])).lower()
                     ),
                     self._ov_row(
-                        f, "init:" + f, tr("Function to run when it loads"), "text", n.get("initializer") or ""
+                        f, "init:" + f, tr("Run a function when it loads"), "text", n.get("initializer") or ""
                     ),
                 ]
                 sections.append({"title": Path(f).name, "rows": rows})

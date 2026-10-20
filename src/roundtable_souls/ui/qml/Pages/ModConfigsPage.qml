@@ -82,7 +82,7 @@ Item {
             Txt {
                 elide: Text.ElideNone
                 kind: "hint"
-                text: !page.adapter.hasProfile ? page.words.noProfile : page.adapter.nodes.length === 0 && !page.adapter.loading ? page.words.noMods : ""
+                text: !page.adapter.hasProfile ? page.words.noProfile : page.adapter.nodes.length === 0 && !page.adapter.loading ? page.words.noMods : page.narrow ? page.words.pickFile : ""
                 visible: text !== ""
                 width: parent.width
                 wrapMode: Text.WordWrap

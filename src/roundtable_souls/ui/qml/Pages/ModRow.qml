@@ -254,6 +254,13 @@ Item {
                         icon_: modelData.icon
                         level: modelData.level
                         text: modelData.text
+
+                        HoverHandler {
+                            id: tagHover
+                        }
+                        ToolTip.delay: Theme.mTooltipDelay
+                        ToolTip.text: modelData.tip || ""
+                        ToolTip.visible: tagHover.hovered && (modelData.tip || "") !== ""
                     }
                 }
             }

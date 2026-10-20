@@ -889,11 +889,16 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
                         "Swapping",
                         "Copying",
                         "Adding",
+                        "Adopting",
                     )
                 )
                 else "Saves repaired and cleanup done."
             )
         )
+        if ok and (label.startswith("Adopting") or "adoption" in label):  # the profiles moved: list them again
+            self.settings = load_settings()
+            self.setups = discover(None, self.ctx.locations)
+            self._fill_setups()
         if label.startswith(("Installing", "Rebuilding", "Combining", "Removing", "Restoring", "Undoing", "Redoing")):
             self._load_profile_editor(force=True)
             self._fill_mods()

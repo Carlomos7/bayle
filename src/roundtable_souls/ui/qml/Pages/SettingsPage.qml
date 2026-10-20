@@ -196,12 +196,16 @@ PageScroll {
         }
         FormRow {
             help: page.words.steamHelp
+            implicitHeight: page.width < 900 ? 3 * Theme.controlH + 2 * Theme.gapInline + 24 : Theme.rowH
             title: page.words.steam
 
-            Row {
+            Flow {  // the buttons stack under each other when the page is narrow
                 spacing: Theme.gapInline
+                width: page.width < 900 ? 220 : steamCopyTarget.implicitWidth + steamCopyOptions.implicitWidth + steamPoint.implicitWidth + 2 * Theme.gapInline
 
                 GhostButton {
+                    id: steamCopyTarget
+
                     icon_: "Copy"
                     implicitHeight: Theme.controlH
                     text: page.words.copyTarget
@@ -209,6 +213,8 @@ PageScroll {
                     onClicked: page.adapter.copySteam("target")
                 }
                 GhostButton {
+                    id: steamCopyOptions
+
                     icon_: "Copy"
                     implicitHeight: Theme.controlH
                     text: page.words.copyOptions
@@ -216,6 +222,8 @@ PageScroll {
                     onClicked: page.adapter.copySteam("options")
                 }
                 GhostButton {
+                    id: steamPoint
+
                     icon_: "Link"
                     implicitHeight: Theme.controlH
                     text: page.words.pointSteam

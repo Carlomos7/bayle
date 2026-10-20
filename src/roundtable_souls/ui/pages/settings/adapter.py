@@ -150,7 +150,7 @@ class SettingsAdapter(QObject):
                 "install) start this copy instead. Steam must be closed; a backup of each changed file is kept."
             ),
             "leftover": tr("Leftover processes"),
-            "leftoverHelp": tr("A dead copy of the game can make Discord think it is still open."),
+            "leftoverHelp": tr("A leftover game process can make Discord think the game is still open."),
             "clearNow": tr("Clear now"),
             "backups": tr("Backups"),
             "backupsLocation": tr("Location"),

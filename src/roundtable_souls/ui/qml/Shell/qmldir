@@ -1,0 +1,8 @@
+module Shell
+ChromeProbe 1.0 ChromeProbe.qml
+DataMenu 1.0 DataMenu.qml
+DataSubMenu 1.0 DataSubMenu.qml
+NewProfileDialog 1.0 NewProfileDialog.qml
+LaunchPill 1.0 LaunchPill.qml
+Rail 1.0 Rail.qml
+TopBar 1.0 TopBar.qml

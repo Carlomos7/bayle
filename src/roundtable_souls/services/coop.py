@@ -82,6 +82,9 @@ CRASH_FOLDERS = {
 }  # Seamless Co-op writes these in the game folder whatever loads it: left alone
 
 
+KEEP_IN_CLEANUP = {"locale"}  # beside the settings file, never removed by the clean-up
+
+
 @dataclass
 class GameFolderSeamless:
     """Seamless Co-op found in the game folder. kind: "move" (the profile does not load Seamless Co-op; its files
@@ -120,6 +123,9 @@ def game_folder_seamless(setup) -> GameFolderSeamless | None:
         if not has_dll:
             return None
         return GameFolderSeamless("move", folder, files, launcher)
+    # Cleaning up never removes the settings file or the locale folder (game model, 2026-10-20: Seamless Co-op reads
+    # them from here whatever else is loaded), only what is left over beside them.
+    files = [p for p in files if p.name.lower() not in KEEP_IN_CLEANUP | {(game.coop_ini or "").lower()}]
     if not files and launcher is None:
         return None
     mine = folder / game.coop_ini if game.coop_ini else None

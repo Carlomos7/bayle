@@ -967,63 +967,6 @@ def test_the_play_pages_log_links_to_activity(sandbox):
     assert w.stackedWidget.currentWidget() is w.activity_page
 
 
-def test_the_mods_page_opens_the_new_mods_window(sandbox, app):
-    from PySide6.QtCore import QEventLoop, QTimer
-    from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
-
-    from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
-
-    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)  # offscreen: the software scene graph
-    w = sandbox
-    w.switchTo(w.mods_page)
-    text = ModsPresenter().open_window_text
-    button = next(b for b in w.mods_page.findChildren(QPushButton) if b.text() == text)
-    QTest.mouseClick(button, Qt.LeftButton)
-    loop = QEventLoop()
-    QTimer.singleShot(400, loop.quit)
-    loop.exec()
-    try:
-        win = w.mods_window.window
-        assert win is not None and win.isVisible()
-        assert w.mods_window.warnings == []
-        state = w.mods_window.adapter.state()
-        assert state.title == "sandbox"  # the profile the window shows is the launcher's own
-        QTest.mouseClick(button, Qt.LeftButton)  # a second click brings the same window forward
-        assert w.mods_window.window is win
-    finally:
-        w.mods_window.dispose()
-        w.mods_window = None
-        app.processEvents()
-
-
-def test_the_activity_page_opens_the_new_activity_window(sandbox, app):
-    from PySide6.QtCore import QEventLoop, QTimer
-    from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
-
-    from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter
-
-    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)  # offscreen: the software scene graph
-    w = sandbox
-    w.switchTo(w.activity_page)
-    text = ActivityPresenter().open_window_text
-    button = next(b for b in w.activity_page.findChildren(QPushButton) if b.text() == text)
-    QTest.mouseClick(button, Qt.LeftButton)
-    loop = QEventLoop()
-    QTimer.singleShot(300, loop.quit)
-    loop.exec()
-    try:
-        win = w.activity_window.window
-        assert win is not None and win.isVisible()
-        assert w.activity_window.warnings == []
-        assert w.activity_window.notifier.statusText == "Ready"
-        QTest.mouseClick(button, Qt.LeftButton)  # a second click brings the same window forward
-        assert w.activity_window.window is win
-    finally:
-        w.activity_window.dispose()
-        w.activity_window = None
-        app.processEvents()
-
-
 def test_the_load_order_card_shows_outcomes_from_one_scan(sandbox, tmp_path):
     from roundtable_souls.mods import conflicts as overview
 

@@ -40,8 +40,8 @@ from roundtable_souls.mods import operations as mod_operations
 from roundtable_souls.mods import profile as profile_tools
 from roundtable_souls.mods import profile_edit as mod_manage
 from roundtable_souls.mods import rebuild as mod_merge
+from roundtable_souls.platform import desktop, me3_info, paths, steam
 from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.platform import me3_info, paths, steam
 from roundtable_souls.platform import session as me3_session
 from roundtable_souls.platform.files import (
     atomic_write,
@@ -618,6 +618,26 @@ def job_play_offline(
     )
     time.sleep(3)
     _after_play(opts, loc)
+
+
+def job_play_vanilla(setup, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
+    """Launch Vanilla: the game started through Steam, with no me3 and no profile, so it plays the standard save with
+    its own anti-cheat (game model, 2026-10-20). Nothing of a profile is read or written, and the after-Play
+    regulation repair is not run: me3 did not touch the save. setup is not used (the caller may pass none)."""
+    if loc is None:
+        raise ValueError("a vanilla launch needs the game's locations")
+    run_logging.start_log("launcher: play vanilla", loc.game.key)
+    opts = play_options()
+    _backup_before_play(opts, loc, backup)
+    me3_session.ensure_steam(120)
+    if opts["play_clear_before"]:
+        me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
+    run_logging.log(f"launching {loc.game.name} through Steam, without me3")
+    desktop.open_path(f"steam://rungameid/{loc.game.app_id}")
+    if not me3_session.wait_for_game(loc.game_exe_name(), appear_timeout=90):
+        run_logging.log("warning: the game never appeared; Steam's own window says why")
+    if opts["play_clear_after"]:
+        me3_session.clear_dead_shells(loc.game_exe_name(), "after exit")
 
 
 def job_repair(setup, loc: Locations):

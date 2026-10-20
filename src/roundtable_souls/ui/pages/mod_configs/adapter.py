@@ -182,6 +182,38 @@ class ModConfigsAdapter(QObject):
         return bool(self._pending)
 
     # ---- reading
+    # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
+    COMMANDS = {
+        "saveUnsaved": "save",
+        "discardUnsaved": "discard",
+        "back": "_back",
+    }
+
+    def command(self, name: str, args) -> bool:
+        """Run a menu command; False when this page has none by that name."""
+        method = self.COMMANDS.get(name)
+        if method is None:
+            return False
+        getattr(self, method)(*args)
+        return True
+
+    def _back(self) -> None:
+        pass
+
+    def unsaved_words(self) -> list[str]:
+        return [tr("Mod Configs: a settings file has changes that are not saved")] if self._is_dirty() else []
+
+    def seamless_pending(self) -> bool:
+        """Seamless Co-op settings edited and not saved: they are applied by Launch."""
+        return bool(self._seamless is not None and self._pending)
+
+    def save_pending_seamless(self) -> str | None:
+        """Launch saves what is pending first (a pending password or scaling): the reason it could not, or None."""
+        if not self.seamless_pending():
+            return None
+        self.save()
+        return None if not self.seamless_pending() else tr("The co-op settings could not be saved, so Launch stopped.")
+
     @Slot()
     def refresh(self) -> None:
         if self._loading:

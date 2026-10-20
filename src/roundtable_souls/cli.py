@@ -67,13 +67,16 @@ def main() -> int:
             return 0
     from roundtable_souls.app import create_app
     from roundtable_souls.storage.db import MigrationFailed
-    from roundtable_souls.ui.shell import main as window_main
+    from roundtable_souls.ui.launcher.window import main as shell_main
+    from roundtable_souls.ui.shell import main as widgets_main
 
     try:
         ctx = create_app(game)
     except MigrationFailed as e:  # no window, so no ready report: an update's watchdog rolls back
         return storage_failed(e, window=True)
-    return int(window_main(ctx) or 0)
+    if "--widgets" in sys.argv:  # the old window, for a bad shell (hidden flag; it goes with the Widgets code)
+        return int(widgets_main(ctx) or 0)
+    return int(shell_main(ctx, fallback=widgets_main) or 0)
 
 
 def self_test() -> int:

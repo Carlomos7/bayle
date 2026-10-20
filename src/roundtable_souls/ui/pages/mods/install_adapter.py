@@ -329,6 +329,19 @@ class InstallAdapter(QObject):
 
         self.host.run_job(job, tr("Installing {name} as an overhaul...").format(name=preview.label))
 
+    @Slot(result=bool)
+    def importInstead(self) -> bool:
+        """The download ships .me3 profiles: the Export / Import page takes over its unpacked folder and clears the
+        staging folder itself, so it is not dropped here. True closes the dialog."""
+        d = self._draft
+        if d is None or not d.plan.get("profiles_inside"):
+            return False
+        plan = d.plan
+        self._draft = None
+        self.viewChanged.emit()
+        self.host.open_profile_import(Path(plan["unpacked"]), plan["profiles_inside"], plan.get("staging"))
+        return True
+
     @Slot()
     def dialogClosed(self) -> None:
         """The dialog closed: a cancel (an install already took the draft) drops the unpacked copy."""

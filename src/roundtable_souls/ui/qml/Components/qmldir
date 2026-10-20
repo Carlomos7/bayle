@@ -3,7 +3,7 @@ Acrylic 1.0 Acrylic.qml
 Atmosphere 1.0 Atmosphere.qml
 Card 1.0 Card.qml
 CheckRow 1.0 CheckRow.qml
-CodeArea 1.0 CodeArea.qml
+CodeEditor 1.0 CodeEditor.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
 DropButton 1.0 DropButton.qml
 FindBar 1.0 FindBar.qml

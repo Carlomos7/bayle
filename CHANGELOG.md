@@ -11,6 +11,30 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Mod Configs now reads TOML settings files with the real TOML library (tomlkit): nested tables, dotted keys, inline tables, lists and `[[arrays of tables]]` (one group per table) show in the form, and saving keeps every comment and all spacing, changing only the value you edited.
 - Saves: drag and drop. Drag a character (from its grip) onto a slot, an empty slot or a save card; a Library copy or a backup onto a live save to restore it; a live save onto the Library (save a copy) or the Backups (back up now); a Library copy expands to its characters, which drag into slots. Ctrl+C on a character and Ctrl+V on a slot do the same copy. Every drop is the same action as its menu entry (same confirmation, back-up first, re-sign, read back, Undo); a refusal says why at the drop spot and after the drop. Esc cancels, the page scrolls at its edges, and Explorer files still import.
 - Mods: dragging a row now says why a drop is refused, in words at the drop spot (red line), the page scrolls when the row nears an edge, Esc cancels the drag, and a running job refuses the move with a message. The spots are judged in memory while you drag; the real check runs on drop.
+- Saves says Launch Profile / Launch Vanilla / Launch Offline (not "Play") for which save each uses; the slot list has a visible scrollbar and keyboard scrolling, and no empty band above it.
+- Export: a clearer summary, "Version (optional)", "Choose output folder..." with the chosen folder beside it, and the reason shown in muted text.
+- Export / Import: name and readme start over when the top bar's profile changes, and the name, version and author fields wrap at narrow widths.
+- Check & repair: plainer words for mod items and leftover entries.
+- Activity: a failed job's row says what went wrong in plain words (the log keeps the original text).
+- Settings: long paths keep the drive and file name (the middle is cut), the Steam shortcut buttons stack at narrow widths, and "dead copy" became "leftover game process".
+- Saves: both live-save cards are the same fixed size and list all ten character slots (empty ones too); the slot list and the Library and Backups lists scroll inside fixed-height areas; two cards sit side by side from about 900 px.
+- Settings: plainer help for the four location fields, the theme note and the stuck-process switches.
+- Activity: the summary cards wrap instead of cutting the text, and an opened job's log buttons wrap at narrow widths.
+- Check & repair says in plain words what each box does and what happens if you leave it unticked (no more "checksum" or "regulation block"), and its descriptions wrap instead of being cut off.
+- The character sheet no longer shows a disabled Edit button or a "comes later" promise.
+- Export / Import profile no longer has its own profile picker: it uses the profile chosen in the top bar and shows its name in the header ("Exporting <name>").
+- One code editor everywhere (the .me3 text, a mod's config text, the README and changelog, a job's log): syntax colours for TOML, INI, JSON, Lua / HKS and Markdown picked by file type, line numbers, the current line marked, find and replace (Ctrl+F, F3), go to line (Ctrl+G), Tab / Shift+Tab indent, a Wrap switch, and the first error of a TOML, JSON or INI text marked on its line in plain words.
+- The Seamless Co-op password can be shown or hidden.
+- Mod Configs warns when the open file changed on disk and offers Reload.
+- Mod Configs shows nested TOML sections as readable titles (Window › Deep, Builds · 1); Rename waits for the check of the name as typed.
+- Mod Configs: a save bar that says how many changes are waiting, a "Changed" marker on edited settings, a search box for big files, Reset to default with the default in its tooltip, and proper empty states.
+- Profile settings: "Disable code protection (Arxan)" and "Game memory pool (MB)" with exact help; the memory pool is hidden for games where me3 ignores it.
+- Mod Configs reads a file in the background, and Rename checks the name in the background.
+- Renaming a mod waits for a pause in typing before it checks the new name.
+- Load order tags keep their names (Clash, Loads early) and explain themselves on hover.
+- The Mods and Mod Configs pages follow the profile picked in the top bar; their own profile pickers are gone.
+- Mod Configs shows the file list and the file side by side down to a 640 px wide page.
+- Profile settings, Mod options and the load-order tags use plain words; the me3 setting names are in tooltips.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - Importing a profile or a full export now asks when a mod has the same name as one you have installed but other

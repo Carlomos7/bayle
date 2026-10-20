@@ -101,6 +101,13 @@ def text_pairs(theme: str) -> list[Pair]:
         out.append((f"textTertiary on {bg_name}", ratio(t["textTertiary"], *stack), LARGE))
         out.append((f"textIcon on {bg_name}", ratio(t["textIcon"], *stack), LARGE))
         out.append((f"accent (links, selected text) on {bg_name}", ratio(t["accent"], *stack), AA))
+    # the code editor: syntax colours on its fill, and on the current line's extra fill
+    for role in ("Keyword", "String", "Number", "Comment", "Key", "Header"):
+        for label, stack in (
+            ("editor", (t["fillInput"], t["surfaceCard"])),
+            ("editor current line", (t["fillHover"], t["fillInput"], t["surfaceCard"])),
+        ):
+            out.append((f"syntax{role} on {label}", ratio(t[f"syntax{role}"], *stack), AA))
     for a in ("accent", "accentHover", "accentPress"):
         out.append((f"textOnAccent on {a}", ratio(t["textOnAccent"], t[a]), AA))
     for s in ("Success", "Warning", "Danger", "Info"):

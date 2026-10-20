@@ -10,6 +10,7 @@ Rectangle {
     id: root
 
     property TextArea area
+    property var support  // the editor's CodeSupport: find.py's matching, and Replace all as one undo step
     property bool matchCase: false
     property int current: -1
     property var matches: []
@@ -28,29 +29,20 @@ Rectangle {
         root.current = (root.current + (backwards ? -1 : 1) + root.matches.length) % root.matches.length;
         root.area.select(root.matches[root.current], root.matches[root.current] + findField.text.length);
     }
-    function refresh() {
-        const out = [];
+    function refresh(select = true) {
         const needle = findField.text;
-        if (root.area && needle.length) {
-            const hay = root.matchCase ? root.area.text : root.area.text.toLowerCase();
-            const n = root.matchCase ? needle : needle.toLowerCase();
-            let i = hay.indexOf(n);
-            while (i >= 0) {
-                out.push(i);
-                i = hay.indexOf(n, i + n.length);
-            }
-        }
+        const out = root.area && root.support && needle.length ? root.support.matchStarts(root.area.text, needle, root.matchCase) : [];
         root.matches = out;
-        root.current = out.length ? 0 : -1;
-        if (out.length)
+        root.current = out.length ? Math.min(Math.max(root.current, 0), out.length - 1) : -1;
+        if (select && out.length) {
+            root.current = 0;
             root.area.select(out[0], out[0] + needle.length);
+        }
     }
     function replaceAll() {
         if (!root.matches.length)
             return;
-        const needle = findField.text;
-        const re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), root.matchCase ? "g" : "gi");
-        root.area.text = root.area.text.replace(re, replaceField.text);
+        root.support.replaceAll(findField.text, replaceField.text, root.matchCase);
         root.refresh();
     }
     function replaceOne() {

@@ -14,8 +14,9 @@ Column {
 
     spacing: Theme.sp8
 
-    CodeArea {
+    CodeEditor {
         height: editor.editorHeight
+        language: "toml"
         objectName: "me3Editor"
         text: editor.adapter.me3Text
         width: parent ? parent.width : 0

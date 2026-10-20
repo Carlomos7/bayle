@@ -41,6 +41,7 @@
     "QtQuick.Effects",
     "QtQuick.Layouts",
     "QtQuick.Window",
+    "Roundtable.Code",
     "Shell",
     "Theme"
   ],

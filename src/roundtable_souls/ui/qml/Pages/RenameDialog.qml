@@ -34,6 +34,8 @@ ModalDialog {
         info = entry < 0 ? info : adapter.renamePreview(entry, name.text);
     }
     function apply() {
+        refreshTimer.stop();
+        refresh();
         if (!info.ok)
             return;
         adapter.rename(entry, name.text.trim());
@@ -65,7 +67,14 @@ ModalDialog {
         width: parent.width
 
         onAccepted: dlg.apply()
-        onTextChanged: dlg.refresh()
+        onTextChanged: refreshTimer.restart()  // the preview reads the profiles: not on every keystroke
+    }
+    Timer {
+        id: refreshTimer
+
+        interval: 300
+
+        onTriggered: dlg.refresh()
     }
     Repeater {
         model: dlg.info.refusals

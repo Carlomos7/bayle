@@ -6,8 +6,8 @@ import uuid
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalServer
-from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.platform import filelock, instance
 
@@ -37,7 +37,7 @@ def _wait(ms):
 
 
 def test_a_second_start_reaches_the_window(name):
-    app = QApplication.instance() or QApplication([])
+    app = QGuiApplication.instance() or QGuiApplication([])
     server_name = name if os.name == "nt" else str(instance._lock_dir() / f"{name}.sock")
     server = QLocalServer()
     server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)
@@ -104,3 +104,14 @@ def test_file_lock_excludes_a_second_holder(tmp_path):
             assert not second  # gave up after the timeout and ran anyway
     with filelock.locked(target, timeout=0.2) as again:
         assert again
+
+
+def test_the_open_window_runs_a_shortcut_play_and_ignores_anything_else():
+    from roundtable_souls.ui.launcher.instance import InstanceServer
+
+    server, got = InstanceServer(), []
+    server.showRequested.connect(lambda: got.append("show"))
+    server.playRequested.connect(got.append)
+    server.handle("play nightreign")
+    server.handle("rm -rf")
+    assert got == ["show", "nightreign"]

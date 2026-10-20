@@ -27,12 +27,29 @@ Column {
             objectName: "seamlessPassword"
             title: panel.words.password
 
-            TextBox {
-                echoMode: TextInput.Password
-                passwordCharacter: "*"
-                text: panel.s.password || ""
+            Row {
+                spacing: Theme.sp8
 
-                onTextEdited: panel.adapter.setValue("PASSWORD", "cooppassword", text)
+                TextBox {
+                    id: pwBox
+
+                    property bool shown: false
+
+                    Accessible.name: panel.words.password
+                    echoMode: shown ? TextInput.Normal : TextInput.Password
+                    passwordCharacter: "*"
+                    text: panel.s.password || ""
+
+                    onTextEdited: panel.adapter.setValue("PASSWORD", "cooppassword", text)
+                }
+                GhostButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    implicitHeight: Theme.controlSmallH
+                    objectName: "showPassword"
+                    text: pwBox.shown ? panel.words.hidePassword : panel.words.showPassword
+
+                    onClicked: pwBox.shown = !pwBox.shown
+                }
             }
         }
     }

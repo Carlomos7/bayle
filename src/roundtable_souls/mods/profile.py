@@ -32,11 +32,15 @@ SETTING_TEXT = {
         "me3 blocks the official servers by default. Only private-server mods need this on; Seamless Co-op does "
         "not. On with mods risks a ban.",
     ),
-    "disable_arxan": ("Neutralise Arxan", "Disables the game's tamper protection; helps some mods stay stable."),
+    "disable_arxan": (
+        "Disable code protection (Arxan)",
+        "Turns off the game's code-tamper protection for this profile. Only turn this on if a mod's author asks you to.",
+    ),
     "mem_patch": ("Memory patch", "Lifts the game's memory limits for heavy mods (me3 default: on for Elden Ring)."),
     "mem_patch_heap_size": (
-        "Heap size (MB)",
-        "Override how much memory the game allocates with the memory patch. 0 = me3 default.",
+        "Game memory pool (MB)",
+        "How much memory me3 sets aside for the game (Elden Ring default 12,288 MB). Leave it blank unless a mod's "
+        "author tells you otherwise; too high a value can stop the game from starting.",
     ),
 }
 IGNORED_NAMES = {"me3.toml", ".nexus_metadata.json", "thumbs.db", "desktop.ini", ".ds_store", ".gitignore"}

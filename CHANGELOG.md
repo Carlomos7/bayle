@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The Seamless Co-op password can be shown or hidden.
 - Mod Configs warns when the open file changed on disk and offers Reload.
 - Mod Configs shows nested TOML sections as readable titles (Window › Deep, Builds · 1); Rename waits for the check of the name as typed.
 - Mod Configs: a save bar that says how many changes are waiting, a "Changed" marker on edited settings, a search box for big files, Reset to default with the default in its tooltip, and proper empty states.

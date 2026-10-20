@@ -20,7 +20,7 @@ class Host(Protocol):
     @property
     def locations(self) -> Any: ...
     @property
-    def setup(self) -> Any:
+    def launch_profile(self) -> Any:
         """The current setup (its profile and kind)."""
         ...
 

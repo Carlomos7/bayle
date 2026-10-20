@@ -15,12 +15,12 @@ if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
 
-def find_setups(loc: Locations) -> list[library_adopt.Setup]:
+def find_setups(loc: Locations) -> list[library_adopt.ExistingSetup]:
     """Every setup of the game that is not in the library yet (mods.adopt.setups)."""
     return library_adopt.setups(loc)
 
 
-def setup_of(loc: Locations, profile: Path) -> tuple[library_adopt.Setup | None, bool]:
+def setup_of(loc: Locations, profile: Path) -> tuple[library_adopt.ExistingSetup | None, bool]:
     """(the setup holding this profile, whether it is offered): None when the profile is in the library already."""
     here = os.path.normcase(os.path.abspath(profile))
     gone = {os.path.normcase(p) for p in load_settings().adopt_dismissed}
@@ -30,12 +30,14 @@ def setup_of(loc: Locations, profile: Path) -> tuple[library_adopt.Setup | None,
     return None, False
 
 
-def dismiss(setup: library_adopt.Setup) -> None:
+def dismiss(setup: library_adopt.ExistingSetup) -> None:
     """Stop offering this setup (Adopt into the library... in the menu still works)."""
     change_settings(lambda cur: {"adopt_dismissed": [*cur.adopt_dismissed, str(setup.folder)]})
 
 
-def preview_adopt(setup: library_adopt.Setup, *, loc: Locations, move_unused: tuple[Path, ...] | list[Path] = ()):
+def preview_adopt(
+    setup: library_adopt.ExistingSetup, *, loc: Locations, move_unused: tuple[Path, ...] | list[Path] = ()
+):
     """What adopting does (mods.adopt.AdoptPreview: lines, refusals, unused folders to choose from)."""
     return library_adopt.preview(setup, loc=loc, move_unused=move_unused)
 

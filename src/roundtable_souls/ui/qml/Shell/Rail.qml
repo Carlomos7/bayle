@@ -178,17 +178,17 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: root.collapsed ? -11 : 0
             color: Theme.statusBadge
-            height: 16
-            radius: 8
+            height: 18
+            radius: 9
             visible: railItem.badge > 0
-            width: Math.max(16, badgeText.implicitWidth + 8)
+            width: Math.max(18, badgeText.implicitWidth + 8)
 
             Text {
                 id: badgeText
 
                 anchors.centerIn: parent
                 color: "white"
-                font.pixelSize: 10
+                font.pixelSize: Theme.fontCaption
                 font.weight: Font.DemiBold
                 text: railItem.badge > 99 ? "99+" : railItem.badge
             }

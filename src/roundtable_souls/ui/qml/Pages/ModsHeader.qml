@@ -25,19 +25,146 @@ Item {
         anchors.fill: parent
         spacing: Theme.gapInline
 
-        Txt {  // the profile (picked in the top bar)
+        Item {  // the profile (picked in the top bar): click the name to rename it
+            id: nameArea
+
+            property string problem: ""
+            property bool editing: false
+
+            function begin() {
+                if (editing)
+                    return;
+                const why = header.adapter.profileRenameBlock();
+                if (why !== "") {
+                    problem = why;
+                    blockedHide.restart();
+                    return;
+                }
+                problem = "";
+                edit.text = header.adapter.title;
+                editing = true;
+                edit.forceActiveFocus();
+                edit.selectAll();
+            }
+            function cancel() {
+                editing = false;
+                problem = "";
+            }
+            function apply() {
+                if (!editing || edit.text === header.adapter.title)
+                    return cancel();
+                checkNow.stop();
+                const why = header.adapter.renameProfile(edit.text);
+                if (why !== "")
+                    problem = why;
+                else
+                    cancel();
+            }
+
             Layout.alignment: Qt.AlignVCenter
-            Layout.maximumWidth: 360
-            elide: Text.ElideRight
-            kind: "rowTitle"
-            objectName: "profileTitle"
-            text: header.adapter.title
+            Layout.maximumWidth: editing ? 640 : 420
+            implicitHeight: 32
+            implicitWidth: nameRow.implicitWidth
+
+            Row {
+                id: nameRow
+
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.gapInline
+
+                Txt {
+                    anchors.verticalCenter: parent.verticalCenter
+                    Accessible.name: header.words.profileRenameTip
+                    Accessible.role: Accessible.Button
+                    elide: Text.ElideRight
+                    kind: "rowTitle"
+                    objectName: "profileTitle"
+                    text: header.adapter.title
+                    visible: !nameArea.editing
+                    width: Math.min(implicitWidth, 360)
+
+                    HandCursor {
+                    }
+                    TapHandler {
+                        onTapped: nameArea.begin()
+                    }
+                    HoverHandler {
+                        id: nameHover
+                    }
+                    ToolTip.text: header.words.profileRenameTip
+                    ToolTip.visible: nameHover.hovered && !nameArea.editing
+                }
+                FluentIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "Edit"
+                    objectName: "profileRenameHint"
+                    opacity: nameHover.hovered ? 1 : 0
+                    size: 14
+                    visible: !nameArea.editing
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.mFast
+                        }
+                    }
+                }
+                TextBox {
+                    id: edit
+
+                    Accessible.name: header.words.profileRenameField
+                    anchors.verticalCenter: parent.verticalCenter
+                    error: nameArea.problem !== ""
+                    implicitWidth: 260
+                    maximumLength: 120
+                    objectName: "profileNameEdit"
+                    visible: nameArea.editing
+
+                    Keys.onEnterPressed: nameArea.apply()
+                    Keys.onEscapePressed: nameArea.cancel()
+                    Keys.onReturnPressed: nameArea.apply()
+                    onActiveFocusChanged: if (!activeFocus && nameArea.editing)
+                        nameArea.cancel()
+                    onTextEdited: checkNow.restart()
+                }
+                Txt {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.statusDanger
+                    elide: Text.ElideRight
+                    kind: "hint"
+                    objectName: "profileNameProblem"
+                    text: nameArea.problem !== "" ? nameArea.problem : (nameArea.editing ? header.words.profileRenameHelp : "")
+                    visible: nameArea.editing || nameArea.problem !== ""
+                    width: Math.min(implicitWidth, 320)
+                }
+            }
+            Timer {  // the live name check, once typing pauses
+                id: checkNow
+
+                interval: 250
+
+                onTriggered: nameArea.problem = edit.text === header.adapter.title ? "" : header.adapter.profileNameCheck(edit.text)
+            }
+            Timer {  // a refusal to start (a job is running): said for a moment
+                id: blockedHide
+
+                interval: 4000
+
+                onTriggered: if (!nameArea.editing)
+                    nameArea.problem = ""
+            }
+            Connections {
+                function onProfileRenameRequested() {
+                    nameArea.begin();
+                }
+
+                target: header.adapter
+            }
         }
         Txt {
             Layout.alignment: Qt.AlignVCenter
             kind: "hint"
             text: "·  " + header.adapter.counts
-            visible: header.width >= 980
+            visible: header.width >= 980 && !nameArea.editing
         }
         Pill {
             Layout.alignment: Qt.AlignVCenter

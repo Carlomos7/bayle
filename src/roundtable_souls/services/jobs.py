@@ -67,24 +67,24 @@ class Runner:
         threading.Thread(target=run, daemon=True, name=name).start()
         return task
 
-    def start_job(self, job: Callable[[Any, Locations], None], setup, loc: Locations, title: str = "Job") -> int:
+    def start_job(self, job: Callable[[Any, Locations], None], launch, loc: Locations, title: str = "Job") -> int:
         """A logged job (run_job) on a thread of its own; its result is the job's Outcome."""
 
         def logged(_progress: Progress) -> Outcome:
-            return run_job(job, setup, loc, title)
+            return run_job(job, launch, loc, title)
 
         logged.__name__ = "run_job"  # the thread's name, as when run_job itself was the thread's target
         return self.start(logged)
 
 
-def run_job(job: Callable[[Any, Locations], None], setup, loc: Locations, title: str = "Job") -> Outcome:
+def run_job(job: Callable[[Any, Locations], None], launch, loc: Locations, title: str = "Job") -> Outcome:
     """Run job(setup, loc) on this (worker) thread as a logged job of its own: its lines go to its log file and the
     window, and the jobs index records how it ended. A job stops early with SystemExit (130: the user stopped it)."""
-    profile = str(getattr(setup, "profile", "") or "")
+    profile = str(getattr(launch, "profile", "") or "")
     record = run_logging.begin_job(title.rstrip(". "), game=loc.game.key, profile=profile)
     log = run_logging.get_logger("job")
     try:
-        job(setup, loc)
+        job(launch, loc)
     except SystemExit as e:
         stopped = e.code == 130
         run_logging.end_job(record, "stopped" if stopped else "failed" if e.code not in (0, None) else None)

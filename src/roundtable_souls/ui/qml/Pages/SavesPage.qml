@@ -80,7 +80,6 @@ PageScroll {
                 id: headerMenu
 
                 MenuEntry {
-                    enabled: !page.adapter.running
                     icon_: "Download"
                     text: page.words.importAction
 

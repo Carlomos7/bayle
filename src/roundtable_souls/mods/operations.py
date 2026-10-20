@@ -100,6 +100,11 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
 
                 adopt.finish_state(o)  # the launcher's own records were not all moved before the interruption
                 said.append("an interrupted adoption was finished")
+            elif o.info.get("kind") == "profile-rename" and not o.info.get("state_done"):
+                from roundtable_souls.mods import profile_rename
+
+                profile_rename.finish_state(o)  # the launcher's records still name the old profile
+                said.append("an interrupted profile rename was finished")
     return said
 
 

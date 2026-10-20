@@ -66,6 +66,6 @@ def test_a_failure_reaches_the_excepthook_and_posts_no_result(monkeypatch):
 
 def test_a_logged_job_posts_its_outcome():
     events, finished, post = collect()
-    jobs.Runner(post).start_job(lambda setup, loc: None, None, Locations(catalog.ELDEN_RING), "Testing...")
+    jobs.Runner(post).start_job(lambda launch, loc: None, None, Locations(catalog.ELDEN_RING), "Testing...")
     assert finished.wait(5)
     assert events[-1].value == jobs.Outcome(True, "Finished")

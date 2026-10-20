@@ -53,9 +53,9 @@ class AppContext:
         """Read the settings file again (another part of the program, or another process, changed it) and apply its
         location overrides."""
         self.settings = load_settings()
-        names = self.locations.setup_save_names
+        names = self.locations.profile_save_names
         paths.clear_detection_cache()  # Steam/me3/game folders may now resolve differently
-        self._located(Locations.from_settings(self.settings, self.game).with_setup_save_names(names))
+        self._located(Locations.from_settings(self.settings, self.game).with_profile_save_names(names))
         return self.settings
 
     def select_game(self, game: catalog.Game | str) -> Locations:
@@ -90,9 +90,9 @@ class AppContext:
             self.storage.close()
             self.storage = None
 
-    def note_setup_saves(self, names: Mapping[str, str]) -> Locations:
+    def note_profile_saves(self, names: Mapping[str, str]) -> Locations:
         """The setup in use names its own save files (role -> file name): they are listed and repaired too."""
-        return self._located(self.locations.with_setup_save_names(names))
+        return self._located(self.locations.with_profile_save_names(names))
 
 
 def use_data_folder() -> Path:

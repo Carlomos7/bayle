@@ -136,7 +136,7 @@ class ShellAdapter(QObject):
             self._menu_models[key].update(items)
 
     def _profile_menu(self) -> dict:
-        m = topbar.profile_menu(self.host.state.setups, self.host.state.index, self.host.busy)
+        m = topbar.profile_menu(self.host.state.launch_profiles, self.host.state.index, self.host.busy)
         return {
             "entries": [
                 {"index": e.index, "label": e.label, "checked": e.checked, "managed": e.managed} for e in m.entries
@@ -154,7 +154,7 @@ class ShellAdapter(QObject):
         commands = {p.name: frozenset(p.commands) for p in registry.QML_PAGES}
         mf = menu.MenuFacts(
             game=st.game,
-            has_profile=st.setup is not None,
+            has_profile=st.launch_profile is not None,
             busy=h.busy,
             game_running=st.game_running,
             game_folder=bool(st.locations.game_dir()),
@@ -503,7 +503,7 @@ class ShellAdapter(QObject):
             if picked is not None:
                 h.add_profile(picked)
         elif name in ("openProfileFolder", "openGameFolder"):
-            places = core.places(st.setup, st.locations)
+            places = core.places(st.launch_profile, st.locations)
             where = places.get("profile" if name == "openProfileFolder" else "game")
             if where:
                 h.open_path(where)

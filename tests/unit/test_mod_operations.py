@@ -240,7 +240,7 @@ def test_an_unfinished_operation_blocks_play(profile, tmp_path):
     from roundtable_souls.services import play
 
     op = operations.start(profile, "install of grass")  # prepared, never applied: as a crash leaves it
-    s = play.Setup("me3", str(profile), loc=Locations(catalog.ELDEN_RING))
+    s = play.LaunchProfile("me3", str(profile), loc=Locations(catalog.ELDEN_RING))
     assert any("did not finish" in p for p in s.problems())
     operations.recover(profile)
     assert not any("did not finish" in p for p in s.problems())

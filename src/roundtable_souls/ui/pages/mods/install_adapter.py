@@ -303,7 +303,7 @@ class InstallAdapter(QObject):
         return True
 
     def _install_mod(self, profile: Path, plan: dict, loc) -> None:
-        def job(_setup, job_loc):
+        def job(_launch, job_loc):
             run_logging.start_log(f"launcher: install mod {plan['name']}", job_loc.game.key)
             try:
                 out = profile_mods.install_and_record(profile, plan, loc=loc)
@@ -317,7 +317,7 @@ class InstallAdapter(QObject):
     def _install_overhaul(self, plan: dict, preview: Any, mode: str, loc) -> None:
         setup = mode == "setup"
 
-        def job(_setup, job_loc):
+        def job(_launch, job_loc):
             run_logging.start_log(f"launcher: install overhaul {preview.label}", job_loc.game.key)
             try:
                 (mod_service.install_overhaul_setup if setup else mod_service.install_overhaul)(preview, loc=loc)

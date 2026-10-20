@@ -318,7 +318,7 @@ ApplicationWindow {
                                 anchors.centerIn: parent
                                 color: Theme.textSecondary
                                 font.family: Theme.fontFamily
-                                font.pixelSize: 11
+                                font.pixelSize: Theme.fontCaption
                                 font.weight: Font.DemiBold
                                 text: hintRow.modelData[0]
                             }
@@ -327,7 +327,7 @@ ApplicationWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             color: Theme.textSecondary   // the tertiary grey is 3.5:1 on the light page, under AA for 12 px text
                             font.family: Theme.fontFamily
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontCaption
                             text: hintRow.modelData[1]
                         }
                     }

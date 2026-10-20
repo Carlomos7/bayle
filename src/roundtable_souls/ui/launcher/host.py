@@ -252,8 +252,8 @@ class ShellHost(QObject):
         return self.pages.get(name)
 
     def refresh_pages(self) -> None:
-        """Every page reads again. A game without support shows only Activity and Settings, which read nothing of it."""
-        names = None if self.state.game.ready else ("activity", "settings")
+        """Every page reads again. A game without support shows only Activity, Settings and its placeholder, which read nothing of it."""
+        names = None if self.state.game.ready else ("activity", "settings", "placeholder")
         for name, adapter in list(self.pages.items()):
             if names is None or name in names:
                 try:

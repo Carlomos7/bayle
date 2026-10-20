@@ -289,6 +289,7 @@ class ModsPresenter:
         tool_to_allow=None,
         recovered: tuple[str, ...] = (),
         adopt: str = "",
+        seamless: str = "",
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
@@ -327,7 +328,14 @@ class ModsPresenter:
             groups=groups,
             parameters=self.parameters(health, game_running, facts.fingerprint, facts.regulation),
             notices=self.notices(
-                health, tool_to_allow, recovered, facts.online_with, facts.regulation, str(facts.profile), adopt
+                health,
+                tool_to_allow,
+                recovered,
+                facts.online_with,
+                facts.regulation,
+                str(facts.profile),
+                adopt,
+                seamless,
             ),
         )
 
@@ -547,6 +555,7 @@ class ModsPresenter:
         regulation: str = "regulation.bin",
         profile: str = "",
         adopt: str = "",
+        seamless: str = "",
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right, a setup to adopt into the library (adopt: its folder's name)."""
@@ -608,6 +617,24 @@ class ModsPresenter:
                         "folder you can back up or copy, and Undo puts everything back."
                     ).format(name=adopt),
                     tr("Preview..."),
+                    True,
+                )
+            )
+        if seamless:
+            out.append(
+                Notice(
+                    "seamless",
+                    "info",
+                    tr(
+                        "Seamless Co-op is also in the game folder. Move it into this profile so the profile has its "
+                        "own copy, or clean up what the game folder still holds."
+                    )
+                    if seamless == "move"
+                    else tr(
+                        "This profile loads its own Seamless Co-op, and the game folder still holds one too. Two copies "
+                        "can conflict."
+                    ),
+                    tr("Move into this setup...") if seamless == "move" else tr("Clean up the game folder..."),
                     True,
                 )
             )

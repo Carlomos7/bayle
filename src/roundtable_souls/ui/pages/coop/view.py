@@ -54,7 +54,6 @@ from roundtable_souls.ui.dialogs.common import (
     confirm,
 )
 from roundtable_souls.ui.pages.mod_configs.presenter import (
-    ModConfigsPresenter,
     choice_label,
     label_of,
     save_kinds,
@@ -100,16 +99,11 @@ class CoopView:
         hl = QVBoxLayout(self.coop_head)
         hl.setContentsMargins(40, 28, 40, 8)
         hl.setSpacing(0)
-        words = ModConfigsPresenter()
-        self.coop_new_window = ghost_btn(words.open_window_text, FI.LINK)
-        self.coop_new_window.setToolTip(words.open_window_tip)
-        self.coop_new_window.clicked.connect(lambda: self._open_mod_configs_window())
         titled(
             hl,
             "Co-op",
             FI.PEOPLE,
             "Seamless Co-op: difficulty, options, and the password where the mod has one.",
-            self.coop_new_window,
         )
         outer.addWidget(self.coop_head)
         self.coop_scroll, lay = page("coopScroll")

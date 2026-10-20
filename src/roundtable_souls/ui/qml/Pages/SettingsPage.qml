@@ -391,6 +391,7 @@ PageScroll {
                 GhostButton {
                     icon_: "Sync"
                     implicitHeight: Theme.controlH
+                    enabled: !page.adapter.updateChecking
                     text: page.words.check
 
                     onClicked: page.adapter.checkForUpdates()

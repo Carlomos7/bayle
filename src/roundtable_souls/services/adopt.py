@@ -20,10 +20,14 @@ def find_setups(loc: Locations) -> list[library_adopt.Setup]:
     return library_adopt.setups(loc)
 
 
-def offered(loc: Locations) -> list[library_adopt.Setup]:
-    """The setups the Mods page offers to adopt: those the player has not said "Never for this setup" to."""
+def setup_of(loc: Locations, profile: Path) -> tuple[library_adopt.Setup | None, bool]:
+    """(the setup holding this profile, whether it is offered): None when the profile is in the library already."""
+    here = os.path.normcase(os.path.abspath(profile))
     gone = {os.path.normcase(p) for p in load_settings().adopt_dismissed}
-    return [s for s in find_setups(loc) if os.path.normcase(str(s.folder)) not in gone]
+    for s in find_setups(loc):
+        if any(os.path.normcase(os.path.abspath(p)) == here for p in s.profiles):
+            return s, os.path.normcase(str(s.folder)) not in gone
+    return None, False
 
 
 def dismiss(setup: library_adopt.Setup) -> None:

@@ -334,7 +334,7 @@ def _lines(out: AdoptPreview, folder: Path) -> None:
     assert lib is not None
     names = ", ".join(p.name for p in out.setup.profiles)
     out.lines.append(
-        f"{names} move{'s' if len(out.setup.profiles) == 1 else ''} to {lib.profiles}, with every mod path rewritten."
+        f"{names} move{'s' if len(out.setup.profiles) == 1 else ''} to {lib.profiles.relative_to(lib.root.parent)}, with every mod path rewritten."
     )
     for m in out.moves:
         out.lines.append(f"{m.src.name} moves to {m.dest.relative_to(lib.root)}")

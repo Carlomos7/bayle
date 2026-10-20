@@ -14,6 +14,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from roundtable_souls.mods import conflicts as mod_overview
 from roundtable_souls.mods import profile_edit
+from roundtable_souls.services import adopt as adopt_service
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import profile_mods
 from roundtable_souls.ui.models import RowsModel, plain
@@ -116,6 +117,7 @@ class ModsAdapter(QObject):
         self._rebuild_undo: dict | None = None
         self._recovered: tuple[str, ...] = ()  # interrupted changes put right as the page read the profile
         self._overhaul: tuple[bool, dict | None, bool] = (False, None, False)  # switch on, the profile's, leftovers
+        self._adopt: tuple[Any, bool] = (None, False)  # the setup holding the profile, and whether it is offered
         self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
         self._state: ModsState = self.presenter.page(None)
         self._loading = False
@@ -150,6 +152,7 @@ class ModsAdapter(QObject):
     overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
     profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
     profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
+    canAdopt = Property(bool, lambda self: self._adopt[0] is not None, notify=changed)
 
     @Slot(int)
     def pickProfile(self, index: int) -> None:
@@ -188,7 +191,7 @@ class ModsAdapter(QObject):
 
         def work():
             if profile is None or not Path(profile).is_file():
-                return None, None, None, None, (), (False, None, False)
+                return None, None, None, None, (), (False, None, False), (None, False)
             recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
             facts = profile_mods.page_facts(profile, loc=loc, settings=settings)
             try:
@@ -209,7 +212,11 @@ class ModsAdapter(QObject):
                 )
             except Exception:  # an overhaul config or record that does not read: no overhaul entries
                 overhaul = (False, None, False)
-            return facts, scan, tool, undo, recovered, overhaul
+            try:
+                adoptable = adopt_service.setup_of(loc, Path(profile))
+            except Exception:  # a folder that can't be read: nothing to offer
+                adoptable = (None, False)
+            return facts, scan, tool, undo, recovered, overhaul, adoptable
 
         self.host.run_in_background(work, self._apply)
 
@@ -221,7 +228,7 @@ class ModsAdapter(QObject):
             self.refresh()
             return
         before = self._facts.profile if self._facts is not None else None
-        self._facts, self._scan, self._tool, self._rebuild_undo, recovered, self._overhaul = got
+        self._facts, self._scan, self._tool, self._rebuild_undo, recovered, self._overhaul, self._adopt = got
         now = self._facts.profile if self._facts is not None else None
         self._recovered = (self._recovered if now == before else ()) + recovered  # another profile: its own lines
         self._render()
@@ -235,6 +242,7 @@ class ModsAdapter(QObject):
             game_running=self.host.game_running,
             tool_to_allow=self._tool,
             recovered=self._recovered,
+            adopt=self._adopt[0].folder.name if self._adopt[0] is not None and self._adopt[1] else "",
         )
         groups = {g.kind: g for g in self._state.groups}
         self._packages.set_rows([_row(r) for r in (groups["package"].rows if "package" in groups else ())])
@@ -527,6 +535,8 @@ class ModsAdapter(QObject):
             self.allowTool()
         elif key == "online":
             self.setSetting("start_online", 2)  # Online matchmaking off: a Version, with Undo
+        elif key == "adopt":
+            self.adoptIntoLibrary()
 
     @Slot()
     def copyFingerprint(self) -> None:
@@ -661,6 +671,68 @@ class ModsAdapter(QObject):
             )
         else:
             preview_and_ask([])
+
+    # ---- adopting the setup into the library (S7d)
+    @Slot()
+    def adoptIntoLibrary(self) -> None:
+        setup = self._adopt[0]
+        profile = self._ready()
+        if profile is None:
+            return
+        if setup is None:
+            self._refuse(self.presenter.adopt_unavailable())
+            return
+        loc = self.host.locations
+
+        def look(chosen: list):
+            def work():
+                try:
+                    return adopt_service.preview_adopt(setup, loc=loc, move_unused=chosen), ""
+                except Exception as e:  # a folder or profile that can't be read: said, nothing written
+                    return None, str(e)
+
+            return work
+
+        def ask(preview) -> None:
+            words = self.presenter.adopt_confirm(preview)
+            if isinstance(words, Refusal):
+                self._refuse(words)
+                return
+
+            def answered(ok: bool, never: bool) -> None:
+                if never and not ok:
+                    adopt_service.dismiss(setup)
+                    self._adopt = (setup, False)
+                    self._render()
+                if not ok or self.host.busy:
+                    return
+
+                def job(_setup, loc):
+                    from roundtable_souls.platform import logging as run_logging
+
+                    run_logging.start_log(f"launcher: adopt {setup.folder.name} into the library", loc.game.key)
+                    adopt_service.adopt(preview, loc=loc)
+
+                self.host.run_job(job, self.presenter.adopt_running(setup.folder.name))
+
+            self.notifier.ask(words, answered)
+
+        def first(result) -> None:
+            preview, why = result
+            if preview is None:
+                self._refuse(Refusal(tr("Can't adopt {name}").format(name=setup.folder.name), why))
+            elif preview.ok and preview.unused:  # none ticked to start with: they stay unless asked for
+                self._pick(
+                    self.presenter.adopt_unused([u.name for u in preview.unused]),
+                    [str(u.relative_to(setup.folder)) for u in preview.unused],
+                    lambda ticked: self.host.run_in_background(
+                        look([preview.unused[i] for i in ticked]), lambda r: ask(r[0]) if r[0] else first(r)
+                    ),
+                )
+            else:
+                ask(preview)
+
+        self.host.run_in_background(look([]), first)
 
     @Slot()
     def cleanLeftovers(self) -> None:

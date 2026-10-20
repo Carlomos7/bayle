@@ -180,3 +180,29 @@ def test_a_blocked_state_starts_nothing():
         f, ports, calls = flow(state=state)
         assert f.start(PROFILE) is False
         assert calls.started == [] and ports.asked == [] and ports.toasts
+
+
+# T7: Vanilla
+def test_vanilla_starts_through_steam_without_me3_a_profile_or_the_save_repair(monkeypatch):
+    from roundtable_souls.game.locate import Locations as RealLocations
+
+    opened = []
+    forbidden = lambda *a, **k: (_ for _ in ()).throw(AssertionError("Vanilla must not call this"))  # noqa: E731
+    monkeypatch.setattr(
+        core,
+        "play_options",
+        lambda settings=None: {"play_backup_before": False, "play_clear_before": True, "play_clear_after": True},
+    )
+    monkeypatch.setattr(core.run_logging, "start_log", lambda *a, **k: None)
+    monkeypatch.setattr(core.run_logging, "log", lambda *a, **k: None)
+    monkeypatch.setattr(core.me3_session, "ensure_steam", lambda timeout: None)
+    monkeypatch.setattr(core.me3_session, "clear_dead_shells", lambda exe, when: None)
+    monkeypatch.setattr(core.me3_session, "wait_for_game", lambda exe, appear_timeout, quiet=False: True)
+    monkeypatch.setattr(core.desktop, "open_path", opened.append)
+    for name in ("launch",):
+        monkeypatch.setattr(core.me3_session, name, forbidden)
+    monkeypatch.setattr(core.save_repair, "repair_all", forbidden)
+    monkeypatch.setattr(core, "offline_profile_for", forbidden)
+    monkeypatch.setattr(core, "_after_play", forbidden)
+    core.job_play_vanilla(None, RealLocations(catalog.ELDEN_RING), backup=core.BACKUP_SKIP)
+    assert opened == ["steam://rungameid/1245620"]

@@ -4,6 +4,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Plainer words in the new window (UX pass): the Launch pill says "The game program is missing: eldenring.exe" and
+  names the missing me3 in plain words instead of "game exe set on Tools"; the Mods page calls the second list "DLL
+  mods"; the Remove and Delete confirmations no longer quote profile file syntax ("[[packages]]", ".bak",
+  "load_after"); Profile settings, Versions and an empty "Add existing" end with Close, not Cancel, because there is
+  nothing left to cancel.
 - A rebuild of an engine mod (Revive and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.

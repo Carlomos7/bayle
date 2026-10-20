@@ -95,7 +95,19 @@ def mode_menu(current: str) -> list[dict]:
 
 # ------------------------------------------------------------------------------------------------ blocked
 def _short(problem: str) -> str:
-    """The reason without a long path (so the line is not this PC's folder tree)."""
+    """The reason in plain words, without a long path (so the line is not this PC's folder tree)."""
+    low = problem.lower()
+    name = Path(problem.split(": ", 1)[1]).name if ": " in problem else ""
+    if low.startswith("game exe"):
+        return (
+            tr("The game program is missing: {name}").format(name=name) if name else tr("The game program is missing")
+        )
+    if low.startswith("me3 missing"):
+        return tr("me3 is missing: {name}").format(name=name) if name else tr("me3 is missing")
+    if low.startswith("me3 is not installed"):
+        return tr("me3 is not installed on this PC")
+    if low.startswith("profile missing"):
+        return tr("The profile file is missing")
     if ": " not in problem:
         return problem
     kind, rest = problem.split(": ", 1)

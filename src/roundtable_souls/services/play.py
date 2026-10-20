@@ -153,6 +153,17 @@ class Setup:
             out.append(f"game exe set in Settings is missing: {custom}")
         return out
 
+    def warnings(self):
+        """What will not stop Play but leaves a mod out: a mod folder that is gone (me3 skips it)."""
+        p = Path(self.profile)
+        if self.kind != "me3" or not p.is_file():
+            return []
+        try:
+            rows = profile_tools.package_rows(p.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            return []
+        return [f"{r['id']} folder is missing" for r in rows if not mod_manage.resolve(p, r["path"]).is_dir()]
+
     def launch_exe(self):
         """What me3 launches with --exe: the installation's own exe, else the custom exe from Settings, else Steam (--game)."""
         return self.exe or self.loc.overrides.game_exe or None

@@ -711,6 +711,9 @@ def _preview_zip(
         for src, dest in prev.copies:
             if src.is_dir() and src.name.lower() == folder.lower():
                 return (src / name if (src / name).is_file() else None), dest / name
+        for src, _dest in prev.reused:
+            if src.is_dir() and src.name.lower() == folder.lower():
+                return "already installed and reused as it is, so its settings file is left alone"
         return "not among the mods this zip copies, skipped"
 
     _config_cards(share, place, out)

@@ -8,11 +8,15 @@ at nothing, is left out and said. Each entry keeps its options (enabled, load_ea
 load_after, load_before). A package id the profile already has is renamed (-2, -3, ...) and every load_after /
 load_before naming it is changed with it; a DLL is never renamed (me3 names DLLs by file name: two switched-on DLLs
 with one name are refused by the profile writer, as is a required dependency that would be missing). A folder name
-already taken where the mods go gets -2 the same way.
+already taken where the mods go gets -2 the same way, unless the folder there is byte-identical to the one in the
+download: then the profile points at the installed folder and nothing is copied (reused, and the space saved is said).
 """
 
 from __future__ import annotations
 
+import hashlib
+import os
+import re
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -51,6 +55,10 @@ class ImportPreview:
     skipped: list[str]
     lines: list[str] = field(default_factory=list)
     refusals: list[str] = field(default_factory=list)
+    reused: list[tuple[Path, Path]] = field(
+        default_factory=list
+    )  # (a folder in the download, the identical installed one)
+    saved: int = 0  # bytes not copied because of reuse
 
     @property
     def ok(self) -> bool:
@@ -63,6 +71,48 @@ def _inside(path: Path, top: Path) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _files(folder: Path) -> dict[str, int]:
+    """Relative path (lower case) -> size of every file in a folder, junk left out."""
+    out: dict[str, int] = {}
+    for root, dirs, names in os.walk(folder):
+        dirs[:] = [d for d in dirs if d not in JUNK]
+        for n in names:
+            if n not in JUNK:
+                f = Path(root) / n
+                out[f.relative_to(folder).as_posix().lower()] = f.stat().st_size
+    return out
+
+
+def _sha(path: Path) -> str:
+    with path.open("rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
+
+def identical(a: Path, b: Path) -> int | None:
+    """The total size when two folders hold the same files byte for byte, else None. Names and sizes first; the
+    hashes (stopping at the first difference) only when those match."""
+    fa, fb = _files(a), _files(b)
+    if fa != fb:
+        return None
+    for rel in fa:
+        if _sha(a / rel) != _sha(b / rel):
+            return None
+    return sum(fa.values())
+
+
+def _installed_twin(item: Path, root: Path) -> tuple[Path, int] | None:
+    """An installed folder in root (the same name, or that name with -2, -3...) identical to the folder item."""
+    base = naming.mod_id(item.name)
+    if not item.is_dir() or not root.is_dir():
+        return None
+    for p in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+        if p.is_dir() and re.fullmatch(re.escape(base) + r"(-\d+)?", p.name, re.IGNORECASE):
+            size = identical(item, p)
+            if size is not None:
+                return p, size
+    return None
 
 
 def _refs(deps: list, renamed: dict[str, str]) -> list:
@@ -116,10 +166,16 @@ def preview_import(
             item = path if path.parent in (source.parent, unpacked) else path.parent
         if item not in place:
             root = pk_root if e["kind"] == "package" else nt_root
-            name = naming.unique(naming.mod_id(item.stem if item.is_file() else item.name), taken_dirs)
-            taken_dirs.add(name)
-            place[item] = root / name
-            out.copies.append((item, root / name))
+            twin = _installed_twin(item, root)
+            if twin is not None:  # already installed, byte for byte: the profile points at it
+                place[item] = twin[0]
+                out.reused.append((item, twin[0]))
+                out.saved += twin[1]
+            else:
+                name = naming.unique(naming.mod_id(item.stem if item.is_file() else item.name), taken_dirs)
+                taken_dirs.add(name)
+                place[item] = root / name
+                out.copies.append((item, root / name))
         dest = place[item]
         rows.append(
             (e, dest if e["kind"] == "package" else dest / (path.name if item.is_file() else path.relative_to(item)))
@@ -159,11 +215,20 @@ def preview_import(
         (f"A new profile {target.name} is made beside {current.name}" if new_name else f"{target.name} gets")
         + f" {len(rows)} entr{'y' if len(rows) == 1 else 'ies'} from {Path(me3).name}, with their options",
         *(f"{src.name} is copied into {dest}" for src, dest in out.copies),
+        *(
+            f"{src.name} is already installed ({dest}, identical), so it is reused and not copied"
+            for src, dest in out.reused
+        ),
+        *([f"Reusing installed mods saves {_size(out.saved)} of copying"] if out.reused else []),
         *(f"{old} is called {new}: {target.name} already has a mod with that id" for old, new in out.renamed.items()),
         *out.skipped,
         "Nothing in the download runs; your other mods are not touched",
     ]
     return out
+
+
+def _size(n: int) -> str:
+    return f"{n / 1024**3:.1f} GB" if n >= 1024**3 else f"{n / 1024**2:.1f} MB"
 
 
 def _deepest(path: Path) -> int:

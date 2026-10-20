@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Importing a profile or a full export no longer copies a mod you already have: a mod folder byte-identical to an
+  installed one (same files and sizes, then checksums) is reused, the new profile points at it, and the preview says
+  so and how much copying it saves. Only a folder that differs is copied, as name-2. Undo import never touches a
+  reused folder. (Before, importing your own export beside the original copied every mod again.)
 - Export / Import profile, Export: a full export shows a progress bar (percent, file N of M, the file, MB done of total,
   time left) and a Cancel export button that removes the partial zip; it runs as a job, so it is in Activity. Export
   is off with the reason beside it, and a missing name, folder or mod is marked in place. A line says what the file

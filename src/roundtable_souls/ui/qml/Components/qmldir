@@ -14,6 +14,7 @@ GhostButton 1.0 GhostButton.qml
 GildedFrame 1.0 GildedFrame.qml
 GpuShadow 1.0 GpuShadow.qml
 Grain 1.0 Grain.qml
+HandCursor 1.0 HandCursor.qml
 Hairline 1.0 Hairline.qml
 HoverRow 1.0 HoverRow.qml
 IconButton 1.0 IconButton.qml

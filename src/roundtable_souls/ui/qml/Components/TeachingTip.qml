@@ -8,8 +8,12 @@ Rectangle {
     id: root
 
     property string text
+    property bool pointer: true
 
     signal dismissed
+
+    Accessible.name: text
+    Accessible.role: Accessible.AlertMessage
 
     color: "transparent"
     height: col.implicitHeight + 24
@@ -35,7 +39,14 @@ Rectangle {
             }
         }
     }
+    Shortcut {  // Esc dismisses (WCAG 2.1.2 / keyboard)
+        enabled: root.visible
+        sequence: "Esc"
+
+        onActivated: root.dismissed()
+    }
     Rectangle {  // the pointer
+        visible: root.pointer
         anchors.left: parent.left
         anchors.leftMargin: Theme.sp24
         anchors.top: parent.top

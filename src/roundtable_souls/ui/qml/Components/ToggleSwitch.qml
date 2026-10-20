@@ -93,4 +93,6 @@ Switch {
             radiusOf: 11
         }
     }
+    HandCursor {
+    }
 }

@@ -294,20 +294,6 @@ class ModsPresenter:
             words[f"setting_{key}"] = tr(label)
             words[f"setting_{key}_help"] = tr(help_text)
             words[f"setting_{key}_tip"] = tr("me3 setting: {key}").format(key=key)
-        words.update(
-            {
-                "setting_disable_arxan": tr("Anti-tamper workaround"),
-                "setting_disable_arxan_help": tr(
-                    "Stops the game's built-in protection from blocking mods. Helps some mods stay stable."
-                ),
-                "setting_mem_patch": tr("Extra memory for heavy mods"),
-                "setting_mem_patch_help": tr(
-                    "Lifts the game's memory limit so heavy mods fit. Leave on the default unless a mod asks."
-                ),
-                "setting_mem_patch_heap_size": tr("Extra memory (MB)"),
-                "setting_mem_patch_heap_size_help": tr("0 means the default amount."),
-            }
-        )
         return words
 
     def page(

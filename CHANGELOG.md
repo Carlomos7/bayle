@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Profile settings: "Disable code protection (Arxan)" and "Game memory pool (MB)" with exact help; the memory pool is hidden for games where me3 ignores it.
 - Mod Configs reads a file in the background, and Rename checks the name in the background.
 - Renaming a mod waits for a pause in typing before it checks the new name.
 - Load order tags keep their names (Clash, Loads early) and explain themselves on hover.

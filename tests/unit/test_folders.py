@@ -275,3 +275,36 @@ def test_tests_never_move_folders_outside_their_own(tmp_path):
         import shutil
 
         shutil.rmtree(outside.parent.parent, ignore_errors=True)
+
+
+def _old_backups(folder, n):
+    """n backups of ER0000.co2, all older than KEEP_DAYS, newest first."""
+    folder.mkdir(parents=True, exist_ok=True)
+    now = time.time()
+    made = []
+    for i in range(n):
+        f = folder / f"ER0000.co2.20260101-0000{i:02d}.bak"
+        f.write_bytes(b"x")
+        age = (save_backups.KEEP_DAYS + 1 + i) * 86400
+        os.utime(f, (now - age, now - age))
+        made.append(f)
+    return made, now
+
+
+def test_prune_keeps_the_newest_backups_count_setting(tmp_path):
+    from roundtable_souls.config.settings import save_settings
+
+    save_settings(backups_keep=30)
+    made, now = _old_backups(tmp_path / "b", 35)
+    removed = save_backups.prune(tmp_path / "b", "ER0000.co2", now=now)
+    assert sorted(removed) == sorted(made[30:])  # only the old ones past the newest 30
+
+
+@pytest.mark.parametrize("value", [0, -1, 4, 201, "ten", None])
+def test_a_bad_backups_count_means_20_never_less(tmp_path, value):
+    from roundtable_souls.config.settings import settings_path
+
+    settings_path().write_text(json.dumps({"backups_keep": value}))  # as a hand-edited file could hold it
+    assert save_backups.keep_newest() == save_backups.KEEP_NEWEST
+    made, now = _old_backups(tmp_path / "b", 25)
+    assert sorted(save_backups.prune(tmp_path / "b", "ER0000.co2", now=now)) == sorted(made[20:])

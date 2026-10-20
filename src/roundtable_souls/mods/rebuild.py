@@ -598,12 +598,16 @@ def ensure_combined(profile: Path, target: dict | None, *, loc: Locations):
     writer = ProfileWriter(profile, loc)
     text = writer.as_blocks()
     if combine is None:
-        pk_root, _nt = mod_manage.roots(profile, text)
-        folder = pk_root / builtin.FOLDER
-        n = 2
-        while folder.exists() and not builtin.is_combined(folder):
-            folder = pk_root / f"{builtin.FOLDER}-{n}"
-            n += 1
+        lib = library.library_of(profile)
+        if lib is not None:  # a library profile's own build folder
+            folder = lib.build(builtin.FOLDER, profile.stem).root
+        else:
+            pk_root, _nt = mod_manage.roots(profile, text)
+            folder = pk_root / builtin.FOLDER
+            n = 2
+            while folder.exists() and not builtin.is_combined(folder):
+                folder = pk_root / f"{builtin.FOLDER}-{n}"
+                n += 1
         folder.mkdir(parents=True, exist_ok=True)
         if not (folder / builtin.RECORD).is_file():
             (folder / builtin.RECORD).write_text(json.dumps({"combined": 1, "packs": []}), encoding="utf-8")

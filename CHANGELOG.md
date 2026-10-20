@@ -4,6 +4,73 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Install mod, with "Install overhauls with the launcher (preview)" on: a download that ships its own installer, an
+  me3 profile, or a regulation.bin with DLLs starts with "Set up as an overhaul" ticked and the reason shown; any
+  other mod can tick it. The dialog shows what it will do (the Name gives the id) and the button reads "Install as
+  overhaul"; Undo takes it back. A download an overhaul config already describes (such as Revive) is shown as
+  already set up; one whose version is not listed is refused with the way out. With the switch off the dialog has
+  no overhaul option, only one line naming the switch.
+- The new Mods window installs mods in its own Install mod dialog (From archive or DLL, From folder, or files dropped
+  on the page; several drops open one dialog after another, each once the last install has finished): the folder
+  name (and id for a package), what to install, where regulation.bin goes and the mod that must stay last, as in the
+  old dialog. Cancelling leaves nothing behind.
+- Install mod: a folder name Windows refuses (such as CON), one of the launcher's own folder names, or one that
+  makes a path too long for Windows is refused in the dialog with the reason, before anything is copied (before, a
+  too-long path failed only after Install). A name that matches an installed mod's folder in another case updates
+  that folder instead of making a second one.
+- New Mods window, Adopt into the library: More has Adopt into the library..., and a bar offers it the first time (Preview,
+  Not now; the confirmation can stop the offer for that setup). Adopting moves a setup you already have (a folder of
+  profiles and their mods) into the launcher's own folder, rs-<game> inside the profiles folder: mods go to
+  packages and natives, profiles to profiles, every path in them rewritten and their comments kept. It is one
+  step on one drive: nothing is copied or deleted, and if anything fails nothing moves. Entries outside the setup's
+  folder, a DLL loose in a folder other mods share and a mod another game's profile uses stay where they are, and
+  the preview says so; folders no profile uses stay unless you tick them. Undo adoption in Activity puts every file,
+  profile and setting back, and says no (leaving everything) when an adopted profile changed since. A setup with an
+  overhaul cannot be adopted yet. Installs and Combine for an adopted profile go into the library too.
+- Mod Configs: a profile with an overhaul setup shows an Overhaul setup entry. It is a form for the DLLs (load early,
+  load after the other DLLs, initializer), the settings files kept when the mod updates and which binders are merged;
+  a hand-edited one shows what it does and Edit as text changes it; a verified one that comes with the launcher
+  is read-only. Turn off makes the mod an ordinary mod again (Undo turn off in Activity). Add overhaul setup... (and
+  Set up as overhaul... on a mod) sets any mod of the profile up as an overhaul, showing what it does before it does it.
+- Export / Import profile, a first look at the new page (the Mods window's profile gear, and a button on the Mods
+  page): Share list writes one small file with your mods, their order and options, the profile settings and your
+  mods' settings files (the Seamless Co-op password is left out unless you tick it); Full export also puts the mods
+  in a zip with a README and a changelog. Import shows what each file would change, with a tick per file, and
+  writes the ticked ones as one change you can Undo from Activity. A share list matches mods by id (DLLs by file
+  name) and skips the ones you don't have; a zip is imported into a new profile by default. An import never turns
+  online play on, only takes a save file name that is a plain .sl2 name, never writes a save from a zip, and
+  never writes a settings file outside the folder of a mod your profile has. A mod download that also ships a
+  profile offers "Import it instead..." in the Install dialog. Paste in Mod Configs now uses the same merge.
+- Saves, a first look at the new page: a button on the Saves page, Open new Saves window, shows the two live saves
+  (Standard first) with their characters, the Library and the Backups grouped by day. A character's menu copies it into
+  any slot of either save (or duplicates it in the same file); a save's menu backs it up, saves a copy to the Library,
+  or replaces it with a file or a Library copy (the old file is kept first); Import takes a .sl2 or .co2 from disk
+  or dropped on the page. Check & repair opens beside the page with the findings in cards, and a click on a
+  character opens its sheet (read-only for now). Every write waits for the game to let go of the file, backs up
+  first and offers Undo in a toast and in Activity. A whole file from another Steam account is signed for the
+  account it goes into (profile summary, every character, all checksums) and read back before anything is written;
+  this has not been tested in the game yet.
+- Saves, in both windows: the repair notes for a stale character or profile-summary checksum now say what the game
+  does with it (it refuses the save as corrupted), and every save write waits for the game to release the file and
+  stops, with a message, if it does not.
+- Nightreign Revive's menu text now takes its languages from the game's own list and always starts from the game's own
+  file, never the copies in Revive's download (which can be from an older game version); the output is the same
+  bytes. Because the build's config changed, a Revive build the launcher made is rebuilt once at the next Play, and a
+  language file missing from the game's archives stops that build with its name.
+- A character script that uses a number above 16,777,216 that the game's 4-byte script numbers can't hold exactly now gets a warning (it
+  would be rounded); the build still goes ahead.
+- Whether the game is running is now decided by its threads, not its memory: a game that is still starting (even one
+  held back at launch) counts as running, so saves and mods are not touched while it comes up; only a leftover copy
+  with no threads counts as a dead shell.
+- Settings, a first look at the new page: a new button on the Settings page, Open new Settings window, opens
+  Locations (with a saves folder override, per game), Launch, Backups, Appearance, Updates, Logs and About. New
+  settings: how many backups are kept per save (5 to 200, default 20; the last 7 days and any Keep stay), the
+  theme (Dark, Tarnished, Light or System; the older window shows Tarnished as Dark and System as the OS scheme),
+  Effects, Grain and Log level (Verbose writes the fine detail to launcher.log from the next start). Update offers,
+  downloads and Restart now show in both windows and run the same checks as before. Boot boost, Repair saves and
+  Offline play now say what the game does and does not do.
+- Play offline now always turns online play off in its temporary copy of the profile. Before, a profile set to
+  go online (start_online = true) went online during an offline launch.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

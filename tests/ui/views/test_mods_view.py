@@ -74,6 +74,48 @@ class Host:
     def open_mod_configs(self, select=""):
         self.changes.append(f"mod configs: {select}")
 
+    def open_profile_transfer(self, mode):
+        self.changes.append(f"profile transfer: {mode}")
+
+    def open_profile_import(self, unpacked, profiles, staging=None):
+        self.changes.append(f"profile import: {profiles}")
+
+    def saves_in_use(self):
+        return {}
+
+    def settings_changed(self, key):
+        self.changes.append(f"setting: {key}")
+
+    def set_appearance(self):
+        pass
+
+    def check_for_updates(self):
+        raise RuntimeError("no updates here")
+
+    def update_state(self):
+        return {"line": "", "tone": "muted", "notices": []}
+
+    def watch_updates(self, call):
+        pass
+
+    def notice_action(self, notice_id, key):
+        raise RuntimeError("no updates here")
+
+    def dismiss_notice(self, notice_id):
+        pass
+
+    def point_steam_shortcuts(self):
+        raise RuntimeError("no Steam shortcuts here")
+
+    def save_logs_for_support(self):
+        raise RuntimeError("no logs here")
+
+    def open_logs_folder(self):
+        pass
+
+    def me3_facts(self):
+        return {}
+
     def profiles(self):
         return [self.profile.name]
 

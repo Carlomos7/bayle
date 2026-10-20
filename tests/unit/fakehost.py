@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from roundtable_souls.platform import proc, processes, session, steam
 from roundtable_souls.services import play
 
-GAME_KB = 2_000_000  # a running game uses gigabytes; platform.paths.REAL_GAME_MIN_KB tells it from a dead shell
+GAME_THREADS = 120  # a running game has threads; a dead shell has none (platform.paths.dead_exe_shells)
 STEAM_EXE = r"C:\Program Files (x86)\Steam\steam.exe"
 
 
@@ -96,9 +96,9 @@ class FakeHost:
         self.advance()
         name = name.lower()
         if name == steam.steam_process_name().lower():
-            return [(100, 150_000)] if self._steam_up() else []
+            return [(100, 30)] if self._steam_up() else []
         if self._game_up():
-            return [(200, GAME_KB)] + [(pid, 0) for pid in self.dead_shells]
+            return [(200, GAME_THREADS)] + [(pid, 0) for pid in self.dead_shells]
         return [(pid, 0) for pid in self.dead_shells]
 
     def _steam_up(self) -> bool:
@@ -201,4 +201,4 @@ def setup_for(game, profile="p.me3", me3="me3.exe", exe=None, loc=None):
     )()
 
 
-__all__ = ["FakeHost", "GAME_KB", "STEAM_EXE", "setup_for", "subprocess"]
+__all__ = ["FakeHost", "GAME_THREADS", "STEAM_EXE", "setup_for", "subprocess"]

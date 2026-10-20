@@ -1006,6 +1006,8 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
                         "Copying",
                         "Adding",
                         "Adopting",
+                        "Exporting",
+                        "Importing",
                     )
                 )
                 else "Saves repaired and cleanup done."

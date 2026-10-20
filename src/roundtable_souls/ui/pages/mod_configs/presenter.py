@@ -150,6 +150,18 @@ def choice_label(key: str, n: int, raw: str) -> str:
 
 
 # ----------------------------------------------------------------------------- the page
+def nested_title(path: str) -> str:
+    """A TOML section path in player words: "window.deep" -> "Window › Deep", "[[builds]] #1" -> "Builds · 1"."""
+    m = re.fullmatch(r"\[\[(.+?)\]\]\s*#(\d+)", path.strip())
+    if m:
+        return f"{_nice(m.group(1))} · {m.group(2)}"
+    return " › ".join(_nice(p) for p in path.split(".")) if "." in path else path
+
+
+def _nice(part: str) -> str:
+    return part.strip().replace("_", " ").capitalize()
+
+
 class ModConfigsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
@@ -401,7 +413,13 @@ class ModConfigsPresenter:
                 continue
             rows = [self.row(item, seamless) for item in s.settings]
             if rows:
-                out.append({"title": section_title(s.name) if seamless else (s.name or ""), "rows": rows})
+                out.append(
+                    {
+                        "title": section_title(s.name) if seamless else nested_title(s.name or ""),
+                        "path": s.name or "",
+                        "rows": rows,
+                    }
+                )
         return out
 
     def row(self, item: config_model.Setting, seamless: bool = False) -> dict[str, Any]:

@@ -75,9 +75,16 @@ Column {
             width: form.width
 
             Txt {
+                ToolTip.delay: Theme.mTooltipDelay
+                ToolTip.text: sectionBlock.modelData.path
+                ToolTip.visible: titleHover.hovered && sectionBlock.modelData.path !== "" && sectionBlock.modelData.path !== sectionBlock.modelData.title
                 kind: "strong"
                 text: sectionBlock.modelData.title
                 visible: text !== ""
+
+                HoverHandler {
+                    id: titleHover
+                }
             }
             Card {
                 padding: 0

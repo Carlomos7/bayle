@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from roundtable_souls.mods import profile_edit as mod_manage
@@ -37,11 +38,17 @@ LABEL = {
     "overhaul-remove": "Restore",
     "overhaul-turn-off": "Undo turn off",
     "profile-import": "Undo import",
+    "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
 # says what to take back; the removal's folders come back from the Recycle Bin.
 OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove", "overhaul-turn-off")
+
+
+# Undo types a layer above this one does (saves: services.saves registers "save-restore" when it is imported):
+# type -> (available(undo), run(undo, log, loc)).
+EXTERNAL: dict[str, tuple[Callable[[dict], bool], Callable[[dict, Callable, Locations], str]]] = {}
 
 
 class UndoError(RuntimeError):
@@ -76,6 +83,8 @@ def _in_bin(undo: dict) -> bool:
 def available(undo: dict | None) -> bool:
     if not undo:
         return False
+    if undo.get("type") in EXTERNAL:
+        return EXTERNAL[undo["type"]][0](undo)
     if undo.get("type") == "remove":
         profile = Path(undo.get("profile") or "")
         if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
@@ -103,6 +112,8 @@ def available(undo: dict | None) -> bool:
 def run(undo: dict, log, *, loc: Locations) -> str:
     """Do it. Returns a line saying what was done. Raises UndoError when it cannot be done any more, and
     FileExistsError when a folder is back at the old place already (nothing is overwritten)."""
+    if undo.get("type") in EXTERNAL:
+        return EXTERNAL[undo["type"]][1](undo, log, loc)
     if undo.get("type") == "remove":
         return _restore_removed(undo, log, loc)
     if undo.get("type") == "rebuild":

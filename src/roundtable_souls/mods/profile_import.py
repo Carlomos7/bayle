@@ -10,15 +10,22 @@ load_before naming it is changed with it; a DLL is never renamed (me3 names DLLs
 with one name are refused by the profile writer, as is a required dependency that would be missing). A folder name
 already taken where the mods go gets -2 the same way, unless the folder there is byte-identical to the one in the
 download: then the profile points at the installed folder and nothing is copied (reused, and the space saved is said).
+A folder whose name matches an installed one but whose files differ is a Clash: the player chooses per mod to use the
+incoming copy (into the current profile it replaces the folder inside the same operation, the old copy kept for Undo;
+a folder another profile also lists is never replaced: -2 for this profile only), to keep their own, or to keep both
+(-2). Versions are shown as labels, never compared to decide.
 """
 
 from __future__ import annotations
 
 import contextlib
+import datetime
 import hashlib
+import json
 import os
 import re
 import shutil
+import tomllib
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -26,9 +33,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from roundtable_souls.formats import me3_profile
-from roundtable_souls.mods import extract, naming, operations
+from roundtable_souls.mods import extract, library, naming, operations
 from roundtable_souls.mods import order as mod_order
-from roundtable_souls.mods.profile_edit import ModError, roots
+from roundtable_souls.mods.profile_edit import ModError, resolve, roots
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
 from roundtable_souls.mods.profile_writer import ProfileWriter
 
@@ -102,6 +109,12 @@ class ZipSource:
         pre = rel + "/"
         return {k[len(pre) :]: v for k, v in self.members.items() if k.startswith(pre)}
 
+    def read(self, path: Path, rel: str, limit: int = SMALL) -> bytes:
+        """The first limit bytes of one member (rel: its lower-case path inside the folder)."""
+        assert self._z is not None
+        with self._z.open(self.under(path)[rel][1]) as f:
+            return f.read(limit)
+
     def size(self, path: Path) -> int:
         return sum(i.file_size for _n, i in self.under(path).values())
 
@@ -134,6 +147,31 @@ class ZipSource:
             raise ModError(f"The zip is damaged ({e}); nothing was imported.") from e
 
 
+CHOICES = ("incoming", "mine", "both")
+
+
+@dataclass
+class Clash:
+    """A folder in the download with the name of an installed one but other files. changed / added / removed:
+    (files, bytes) as the incoming copy has them (removed: the bytes of the installed files the incoming copy lacks).
+    choice: what happens (None: the player has not picked and there is no default, so the import waits)."""
+
+    key: str  # the folder's name in the download: what a choice is stored under
+    incoming: Path
+    mine: Path
+    changed: tuple[int, int] = (0, 0)
+    added: tuple[int, int] = (0, 0)
+    removed: tuple[int, int] = (0, 0)
+    label_in: str = ""  # a version hint, shown as a label only
+    label_mine: str = ""
+    installed: str = ""  # the installed folder's date (ISO)
+    recorded: bool = False  # from the launcher's own record rather than the folder's modified time
+    users: list[str] = field(default_factory=list)  # profiles listing the installed folder
+    shared: bool = False  # another profile lists it, so it is never replaced from here
+    default: str | None = None
+    choice: str | None = None
+
+
 @dataclass
 class ImportPreview:
     """What importing does, worked out with nothing written."""
@@ -151,11 +189,19 @@ class ImportPreview:
         default_factory=list
     )  # (a folder in the download, the identical installed one)
     saved: int = 0  # bytes not copied because of reuse
+    clashes: list[Clash] = field(default_factory=list)
+    kept: list[tuple[Path, Path]] = field(default_factory=list)  # (a folder in the download, the installed one kept)
+    merged_ids: dict[str, str] = field(default_factory=dict)  # incoming id -> the id of the entry already there
     source: ZipSource | None = None  # the zip the folders in copies are read from (None: they are real folders)
 
     @property
     def ok(self) -> bool:
         return not self.refusals
+
+    @property
+    def undecided(self) -> list[str]:
+        """The mods the player still has to choose for."""
+        return [c.key for c in self.clashes if c.choice is None]
 
 
 def _inside(path: Path, top: Path) -> bool:
@@ -210,6 +256,112 @@ def _installed_twin(item: Path, root: Path, source: ZipSource | None = None) -> 
     return None
 
 
+def _candidates(item: Path, root: Path) -> list[Path]:
+    """Installed folders in root called like item (or with -2, -3...), the exact name first."""
+    base = naming.mod_id(item.name)
+    if not item.is_dir() or not root.is_dir():
+        return []
+    found = [
+        p
+        for p in sorted(root.iterdir(), key=lambda p: p.name.lower())
+        if p.is_dir() and re.fullmatch(re.escape(base) + r"(-\d+)?", p.name, re.IGNORECASE)
+    ]
+    return sorted(found, key=lambda p: p.name.lower() != base)
+
+
+def _version_in(text: str) -> str:
+    m = re.search(r"(?im)^[\s#*>_-]*version\s*[:\-]?\s*v?(\d+(?:\.\d+)*[\w-]*)", text)
+    return m.group(1) if m else ""
+
+
+def _label(top: dict[str, int], read: Callable[[str], bytes]) -> str:
+    """A version hint from the files at the top of a mod's folder (top: lower-case name -> size): a version file, a
+    "version" key in a json / toml manifest, or a "Version x.y" line in a README. "" when there is none."""
+    for name in sorted(top):
+        if top[name] > 65536:
+            continue
+        try:
+            if name == "version.txt" or name.endswith(".version"):
+                line = next((x.strip() for x in read(name).decode("utf-8", "replace").splitlines() if x.strip()), "")
+                if len(line) <= 32 and re.search(r"\d", line):
+                    return line.removeprefix("v")
+            elif name.endswith((".json", ".toml")):
+                raw = read(name).decode("utf-8-sig", "replace")
+                doc = json.loads(raw) if name.endswith(".json") else tomllib.loads(raw)
+                v = doc.get("version") if isinstance(doc, dict) else None
+                if isinstance(v, (str, int, float)) and not isinstance(v, bool) and re.search(r"\d", str(v)):
+                    return str(v).strip().removeprefix("v")[:32]
+        except OSError, ValueError, KeyError, zipfile.BadZipFile:
+            continue
+    for name in sorted(top):
+        if name.startswith("readme") and top[name] <= 65536:
+            try:
+                got = _version_in(read(name).decode("utf-8", "replace"))
+            except OSError, KeyError, zipfile.BadZipFile:
+                continue
+            if got:
+                return got
+    return ""
+
+
+def _name_version(name: str) -> str:
+    """A dotted version in a download's name (MapForGoblins-2.1.zip -> 2.1), or ""."""
+    m = re.search(r"(?<![\w.])v?(\d+\.\d+(?:\.\d+)*)(?![\w])", Path(name).stem)
+    return m.group(1) if m else ""
+
+
+def _newer(a: str, b: str) -> bool:
+    """a is a higher version than b (numbers only; either empty: no)."""
+    ta, tb = ([int(x) for x in re.findall(r"\d+", v)] for v in (a, b))
+    for t in (ta, tb):
+        while t and t[-1] == 0:
+            t.pop()
+    return bool(ta and tb and ta > tb)
+
+
+def _key(path: Path) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _installed_on(folder: Path) -> tuple[str, bool]:
+    """(date, from the launcher's record): when the launcher says it installed the folder, else its modified time."""
+    try:
+        when = json.loads((folder / "roundtable.json").read_text(encoding="utf-8")).get("installed")
+        return datetime.datetime.fromisoformat(str(when).replace("Z", "+00:00")).date().isoformat(), True
+    except OSError, ValueError, AttributeError:
+        return datetime.date.fromtimestamp(folder.stat().st_mtime).isoformat(), False
+
+
+def _clash(item: Path, mine: Path, source: ZipSource | None) -> Clash:
+    """How the folder item differs from the installed folder mine: names and sizes first, hashes only of the files
+    that kept their size. Call inside source.reading()."""
+    fa = {k: i.file_size for k, (_n, i) in source.under(item).items()} if source else _files(item)
+    fb = _files(mine)
+    c = Clash(item.name, item, mine)
+    for rel, size in fa.items():
+        if rel not in fb:
+            c.added = (c.added[0] + 1, c.added[1] + size)
+        elif size != fb[rel] or (source.sha(item, rel) if source else _sha(item / rel)) != _sha(mine / rel):
+            c.changed = (c.changed[0] + 1, c.changed[1] + size)
+    for rel, size in fb.items():
+        if rel not in fa:
+            c.removed = (c.removed[0] + 1, c.removed[1] + size)
+    tops = {k: s for k, s in fa.items() if "/" not in k}
+    if source:
+        c.label_in = _label(tops, lambda n: source.read(item, n, 65536))
+    else:
+        c.label_in = _label(tops, lambda n: (item / n).read_bytes()[:65536])
+    c.label_mine = _label({k: s for k, s in fb.items() if "/" not in k}, lambda n: (mine / n).read_bytes()[:65536])
+    c.installed, c.recorded = _installed_on(mine)
+    return c
+
+
+def _users(folder: Path, profile: Path) -> list[str]:
+    """The profiles listing folder: those of the library, or the ones beside profile."""
+    lib = library.library_of(profile)
+    return library.users_of(lib.profiles if lib is not None else profile.parent, folder)
+
+
 def preview_import(
     unpacked: Path,
     me3: str,
@@ -219,11 +371,14 @@ def preview_import(
     new_name: str | None = None,
     tune: Callable[[ProfileWriter], None] | None = None,
     archive: ZipSource | None = None,
+    choices: dict[str, str] | None = None,
+    download: str = "",
 ) -> ImportPreview:
     """What importing the bundled profile me3 (its path in the unpacked download) would do: into current, or, with
     new_name, into a new profile of that name beside current. tune(writer): more edits for the same write (a shared
     profile's settings), made before it is planned. archive: unpacked is the skeleton of this zip (ZipSource.skeleton).
-    Raises ModError when it can't be read."""
+    choices: the player's pick per clashing mod (lower-case folder name -> one of CHOICES). download: the download's
+    file name, a version hint when it holds one mod. Raises ModError when it can't be read."""
     unpacked, current = Path(unpacked).resolve(), Path(current)
     source = (unpacked / me3).resolve()
     if not _inside(source, unpacked) or not source.is_file():
@@ -245,7 +400,8 @@ def preview_import(
     taken_dirs = {p.name.lower() for root in (pk_root, nt_root) if root.is_dir() for p in root.iterdir()}
     out = ImportPreview(target, bool(new_name), writer, None, [], {}, [], source=archive)
     place: dict[Path, Path] = {}  # a folder (or lone DLL) in the download -> where it goes
-    rows: list[tuple[dict, Path]] = []
+    found_rows: list[tuple[dict, Path, Path]] = []  # (the entry, its item in the download, its path there)
+    pending: dict[Path, tuple[Clash, Path]] = {}  # an item that clashes with an installed folder -> (clash, root)
     for e in found:
         path = (source.parent / e["path"]).resolve() if e["path"] else None
         if path is None or not _inside(path, unpacked) or not path.exists():
@@ -262,26 +418,83 @@ def preview_import(
                 place[item] = twin[0]
                 out.reused.append((item, twin[0]))
                 out.saved += twin[1]
+            elif cands := _candidates(item, root):
+                with archive.reading() if archive else contextlib.nullcontext():
+                    pending[item] = (_clash(item, cands[0], archive), root)
+                place[item] = cands[0]  # until the choice is applied below
             else:
                 name = naming.unique(naming.mod_id(item.stem if item.is_file() else item.name), taken_dirs)
                 taken_dirs.add(name)
                 place[item] = root / name
                 out.copies.append((item, root / name))
+        found_rows.append((e, item, path))
+    claimed: set[Path] = set()
+    for item, (c, root) in pending.items():
+        c.users = _users(c.mine, target)
+        c.shared = bool(c.users) and not out.new and any(u.lower() != target.stem.lower() for u in c.users)
+        if len(place) == 1 and not c.label_in:
+            c.label_in = _name_version(download)
+        c.default = "incoming" if _newer(c.label_in, c.label_mine) else None
+        pick = (choices or {}).get(c.key.lower())
+        # a new profile risks nothing of the player's: with no pick it gets the incoming copy as name-2, as before
+        c.choice = pick if pick in CHOICES else c.default or ("incoming" if out.new else None)
+        out.clashes.append(c)
+        if c.choice == "mine":
+            out.kept.append((item, c.mine))
+        elif c.choice == "incoming" and not out.new and not c.shared and c.mine not in claimed:
+            claimed.add(c.mine)
+            out.copies.append((item, c.mine))  # replaces the folder; the journal keeps the old one for Undo
+        else:  # keep both (and, until the player picks, the same plan)
+            name = naming.unique(naming.mod_id(item.name), taken_dirs)
+            taken_dirs.add(name)
+            place[item] = root / name
+            out.copies.append((item, root / name))
+    rows: list[tuple[dict, Path]] = []
+    for e, item, path in found_rows:
         dest = place[item]
         rows.append(
             (e, dest if e["kind"] == "package" else dest / (path.name if item.is_file() else path.relative_to(item)))
         )
+    # An entry of this profile that already points at the folder an imported entry lands in stays the ONE entry
+    # (never a second one on the same folder, which me3 would load twice): it takes the incoming options and load
+    # order, or is left as it is when the player kept their copy. Its id is not renamed; references to the incoming
+    # id are changed to it.
+    here: dict[tuple[str, str], dict] = {}
+    if not out.new:
+        for ex in writer.entries():
+            if ex.get("path"):
+                here.setdefault((ex["kind"], _key(resolve(target, ex["path"]))), ex)
+    kept_items = {src for src, _ in out.kept}
+    merged: dict[int, dict] = {}  # position in rows -> the entry of the profile
+    for n, (e, live) in enumerate(rows):
+        if (ex := here.get((e["kind"], _key(live)))) is not None:
+            merged[n] = ex
+            ident = str(e["id"] or "") if e["kind"] == "package" else ""
+            if ident and ident.lower() != str(ex.get("id") or "").lower():
+                out.merged_ids[ident] = me3_profile.entry_ref(ex)
+            continue
         ident = str(e["id"] or "") if e["kind"] == "package" else ""
         if ident and ident.lower() in taken_ids:
             out.renamed[ident] = naming.unique(ident, taken_ids)
         if ident:
             taken_ids.add(out.renamed.get(ident, ident).lower())
-    for e, live in rows:
+    refs = {**out.renamed, **out.merged_ids}
+    for n, ex in merged.items():  # first, while the entries' positions are as they were read
+        e = found_rows[n][0]
+        if found_rows[n][1] in kept_items:
+            continue
+        opts = {k: e[k] for k in ("enabled", "optional", "load_early", "initializer", "finalizer") if k in e}
+        opts["load_after"] = mod_order.rename_refs(e["load_after"], refs)
+        opts["load_before"] = mod_order.rename_refs(e["load_before"], refs)
+        writer.set_options(ex["index"], opts)
+    for n, (e, live) in enumerate(rows):
+        if n in merged:
+            continue
         row = {
             k: e[k] for k in ("enabled", "optional", "load_early", "initializer", "finalizer") if e.get(k) is not None
         }
-        row["load_after"] = mod_order.rename_refs(e["load_after"], out.renamed)
-        row["load_before"] = mod_order.rename_refs(e["load_before"], out.renamed)
+        row["load_after"] = mod_order.rename_refs(e["load_after"], refs)
+        row["load_before"] = mod_order.rename_refs(e["load_before"], refs)
         if e["kind"] == "package":
             row["id"] = out.renamed.get(e["id"], e["id"]) if e["id"] else None
         row["path"] = live
@@ -311,7 +524,27 @@ def preview_import(
             for src, dest in out.reused
         ),
         *([f"Reusing installed mods saves {_size(out.saved)} of copying"] if out.reused else []),
+        *(
+            f"{src.name} differs from your installed {dest.name}: your copy is kept, nothing is copied"
+            for src, dest in out.kept
+        ),
+        *(
+            f"{src.name} replaces your installed {dest.name}; the old copy is kept so Undo import brings it back"
+            for src, dest in out.copies
+            if any(c.incoming == src and c.mine == dest for c in out.clashes)
+        ),
+        *(
+            f"{c.key} is also used by {', '.join(c.users)}, so it is not replaced: this profile gets its own copy"
+            for c in out.clashes
+            if c.shared and c.choice == "incoming"
+        ),
         *(f"{old} is called {new}: {target.name} already has a mod with that id" for old, new in out.renamed.items()),
+        *(
+            f"{rows[n][1].name if e['kind'] == 'package' else rows[n][1].parent.name} is already in {target.name}: "
+            "that entry is used, not a second one"
+            for n, (e, _live) in enumerate(rows)
+            if n in merged
+        ),
         *out.skipped,
         "Nothing in the download runs; your other mods are not touched",
     ]
@@ -358,7 +591,8 @@ def apply_import(
 ) -> dict:
     """Import as previewed, as one operation. after_copy(dest, staged): called for each folder copied, before it
     goes live (a shared profile's settings files are written into the copy). progress(done, total): bytes unpacked
-    from a zip. Returns {operation, profile, new}."""
+    from a zip. Returns {operation, profile, new}. A mod still undecided (ImportPreview.undecided; the page waits for
+    the player's pick) is imported as name-2, which changes nothing of theirs."""
     p = preview
     if not p.ok or p.change is None:
         raise ModError("; ".join(p.refusals) or "Nothing to import.")

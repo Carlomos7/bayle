@@ -89,6 +89,15 @@ class ProfileTransferPresenter:
             "required": tr("Required"),
             "tickOne": tr("Tick at least one mod."),
             "reading": tr("Working on it. A big zip can take a minute..."),
+            "differsTitle": tr("Already installed, with different files"),
+            "differsAbout": tr("Pick which copy each of these mods should use."),
+            "useIncoming": tr("Use the incoming copy"),
+            "keepMine": tr("Keep mine"),
+            "keepBoth": tr("Keep both"),
+            "incomingCopy": tr("Incoming copy"),
+            "yourCopy": tr("Your copy"),
+            "pickOne": tr("Pick one to continue."),
+            "suggested": tr("Suggested: the incoming copy has the higher version number."),
         }
 
     def seconds(self, s: float) -> str:
@@ -201,6 +210,43 @@ class ProfileTransferPresenter:
             }
             for c in prev.cards
         ]
+
+    def clashes(self, prev, new_profile: bool) -> list[dict]:
+        """The cards for mods that differ from an installed one (profile_import.ImportPreview.clashes). Versions are
+        labels only; nothing here says which copy is newer."""
+        out = []
+        for c in prev.clashes:
+            parts = []
+            if c.changed[0]:
+                n = plural("{n} file changed", "{n} files changed", c.changed[0]).format(n=c.changed[0])
+                parts.append(f"{n} ({size_text(c.changed[1])})")
+            if c.added[0]:
+                n = plural("{n} file added", "{n} files added", c.added[0]).format(n=c.added[0])
+                parts.append(f"{n} ({size_text(c.added[1])})")
+            if c.removed[0]:
+                n = plural("{n} file not in the incoming copy", "{n} files not in the incoming copy", c.removed[0])
+                parts.append(f"{n.format(n=c.removed[0])} ({size_text(c.removed[1])})")
+            date = (tr("installed {date}") if c.recorded else tr("installed about {date}")).format(date=c.installed)
+            none = tr("No version found")
+            out.append(
+                {
+                    "key": c.key,
+                    "name": c.key,
+                    "diff": " · ".join(parts),
+                    "incoming": tr("Version {v}").format(v=c.label_in) if c.label_in else none,
+                    "mine": " · ".join([tr("Version {v}").format(v=c.label_mine) if c.label_mine else none, date]),
+                    "usedBy": tr("Used by {names}").format(names=", ".join(c.users)) if c.users else "",
+                    "choice": c.choice or "",
+                    "suggested": c.default == "incoming",
+                    "sharedNote": tr(
+                        "Other profiles use your copy, so it is not replaced: this profile gets its own copy beside it."
+                    )
+                    if c.shared and c.choice == "incoming"
+                    else "",
+                    "canBoth": not new_profile,
+                }
+            )
+        return out
 
     def unreadable(self, why: str) -> str:
         return tr("Can't use that file. {why}").format(why=why)

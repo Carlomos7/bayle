@@ -19,14 +19,13 @@ from PySide6.QtGui import QGuiApplication, QIcon, QWindow
 from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
-from PySide6.QtWidgets import QApplication
 
 from roundtable_souls.platform import instance
 from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.services.play import TITLE
 from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
-from roundtable_souls.ui.page_window import QML_DIR, load_fonts, use_qml_cache_folder
+from roundtable_souls.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
 
 MAIN_QML = QML_DIR / "Main.qml"
 
@@ -178,11 +177,11 @@ class ShellWindow(QObject):
 FIRST_PAGE_WAIT = 3.0  # seconds the shell has to show Main.qml and its first page before it counts as failed
 
 
-def main(ctx, fallback: Callable[[object], int] | None = None, run: Callable[[], int] | None = None) -> int:
+def main(ctx, run: Callable[[], int] | None = None) -> int:
     """The program with the QML shell as its window (ctx: app.create_app). Returns the exit code; 0 when a running
     launcher was asked to come forward instead. If Main.qml or the first page does not load, the reason is logged,
-    the version is NOT reported ready (an update's watchdog then rolls back a build that never gets there), and
-    `fallback(ctx)` (the Widgets window, while it exists) opens instead. run: the event loop (tests give their own)."""
+    and the version is NOT reported ready (an update's watchdog then rolls back a build that never gets there).
+    run: the event loop (tests give their own)."""
     import threading
 
     from roundtable_souls.config import identity
@@ -191,8 +190,7 @@ def main(ctx, fallback: Callable[[object], int] | None = None, run: Callable[[],
 
     if identity.get().qt_platform:  # an isolated test build (Velopack starts it with the user's own environment)
         os.environ["QT_QPA_PLATFORM"] = identity.get().qt_platform
-    app = QApplication.instance() or QApplication(sys.argv)  # Widgets only while the fallback window exists
-    assert isinstance(app, QApplication)
+    app = QGuiApplication.instance() or QGuiApplication(sys.argv)
     app.setApplicationName(TITLE)
     app.setWindowIcon(QIcon(str(ASSETS_DIR / "icon.ico")))
     hold = instance.acquire(instance.WINDOW)
@@ -224,8 +222,6 @@ def main(ctx, fallback: Callable[[object], int] | None = None, run: Callable[[],
         )
         window.dispose()
         hold.release()
-        if fallback is not None:
-            return int(fallback(ctx) or 0)
         return 1
     host.instance.take(hold)
     host.start_background()

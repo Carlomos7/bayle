@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import Theme
 
-// An inline notice at the top of the page it concerns (v2.3 C.2; qfluentwidgets.InfoBar in the real launcher):
+// An inline notice at the top of the page it concerns (v2.3 C.2):
 // severity sets colour and icon; closable when the user can safely ignore it; one action button at most.
 // No border (v2.5 D): the tinted status.bg only; the icon always accompanies the words (warning shares the gold).
 Rectangle {

@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 WANTED = json.loads((ROOT / "src" / "roundtable_souls" / "data" / "self-test.json").read_text(encoding="utf-8"))[
     "qml_modules"
 ]
+# Qt itself loads QtQuick.Controls (not only the .Basic style) for the shared ToolTip: without it ToolTip.toolTip is
+# null in the build. No .qml file imports it, so the scanner list above never has it.
+WANTED = [*WANTED, "QtQuick.Controls"]
 _QMLDIR_DEP = re.compile(r"^\s*(?:import|depends)\s+([A-Za-z_][\w.]*)", re.MULTILINE)
 _QML_IMPORT = re.compile(r"^\s*import\s+([A-Za-z_][\w.]*)", re.MULTILINE)
 

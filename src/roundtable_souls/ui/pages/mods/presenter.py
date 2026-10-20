@@ -230,6 +230,11 @@ class ModsPresenter:
             ),
             "undo": tr("Undo"),
             "adoptMenu": tr("Adopt into the library..."),
+            "rename": tr("Rename..."),
+            "renameTitle": tr("Rename {name}"),
+            "renameHint": tr("The folder is renamed, and for a package its id too. Undo puts it back."),
+            "renameNew": tr("New name"),
+            "renameButton": tr("Rename"),
             **self.dialog_words(),
         }
 

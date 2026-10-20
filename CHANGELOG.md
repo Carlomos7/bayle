@@ -4,6 +4,25 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Undo import of a profile the import created now removes the whole profile and every folder it copied, Seamless
+  Co-op's copy included (before, the co-op entry and its folder were left behind). The co-op guard still protects
+  your own profiles. Export opens on the small share list; the Full export tab shows its size.
+- Importing a profile or a full export no longer copies a mod you already have: a mod folder byte-identical to an
+  installed one (same files and sizes, then checksums) is reused, the new profile points at it, and the preview says
+  so and how much copying it saves. Only a folder that differs is copied, as name-2. Undo import never touches a
+  reused folder. (Before, importing your own export beside the original copied every mod again.)
+- Export / Import profile, Export: a full export shows a progress bar (percent, file N of M, the file, MB done of total,
+  time left) and a Cancel export button that removes the partial zip; it runs as a job, so it is in Activity. Export
+  is off with the reason beside it, and a missing name, folder or mod is marked in place. A line says what the file
+  will hold and its size; mods of 1 GB or more carry a warning badge, a total over 2 GB shows a warning naming the
+  biggest mods and asks once before exporting. When it ends the page says Done (name, size, time, Show in folder),
+  Cancelled, or what failed. Already-compressed files (.dcx, .bdt, .dds, archives, images, audio) are stored, not
+  deflated: much faster for big exports.
+- New Mods window, Rename: right-click a mod and choose Rename... to give its folder (and, for a package, its id) a
+  new name. The profile's entry, the mods that load after or before it, the keep-after list and a DLL's attached
+  config files follow, as one step with Undo. It is refused, with the reason, while the game runs, when another
+  mod, another profile, an overhaul, Seamless Co-op or the mod that must stay last uses the folder, or when the name
+  is taken or not allowed. The merged files are rebuilt before the next Play.
 - Install mod, with "Install overhauls with the launcher (preview)" on: a download that ships its own installer, an
   me3 profile, or a regulation.bin with DLLs starts with "Set up as an overhaul" ticked and the reason shown; any
   other mod can tick it. The dialog shows what it will do (the Name gives the id) and the button reads "Install as

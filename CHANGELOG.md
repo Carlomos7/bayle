@@ -11,6 +11,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   operation; Undo import brings your old one back byte for byte), Keep mine, or Keep both (name-2). A folder another
   profile also lists is never replaced: this profile gets its own copy beside it. Import waits until each is picked,
   unless the incoming version number is higher (then it is suggested).
+- Importing into the current profile never adds a second entry for a folder the profile already lists (same mod,
+  reused or replaced): the existing entry is kept, takes the incoming options and load order (Keep mine leaves it as
+  it is), and the incoming mod's load_after / load_before references point at it.
 - A rebuild of an engine mod (Revive and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.

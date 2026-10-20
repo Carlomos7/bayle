@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.mods import extract, library, naming, operations
 from roundtable_souls.mods import order as mod_order
-from roundtable_souls.mods.profile_edit import ModError, roots
+from roundtable_souls.mods.profile_edit import ModError, resolve, roots
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
 from roundtable_souls.mods.profile_writer import ProfileWriter
 
@@ -191,6 +191,7 @@ class ImportPreview:
     saved: int = 0  # bytes not copied because of reuse
     clashes: list[Clash] = field(default_factory=list)
     kept: list[tuple[Path, Path]] = field(default_factory=list)  # (a folder in the download, the installed one kept)
+    merged_ids: dict[str, str] = field(default_factory=dict)  # incoming id -> the id of the entry already there
     source: ZipSource | None = None  # the zip the folders in copies are read from (None: they are real folders)
 
     @property
@@ -318,6 +319,10 @@ def _newer(a: str, b: str) -> bool:
     return bool(ta and tb and ta > tb)
 
 
+def _key(path: Path) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
 def _installed_on(folder: Path) -> tuple[str, bool]:
     """(date, from the launcher's record): when the launcher says it installed the folder, else its modified time."""
     try:
@@ -423,11 +428,6 @@ def preview_import(
                 place[item] = root / name
                 out.copies.append((item, root / name))
         found_rows.append((e, item, path))
-        ident = str(e["id"] or "") if e["kind"] == "package" else ""
-        if ident and ident.lower() in taken_ids:
-            out.renamed[ident] = naming.unique(ident, taken_ids)
-        if ident:
-            taken_ids.add(out.renamed.get(ident, ident).lower())
     claimed: set[Path] = set()
     for item, (c, root) in pending.items():
         c.users = _users(c.mine, target)
@@ -455,12 +455,46 @@ def preview_import(
         rows.append(
             (e, dest if e["kind"] == "package" else dest / (path.name if item.is_file() else path.relative_to(item)))
         )
-    for e, live in rows:
+    # An entry of this profile that already points at the folder an imported entry lands in stays the ONE entry
+    # (never a second one on the same folder, which me3 would load twice): it takes the incoming options and load
+    # order, or is left as it is when the player kept their copy. Its id is not renamed; references to the incoming
+    # id are changed to it.
+    here: dict[tuple[str, str], dict] = {}
+    if not out.new:
+        for ex in writer.entries():
+            if ex.get("path"):
+                here.setdefault((ex["kind"], _key(resolve(target, ex["path"]))), ex)
+    kept_items = {src for src, _ in out.kept}
+    merged: dict[int, dict] = {}  # position in rows -> the entry of the profile
+    for n, (e, live) in enumerate(rows):
+        if (ex := here.get((e["kind"], _key(live)))) is not None:
+            merged[n] = ex
+            ident = str(e["id"] or "") if e["kind"] == "package" else ""
+            if ident and ident.lower() != str(ex.get("id") or "").lower():
+                out.merged_ids[ident] = me3_profile.entry_ref(ex)
+            continue
+        ident = str(e["id"] or "") if e["kind"] == "package" else ""
+        if ident and ident.lower() in taken_ids:
+            out.renamed[ident] = naming.unique(ident, taken_ids)
+        if ident:
+            taken_ids.add(out.renamed.get(ident, ident).lower())
+    refs = {**out.renamed, **out.merged_ids}
+    for n, ex in merged.items():  # first, while the entries' positions are as they were read
+        e = found_rows[n][0]
+        if found_rows[n][1] in kept_items:
+            continue
+        opts = {k: e[k] for k in ("enabled", "optional", "load_early", "initializer", "finalizer") if k in e}
+        opts["load_after"] = mod_order.rename_refs(e["load_after"], refs)
+        opts["load_before"] = mod_order.rename_refs(e["load_before"], refs)
+        writer.set_options(ex["index"], opts)
+    for n, (e, live) in enumerate(rows):
+        if n in merged:
+            continue
         row = {
             k: e[k] for k in ("enabled", "optional", "load_early", "initializer", "finalizer") if e.get(k) is not None
         }
-        row["load_after"] = mod_order.rename_refs(e["load_after"], out.renamed)
-        row["load_before"] = mod_order.rename_refs(e["load_before"], out.renamed)
+        row["load_after"] = mod_order.rename_refs(e["load_after"], refs)
+        row["load_before"] = mod_order.rename_refs(e["load_before"], refs)
         if e["kind"] == "package":
             row["id"] = out.renamed.get(e["id"], e["id"]) if e["id"] else None
         row["path"] = live
@@ -505,6 +539,12 @@ def preview_import(
             if c.shared and c.choice == "incoming"
         ),
         *(f"{old} is called {new}: {target.name} already has a mod with that id" for old, new in out.renamed.items()),
+        *(
+            f"{rows[n][1].name if e['kind'] == 'package' else rows[n][1].parent.name} is already in {target.name}: "
+            "that entry is used, not a second one"
+            for n, (e, _live) in enumerate(rows)
+            if n in merged
+        ),
         *out.skipped,
         "Nothing in the download runs; your other mods are not touched",
     ]

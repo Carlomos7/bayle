@@ -171,7 +171,12 @@ def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
     tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"})
     state = p.page(facts(online_with="flora", fingerprint=Fingerprint("1A2B3C4D", 9, "flora")), scan(health=stale))
     online = state.notices[0]
-    assert (online.key, online.severity, online.action, online.closable) == ("online", "warning", "Play offline", True)
+    assert (online.key, online.severity, online.action, online.closable) == (
+        "online",
+        "warning",
+        "Launch Offline",
+        True,
+    )
     assert online.text == (
         "This profile goes online with changed parameters (flora's regulation.bin). FromSoftware's servers can see "
         "the change."

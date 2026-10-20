@@ -39,7 +39,7 @@ def session(tmp_path, monkeypatch):
     monkeypatch.setattr(core.run_logging, "start_log", lambda *a, **k: None)
     monkeypatch.setattr(core, "_after_play", lambda opts, loc: None)
     monkeypatch.setattr(core, "offline_profile_for", lambda *a, **k: "p.offline.me3")
-    setup = type(
+    launch = type(
         "S",
         (),
         {
@@ -52,7 +52,7 @@ def session(tmp_path, monkeypatch):
             "locations": lambda self: er(),
         },
     )()
-    return {"setup": setup, "launched": launched, "opts": opts, "saves": saves}
+    return {"setup": launch, "launched": launched, "opts": opts, "saves": saves}
 
 
 def test_a_failed_backup_stops_play_and_offline_play(session):
@@ -85,8 +85,8 @@ def test_play_starts_only_when_asked_to_go_without_or_the_backup_was_handled(ses
 
 
 def test_headless_play_fails_clearly_unless_bypass_was_asked_for(session, monkeypatch):
-    setup = session["setup"]
-    monkeypatch.setattr(core, "discover", lambda remembered, loc: [setup])
+    launch = session["setup"]
+    monkeypatch.setattr(core, "discover", lambda remembered, loc: [launch])
     monkeypatch.setattr(core, "same_source", lambda a, b: True)
     monkeypatch.setattr(core, "update_merge_headless", lambda s, automatic=True: None)
     logged, shown = [], []

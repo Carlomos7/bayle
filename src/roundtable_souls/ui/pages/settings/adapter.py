@@ -141,7 +141,7 @@ class SettingsAdapter(QObject):
             "offlineBlurb": sp.OFFLINE_BLURB,
             "offlineHelp": sp.OFFLINE_HELP,
             "steam": tr("Steam shortcut"),
-            "steamHelp": tr("Play from Steam without this window; one shortcut per game."),
+            "steamHelp": tr("Launch from Steam without this window; one shortcut per game."),
             "copyTarget": tr("Copy target"),
             "copyOptions": tr("Copy launch options"),
             "pointSteam": tr("Point Steam shortcuts here"),
@@ -230,6 +230,7 @@ class SettingsAdapter(QObject):
     launcherLine = Property(
         str, lambda self: self._update.get("line") or self._values["launcher_line"], notify=updatesChanged
     )
+    updateChecking = Property(bool, lambda self: bool(self._update.get("checking")), notify=updatesChanged)
     launcherTone = Property(str, lambda self: self._update.get("tone", "muted"), notify=updatesChanged)
     me3Text = Property(str, lambda self: self._me3.text, notify=me3Changed)
     me3Tone = Property(str, lambda self: self._me3.tone, notify=me3Changed)

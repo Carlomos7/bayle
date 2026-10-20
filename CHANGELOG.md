@@ -4,6 +4,19 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Settings > Updates > Check for updates answers at once: the line says "Checking for updates..." and the button waits, then a toast says up to date, could not check, or that an update is available.
+- Wording: "setup" that means a launchable profile reads "profile" in the window, the CLI, the docs and the README (folders, installer and Setup.exe keep their names).
+- Wording: the overhaul preview note and the Overhaul configs doc say "Settings > Play session" (the old Tools page is gone).
+- Wording: the leftover Workshop names in comments and docs now name the Check & repair page.
+- Saves: a Library copy is logged as "save copy" in its history; older history lines keep their old wording.
+- Activity: the job list is virtualized (only the days on screen are built), with the summary and filters scrolling as its header.
+- Saves: an empty Library says "No saved copies yet" with one sentence and one Import button; the Library and Backups lists are virtualized (they stay smooth with hundreds of copies), and an expanded copy stays open when it scrolls out of view.
+- Text sizes: the shortcut hints and the navigation badge use the theme's type scale; nothing is below 12 px any more.
+- Saves: a Library copy is restored over a live save (Restore, as for a backup), and the confirmation says when a Seamless .co2 goes over a Standard .sl2. Dropping several files imports each and names any that are not save files. Refusals say why instead of "cannot be dropped". Save a copy and Import only read, so they work while the game runs (Back up now still waits for it to close).
+- Saves: a backup is removed, not deleted ("Remove this backup" / "Remove"), as Library copies already are.
+- Wording: "Play" became "Launch" (Launch Offline on the online-with-changes notice, Settings, Activity); "Play anyway this once" stays in the fork dialog.
+
+- Mods: click the profile's name to rename it in place (Enter renames, Esc cancels; the name is checked as you type and a refusal shows beside it), or use Profile > Rename. Profile > Duplicate makes "<name> copy" with no mod folders copied. A rename keeps the profile's settings, backup copy, version history, offline copy and the launcher's own records with it as one operation, and Undo (Activity) puts everything back. A profile with its own build folders can be renamed but not yet duplicated.
 - The top bar reads the profile's disk checks in the background and says "Checking..." only when that takes a moment; Launch re-checks fresh each time it is pressed. The Launch pill shows an amber mark (and the reason in its tooltip) when a mod folder is missing.
 - Launch warns when a mod's folder is missing (the status line says which, with a link to Mods; Launch still works). The top bar no longer re-reads the disk on every progress line of a running job, and its small status dot has a name for screen readers.
 - The mouse pointer is a hand over every button, switch, tick-box and menu item that can be clicked, and an arrow when it is off.

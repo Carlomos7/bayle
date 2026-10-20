@@ -59,7 +59,6 @@ Card {
                         "path": root.card.path
                     })
                 scroller: root.scroller
-                visible: !root.locked
             }
             Column {
                 anchors.left: parent.left
@@ -314,8 +313,7 @@ Card {
                         onTriggered: root.adapter.backUpNow(root.card.path)
                     }
                     MenuEntry {
-                        enabled: !root.locked
-                        icon_: "Add"
+                        icon_: "Add"  // only reads the live save: allowed while the game runs
                         text: root.words.saveCopy
 
                         onTriggered: root.nameRequested("copy", root.card.path)

@@ -51,7 +51,7 @@ class AdoptError(ModError):
 
 
 @dataclass(frozen=True)
-class Setup:
+class ExistingSetup:
     folder: Path
     profiles: tuple[Path, ...]
 
@@ -78,7 +78,7 @@ class Rewrite:
 
 @dataclass
 class AdoptPreview:
-    setup: Setup
+    setup: ExistingSetup
     library: library.ModLibrary | None
     game: str
     moves: list[Move] = field(default_factory=list)
@@ -103,7 +103,7 @@ def _inside(inner: str, outer: str) -> bool:
 
 
 # ----------------------------------------------------------------------------- finding setups
-def setups(loc: Locations) -> list[Setup]:
+def setups(loc: Locations) -> list[ExistingSetup]:
     """The folders holding the game's user profiles that are not in the library, each with its profiles."""
     root = loc.me3_profiles_dir()
     found: dict[Path, list[Path]] = {}
@@ -113,7 +113,7 @@ def setups(loc: Locations) -> list[Setup]:
         if root is not None and any(a.parent == root and a.name.startswith(library.PREFIX) for a in p.parents):
             continue
         found.setdefault(p.parent, []).append(p)
-    return [Setup(f, tuple(sorted(ps_, key=lambda x: x.name.lower()))) for f, ps_ in sorted(found.items())]
+    return [ExistingSetup(f, tuple(sorted(ps_, key=lambda x: x.name.lower()))) for f, ps_ in sorted(found.items())]
 
 
 # ----------------------------------------------------------------------------- previewing
@@ -190,7 +190,7 @@ def _rewrite(text: str, rows: list[dict], where, lib: library.ModLibrary, moved:
     return "".join(lines)
 
 
-def preview(setup: Setup, *, loc: Locations, move_unused: tuple[Path, ...] | list[Path] = ()) -> AdoptPreview:
+def preview(setup: ExistingSetup, *, loc: Locations, move_unused: tuple[Path, ...] | list[Path] = ()) -> AdoptPreview:
     """What adopting this setup does (see the module notes). Nothing is written. move_unused: the unused folders
     (preview.unused) to move too; the others stay."""
     from roundtable_souls import overhauls

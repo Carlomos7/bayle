@@ -252,26 +252,26 @@ class ProfileMenu:
     managed_tag: str
 
 
-def profile_labels(setups) -> list[str]:
+def profile_labels(launch_profiles) -> list[str]:
     """One label per setup, as the profile list names them (a file name; the folder too when two share a name)."""
-    labels = [s.label for s in setups]
+    labels = [s.label for s in launch_profiles]
     return [
         f"{label}  ·  {Path(s.source).parent.name}" if labels.count(label) > 1 else label
-        for s, label in zip(setups, labels)
+        for s, label in zip(launch_profiles, labels)
     ]
 
 
-def _bare(setup, label: str) -> str:
+def _bare(launch, label: str) -> str:
     """A managed install's label without the file-kind suffix its tag now says."""
-    return label.replace("  ·  installation.json", "", 1) if setup.kind == "manifest" else label
+    return label.replace("  ·  installation.json", "", 1) if launch.kind == "manifest" else label
 
 
-def profile_menu(setups, index: int, busy: bool) -> ProfileMenu:
+def profile_menu(launch_profiles, index: int, busy: bool) -> ProfileMenu:
     """The profile drop-down: every profile of the game, the current one checked, "New profile..." last, nothing else.
     Managed installs carry the tag; the whole menu is off while a job runs."""
-    labels = profile_labels(setups)
+    labels = profile_labels(launch_profiles)
     entries = tuple(
-        ProfileEntry(i, _bare(s, labels[i]), i == index, s.kind == "manifest") for i, s in enumerate(setups)
+        ProfileEntry(i, _bare(s, labels[i]), i == index, s.kind == "manifest") for i, s in enumerate(launch_profiles)
     )
     current = entries[index].label if 0 <= index < len(entries) else tr("No profile")
     return ProfileMenu(entries, current, tr("New profile..."), not busy, tr("Managed install"))

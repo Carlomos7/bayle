@@ -68,6 +68,8 @@ QML_PAGES: tuple[QmlPage, ...] = (
         _mods,
         (
             "deleteProfile",
+            "rename",
+            "duplicate",
             "profileSettings",
             "editText",
             "fixOrder",

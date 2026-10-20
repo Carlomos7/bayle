@@ -233,6 +233,9 @@ class ModsPresenter:
             ),
             "undo": tr("Undo"),
             "adoptMenu": tr("Adopt into the library..."),
+            "profileRenameTip": tr("Click to rename this profile"),
+            "profileRenameField": tr("Profile name"),
+            "profileRenameHelp": tr("Enter renames it. Esc cancels. Undo puts it back."),
             "rename": tr("Rename..."),
             "renameTitle": tr("Rename {name}"),
             "renameHint": tr("The folder is renamed, and for a package its id too. Undo puts it back."),
@@ -603,7 +606,7 @@ class ModsPresenter:
                         "This profile goes online with changed parameters ({package}'s {file}). FromSoftware's "
                         "servers can see the change."
                     ).format(package=online_with, file=regulation),
-                    tr("Play offline"),
+                    tr("Launch Offline"),
                     True,
                 )
             )
@@ -668,7 +671,7 @@ class ModsPresenter:
                         "This profile loads its own Seamless Co-op, and the game folder still holds one too. Two copies "
                         "can conflict."
                     ),
-                    tr("Move into this setup...") if seamless == "move" else tr("Clean up the game folder..."),
+                    tr("Move into this profile...") if seamless == "move" else tr("Clean up the game folder..."),
                     True,
                 )
             )
@@ -697,9 +700,9 @@ class ModsPresenter:
                 files = tr("{files} and {n} more").format(files=files, n=len(plan.merged) - 3)
             changes.append(
                 plural(
-                    "Its {files} is still inside the merged mods: Play rebuilds them before the game starts (or "
+                    "Its {files} is still inside the merged mods: Launching rebuilds them before the game starts (or "
                     "Rebuild on the Mods page), so the game does not run with it",
-                    "Its {files} are still inside the merged mods: Play rebuilds them before the game starts (or "
+                    "Its {files} are still inside the merged mods: Launching rebuilds them before the game starts (or "
                     "Rebuild on the Mods page), so the game does not run with them",
                     len(plan.merged),
                 ).format(files=files)
@@ -794,19 +797,31 @@ class ModsPresenter:
             safety=tr("Nothing else in the profile changes; a backup copy of the file is kept."),
         )
 
-    def delete_refusal(self, code: str | None, setup_name: str = "") -> Refusal | None:
+    def delete_refusal(self, code: str | None, profile_name: str = "") -> Refusal | None:
         if code == profile_mods.DELETE_NO_PROFILE:
             return Refusal(tr("No profile"), tr("Pick a profile first."))
         if code == profile_mods.DELETE_MANAGED:
             return Refusal(
                 tr("Not this one"),
                 tr("{name} is managed by its installer; delete it there.").format(
-                    name=setup_name or tr("This profile")
+                    name=profile_name or tr("This profile")
                 ),
             )
         if code == profile_mods.DELETE_BUSY:
             return Refusal(tr("Wait for the current job"), tr("The profile can be deleted when it finishes."))
         return None
+
+    def rename_block(self, code: str | None, name: str, game_running: bool) -> str:
+        """Why the profile can't be renamed or copied now, in words; "" when it can (code: services.profile_rename.refusal)."""
+        if code == profile_mods.DELETE_NO_PROFILE:
+            return tr("Pick a profile first.")
+        if code == profile_mods.DELETE_MANAGED:
+            return tr("{name} is managed by its installer; rename it there.").format(name=name or tr("This profile"))
+        if code == profile_mods.DELETE_BUSY:
+            return tr("Wait for the current job to finish.")
+        if game_running:
+            return tr("Close the game first: it has these files open.")
+        return ""
 
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
@@ -927,7 +942,7 @@ class ModsPresenter:
         return Pick(
             title=tr("Move unused folders too?"),
             body=tr(
-                "No profile in this setup uses these folders. Tick the ones to move into the library as well; the "
+                "No profile here uses these folders. Tick the ones to move into the library as well; the "
                 "others stay where they are. Nothing is deleted either way."
             ),
             apply=tr("Move ticked"),
@@ -948,7 +963,7 @@ class ModsPresenter:
                 "It's one step: if anything fails, nothing moves. Nothing is copied or deleted, and Undo adoption in "
                 "Activity puts every file back (as long as the profiles are unchanged)."
             ),
-            option=tr("Don't offer this again for this setup"),
+            option=tr("Don't offer this again for this profile"),
         )
 
     def adopt_running(self, name: str) -> str:

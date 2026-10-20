@@ -117,7 +117,7 @@ class UndoPlan:
         """The job for the window's runner (job(setup, loc)): it takes the job back and records that it did."""
         u, job_id, name = dict(self.undo), self.job_id, self.name
 
-        def job(_setup, loc):
+        def job(_launch, loc):
             run_logging.start_log(
                 f"launcher: {'redo' if u.get('redo') else 'undo'} the rebuild"
                 if u.get("type") == "rebuild"
@@ -126,7 +126,9 @@ class UndoPlan:
                 else f"launcher: undo the adoption of {name}"
                 if u.get("type") == "library-adopt"
                 else f"launcher: undo the rename of {name}"
-                if u.get("type") == "rename"
+                if u.get("type") in ("rename", "profile-rename")
+                else f"launcher: undo the copy {name}"
+                if u.get("type") == "profile-duplicate"
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -258,7 +260,9 @@ class ActivityPresenter:
     # ---- text the page and its window carry
     title = property(lambda self: tr("Activity"))
     subtitle = property(
-        lambda self: tr("What the launcher did: every Play, repair, install and rebuild, with how it went and its log.")
+        lambda self: tr(
+            "What the launcher did: every launch, repair, install and rebuild, with how it went and its log."
+        )
     )
     open_window_text = property(lambda self: tr("Open new Activity window"))
     open_window_tip = property(
@@ -351,9 +355,9 @@ class ActivityPresenter:
             bits = [f"{day_word(w.date(), today).capitalize()} {w.strftime('%H:%M')}" if w else ""]
             bits.append(duration_text(play.get("seconds")))
             level = "danger" if play.get("outcome") in FAILED else "success"
-            cards.append(SummaryCard(tr("Last Play"), "  ·  ".join(b for b in bits if b), level))
+            cards.append(SummaryCard(tr("Last launch"), "  ·  ".join(b for b in bits if b), level))
         else:
-            cards.append(SummaryCard(tr("Last Play"), none, "muted"))
+            cards.append(SummaryCard(tr("Last launch"), none, "muted"))
         if install:
             value = "  ·  ".join(b for b in (title_text(install), when(install)) if b)
             cards.append(SummaryCard(tr("Last install"), value, "muted"))
@@ -489,6 +493,33 @@ class ActivityPresenter:
                 job_id,
                 name,
             )
+        if u.get("type") == "profile-rename":
+            name = u.get("name") or tr("the profile")
+            return UndoPlan(
+                tr("Undo the rename of profile {name}").format(name=name),
+                (
+                    tr("The profile, its settings, backup copy and version history go back to the old name"),
+                    tr("The mods are not moved or copied"),
+                ),
+                tr("If the profile changed since, it keeps its changes; nothing is deleted."),
+                tr("Undo rename"),
+                tr("Undoing the rename..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "profile-duplicate":
+            name = u.get("name") or tr("the copy")
+            return UndoPlan(
+                tr("Remove the copy {name}").format(name=name),
+                (tr("The copy of the profile is removed; the original is not touched"),),
+                tr("If the copy was changed since, it stays and you are told why."),
+                tr("Undo copy"),
+                tr("Removing the copy..."),
+                u,
+                job_id,
+                name,
+            )
         if u.get("type") == "library-adopt":
             name = u.get("name") or tr("the setup")
             return UndoPlan(
@@ -533,7 +564,7 @@ class ActivityPresenter:
         changes = (
             tr("Its entry goes back into {profile}, where it was").format(profile=prof.name),
             tr("Its folder comes back from the Recycle Bin") if trash.exists(u.get("trash")) else "",
-            tr("Play rebuilds the merged mods with it before the game starts (or Rebuild on the Mods page)")
+            tr("Launching rebuilds the merged mods with it before the game starts (or Rebuild on the Mods page)")
             if u.get("merged")
             else "",
         )

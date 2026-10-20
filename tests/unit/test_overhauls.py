@@ -100,23 +100,23 @@ def test_play_finds_each_overhauls_installations_beside_the_profiles_and_in_the_
     ]
     local("toy.toml", TOY)
     assert ("manifest", toy) in [(s.kind, Path(s.source)) for s in play.discover(None, loc)]
-    assert play.setup_from_path(toy, loc).kind == "manifest"
+    assert play.launch_profile_from_path(toy, loc).kind == "manifest"
     nightreign = Locations(games.NIGHTREIGN, Overrides(profiles_dir=str(profiles)))
-    assert play.discover(None, nightreign) == [] and play.setup_from_path(beside, nightreign) is None
+    assert play.discover(None, nightreign) == [] and play.launch_profile_from_path(beside, nightreign) is None
 
 
-def test_the_play_summary_names_the_overhauls_a_setup_includes(tmp_path):
+def test_the_play_summary_names_the_overhauls_a_profile_includes(tmp_path):
     loc, profiles, _game = er_world(tmp_path)
-    plain = play.Setup("me3", profiles / "er.me3", loc=loc)
+    plain = play.LaunchProfile("me3", profiles / "er.me3", loc=loc)
     assert play.overhauls_in(plain) == []
     launched = install(tmp_path / "elsewhere" / "ExampleOverhaul", "installation.json", tmp_path / "x.me3")
-    assert play.overhauls_in(play.setup_from_path(launched, loc)) == ["the overhaul"]
+    assert play.overhauls_in(play.launch_profile_from_path(launched, loc)) == ["the overhaul"]
     for entry in (
         '[[packages]]\nid = "example-overhaul"\npath = "x"\n',
         "[[natives]]\npath = 'a/OverhaulPrototype.dll'\n",
     ):
         (profiles / "with.me3").write_text('profileVersion = "v1"\n' + entry, encoding="utf-8")
-        assert play.overhauls_in(play.Setup("me3", profiles / "with.me3", loc=loc)) == ["the overhaul"]
+        assert play.overhauls_in(play.LaunchProfile("me3", profiles / "with.me3", loc=loc)) == ["the overhaul"]
     (profiles / "ExampleOverhaul").mkdir()
     assert play.overhauls_in(plain) == ["the overhaul"]
 

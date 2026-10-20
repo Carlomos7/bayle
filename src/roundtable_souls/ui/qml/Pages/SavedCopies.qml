@@ -12,6 +12,7 @@ Column {
 
     required property var adapter
     readonly property int listH: 280   // five rows; more scroll
+    property var openIds: ({})   // the Library copies shown expanded, by id
     property int tab: 0
     property Flickable scroller   // the page, for the drag's auto-scroll
     readonly property var words: adapter.words
@@ -69,40 +70,49 @@ Column {
         Column {
             width: parent.width
 
-            Txt {
-                leftPadding: Theme.padCard
-                text: root.words.noLibrary
-                topPadding: Theme.sp16
-                bottomPadding: Theme.sp16
+            Column {  // empty state: a title, one sentence, one button
+                objectName: "libraryEmpty"
+                padding: Theme.sp24
+                spacing: Theme.sp8
                 visible: root.adapter.libraryRows.length === 0
                 width: parent.width
-                wrapMode: Text.WordWrap
-                kind: "hint"
+
+                Txt {
+                    kind: "rowTitle"
+                    text: root.words.noLibraryTitle
+                    width: parent.width - parent.padding * 2
+                }
+                Txt {
+                    kind: "hint"
+                    text: root.words.noLibrary
+                    width: parent.width - parent.padding * 2
+                    wrapMode: Text.WordWrap
+                }
+                GhostButton {
+                    enabled: !root.adapter.running
+                    icon_: "Download"
+                    text: root.words.importAction
+
+                    onClicked: root.adapter.pickImport()
+                }
             }
-            Flickable {  // a fixed-height area: the list scrolls inside it
+            ListView {  // a fixed-height area, virtualized: the list scrolls inside it
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
-                contentHeight: libCol.height
                 height: root.listH
+                model: root.adapter.libraryRows
+                visible: count > 0
                 width: parent.width
                 ScrollBar.vertical: ScrollBar {
                 }
 
-                Column {
-                    id: libCol
-
-                    width: parent.width
-
-            Repeater {
-                model: root.adapter.libraryRows
-
-                Column {
+                delegate: Column {
                     id: libBlock
 
                     required property var modelData
-                    property bool expanded: false
+                    readonly property bool expanded: !!root.openIds[modelData.id]   // kept by id: a recycled row stays open
 
-                    width: parent.width
+                    width: ListView.view.width
 
                 HoverRow {
                     id: libRow
@@ -113,7 +123,11 @@ Column {
                     height: 56
                     pressable: true
 
-                    onClicked: libBlock.expanded = !libBlock.expanded
+                    onClicked: {
+                        const o = Object.assign({}, root.openIds);
+                        o[libBlock.modelData.id] = !libBlock.expanded;
+                        root.openIds = o;
+                    }
                     width: parent.width
 
                     DragHandle {  // the copy, dragged onto a live save: Replace
@@ -285,11 +299,10 @@ Column {
                     }
                 }
             }
-                }
-            }
             Row {
                 leftPadding: Theme.padCard
                 spacing: Theme.sp8
+                visible: root.adapter.libraryRows.length > 0
                 topPadding: Theme.sp12
                 bottomPadding: Theme.sp12
 
@@ -339,29 +352,21 @@ Column {
                 width: parent.width
                 wrapMode: Text.WordWrap
             }
-            Flickable {  // a fixed-height area: the list scrolls inside it
+            ListView {  // a fixed-height area, virtualized by day: the list scrolls inside it
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
-                contentHeight: bakCol.height
                 height: root.listH
+                model: root.adapter.backupDays
                 width: parent.width
                 ScrollBar.vertical: ScrollBar {
                 }
 
-                Column {
-                    id: bakCol
-
-                    width: parent.width
-
-            Repeater {
-                model: root.adapter.backupDays
-
-                Column {
+                delegate: Column {
                     id: dayColumn
 
                     required property var modelData
 
-                    width: parent.width
+                    width: ListView.view.width
 
                     Txt {
                         color: Theme.textSecondary
@@ -484,8 +489,6 @@ Column {
                             }
                         }
                     }
-                }
-            }
                 }
             }
             Row {

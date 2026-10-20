@@ -174,8 +174,8 @@ class ShellHost(QObject):
         return self.state.locations
 
     @property
-    def setup(self):
-        return self.state.setup
+    def launch_profile(self):
+        return self.state.launch_profile
 
     @property
     def profile(self) -> Path | None:
@@ -207,10 +207,12 @@ class ShellHost(QObject):
             return False
         st.busy, st.job_label, st.job_kind, self.job_detail, self.step = True, status, kind, "", ""
         run_logging.attach_sink(lambda msg, level="": self._line.emit(str(msg), level or ""))
-        setup = st.setup
-        loc = setup.locations() if setup is not None else st.locations
+        launch_profile = st.launch_profile
+        loc = launch_profile.locations() if launch_profile is not None else st.locations
         self.changed.emit()
-        self.jobs.start_job(job, setup, loc, status, lambda outcome: self._done(outcome, status, kind, on_done))
+        self.jobs.start_job(
+            job, launch_profile, loc, status, lambda outcome: self._done(outcome, status, kind, on_done)
+        )
         return True
 
     def _on_line(self, msg: str, level: str) -> None:
@@ -227,7 +229,7 @@ class ShellHost(QObject):
             self.failed_job = label
         self.ctx_settings_again()
         if kind != "launch" or not ok:
-            st.reload_setups()  # an adoption or an install may have changed the profiles
+            st.reload_profiles()  # an adoption or an install may have changed the profiles
         self._update_badge()
         if not ok:
             self.notifier.toast_action(
@@ -288,9 +290,9 @@ class ShellHost(QObject):
 
     def profile_deleted(self, profile: Path, moved_to: Path) -> None:
         run_logging.log_shown(f"profile: moved {profile.name} to {moved_to}")
-        core.forget_setup(self.state.game)
+        core.forget_profile(self.state.game)
         self.ctx_settings_again()
-        self.state.reload_setups()
+        self.state.reload_profiles()
         self.refresh_pages()
         self.changed.emit()
 
@@ -326,8 +328,8 @@ class ShellHost(QObject):
     def saves_in_use(self) -> dict:
         """The save files the setup in use plays on; the locations learn them too, so the Saves page finds a setup's
         custom save names."""
-        names = core.setup_saves(self.state.setup, self.state.game)
-        self.state.ctx.note_setup_saves({k: names[k] for k in ("standard", "coop")})
+        names = core.profile_saves(self.state.launch_profile, self.state.game)
+        self.state.ctx.note_profile_saves({k: names[k] for k in ("standard", "coop")})
         return names
 
     def open_path(self, path: Path) -> None:
@@ -335,7 +337,7 @@ class ShellHost(QObject):
 
     # ---------------------------------------------------------------- the profile list
     def profiles(self) -> list[str]:
-        return topbar.profile_labels(self.state.setups)
+        return topbar.profile_labels(self.state.launch_profiles)
 
     def profile_index(self) -> int:
         return self.state.index
@@ -345,7 +347,7 @@ class ShellHost(QObject):
 
     def pick_profile(self, index: int) -> None:
         """Make the index'th profile the current one, as the profile drop-down does."""
-        if self.busy or not 0 <= index < len(self.state.setups) or index == self.state.index:
+        if self.busy or not 0 <= index < len(self.state.launch_profiles) or index == self.state.index:
             return
         self.state.choose(index)
         self.refresh_pages()
@@ -369,7 +371,7 @@ class ShellHost(QObject):
         name = name.strip() or tr("{game} mods").format(game=g.name)
         made: list[str] = []
 
-        def job(_setup, loc):
+        def job(_launch_profile, loc):
             run_logging.start_log("launcher: create profile", loc.game.key)
             try:
                 made.append(
@@ -381,9 +383,9 @@ class ShellHost(QObject):
 
         def done(ok: bool) -> None:
             if ok and made:
-                core.remember_setup(made[0], g)
+                core.remember_profile(made[0], g)
                 self.ctx_settings_again()
-                self.state.reload_setups(select=made[0])
+                self.state.reload_profiles(select=made[0])
                 self.refresh_pages()
                 self.changed.emit()
 
@@ -391,16 +393,16 @@ class ShellHost(QObject):
 
     def add_profile(self, path: Path) -> bool:
         """File > Add existing profile: a .me3 profile or an installation.json becomes a profile of this game."""
-        setup = core.setup_from_path(path, self.state.locations)
-        if setup is None:
+        launch_profile = core.launch_profile_from_path(path, self.state.locations)
+        if launch_profile is None:
             self.notifier.toast(
                 tr("That file is not a .me3 profile, and it is not a launcher installation.json."), error=True
             )
             return False
-        self.state.reload_setups(select=setup.source)
-        if not any(core.same_source(s.source, setup.source) for s in self.state.setups):
-            self.state.setups.append(setup)
-            self.state.choose(len(self.state.setups) - 1)
+        self.state.reload_profiles(select=launch_profile.source)
+        if not any(core.same_source(s.source, launch_profile.source) for s in self.state.launch_profiles):
+            self.state.launch_profiles.append(launch_profile)
+            self.state.choose(len(self.state.launch_profiles) - 1)
         self.refresh_pages()
         self.changed.emit()
         return True
@@ -482,7 +484,7 @@ class ShellHost(QObject):
             return
         if self.busy or self.game_running:
             self.notifier.toast(
-                tr("Play from Steam ignored: {game} or a job is already running here.").format(
+                tr("Launch from Steam ignored: {game} or a job is already running here.").format(
                     game=self.state.game.name
                 ),
                 error=True,
@@ -527,7 +529,7 @@ class ShellHost(QObject):
     # ---------------------------------------------------------------- what the top bar shows
     def facts(self) -> topbar.Facts:
         st = self.state
-        s = st.setup
+        s = st.launch_profile
         busy = self.busy
         if self._slow is None:  # the very first read, before any window: nothing to show a wait on yet
             self._slow = (self._checks_key(), *self._read_checks(s))
@@ -537,7 +539,7 @@ class ShellHost(QObject):
         return topbar.Facts(
             game=st.game,
             installed=bool(st.locations.game_dir()),
-            profile_count=len(st.setups),
+            profile_count=len(st.launch_profiles),
             problems=problems,
             warnings=warnings,
             checking=self._check_late and not busy,
@@ -555,7 +557,7 @@ class ShellHost(QObject):
         )
 
     def _checks_key(self) -> tuple:
-        s = self.state.setup
+        s = self.state.launch_profile
         return (id(s), str(s.profile) if s else "")
 
     @staticmethod
@@ -576,7 +578,7 @@ class ShellHost(QObject):
             self._check_dirty = True
             return
         self._check_running, self._check_late = True, False
-        key, s = self._checks_key(), self.state.setup
+        key, s = self._checks_key(), self.state.launch_profile
         QTimer.singleShot(200, self._checks_late)
         self.run_in_background(lambda: self._read_checks(s), lambda r: self._checks_back(key, r))
 
@@ -619,7 +621,7 @@ class ShellHost(QObject):
         """A page saved key: the shell reads the settings again and follows."""
         self.ctx_settings_again()
         if key in ("me3_path", "game_exe", "me3_profile_dir", "saves_dir"):
-            self.state.reload_setups()
+            self.state.reload_profiles()
             self.refresh_me3()
             self.refresh_pages()
         elif key == "launcher_channel":
@@ -723,14 +725,14 @@ class ShellHost(QObject):
 
     def me3_facts(self) -> dict:
         """me3 asked now (runs me3 info: call it on a worker thread)."""
-        return me3_facts(self.state.setup, self.state.locations)
+        return me3_facts(self.state.launch_profile, self.state.locations)
 
     def refresh_me3(self) -> None:
-        setup, loc = self.state.setup, self.state.locations
+        launch_profile, loc = self.state.launch_profile, self.state.locations
 
         def work(_progress):
             try:
-                return me3_facts(setup, loc)
+                return me3_facts(launch_profile, loc)
             except Exception as e:
                 return {"error": str(e)}
 

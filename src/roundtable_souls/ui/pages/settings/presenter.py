@@ -53,9 +53,9 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
     return (
         SwitchSpec(
             "play_update_merge",
-            tr("Rebuild merged mods automatically before Play"),
+            tr("Rebuild merged mods automatically before launch"),
             tr(
-                "When mods, their load order or the game changed, Play rebuilds the merged ones first (combined "
+                "When mods, their load order or the game changed, Launching rebuilds the merged ones first (combined "
                 "parameters, and a mod's own rebuild tool such as the overhaul's), then starts the game."
             ),
             tr(
@@ -108,7 +108,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
         SwitchSpec(
             "play_show_logos",
             tr("Show intro logos"),
-            tr("Play the publisher logos me3 skips by default."),
+            tr("Show the publisher logos me3 skips by default."),
             tr("Passes --show-logos to me3."),
             "launch",
         ),
@@ -116,12 +116,12 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "play_diagnostics",
             tr("me3 diagnostics"),
             tr("Ask me3 for extra diagnostics on this launch (slower start, bigger log)."),
-            tr("Passes --diagnostics; me3's output is kept with that Play in the logs folder."),
+            tr("Passes --diagnostics; me3's output is kept with that launch in the logs folder."),
             "launch",
         ),
         SwitchSpec(
             "play_backup_before",
-            tr("Back up saves before Play"),
+            tr("Back up saves before launch"),
             tr("A backup of every save before each session, listed under Backups on the Saves page."),
             tr(
                 "Off by default: the game keeps its own .bak, and each repair makes a copy anyway. Turn it on for a "
@@ -178,7 +178,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "check_me3_updates",
             tr("Check for me3 updates"),
             tr("Once a day, from me3's GitHub releases. A notice only; nothing is installed."),
-            tr("Roundtable Souls never replaces me3 itself: the overhaul setups ship their own copy."),
+            tr("Roundtable Souls never replaces me3 itself: the overhaul profiles ship their own copy."),
             "me3",
         ),
         SwitchSpec(
@@ -211,7 +211,7 @@ def switch(key: str, game_key: str = "eldenring") -> SwitchSpec:
 
 OFFLINE_TITLE = tr("Offline play")
 OFFLINE_BLURB = tr(
-    "Starts this setup without Seamless Co-op and with online play off, so the game uses its standard save (.sl2) "
+    "Starts this profile without Seamless Co-op and with online play off, so the game uses its standard save (.sl2) "
     "instead of Seamless's (.co2)."
 )
 OFFLINE_HELP = tr(
@@ -257,8 +257,8 @@ def launcher_status(check, channel: str) -> tuple[str, str]:
     return "  ·  ".join(parts), tone
 
 
-def check_toast(check) -> tuple[str, str, str] | None:
-    """What a check the user asked for says: (title, body, kind) with kind error | info; None when an offer follows."""
+def check_toast(check, channel: str = "stable") -> tuple[str, str, str]:
+    """What a check the user asked for says: (title, body, kind) with kind error | info."""
     if check.failed:
         later = (
             " "
@@ -280,10 +280,16 @@ def check_toast(check) -> tuple[str, str, str] | None:
     if not check.offer:
         return (
             tr("Up to date"),
-            tr("{title} {version} is the latest release.").format(title=TITLE, version=VERSION),
+            tr("{version} is the newest on the {channel} channel").format(
+                version=VERSION, channel=tr("Beta") if channel == "beta" else tr("Stable")
+            ),
             "info",
         )
-    return None
+    return (
+        tr("Update available"),
+        tr("{version} is ready to download in Settings.").format(version=check.offer["version"]),
+        "info",
+    )
 
 
 @dataclass(frozen=True)

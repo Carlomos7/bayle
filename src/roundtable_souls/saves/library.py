@@ -5,7 +5,7 @@ and a `library.json` that tracks them:
 
   entries  one per copy: its name, the file it came from, when, the game, the save format, a summary of its
            characters and a SHA-256 of the copy, so a file changed outside the launcher is noticed.
-  history  every stash, swap, rename, import and delete, newest last.
+  history  every save copy, swap, rename, import and delete, newest last.
 
 A swap never loses anything: the live file goes into the library under a name first (the user's, or a default built
 from its characters and the time), then the chosen copy is written over the live file. Entries stay in the library
@@ -354,7 +354,7 @@ def changed_outside(save_dir: Path, entry: dict) -> bool:
 
 
 # ----------------------------------------------------------------------------- operations
-def add(save_dir: Path, source: Path, name: str, game: games.Game, action: str = "stash", note: str = "") -> dict:
+def add(save_dir: Path, source: Path, name: str, game: games.Game, action: str = "save copy", note: str = "") -> dict:
     """Copy a whole save file into the library under a name. The source is left as it is."""
     source = Path(source)
     data = source.read_bytes()

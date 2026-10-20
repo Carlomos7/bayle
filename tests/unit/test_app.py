@@ -28,8 +28,10 @@ def test_overrides_come_from_the_settings_per_game():
     assert nr.game_exe == "" and nr.me3_exe == "C:/me3.exe"  # Elden Ring's exe is not Nightreign's
 
 
-def test_a_setups_own_save_names_are_listed_once(tmp_path):
-    loc = Locations(catalog.ELDEN_RING).with_setup_save_names({"standard": "ER0000.sl2", "coop": "ER0000.co3", "x": ""})
+def test_a_profiles_own_save_names_are_listed_once(tmp_path):
+    loc = Locations(catalog.ELDEN_RING).with_profile_save_names(
+        {"standard": "ER0000.sl2", "coop": "ER0000.co3", "x": ""}
+    )
     assert loc.save_names() == ["ER0000.sl2", "ER0000.co2", "ER0000.co3"]
     assert Locations(catalog.ELDEN_RING).save_names() == ["ER0000.sl2", "ER0000.co2"]
 
@@ -48,11 +50,11 @@ def test_a_custom_me3_wins_when_it_exists(tmp_path):
     assert [p.name for p in loc.me3_profiles(catalog.NIGHTREIGN)] == ["nr.me3"]
 
 
-def test_the_context_follows_the_game_and_the_setup():
+def test_the_context_follows_the_game_and_the_profile():
     settings.save_game_settings("nightreign", game_exe="D:/nr/nightreign.exe")
     ctx = create_app()
     assert ctx.game is catalog.ELDEN_RING and ctx.locations.game is catalog.ELDEN_RING
-    ctx.note_setup_saves({"standard": "My.sl2"})
+    ctx.note_profile_saves({"standard": "My.sl2"})
     assert "My.sl2" in ctx.locations.save_names()
     loc = ctx.select_game(catalog.NIGHTREIGN)
     assert ctx.game is catalog.NIGHTREIGN and loc.overrides.game_exe == "D:/nr/nightreign.exe"

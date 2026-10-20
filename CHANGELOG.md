@@ -4,6 +4,13 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Importing a profile or a full export now asks when a mod has the same name as one you have installed but other
+  files: the card shows what differs (files changed, added, missing, with sizes), a version label for each copy (from
+  the download's name, a version file, a manifest or the README; never a guess from dates), when yours was installed and
+  which profiles use it. Pick Use the incoming copy (into the current profile it replaces the folder in the same
+  operation; Undo import brings your old one back byte for byte), Keep mine, or Keep both (name-2). A folder another
+  profile also lists is never replaced: this profile gets its own copy beside it. Import waits until each is picked,
+  unless the incoming version number is higher (then it is suggested).
 - A rebuild of an engine mod (Revive and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.

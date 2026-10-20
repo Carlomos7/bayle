@@ -525,6 +525,10 @@ PageScroll {
             visible: page.s.imp.isZip
             width: parent ? parent.width : 0
         }
+        ClashCards {
+            clashes: page.s.imp.clashes
+            width: parent ? parent.width : 0
+        }
         Repeater {
             model: page.s.imp.cards
 
@@ -617,6 +621,10 @@ PageScroll {
         }
         TargetChoice {
             kind: "bundled"
+            width: parent ? parent.width : 0
+        }
+        ClashCards {
+            clashes: page.s.bun.clashes
             width: parent ? parent.width : 0
         }
         Card {
@@ -712,6 +720,131 @@ PageScroll {
 
                 onEditingFinished: page.adapter.renamed()
                 onTextEdited: page.adapter.setNewName(text)
+            }
+        }
+    }
+    // Mods the download shares by name with installed ones but whose files differ: the player picks per mod. The
+    // version labels are hints only; nothing here decides which copy is newer.
+    component ClashCards: Column {
+        id: box
+
+        property var clashes: []
+
+        spacing: Theme.sp8
+        visible: box.clashes.length > 0
+
+        Txt {
+            kind: "strong"
+            text: page.words.differsTitle
+        }
+        Txt {
+            color: Theme.textSecondary
+            elide: Text.ElideNone
+            text: page.words.differsAbout
+            width: parent ? parent.width : 0
+            wrapMode: Text.WordWrap
+        }
+        Repeater {
+            model: box.clashes
+
+            Card {
+                id: clash
+
+                readonly property var keys: modelData.canBoth ? ["incoming", "mine", "both"] : ["incoming", "mine"]
+                required property var modelData
+
+                objectName: "clash_" + modelData.key
+                width: box.width
+
+                Column {
+                    spacing: Theme.sp8
+                    width: parent ? parent.width : 0
+
+                    Txt {
+                        kind: "cardTitle"
+                        text: clash.modelData.name
+                    }
+                    Txt {
+                        color: Theme.textSecondary
+                        elide: Text.ElideNone
+                        kind: "caption"
+                        text: clash.modelData.diff
+                        width: parent ? parent.width : 0
+                        wrapMode: Text.WordWrap
+                    }
+                    Row {
+                        spacing: Theme.sp16
+                        width: parent ? parent.width : 0
+
+                        Column {
+                            spacing: Theme.sp4
+                            width: (parent.width - Theme.sp16) / 2
+
+                            Txt {
+                                kind: "strong"
+                                text: page.words.incomingCopy
+                            }
+                            Txt {
+                                elide: Text.ElideNone
+                                text: clash.modelData.incoming
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                        Column {
+                            spacing: Theme.sp4
+                            width: (parent.width - Theme.sp16) / 2
+
+                            Txt {
+                                kind: "strong"
+                                text: page.words.yourCopy
+                            }
+                            Txt {
+                                elide: Text.ElideNone
+                                text: clash.modelData.mine
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                            }
+                            Txt {
+                                color: Theme.textSecondary
+                                elide: Text.ElideNone
+                                kind: "caption"
+                                text: clash.modelData.usedBy
+                                visible: text !== ""
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+                    TabRow {
+                        id: pick
+
+                        objectName: "pick_" + clash.modelData.key
+                        tabs: clash.modelData.canBoth
+                            ? [page.words.useIncoming, page.words.keepMine, page.words.keepBoth]
+                            : [page.words.useIncoming, page.words.keepMine]
+
+                        onCurrentChanged: {
+                            const want = clash.keys[current];
+                            if (want && want !== clash.modelData.choice)
+                                page.adapter.chooseCopy(clash.modelData.key, want);
+                        }
+                    }
+                    Binding {
+                        property: "current"
+                        target: pick
+                        value: clash.keys.indexOf(clash.modelData.choice)
+                    }
+                    Txt {
+                        color: Theme.textSecondary
+                        elide: Text.ElideNone
+                        kind: "caption"
+                        text: clash.modelData.choice === "" ? page.words.pickOne : clash.modelData.sharedNote !== "" ? clash.modelData.sharedNote : clash.modelData.suggested && clash.modelData.choice === "incoming" ? page.words.suggested : ""
+                        visible: text !== ""
+                        width: parent ? parent.width : 0
+                        wrapMode: Text.WordWrap
+                    }
+                }
             }
         }
     }

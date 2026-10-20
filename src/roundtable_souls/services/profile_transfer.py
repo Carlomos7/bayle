@@ -638,14 +638,16 @@ def preview(
     settings: LauncherSettings,
     new_name: str | None = None,
     me3: str | None = None,
+    choices: dict[str, str] | None = None,
 ) -> Preview:
     """What importing does, file by file, with nothing written. new_name: a zip makes a new profile of this name
-    (None: it goes into the current profile). me3: which profile of a zip (default the one the manifest names)."""
+    (None: it goes into the current profile). me3: which profile of a zip (default the one the manifest names).
+    choices: the player's pick per clashing mod (profile_import.CHOICES)."""
     current = Path(current)
     share = incoming.share
     out = Preview(incoming, current, False, skipped=list(share.skipped))
     if incoming.kind == "zip":
-        return _preview_zip(out, incoming, current, loc=loc, new_name=new_name, me3=me3)
+        return _preview_zip(out, incoming, current, loc=loc, new_name=new_name, me3=me3, choices=choices)
     writer = ProfileWriter(current, loc)
     out.writer = writer
     lines, pairs = _plan_options(writer, share, out)
@@ -682,7 +684,14 @@ def preview(
 
 
 def _preview_zip(
-    out: Preview, incoming: Incoming, current: Path, *, loc: Locations, new_name: str | None, me3: str | None
+    out: Preview,
+    incoming: Incoming,
+    current: Path,
+    *,
+    loc: Locations,
+    new_name: str | None,
+    me3: str | None,
+    choices: dict[str, str] | None,
 ) -> Preview:
     share, unpacked = incoming.share, incoming.unpacked
     assert unpacked is not None
@@ -707,7 +716,15 @@ def _preview_zip(
             )
 
     prev = profile_import.preview_import(
-        unpacked, pick, current, loc=loc, new_name=new_name, tune=tune, archive=incoming.source
+        unpacked,
+        pick,
+        current,
+        loc=loc,
+        new_name=new_name,
+        tune=tune,
+        archive=incoming.source,
+        choices=choices,
+        download=incoming.path.name,
     )
     out.zip_preview, out.profile, out.new = prev, prev.profile, prev.new
     out.skipped += prev.skipped
@@ -721,6 +738,9 @@ def _preview_zip(
         for src, _dest in prev.reused:
             if src.is_dir() and src.name.lower() == folder.lower():
                 return "already installed and reused as it is, so its settings file is left alone"
+        for src, _dest in prev.kept:
+            if src.is_dir() and src.name.lower() == folder.lower():
+                return "your installed copy is kept, so its settings file is left alone"
         return "not among the mods this zip copies, skipped"
 
     _config_cards(share, place, out)

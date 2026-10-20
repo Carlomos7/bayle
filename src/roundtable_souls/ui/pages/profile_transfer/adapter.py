@@ -14,7 +14,7 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from roundtable_souls.mods import naming
+from roundtable_souls.mods import naming, profile_import
 from roundtable_souls.mods.profile_edit import ModError
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import profile_transfer as pt
@@ -90,6 +90,7 @@ class ProfileTransferAdapter(QObject):
         self._incoming: pt.Incoming | None = None
         self._preview: pt.Preview | None = None
         self._ticked: set[str] = set()
+        self._choices: dict[str, str] = {}  # per mod that differs from an installed one: incoming | mine | both
         self._new_profile = True
         self._new_name = ""
         # a profile a download ships
@@ -177,8 +178,14 @@ class ProfileTransferAdapter(QObject):
             "newName": self._new_name,
             "error": self._error,
             "pct": self._import_pct,
+            "clashes": self.presenter.clashes(prev.zip_preview, self._new_profile) if prev and prev.zip_preview else [],
         }
-        imp["canImport"] = bool(prev and not prev.refusals and (self._ticked & {c["key"] for c in imp["cards"]}))
+        imp["canImport"] = bool(
+            prev
+            and not prev.refusals
+            and (self._ticked & {c["key"] for c in imp["cards"]})
+            and not (prev.zip_preview and prev.zip_preview.undecided)
+        )
         b = self._bundled
         bun = {
             "names": self._names,
@@ -188,7 +195,8 @@ class ProfileTransferAdapter(QObject):
             "refusals": list(b.refusals) if b else [],
             "newProfile": self._new_profile,
             "newName": self._new_name,
-            "canImport": bool(b and b.ok),
+            "canImport": bool(b and b.ok and not b.undecided),
+            "clashes": self.presenter.clashes(b, self._new_profile) if b else [],
         }
         return {
             "hasProfile": self._profile is not None,
@@ -231,6 +239,7 @@ class ProfileTransferAdapter(QObject):
         self._incoming = self._preview = self._bundled = None
         self._staging = self._unpacked = None
         self._ticked = set()
+        self._choices = {}
         self._error = ""
 
     # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
@@ -498,6 +507,7 @@ class ProfileTransferAdapter(QObject):
         if incoming is None or profile is None:
             return
         new_name = self._new_name.strip() if incoming.kind == "zip" and self._new_profile else None
+        choices = self._choices
         self._working = True
         self._emit()
 
@@ -507,7 +517,9 @@ class ProfileTransferAdapter(QObject):
                     raise ModError(tr("Give the new profile a name."))
                 if new_name and not naming.mod_id(new_name):
                     raise ModError(tr("Give the new profile a name."))
-                return pt.preview(incoming, profile, loc=loc, settings=settings, new_name=new_name), ""
+                return pt.preview(
+                    incoming, profile, loc=loc, settings=settings, new_name=new_name, choices=dict(choices)
+                ), ""
             except Exception as e:
                 return None, str(e)
 
@@ -515,8 +527,12 @@ class ProfileTransferAdapter(QObject):
             self._working = False
             prev, why = result
             self._error = why
+            before = (
+                ({c.key for c in self._preview.cards}, set(self._ticked)) if self._preview else None
+            )  # a new look after a choice keeps what was unticked
             self._preview = prev
-            self._ticked = {c.key for c in prev.cards} if prev else set()
+            keys = {c.key for c in prev.cards} if prev else set()
+            self._ticked = {k for k in keys if before is None or k not in before[0] or k in before[1]}
             self._emit()
 
         self.host.run_in_background(work, done)
@@ -527,6 +543,15 @@ class ProfileTransferAdapter(QObject):
             return
         (self._ticked.add if on else self._ticked.discard)(key)
         self._emit()
+
+    @Slot(str, str)
+    def chooseCopy(self, key: str, choice: str) -> None:
+        """The player's pick for a mod that differs from the installed one: incoming | mine | both."""
+        if choice not in profile_import.CHOICES or self._working:
+            return
+        self._choices[key.lower()] = choice
+        self._emit()
+        self._retarget()
 
     @Slot(bool)
     def setNewProfile(self, new: bool) -> None:
@@ -600,6 +625,7 @@ class ProfileTransferAdapter(QObject):
             return
         unpacked, me3 = self._unpacked, self._names[self._which]
         new_name = self._new_name.strip() if self._new_profile else None
+        choices = self._choices
         self._working = True
         self._emit()
 
@@ -607,7 +633,9 @@ class ProfileTransferAdapter(QObject):
             try:
                 if self._new_profile and not new_name:
                     raise ModError(tr("Give the new profile a name."))
-                return mod_service.preview_profile_import(unpacked, me3, profile, loc=loc, new_name=new_name), ""
+                return mod_service.preview_profile_import(
+                    unpacked, me3, profile, loc=loc, new_name=new_name, choices=dict(choices)
+                ), ""
             except Exception as e:
                 return None, str(e)
 

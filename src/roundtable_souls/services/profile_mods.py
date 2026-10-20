@@ -22,6 +22,7 @@ from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
+from roundtable_souls.mods import rename as mod_rename
 from roundtable_souls.mods.backends.manifest_refresh import launcher_installed
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import game_checks
@@ -135,6 +136,28 @@ def remove_entry(
         log("warning: the folder was kept (the Recycle Bin did not take it)")
     if plan.merged:
         log(f"note: the merged mods still hold {plan.name}'s files; Play rebuilds them before the game starts")
+    return out
+
+
+# ----------------------------------------------------------------------------- renaming a mod
+def rename_preview(profile, index: int, new_name: str, *, loc: Locations) -> mod_rename.RenamePreview:
+    """What renaming the entry's folder and id to new_name does, with every refusal (mods.rename.preview)."""
+    return mod_rename.preview(Path(profile), index, new_name, loc=loc)
+
+
+def rename_mod(profile, index: int, new_name: str, *, loc: Locations, log: Callable[[str], None] | None = None) -> dict:
+    """Rename (run inside a logged job): the folder, the entry and everything that names it as one operation, and the
+    undo record Activity offers ("type": "rename", mods.undo). Raises ModError with the reasons when it is refused."""
+    log = log or run_logging.log
+    pre = mod_rename.preview(Path(profile), index, new_name, loc=loc)
+    if not pre.ok:
+        raise profile_edit.ModError(" ".join(pre.refusals) or "Nothing to rename.")
+    out = mod_rename.apply(pre, loc=loc, log=log)
+    run_logging.set_undo(
+        {"type": "rename", "profile": out["profile"], "name": out["name"], "operation": out["operation"]}
+    )
+    log(f"done: renamed {out['name']} to {out['new']}")
+    log("note: the merged mods are rebuilt before the next Play")
     return out
 
 

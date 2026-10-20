@@ -184,20 +184,20 @@ def preview(profile: Path, index: int, new_name: str, *, loc: Locations) -> Rena
     else:
         if not case_only and any(p.name.lower() == new_name.lower() for p in folder.parent.iterdir()):
             refuse(f"There is already a folder called {new_name} in {folder.parent.name}.")
+        elif any(
+            e["index"] != index
+            and e["path"]
+            and e["kind"] == kind
+            and _folder_of(profile, e).name.lower() == new_name.lower()
+            for e in found
+        ):
+            refuse(f"Another entry in this profile already uses a folder called {new_name}.")
         if kind == "package" and any(
             me3_profile.entry_ref(e).lower() == new_name.lower()
             for e in found
             if e["kind"] == "package" and e["index"] != index
         ):
             refuse(f"Another mod in this profile already has the id {new_name}.")
-        if any(
-            e["index"] != index
-            and e["path"]
-            and _folder_of(profile, e).name.lower() == new_name.lower()
-            and e["kind"] == kind
-            for e in found
-        ):
-            refuse(f"Another entry in this profile already uses a folder called {new_name}.")
         out.new_folder = folder.with_name(new_name)
         if (why := naming.path_problem(out.new_folder, _deepest(folder))) is not None:
             refuse(why)

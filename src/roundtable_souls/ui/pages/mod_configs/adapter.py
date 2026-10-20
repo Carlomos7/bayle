@@ -404,8 +404,8 @@ class ModConfigsAdapter(QObject):
         if ini is None:
             return
         try:
-            changes, unknown = mod_configs.plan_paste(ini, text)
-        except ValueError as e:
+            changes, unknown, opened = mod_configs.plan_paste(ini, text)
+        except Exception as e:
             self._refuse(self.presenter.not_settings(str(e)))
             return
         if not changes:
@@ -416,7 +416,7 @@ class ModConfigsAdapter(QObject):
             if not ok:
                 return
             try:
-                mod_configs.save_seamless(ini, {k: new for k, (_old, new) in changes.items()})
+                mod_configs.apply_paste(opened, changes)
             except Exception as e:
                 self._refuse(self.presenter.could_not_save(str(e)))
                 return

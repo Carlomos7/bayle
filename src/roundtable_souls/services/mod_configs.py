@@ -154,7 +154,7 @@ def open_file(path: Path) -> Opened:
     return Opened(Path(path), got["text"], got["encoding"], got["crlf"], got["sha"], doc)
 
 
-def save_values(opened: Opened, changes: dict[tuple[str, str], str]) -> Path:
+def save_values(opened: Opened, changes: dict[tuple[str | None, str], str]) -> Path:
     """Write the changed values ((section, key) -> value), nothing else; returns the .bak. Raises ConfigError when the
     file changed on disk since it was read, ValueError for a setting only text can change."""
     doc = config_model.parse(opened.text, config_model.lang_of(opened.path.name) or config_model.INI)
@@ -252,6 +252,38 @@ def parse_share(text: str) -> dict[str, str]:
     return out
 
 
-def plan_paste(ini: Path, text: str) -> tuple[dict[str, tuple[str, str]], list[str]]:
-    """(changes {key: (yours, theirs)}, keys your file doesn't have) for shared settings; nothing written."""
-    return coop_share.plan_import(Path(ini), parse_share(text))
+def plan_merge(
+    opened: Opened, incoming: dict[tuple[str | None, str], str]
+) -> tuple[dict[tuple[str, str], tuple[str, str]], list[str]]:
+    """Shared values ({(section or None, key): value}) against the file as read: (changes {(section, key): (yours,
+    theirs)}, keys left out because the file lacks them or the form can't change them). Nothing is written and
+    keys are never added. Seamless Paste and profile import both go through here."""
+    doc = opened.doc or config_model.parse(opened.text, config_model.lang_of(opened.path.name) or config_model.INI)
+    changes: dict[tuple[str, str], tuple[str, str]] = {}
+    left_out: list[str] = []
+    for (section, key), value in incoming.items():
+        item = doc.find(key, section)
+        if item is None or item.readonly:
+            left_out.append(key)
+        elif item.value != str(value):
+            changes[(item.section, item.key)] = (item.value, str(value))
+    return changes, left_out
+
+
+def apply_merge(opened: Opened, changes: dict[tuple[str, str], tuple[str, str]]) -> Path:
+    """Write what plan_merge planned (only those values' characters change); the same errors as save_values."""
+    return save_values(opened, {k: new for k, (_old, new) in changes.items()})
+
+
+def plan_paste(ini: Path, text: str):
+    """(changes {key: (yours, theirs)}, keys your file doesn't have, the file as read) for shared settings; nothing
+    written. Hand the file to apply_paste."""
+    opened = open_file(ini)
+    changes, left_out = plan_merge(opened, {(None, k): v for k, v in parse_share(text).items()})
+    return {key: pair for (_s, key), pair in changes.items()}, sorted(left_out), opened
+
+
+def apply_paste(opened: Opened, changes: dict[str, tuple[str, str]]) -> Path:
+    if "cooppassword" in changes and not changes["cooppassword"][1].strip():
+        raise ValueError("The Seamless Co-op password cannot be empty.")
+    return save_values(opened, {(None, k): new for k, (_old, new) in changes.items()})

@@ -124,6 +124,8 @@ class UndoPlan:
                 if u.get("type") in mod_undo.OPERATIONS or u.get("type") in mod_undo.OVERHAUL
                 else f"launcher: undo the adoption of {name}"
                 if u.get("type") == "library-adopt"
+                else f"launcher: undo the rename of {name}"
+                if u.get("type") == "rename"
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -446,6 +448,21 @@ class ActivityPresenter:
                 tr("If {name} changed since, only the imported entries are taken out of it.").format(name=name),
                 tr("Undo import"),
                 tr("Undoing the import..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "rename":
+            name = u.get("name") or tr("the mod")
+            return UndoPlan(
+                tr("Undo the rename of {name}").format(name=name),
+                (
+                    tr("Its folder and the profile's entry go back to the old name"),
+                    tr("The mods that load after it, and its attached configs, follow it back"),
+                ),
+                tr("If something changed since, it is left as it is and you are told why."),
+                tr("Undo rename"),
+                tr("Undoing the rename..."),
                 u,
                 job_id,
                 name,

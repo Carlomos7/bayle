@@ -50,7 +50,6 @@ CheckBox {
             radiusOf: 4
         }
     }
-    HoverHandler {  // the hand over anything that can be clicked, the arrow when it is off
-        cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    HandCursor {
     }
 }

@@ -13,7 +13,7 @@ PageScroll {
     id: page
 
     required property var adapter
-    readonly property int cardMinW: 460
+    readonly property int cardMinW: 440
     readonly property int columnWidth: Math.min(width - sideMargin * 2, maxContentWidth)
     readonly property bool wide: columnWidth >= cardMinW * 2 + Theme.sp20
     readonly property var words: adapter.words

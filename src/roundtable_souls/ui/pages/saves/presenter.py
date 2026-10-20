@@ -183,6 +183,13 @@ class SavesPresenter:
             for u in info.get("unreadable") or []
         ]
         readable = bool(info.get("characters")) or bool(info.get("unreadable"))
+        free = [n for n in range(1, 11) if n not in taken] if readable or not info.get("error") else []
+        empty = [
+            {"slot": n, "name": tr("Empty slot"), "level": 0, "levelText": "", "runes": "", "mark": "", "body": ""}
+            for n in free
+        ]
+        by_slot = {c["slot"]: {**c, "empty": False} for c in characters + unreadable}
+        by_slot.update({e["slot"]: {**e, "empty": True} for e in empty})
         return {
             "path": str(info["path"]),
             "kind": info["kind"],
@@ -193,7 +200,8 @@ class SavesPresenter:
             "healthLevel": level,
             "findings": [f for f in info.get("findings") or [] if f.get("level") in ("warn", "error")],
             "characters": sorted(characters + unreadable, key=lambda c: c["slot"]),
-            "freeSlots": [n for n in range(1, 11) if n not in taken] if readable or not info.get("error") else [],
+            "freeSlots": free,
+            "slots": [by_slot[k] for k in sorted(by_slot)],  # all ten when the file reads: the empty ones are targets
             "canRepair": saves_service.repair_available(info) and not running,
             "canCopyCharacters": bool(info.get("characters")) and not running,
             "contents": next(

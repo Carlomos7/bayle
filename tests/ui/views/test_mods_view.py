@@ -270,7 +270,7 @@ def test_online_with_a_packages_parameters_warns_and_play_offline_turns_it_off(q
         todo, button = [bar], None
         while todo and button is None:
             item = todo.pop()
-            if item.property("text") == "Play offline":
+            if item.property("text") == "Launch Offline":
                 button = item
             todo.extend(item.childItems())
         assert button is not None

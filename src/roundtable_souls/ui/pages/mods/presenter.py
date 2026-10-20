@@ -603,7 +603,7 @@ class ModsPresenter:
                         "This profile goes online with changed parameters ({package}'s {file}). FromSoftware's "
                         "servers can see the change."
                     ).format(package=online_with, file=regulation),
-                    tr("Play offline"),
+                    tr("Launch Offline"),
                     True,
                 )
             )
@@ -697,9 +697,9 @@ class ModsPresenter:
                 files = tr("{files} and {n} more").format(files=files, n=len(plan.merged) - 3)
             changes.append(
                 plural(
-                    "Its {files} is still inside the merged mods: Play rebuilds them before the game starts (or "
+                    "Its {files} is still inside the merged mods: Launching rebuilds them before the game starts (or "
                     "Rebuild on the Mods page), so the game does not run with it",
-                    "Its {files} are still inside the merged mods: Play rebuilds them before the game starts (or "
+                    "Its {files} are still inside the merged mods: Launching rebuilds them before the game starts (or "
                     "Rebuild on the Mods page), so the game does not run with them",
                     len(plan.merged),
                 ).format(files=files)

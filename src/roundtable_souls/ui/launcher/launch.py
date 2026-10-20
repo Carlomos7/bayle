@@ -233,7 +233,7 @@ class LaunchFlow:
                 Choice(WITHOUT_BACKUP, tr("Launch without backup")),
                 Choice(CANCEL, tr("Cancel")),
             ),
-            warning=tr("The game has not started: 'Back up saves before Play' is on."),
+            warning=tr("The game has not started: 'Back up saves before launch' is on."),
             safety=tr(
                 "Retry tries the backup again. Launch without backup starts the game without a fresh copy of the "
                 "saves listed above."

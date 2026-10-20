@@ -89,7 +89,7 @@ def test_undo_is_offered_only_for_a_finished_job_that_can_still_be_taken_back():
 def test_the_summary_row_names_the_last_play_install_and_failure():
     cards = presenter().refresh().summary
     assert [(c.label, c.value, c.level) for c in cards] == [
-        ("Last Play", "Today 11:00  ·  2h 10m", "success"),
+        ("Last launch", "Today 11:00  ·  2h 10m", "success"),
         ("Last install", "Install mod Grand Merchant  ·  today", "muted"),
         ("Last failure", "Rebuild combined parameters  ·  yesterday", "danger"),
     ]
@@ -216,7 +216,7 @@ def test_every_string_goes_through_tr():
         p = presenter()
         state = p.refresh()
         assert state.days[0].label == "TODAY"
-        assert state.summary[0].label == "LAST PLAY"
+        assert state.summary[0].label == "LAST LAUNCH"
         assert p.open_window_text == "OPEN NEW ACTIVITY WINDOW"
         assert state.days[0].jobs[0].outcome == "DONE"
     finally:

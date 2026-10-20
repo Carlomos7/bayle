@@ -28,6 +28,7 @@ class Game:
     save_reader: str | None = None  # "eldenring": characters; "nightreign": checksums; "container": structure only
     save_sections: int | None = None  # sections the game writes into a save, for the structure check
     regulation_repair: bool = False  # me3 leaves the save's regulation block dirty; repaired after play
+    me3_heap_setting: bool = True  # me3 uses the profile's heap_size for this game (it ignores it for Nightreign)
     tint: str = "#F9C043"  # the game's dot colour in the switcher menu, so each game is told apart at a glance
     ready: bool = False
 
@@ -69,6 +70,7 @@ NIGHTREIGN = Game(
     coop_launcher="nrsc_launcher.exe",
     save_reader="nightreign",
     save_sections=14,
+    me3_heap_setting=False,
     regulation_repair=True,
     tint="#6E8BE0",
     ready=True,

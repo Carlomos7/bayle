@@ -184,7 +184,6 @@
    "label": "shaders"
   }
  ],
- "me3_heap_setting": true,
  "ignored_dlls": [
   "dinput8.dll",
   "modengine2.dll",

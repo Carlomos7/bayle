@@ -806,6 +806,47 @@ class ModsAdapter(QObject):
         if self._entry(index) is not None:
             self.dialogRequested.emit("options", index)
 
+    @Slot(int, result=str)
+    def renameCurrent(self, index: int) -> str:
+        """The name the Rename dialog starts from: the entry's folder name (empty when the entry is gone)."""
+        entry, profile = self._entry(index), self.host.profile
+        if entry is None or profile is None or not entry.get("path"):
+            return ""
+        folder = profile_edit.resolve(profile, entry["path"])
+        return (folder if entry["kind"] == "package" else folder.parent).name
+
+    @Slot(int, str, result=dict)
+    def renamePreview(self, index: int, name: str) -> dict:
+        """Whether renaming to `name` is allowed and what it would change: {ok, lines, refusals}."""
+        entry, profile = self._entry(index), self.host.profile
+        if entry is None or profile is None:
+            return {"ok": False, "lines": [], "refusals": []}
+        try:
+            pre = profile_mods.rename_preview(profile, index, name, loc=self.host.locations)
+        except Exception as e:
+            return {"ok": False, "lines": [], "refusals": [str(e)]}
+        return {"ok": pre.ok, "lines": list(pre.lines), "refusals": list(pre.refusals)}
+
+    @Slot(int, str)
+    def rename(self, index: int, name: str) -> None:
+        profile, entry = self._profile(), self._entry(index)
+        if profile is None or entry is None or self.host.busy:
+            return
+        old, loc = entry["name"], self.host.locations
+
+        def job(_setup, _loc):
+            from roundtable_souls.platform import logging as run_logging
+
+            run_logging.start_log(f"launcher: rename {old} to {name}", loc.game.key)
+            profile_mods.rename_mod(profile, index, name, loc=loc)
+
+        self.host.run_job(job, tr("Renaming {name}...").format(name=old))
+
+    @Slot(int)
+    def openRename(self, index: int) -> None:
+        if self._entry(index) is not None:
+            self.dialogRequested.emit("rename", index)
+
     @Slot()
     def openProfileSettings(self) -> None:
         if self.host.profile is not None:

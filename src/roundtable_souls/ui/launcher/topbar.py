@@ -99,9 +99,7 @@ def _short(problem: str) -> str:
     low = problem.lower()
     name = Path(problem.split(": ", 1)[1]).name if ": " in problem else ""
     if low.startswith("game exe"):
-        return (
-            tr("The game program is missing: {name}").format(name=name) if name else tr("The game program is missing")
-        )
+        return tr("Game program missing: {name}").format(name=name) if name else tr("Game program missing")
     if low.startswith("me3 missing"):
         return tr("me3 is missing: {name}").format(name=name) if name else tr("me3 is missing")
     if low.startswith("me3 is not installed"):

@@ -102,6 +102,7 @@ class ShellAdapter(QObject):
             },
             "status": {
                 "text": status.text,
+                "idle": status.text == tr("Ready"),  # nothing to say: the compact strip stays away
                 "tone": status.tone,
                 "busy": status.busy,
                 "toActivity": status.to_activity,

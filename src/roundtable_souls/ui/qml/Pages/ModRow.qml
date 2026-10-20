@@ -225,6 +225,8 @@ Item {
             onToggled: holder.adapter.setEnabled(holder.entryIndex, checked)
         }
         Column {  // the title at x 120
+            id: titleCol
+
             anchors.left: parent.left
             anchors.leftMargin: 120
             anchors.right: actions.left
@@ -240,6 +242,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     kind: "rowTitle"
                     text: holder.name
+                    width: Math.min(implicitWidth, Math.max(80, titleCol.width - (holder.tags.length > 0 ? 140 : 0)))   // a long name gives way to the tag
                 }
                 Repeater {
                     model: holder.tags
@@ -251,7 +254,6 @@ Item {
                         icon_: modelData.icon
                         level: modelData.level
                         text: modelData.text
-                        visible: holder.page && holder.page.width > 820
                     }
                 }
             }
@@ -259,7 +261,7 @@ Item {
                 color: holder.status_error ? Theme.statusDanger : Theme.textSecondary
                 kind: "caption"
                 text: holder.status
-                visible: holder.status !== "" && holder.page && holder.page.width > 760
+                visible: holder.status !== ""   // a missing folder or a clash is said at every width
                 width: parent ? parent.width : 0
             }
         }

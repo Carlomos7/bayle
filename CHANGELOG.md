@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Top bar and Mods list at narrow widths (UX pass): under 820 px the status (why Launch is blocked, what is running)
+  gets a line of its own under the bar, with its fix link, instead of only a coloured dot; the status text gives way
+  with a tooltip before its link does, and the link is reachable with Tab. A mod's tags and its status line ("Folder
+  missing", "after flora") show at every width, and "Edit as text" keeps its label down to 760 px.
 - Dialogs in the new window (UX pass): a long tick-box label (the New profile dialog's Seamless Co-op line) wraps
   instead of running off the dialog's edge, and the first field's focus ring is no longer cut by the dialog body.
 - First run in the new window (UX pass): with no profile at all, the Mods page says what a profile is and offers a

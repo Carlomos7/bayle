@@ -84,7 +84,12 @@ class Document:
             return False
         if item.readonly:
             raise ValueError(f"{item.key} can only be changed as text")
-        raw = _toml_literal(item, value) if self.lang == TOML else str(value)
+        if self.lang == TOML:
+            raw = _toml_literal(item, value)
+        else:
+            raw = str(value)
+            if "\n" in raw or "\r" in raw:  # a line break would add lines to the player's file
+                raise ValueError("a value can't contain a line break")
         line = self.lines[item.line]
         self.lines[item.line] = line[: item.start] + raw + line[item.end :]
         shift = len(raw) - (item.end - item.start)

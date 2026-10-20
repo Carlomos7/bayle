@@ -4,7 +4,7 @@
 
 Writes
     src/roundtable_souls/ui/qml/Theme/Theme.qml   the QML singleton (module Theme), with its qmldir
-    src/roundtable_souls/ui/theme_tokens.py       the same roles as plain Python data, which ui/theme.py reads
+    src/roundtable_souls/ui/theme_tokens.py       the same roles as plain Python data
 
 Hand edits to either output are a bug: edit tokens.json and rerun. `--check` writes nothing and exits 1 when an
 output is not current (a CI gate). `--dump` prints every colour role per theme with its OKLCH.
@@ -189,57 +189,6 @@ def shared_tokens(tokens: dict[str, Token]) -> dict[str, Token]:
     return {p: t for p, t in tokens.items() if not p.startswith(("theme.", "primitive.", "ramp."))}
 
 
-# ---------------------------------------------------------------------------------------------------- legacy names
-# The Widgets launcher's theme.py keys -> role names (legacy_tokens() in the Python output), so theme.py reads the
-# tokens while the Widgets views keep their keys; removed with the Widgets views (S9).
-LEGACY_PY: dict[str, str] = {
-    "text": "textPrimary",
-    "surf": "surfaceCard",
-    "border": "borderEdge",
-    "line": "borderHairline",
-    "hero_a": "surfaceCard",
-    "hero_b": "surfacePage",
-    "hero_border": "borderEdge",
-    "accent": "accent",
-    "accent_hover": "accentHover",
-    "accent_press": "accentPress",
-    "on_accent": "textOnAccent",
-    "ghost": "fillGhost",
-    "ghost_fg": "textPrimary",
-    "ghost_bd": "borderHairline",
-    "ghost_hv": "fillGhostHover",
-    "selected": "accentSoft",
-    "sidebar_bg": "surfaceBar",
-    "sidebar_hover": "surfaceRow",
-    "sidebar_selected": "accentSoft",
-    "sidebar_selected_fg": "accent",
-    "dialog_body": "surfaceCard",
-    "dialog_border": "borderHairline",
-    "dialog_footer": "surfaceInput",
-    "accent_off_fg": "textDisabled",
-    "accent_off_bd": "borderHairline",
-    "pending": "accentSoft",
-    "pending_border": "accentPress",
-    "editor": "surfaceInput",
-    "editor_fg": "textPrimary",
-    "drop_surf": "surfaceBar",
-    "focus": "accent",
-    "focus_on_accent": "textOnAccent",
-    "focus_inner": "textOnAccent",
-    "success_fg": "statusSuccess",
-    "success_bg": "statusSuccessBg",
-    "warning_fg": "statusWarning",
-    "warning_bg": "statusWarningBg",
-    "danger": "statusDanger",
-    "danger_bg": "statusDangerBg",
-    "busy_bg": "accentSoft",
-    "muted_bg": "statusInfoBg",
-    "muted": "textSecondary",
-    "shadow": "shadowColor",
-    "hero_glow": "glowSoft",
-}
-
-
 # ---------------------------------------------------------------------------------------------------- QML output
 def _qml_scalar(tok: Token) -> tuple[str, str]:
     """(qml type, literal) for a non-colour token."""
@@ -420,9 +369,7 @@ def _render_py(tokens: dict[str, Token]) -> str:
     w("")
     w("The theme's roles as plain data, the same ones as ui/qml/Theme/Theme.qml: DARK, LIGHT and TARNISHED map a role")
     w("name to a QColor-ready string (#RRGGBB, or #AARRGGBB when translucent) or a number; SPACING, RADIUS, TYPE,")
-    w("MOTION, GEOMETRY, CEILING and GRAIN are shared by all themes. No Qt here, so anything can read it; ui/theme.py")
-    w("turns it into colours and style sheets. legacy_tokens(theme) maps the roles onto the Widgets views' older keys")
-    w('until those views are replaced."""')
+    w('MOTION, GEOMETRY, CEILING and GRAIN are shared by all themes. No Qt here, so anything can read it."""')
     w("")
     w("from __future__ import annotations")
     w("")
@@ -464,19 +411,6 @@ def _render_py(tokens: dict[str, Token]) -> str:
             w(f'    "{n}": {_py_lit(t)},')
         w("}")
         w("")
-    w("# the Widgets views' keys -> role names")
-    w("LEGACY = {")
-    for old, new in LEGACY_PY.items():
-        w(f'    "{old}": "{new}",')
-    w("}")
-    w("")
-    w("")
-    w("def legacy_tokens(theme: str) -> dict[str, str]:")
-    w('    """The Widgets views\' keys (tokens_dark() / tokens_light() in ui/theme.py), filled from the roles."""')
-    w("    roles = THEMES[theme]")
-    w("    return {old: str(roles[new]) for old, new in LEGACY.items()}")
-    w("")
-    w("")
     w("def font_family(available: list[str] | None = None) -> str:")
     w('    """The first family of FONT_FAMILIES that is installed (pass QFontDatabase.families()), else the last."""')
     w("    if available is not None:")

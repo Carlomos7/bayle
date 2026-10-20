@@ -17,7 +17,19 @@ from roundtable_souls.config.settings import LauncherSettings, game_setting
 from roundtable_souls.game import catalog
 from roundtable_souls.platform import paths
 
-PATH_SETTINGS = ("me3_path", "game_exe", "me3_profile_dir")  # Settings > Locations; blank = detect
+PATH_SETTINGS = ("me3_path", "game_exe", "me3_profile_dir", "saves_dir")  # Settings > Locations; blank = detect
+
+
+def saves_dir_problem(folder: str | Path, game: catalog.Game) -> str:
+    """Why folder can't be this game's save folder, or "" when it can: it must hold an account folder with one of
+    the game's save files. A wrong folder here would send backups and repairs somewhere that isn't the saves."""
+    path = Path(folder)
+    if not path.is_dir():
+        return "That folder does not exist."
+    for account in path.iterdir():
+        if account.is_dir() and any((account / name).is_file() for name in game.save_names):
+            return ""
+    return f"No {game.name} save was found in it. Pick the folder that holds your Steam account's folder."
 
 
 @dataclass(frozen=True)
@@ -28,19 +40,26 @@ class Overrides:
     me3_exe: str = ""
     game_exe: str = ""
     profiles_dir: str = ""
+    saves_dir: str = ""  # the folder holding the per-account save folders
 
     @classmethod
     def from_settings(cls, settings: LauncherSettings, game: catalog.Game) -> Overrides:
         return cls(
             me3_exe=settings.me3_path.strip(),
             game_exe=str(game_setting(settings, game.key, "game_exe") or "").strip(),
+            saves_dir=str(game_setting(settings, game.key, "saves_dir") or "").strip(),
             profiles_dir=settings.me3_profile_dir.strip()
             or str(settings.me3_info_cache.get("profile_dir") or "").strip(),
         )
 
     def in_effect(self) -> dict:
         """What Settings > Locations shows as set: me3, game_exe, profile_dir (blank = detect)."""
-        return {"me3": self.me3_exe, "game_exe": self.game_exe, "profile_dir": self.profiles_dir}
+        return {
+            "me3": self.me3_exe,
+            "game_exe": self.game_exe,
+            "profile_dir": self.profiles_dir,
+            "saves_dir": self.saves_dir,
+        }
 
 
 @dataclass(frozen=True, eq=False)
@@ -90,6 +109,8 @@ class Locations:
         """Folders that hold the per-account save folders: %APPDATA%\\<game> on Windows, the same folder inside the
         game's Proton prefix on Linux (in whichever Steam library the prefix lives)."""
         game = game or self.game
+        if self.overrides.saves_dir and game is self.game:  # the override is for this Locations' game
+            return [Path(self.overrides.saves_dir)]
         return paths.save_roots_for(game.save_dir, game.app_id)
 
     def save_names(self) -> list[str]:

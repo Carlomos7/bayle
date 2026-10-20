@@ -130,7 +130,7 @@ class SavesView:
         self.backups_card, bl = card("Backups", FI.HISTORY)
         bl.addWidget(
             hint(
-                f"A backup is taken before every change to a save. The newest {save_backups.KEEP_NEWEST} of each save "
+                f"A backup is taken before every change to a save. The newest {save_backups.keep_newest()} of each save "
                 f"and everything from the last {save_backups.KEEP_DAYS} days are kept; Keep holds on to one for good. "
                 "Restore puts a backup back, and backs up the save as it is then, so a restore can be undone."
             )

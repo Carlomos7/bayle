@@ -325,7 +325,7 @@ PageScroll {
                                     width: parent ? parent.width : 0
                                     wrapMode: Text.WordWrap
                                 }
-                                CodeArea {
+                                CodeEditor {
                                     height: Math.min(420, Math.max(180, implicitHeight))
                                     readOnly: true
                                     text: job.open ? page.adapter.logText : ""

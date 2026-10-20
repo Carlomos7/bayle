@@ -152,9 +152,11 @@ def data_dir() -> Path:
 class LauncherSettings(BaseModel):
     """Everything the window remembers between runs. Unknown keys are kept so older builds' values survive."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
-    setup: str | None = None  # Elden Ring's remembered setup; other games keep theirs under `games`
+    # Elden Ring's remembered launch profile; other games keep theirs under `games`. The file key stays `setup` so a
+    # build restored after an update rollback still finds it.
+    profile: str | None = Field(default=None, alias="setup")
     game: str = "eldenring"  # the tab the window opens on
     games: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-game values for games other than Elden Ring
     theme: Literal["dark", "tarnished", "light", "system"] = "dark"  # the Widgets window: tarnished is dark
@@ -236,7 +238,7 @@ class LauncherSettings(BaseModel):
     def to_file(self) -> dict[str, Any]:
         """What the file holds: every key, unknown ones (an older or newer build's) included, except the keys in
         WRITTEN_WHEN_SET while nothing has set them."""
-        out = self.model_dump()
+        out = self.model_dump(by_alias=True)
         for key in WRITTEN_WHEN_SET:
             if key not in self.model_fields_set:
                 out.pop(key, None)
@@ -294,6 +296,7 @@ def save_settings(**changes: Any) -> None:
     change_settings(lambda current: changes)
 
 
+_FIELD_OF_KEY = {"setup": "profile"}  # a per-game file key whose Python field has another name
 GAME_KEYS = ("setup", "game_exe", "saves_dir", "launch_mode")  # values each game keeps for itself
 
 
@@ -301,7 +304,7 @@ def game_setting(settings: LauncherSettings, game: str, key: str, default: Any =
     """One per-game value. Elden Ring's live at the top level, where builds before multi-game support kept them, so
     an older build still finds them; every other game keeps its own under `games`."""
     if game == "eldenring":
-        value = getattr(settings, key, None)
+        value = getattr(settings, _FIELD_OF_KEY.get(key, key), None)
     else:
         value = (settings.games.get(game) or {}).get(key)
     return default if value is None else value

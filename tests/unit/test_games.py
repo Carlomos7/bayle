@@ -90,7 +90,7 @@ def test_settings_are_kept_per_game():
     settings.save_game_settings("eldenring", setup="er.me3", game_exe="C:/er/eldenring.exe")
     settings.save_game_settings("nightreign", setup="nr.me3")
     s = settings.load_settings()
-    assert s.setup == "er.me3"  # Elden Ring stays where older builds read it
+    assert s.profile == "er.me3"  # Elden Ring stays where older builds read it
     assert settings.game_setting(s, "nightreign", "setup") == "nr.me3"
     assert settings.game_setting(s, "nightreign", "game_exe", "") == ""
     assert core.remembered_profile(s, NR) == "nr.me3" and core.remembered_profile(s, ER) == "er.me3"

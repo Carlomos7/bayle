@@ -224,6 +224,7 @@ class ModsPresenter:
             "save": tr("Save"),
             "discard": tr("Discard"),
             "cancel": tr("Cancel"),
+            "close": tr("Close"),
             "unsavedTitle": tr("Unsaved changes"),
             "unsavedBody": tr(
                 "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
@@ -406,12 +407,12 @@ class ModsPresenter:
         )
         return Group(
             kind=kind,
-            title=tr("Packages") if kind == "package" else tr("Natives (DLLs)"),
+            title=tr("Packages") if kind == "package" else tr("DLL mods"),
             icon="ZipFolder" if kind == "package" else "Code",
             count=count,
             empty=""
             if rows
-            else (tr("No packages in this profile.") if kind == "package" else tr("No natives in this profile.")),
+            else (tr("No packages in this profile.") if kind == "package" else tr("No DLL mods in this profile.")),
             lines=tuple(lines),
             rows=rows,
         )
@@ -653,8 +654,8 @@ class ModsPresenter:
     def removal(self, profile, plan: Removal) -> Confirm:
         prof = Path(profile)
         changes = [
-            tr("The [[{section}]] entry and its own comments are deleted from {profile}").format(
-                section="packages" if plan.kind == "package" else "natives", profile=prof.name
+            tr("{name} is taken out of the profile {profile}, with its own comments").format(
+                name=plan.name, profile=prof.name
             )
         ]
         if plan.users and plan.folder is not None:
@@ -680,8 +681,8 @@ class ModsPresenter:
             changes=tuple(changes),
             apply=tr("Remove"),
             warning=tr(
-                "me3 stops loading it at the next launch. Removing a mod other entries load_after may leave them "
-                "waiting on a missing id."
+                "The game stops loading it at the next launch. If another mod is set to load after it, that mod "
+                "is left waiting for something that is gone."
             ),
             safety=tr(
                 "Activity can restore it: the entry goes back where it was, and a folder moved to the Recycle Bin "
@@ -694,7 +695,7 @@ class ModsPresenter:
 
     def holder(self, profile, name: str, needs: list[str]) -> Confirm:
         changes = [
-            tr("Its [[packages]] entry is deleted from {profile}").format(profile=Path(profile).name),
+            tr("Its entry is taken out of {profile}").format(profile=Path(profile).name),
             tr("Nothing changes in the game: it loaded no files of its own"),
             tr("The folder and every mod in it stay, and so do their entries"),
         ]
@@ -706,7 +707,7 @@ class ModsPresenter:
             tr("Remove '{name}' from the profile").format(name=name),
             tuple(changes),
             tr("Remove"),
-            safety=tr("The profile keeps a .bak."),
+            safety=tr("A backup copy of the profile is kept."),
         )
 
     def trim(self, extra: list[dict]) -> Confirm:
@@ -762,7 +763,7 @@ class ModsPresenter:
             warning=tr(
                 "me3 blocks matchmaking by default because playing online with modded data can get the account banned."
             ),
-            safety=tr("Nothing else in the profile changes; a .bak of the file is kept."),
+            safety=tr("Nothing else in the profile changes; a backup copy of the file is kept."),
         )
 
     def delete_refusal(self, code: str | None, setup_name: str = "") -> Refusal | None:

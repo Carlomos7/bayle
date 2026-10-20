@@ -7,6 +7,8 @@ itself is a logged job, so it shows in Activity with its Undo."""
 from __future__ import annotations
 
 import shutil
+import threading
+import time
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -29,6 +31,8 @@ class ProfileTransferHost(Protocol):
     @property
     def busy(self) -> bool: ...
     @property
+    def game_running(self) -> bool: ...
+    @property
     def locations(self) -> Any: ...
     @property
     def profile(self) -> Path | None: ...
@@ -47,6 +51,7 @@ class ProfileTransferHost(Protocol):
 
 class ProfileTransferAdapter(QObject):
     changed = Signal()
+    _progressed = Signal(object, object, str, int, int)  # emitted on the export's worker, delivered on the UI thread
 
     def __init__(
         self,
@@ -94,6 +99,11 @@ class ProfileTransferAdapter(QObject):
         self._bundled: Any = None
         self._error = ""
         self._result: dict[str, Any] = {}
+        # a running or finished export: phase idle | running | done | error | cancelled
+        self._run: dict[str, Any] = {"phase": "idle"}
+        self._cancel = threading.Event()
+        self._started = 0.0
+        self._progressed.connect(self._on_progress)
 
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
@@ -117,8 +127,40 @@ class ProfileTransferAdapter(QObject):
             for it in self._items
         ]
         picked = [it for it in self._items if it.key in self._picked]
-        ex["total"] = self.presenter.total(len(picked), sum(it.size for it in picked))
-        ex["ready"] = bool(ex["name"].strip() and ex["folder"] and (ex["kind"] == "list" or picked))
+        size = sum(it.size for it in picked)
+        full = ex["kind"] == "full"
+        for row, it in zip(ex["mods"], self._items, strict=True):
+            row["large"] = it.size >= pt.LARGE_MOD
+        ex["total"] = self.presenter.total(len(picked), size)
+        name_ok, folder_ok, mods_ok = bool(ex["name"].strip()), bool(ex["folder"]), bool(picked) or not full
+        busy = (
+            tr("Another job is running. Wait for it to finish.")
+            if self.host.busy
+            else tr("Close the game first: exports run as launcher jobs.")
+            if self.host.game_running
+            else tr("Exporting...")
+            if self._working
+            else ""
+        )
+        ex["reason"] = self.presenter.reason(name_ok, folder_ok, mods_ok, busy)
+        ex["ready"] = ex["reason"] == ""
+        ex["nameError"], ex["folderError"], ex["modsError"] = not name_ok, not folder_ok, not mods_ok
+        ex["summary"] = self.presenter.summary(
+            full,
+            len(picked),
+            size,
+            bool(ex["withConfigs"]),
+            bool(ex["withSave"] and ex["saveName"]),
+            bool(ex["withPassword"]),
+        )
+        top = sorted(picked, key=lambda it: it.size, reverse=True)[:3]
+        ex["warn"] = (
+            self.presenter.big_warning(size, [(it.entry["name"], it.size) for it in top])
+            if full and size >= pt.LARGE_EXPORT
+            else ""
+        )
+        ex["run"] = dict(self._run)
+        ex["fullLabel"] = f"{self._words['fullExport']} ({size_text(size)})" if picked else self._words["fullExport"]
         prev = self._preview
         imp: dict[str, Any] = {
             "file": self.presenter.file_line(self._incoming) if self._incoming else "",
@@ -220,6 +262,17 @@ class ProfileTransferAdapter(QObject):
         if not res:
             return
         self._working = False
+        if res.get("kind") == "export":
+            took = time.monotonic() - self._started
+            if res.get("cancelled"):
+                self._run = {"phase": "cancelled", "text": self.presenter.cancelled()}
+            elif res.get("error"):
+                self._run = {"phase": "error", "text": self.presenter.failed(res["error"])}
+            else:
+                text = self.presenter.done_text(res["path"], res["size"], took)
+                self._run = {"phase": "done", "text": text, "path": str(res["path"])}
+            self._emit()
+            return
         if res.get("error"):
             self.notifier.toast(self.presenter.import_failed(res["error"]), error=True)
         else:
@@ -281,21 +334,31 @@ class ProfileTransferAdapter(QObject):
 
     @Slot()
     def exportNow(self) -> None:
+        ex, profile, loc = self._ex, self._profile, self.host.locations
+        st = self._state()["ex"]
+        if profile is None or loc is None or self._working or not st["ready"]:
+            if st["reason"]:
+                self.notifier.toast(st["reason"], error=True)
+            return
+        if ex["kind"] == "full":
+            size = sum(it.size for it in self._items if it.key in self._picked)
+            if size >= pt.LARGE_EXPORT:  # asked once, here, for a big one
+                title, lines = self.presenter.confirm_big(size)
+                self.notifier.confirm(title, lines, "", self._words["export"], lambda ok: ok and self._start_export())
+                return
+        self._start_export()
+
+    def _start_export(self) -> None:
         ex, profile, loc, settings = self._ex, self._profile, self.host.locations, self.host.settings
-        if profile is None or loc is None or self._working:
-            return
-        if not ex["name"].strip():
-            self.notifier.toast(self.presenter.need_name(), error=True)
-            return
-        if not ex["folder"]:
-            self.notifier.toast(self.presenter.need_folder(), error=True)
+        if profile is None or loc is None or self._working or self.host.busy:
             return
         picked = set(self._picked)
-        if ex["kind"] == "full" and not picked:
-            self.notifier.toast(self.presenter.need_mod(), error=True)
-            return
         self._working = True
+        self._cancel.clear()
+        self._started = time.monotonic()
+        self._run = {"phase": "running", "pct": 0, "title": "", "bytes": "", "eta": "", "file": "", "cancelling": False}
         self._emit()
+        box = self._result
         args = dict(
             loc=loc,
             settings=settings,
@@ -304,42 +367,71 @@ class ProfileTransferAdapter(QObject):
             author=ex["author"].strip(),
             password=bool(ex["withPassword"]),
         )
+        full, folder = ex["kind"] == "full", Path(ex["folder"])
+        extra = dict(
+            readme=ex["readme"],
+            changelog=ex["changelog"],
+            chosen=picked,
+            out_dir=folder,
+            with_configs=bool(ex["withConfigs"]),
+            with_save=bool(ex["withSave"]),
+        )
+        last = [0.0]
 
-        def work():
+        def report(done, total, current, n, count) -> None:  # on the worker: at most ten times a second
+            now = time.monotonic()
+            if now - last[0] >= 0.1 or done >= total:
+                last[0] = now
+                self._progressed.emit(done, total, current, n, count)
+
+        def job(_setup, _loc):
+            from roundtable_souls.platform import logging as run_logging
+
+            run_logging.start_log(f"launcher: export profile {args['name']}", loc.game.key)
             try:
-                if ex["kind"] == "full":
-                    return (
-                        pt.full_export(
-                            profile,
-                            readme=ex["readme"],
-                            changelog=ex["changelog"],
-                            chosen=picked,
-                            out_dir=Path(ex["folder"]),
-                            with_configs=bool(ex["withConfigs"]),
-                            with_save=bool(ex["withSave"]),
-                            **args,
-                        ),
-                        "",
-                    )
-                doc, _ = pt.share_list(profile, **args)
-                if not ex["withConfigs"]:
-                    doc["configs"] = {}
-                return pt.write_share_list(doc, Path(ex["folder"])), ""
+                if full:
+                    out = pt.full_export(profile, progress=report, cancelled=self._cancel.is_set, **extra, **args)
+                else:
+                    doc, _ = pt.share_list(profile, **args)
+                    if not ex["withConfigs"]:
+                        doc["configs"] = {}
+                    out = pt.write_share_list(doc, folder)
+                box.update(kind="export", path=out, size=out.stat().st_size)
+            except pt.ExportCancelled:
+                box.update(kind="export", cancelled=True)
+                run_logging.log("export cancelled; the partial zip was removed")
+                raise SystemExit(130) from None
             except Exception as e:
-                return None, str(e)
+                box.update(kind="export", error=str(e) or type(e).__name__)
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
 
-        def got(result) -> None:
-            self._working = False
-            path, why = result
+        self.host.run_job(job, tr("Exporting a profile..."))
+
+    def _on_progress(self, done, total, current: str, n: int, count: int) -> None:
+        if self._run.get("phase") != "running":
+            return
+        shown = self.presenter.progress(done, total, n, count, time.monotonic() - self._started)
+        self._run.update(shown, file=current.rsplit("/", 1)[-1])
+        self._emit()
+
+    @Slot()
+    def cancelExport(self) -> None:
+        if self._run.get("phase") == "running":
+            self._cancel.set()
+            self._run["cancelling"] = True
             self._emit()
-            if path is None:
-                self.notifier.toast(self.presenter.import_failed(why), error=True)
-                return
-            self.notifier.toast_action(
-                self.presenter.exported(path), self.presenter.open_folder(), lambda: self.host.open_path(path.parent)
-            )
 
-        self.host.run_in_background(work, got)
+    @Slot()
+    def dismissRun(self) -> None:
+        self._run = {"phase": "idle"}
+        self._emit()
+
+    @Slot()
+    def showExport(self) -> None:
+        path = self._run.get("path")
+        if path:
+            self.host.open_path(Path(path).parent)
 
     # ---- import: a share list or a full export
     @Slot()

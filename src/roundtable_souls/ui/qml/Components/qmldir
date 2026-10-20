@@ -41,3 +41,6 @@ Toast 1.0 Toast.qml
 ToolTipText 1.0 ToolTipText.qml
 ToggleSwitch 1.0 ToggleSwitch.qml
 Txt 1.0 Txt.qml
+DropIndicator 1.0 DropIndicator.qml
+DragHandle 1.0 DragHandle.qml
+DropTarget 1.0 DropTarget.qml

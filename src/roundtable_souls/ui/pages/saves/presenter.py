@@ -9,6 +9,7 @@ here, backs up first and offers Undo afterwards; nothing is written while the ga
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,15 @@ def key_text(key: tuple) -> str:
 def trigger(action: str) -> str:
     low = action.lower()
     return next((words for start, words in _TRIGGERS if low.startswith(start)), action[:1].lower() + action[1:])
+
+
+@dataclass(frozen=True)
+class Drop:
+    """What a drop does: the adapter slot its menu twin calls, and that slot's arguments. The slot asks, confirms and
+    writes exactly as the menu does; a drop never writes by itself."""
+
+    call: str
+    args: tuple
 
 
 class SavesPresenter:
@@ -99,6 +109,7 @@ class SavesPresenter:
             "copyTo": tr("Copy to..."),
             "copyActions": tr("More"),
             "emptySlots": tr("Empty slots:"),
+            "slot": tr("Slot"),
             "replaceLibrary": tr("Replace with a Library copy"),
             "replaceKind": tr("Replace {kind} with this..."),
             "restoreKind": tr("Restore over {kind}..."),
@@ -675,6 +686,64 @@ class SavesPresenter:
             "findings": [{"title": g["title"], "count": len(g["items"])} for g in marks],
             "checksumOk": bool(ch.get("ok", True)),
         }
+
+    # ---- drag and drop: ONE rule set shared with the menu twins
+    def drop(
+        self, source: dict, target: dict, *, game: str, running: bool, busy: bool, encrypted: bool
+    ) -> Drop | Refusal:
+        """What dropping `source` on `target` means: a Drop (the twin's slot and arguments) or a Refusal in words.
+        Pure: reads only what the drag carries, so it can judge every spot while the pointer moves.
+        source: {type: character|live|copy|backup, path, slot, folder, id, missing}
+        target: {type: slot|card|library|backups, path, slot, free, kind}."""
+        if running or busy:
+            return self.refusal_busy(game, running)
+        kind, where = source.get("type"), target.get("type")
+        on_save = where in ("slot", "card")
+        if kind in ("character", "copychar"):
+            if not on_save:
+                return Refusal(tr("Not here"), tr("A character goes into a slot of a live save."))
+            if encrypted:
+                return Refusal(
+                    tr("Characters are not shown yet"), tr("Nightreign saves are encrypted: whole files only.")
+                )
+            slot = target.get("slot")
+            if where == "card":
+                free = list(target.get("free") or [])
+                if not free:
+                    return Refusal(
+                        tr("No free slot"), tr("Every slot of this save holds a character. Drop on one to replace it.")
+                    )
+                slot = free[0]
+            if kind == "character":
+                if target["path"] == source["path"] and slot == source["slot"]:
+                    return Refusal(tr("Already there"), tr("That is the same slot."))
+                return Drop("copyCharacter", (source["path"], source["slot"], target["path"], slot))
+            if source.get("missing"):
+                return Refusal(tr("This copy cannot be used"), tr("Its file is missing from the Library."))
+            src_slot = int(source["slot"])
+            return Drop("copyFromLibrary", (source["folder"], source["id"], src_slot, target["path"], slot))
+        if kind == "copy" and where == "card":
+            if source.get("missing"):
+                return Refusal(tr("This copy cannot be used"), tr("Its file is missing from the Library."))
+            return Drop("replaceFromLibrary", (source["folder"], source["id"], target["path"]))
+        if kind == "backup" and where == "card":
+            return Drop("restoreBackup", (source["path"], target["path"]))
+        if kind in ("copy", "backup") and where == "slot":  # a file row acts on the whole save, never on one slot
+            return Refusal(
+                tr("This is a whole save"),
+                tr("Drop it on a live save to restore it, or expand a Library copy and drag one character out."),
+            )
+        if kind == "copy" and where == "backups":
+            return Refusal(tr("Not here"), tr("Backups are made by the launcher. Use Back up now on a live save."))
+        if kind == "backup" and where == "library":
+            return Refusal(tr("Not here"), tr("Keep it from the backup's menu (Keep as a Library copy...)."))
+        if kind == "live" and where == "library":
+            return Drop("askName", ("copy", source["path"]))
+        if kind == "live" and where == "backups":
+            return Drop("backUpNow", (source["path"],))
+        if kind == "live" and on_save:
+            return Refusal(tr("Not here"), tr("Drop a copy or a backup on a live save to replace it."))
+        return Refusal(tr("Not here"), tr("That cannot be dropped there."))
 
 
 def transfer_error(e: Exception) -> Refusal:

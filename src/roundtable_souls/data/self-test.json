@@ -16,6 +16,7 @@
     "roundtable_souls.storage.db",
     "roundtable_souls.ui.shell",
     "roundtable_souls.ui.page_window",
+    "roundtable_souls.ui.launcher.window",
     "roundtable_souls.updates.apply",
     "PySide6.QtQml",
     "PySide6.QtQuick",
@@ -33,12 +34,15 @@
   "qml_modules": [
     "App",
     "Components",
+    "QtQml.Models",
     "QtQuick",
     "QtQuick.Controls.Basic",
     "QtQuick.Controls.impl",
+    "QtQuick.Dialogs",
     "QtQuick.Effects",
     "QtQuick.Layouts",
     "QtQuick.Window",
+    "Shell",
     "Theme"
   ],
   "files": [
@@ -51,6 +55,9 @@
     {"path": "storage/migrations/env.py"},
     {"glob": "storage/migrations/versions/*.py", "min": 2},
     {"path": "ui/qml/PageWindow.qml"},
+    {"path": "ui/qml/Main.qml"},
+    {"path": "ui/qml/Shell/qmldir"},
+    {"glob": "ui/qml/Shell/*.qml", "min": 5},
     {"path": "ui/qml/Theme/Theme.qml"},
     {"path": "ui/qml/Theme/qmldir"},
     {"path": "ui/qml/App/qmldir"},

@@ -37,6 +37,7 @@ LABEL = {
     "overhaul-remove": "Restore",
     "overhaul-turn-off": "Undo turn off",
     "profile-import": "Undo import",
+    "library-adopt": "Undo adoption",
 }
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
@@ -85,7 +86,14 @@ def available(undo: dict | None) -> bool:
         from roundtable_souls.merging import build
 
         op = Path(str(undo.get("operation") or ""))
-        return bool(undo.get("operation")) and build._state(op) == build.ACTIVE
+        if not undo.get("operation") or build._state(op) != build.ACTIVE:
+            return False
+        # a profile adopted into the library (mods.adopt) is no longer at the place this was recorded for
+        return not undo.get("profile") or Path(undo["profile"]).is_file()
+    if undo.get("type") == "library-adopt":
+        from roundtable_souls.merging import build
+
+        return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
     if undo.get("type") == "rebuild":
         profile = Path(undo.get("profile") or "")
         if not undo.get("profile") or not profile.is_file():
@@ -117,6 +125,15 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         if not available(undo):
             raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
         return profile_import.undo_import(Path(undo["operation"]), log)
+    if undo.get("type") == "library-adopt":
+        from roundtable_souls.mods import adopt
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'The adoption'} can no longer be taken back.")
+        try:
+            return adopt.undo_adopt(Path(undo["operation"]), log)
+        except adopt.AdoptError as e:
+            raise UndoError(str(e)) from e
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 
 

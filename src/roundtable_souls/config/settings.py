@@ -173,6 +173,8 @@ class LauncherSettings(BaseModel):
     overhaul_install: bool = False  # the Mods page's Overhaul button: install and remove overhauls itself (preview)
     # Co-op page notices about Seamless Co-op left in the game folder, turned off for good: "<game>|<profile>|<kind>"
     coop_relocate_dismissed: list[str] = Field(default_factory=list)
+    # Setups the Mods page stopped offering to adopt into the library (S7d): the setup folder's path
+    adopt_dismissed: list[str] = Field(default_factory=list)
     play_backup_before: bool = False
     play_repair_after: bool = True  # Nightreign: re-sign the save's sections me3 can leave unsigned
     # Elden Ring: restore the save's regulation copy after me3. The game never reads it back (game model,

@@ -14,9 +14,11 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from roundtable_souls.coop import scaling as coop_scaling
 from roundtable_souls.formats import config_model
 from roundtable_souls.services import mod_configs
+from roundtable_souls.services import mods as mod_service
+from roundtable_souls.ui.models import plain
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mod_configs.presenter import ModConfigsPresenter
-from roundtable_souls.ui.pages.mods.presenter import Confirm, ModsPresenter, Refusal
+from roundtable_souls.ui.pages.mods.presenter import Confirm, ModsPresenter, Pick, Refusal
 from roundtable_souls.ui.text import tr
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
@@ -34,6 +36,7 @@ class ModConfigsHost(Protocol):
     @property
     def settings(self) -> Any: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def run_job(self, job, status: str) -> None: ...
     def profiles(self) -> list[str]: ...
     def profile_index(self) -> int: ...
     def pick_profile(self, index: int) -> None: ...
@@ -50,6 +53,7 @@ class ModConfigsAdapter(QObject):
     changed = Signal()  # the tree, the profile
     fileChanged = Signal()  # the open file: what it shows (not each keystroke)
     dirtyChanged = Signal()
+    pickRequested = Signal(str, dict, list)  # a tick list: its key, its words (presenter.Pick), the rows' labels
 
     def __init__(
         self, host: ModConfigsHost, notifier: Notifier, presenter: ModConfigsPresenter | None = None, parent=None
@@ -69,6 +73,8 @@ class ModConfigsAdapter(QObject):
         self._text = ""
         self._edit_text = False
         self._want: str = ""  # a mod to select once the tree is read (open_mod_configs)
+        self._ov: dict | None = None  # the open Overhaul setup: its setup, choices, working values, new?, dirty?
+        self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
 
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
@@ -77,9 +83,18 @@ class ModConfigsAdapter(QObject):
     profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
     profileName = Property(str, lambda self: self._profile.stem if self._profile else "", notify=changed)
     hasProfile = Property(bool, lambda self: self._profile is not None, notify=changed)
-    nodes = Property(list, lambda self: [self.presenter.node(n) for n in self._nodes], notify=changed)
+    nodes = Property(
+        list,
+        lambda self: [
+            self.presenter.overhaul_node(n) if n.kind == mod_configs.OVERHAUL else self.presenter.node(n)
+            for n in self._nodes
+        ],
+        notify=changed,
+    )
     loading = Property(bool, lambda self: self._loading, notify=changed)
-    selectedFile = Property(str, lambda self: str(self._opened.path) if self._opened else "", notify=fileChanged)
+    selectedFile = Property(str, lambda self: self._selected(), notify=fileChanged)
+    overhaul = Property(dict, lambda self: self._overhaul_view(), notify=fileChanged)
+    canEditText = Property(bool, lambda self: self._can_edit_text(), notify=fileChanged)
     fileKind = Property(str, lambda self: self._kind(), notify=fileChanged)
     crumb = Property(str, lambda self: self._crumb(), notify=fileChanged)
     sections = Property(list, lambda self: self._sections(), notify=fileChanged)
@@ -97,7 +112,17 @@ class ModConfigsAdapter(QObject):
             return False
         return any(f.path == self._opened.path and f.how == "attached" for f in self._node.files)
 
+    def _selected(self) -> str:
+        if self._opened is not None:
+            return str(self._opened.path)
+        return str(self._ov["folder"]) if self._ov is not None else ""  # a new setup: the mod's folder
+
+    def _can_edit_text(self) -> bool:
+        return self._opened is not None and not (self._ov is not None and self._ov["setup"].get("verified"))
+
     def _kind(self) -> str:
+        if self._ov is not None and not self._edit_text:
+            return "overhaul"
         if self._opened is None:
             return ""
         if self._edit_text:
@@ -111,6 +136,11 @@ class ModConfigsAdapter(QObject):
     def _crumb(self) -> str:
         if self._node is None:
             return ""
+        if self._node.kind == mod_configs.OVERHAUL:
+            own = self._node.files[0].path if self._node.files else None
+            kept = self._opened is not None and self._opened.path != own
+            name = self.presenter.overhaul_node(self._node)["name"] if self._node.setup else self._node.name
+            return self.presenter.crumb(name, self._opened.path if kept and self._opened else None)
         return self.presenter.crumb(
             self.presenter.node(self._node)["name"], self._opened.path if self._opened else None
         )
@@ -143,6 +173,8 @@ class ModConfigsAdapter(QObject):
         return self.presenter.seamless(s, line, note)
 
     def _is_dirty(self) -> bool:
+        if self._ov is not None and not self._edit_text:
+            return bool(self._ov["dirty"])
         if self._opened is None:
             return False
         if self._edit_text or self._kind() in ("text", "markdown"):
@@ -217,11 +249,14 @@ class ModConfigsAdapter(QObject):
 
     def _open(self, node: mod_configs.ModNode, path: Path) -> None:
         self._node, self._pending, self._edit_text = node, {}, False
-        self._seamless = None
+        self._seamless = self._ov = None
         try:
-            self._opened = mod_configs.open_file(path)
+            setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
+            self._opened = mod_configs.open_file(path, form=not setup_file)
             if node.kind == mod_configs.SEAMLESS:
                 self._seamless = mod_configs.seamless(path)
+            elif setup_file and node.setup:
+                self._ov = self._new_ov(node.setup, None)
         except Exception as e:  # too big, not text, gone: said, nothing open
             self._opened = None
             self._refuse(self.presenter.unreadable(path.name, str(e)))
@@ -230,7 +265,7 @@ class ModConfigsAdapter(QObject):
         self.dirtyChanged.emit()
 
     def _close(self) -> None:
-        self._node = self._opened = self._seamless = None
+        self._node = self._opened = self._seamless = self._ov = None
         self._pending, self._text = {}, ""
         self.fileChanged.emit()
         self.dirtyChanged.emit()
@@ -238,6 +273,8 @@ class ModConfigsAdapter(QObject):
     def _reopen(self) -> None:
         if self._node is not None and self._opened is not None:
             self._open(self._node, self._opened.path)
+        elif self._ov is not None and self._ov["mod"] is not None:  # a new setup: back to the proposal
+            self._start_new(self._ov["setup"]["config"], self._ov["mod"])
 
     def _refuse(self, r: Refusal) -> None:
         self.notifier.toast(f"{r.title}. {r.body}", error=True)
@@ -245,6 +282,9 @@ class ModConfigsAdapter(QObject):
     # ---- editing
     @Slot(str, str, str)
     def setValue(self, section: str, key: str, value: str) -> None:
+        if self._ov is not None and not self._edit_text:
+            self._set_overhaul(key, value)
+            return
         self._pending[(section, key)] = value
         self.dirtyChanged.emit()
 
@@ -317,9 +357,15 @@ class ModConfigsAdapter(QObject):
     @Slot()
     def save(self) -> None:
         opened = self._opened
+        if self._ov is not None and not self._edit_text and self._is_dirty():
+            self._save_overhaul()
+            return
         if opened is None or not self._is_dirty():
             return
         try:
+            if self._ov is not None:  # the setup's own file, as text
+                self._save_overhaul_text(opened)
+                return
             if self._kind() in ("text", "markdown"):
                 mod_configs.save_text(opened, self._text)
                 said = self.presenter.saved_text(opened.path.name)
@@ -341,6 +387,243 @@ class ModConfigsAdapter(QObject):
             return
         self.notifier.toast(said)
         self._reopen()
+
+    # ---- the Overhaul setup (S7d): the profile's overhaul as a form, turned off, or a mod set up as one
+    def _new_ov(self, setup: dict, mod: dict | None) -> dict:
+        """The form's state for a setup: the choices the mod's files give and the values as the config has them."""
+        choices = mod_configs.overhaul_choices(setup)
+        values = {
+            "natives": choices["natives"],
+            "keep": {f for f, on in choices["keep"] if on},
+            "off": {f for f, on in choices["merged"] if not on},
+        }
+        return {
+            "setup": setup,
+            "choices": choices,
+            "values": values,
+            "new": mod is not None,
+            "mod": mod,
+            "folder": setup.get("folder"),
+            "dirty": mod is not None,  # a proposal is saved to set the mod up
+        }
+
+    def _overhaul_view(self) -> dict:
+        ov = self._ov
+        if ov is None:
+            return {}
+        config = ov["setup"]["config"]
+        return self.presenter.overhaul(
+            ov["setup"], ov["choices"], ov["values"], mod_configs.step_lines(config), bool(ov["new"])
+        )
+
+    def _set_overhaul(self, key: str, value: str) -> None:
+        ov = self._ov
+        if ov is None:
+            return
+        kind, _, name = key.partition(":")
+        values = ov["values"]
+        native = next((n for n in values["natives"] if n["file"] == name), None)
+        if kind == "early" and native is not None:
+            native["load_early"] = value == "true"
+        elif kind == "after" and native is not None:
+            native["after_others"] = value == "true"
+        elif kind == "init" and native is not None:
+            native["initializer"] = value.strip() or None
+        elif kind == "keep":
+            values["keep"].add(name) if value == "true" else values["keep"].discard(name)
+        elif kind == "merge":
+            values["off"].discard(name) if value == "true" else values["off"].add(name)
+        ov["dirty"] = True
+        self.dirtyChanged.emit()
+
+    def _with_values(self):
+        ov = self._ov
+        assert ov is not None
+        values = ov["values"]
+        return mod_configs.with_basic(
+            ov["setup"]["config"],
+            natives=values["natives"],
+            keep=sorted(values["keep"]),
+            not_merged=sorted(values["off"]),
+        )
+
+    def _saved(self, node_key: str, said: str) -> None:
+        self.notifier.toast(said)
+        self._want, self._opened = node_key, None  # read the tree again: the file's fingerprint changed
+        self.refresh()
+
+    def _save_overhaul(self) -> None:
+        ov = self._ov
+        if ov is None or self._node is None:
+            return
+        config = self._with_values()
+        if ov["new"]:
+            self._install_new(config)
+            return
+        setup = ov["setup"]
+        try:
+            mod_service.save_overhaul_setup(config, expect=setup["sha"], path=setup["path"], folder=setup["folder"])
+        except Exception as e:  # a verified one, changed on disk since, a config that would not read back
+            self._refuse(self.presenter.could_not_save(str(e)))
+            return
+        self._saved(self._node.key, self.presenter.saved_text(setup["path"].name))
+
+    def _save_overhaul_text(self, opened: mod_configs.Opened) -> None:
+        try:
+            config = mod_configs.parse_overhaul_text(self._text)
+            mod_service.save_overhaul_setup(config, expect=opened.sha, path=opened.path)
+        except Exception as e:
+            self._refuse(self.presenter.could_not_save(str(e)))
+            return
+        self._saved(self._node.key if self._node else "overhaul", self.presenter.saved_text(opened.path.name))
+
+    def _start_new(self, config, mod: dict) -> None:
+        """Show the proposal for a mod as a new setup (nothing is written until Save is confirmed)."""
+        setup = {
+            "config": config,
+            "verified": False,
+            "level": "basic",
+            "folder": mod["folder"],
+            "path": None,
+            "sha": None,
+        }
+        self._node = mod_configs.ModNode(
+            "overhaul:new", config.label, mod_configs.OVERHAUL, True, True, None, (), setup
+        )
+        self._opened = self._seamless = None
+        self._pending, self._text, self._edit_text = {}, "", False
+        self._ov = self._new_ov(setup, mod)
+        self.fileChanged.emit()
+        self.dirtyChanged.emit()
+        self.changed.emit()
+
+    def _install_new(self, config) -> None:
+        profile, loc, ov = self._profile, self.host.locations, self._ov
+        if profile is None or ov is None or self.host.busy:
+            self.notifier.toast(tr("Wait for the current job"), error=True)
+            return
+        folder = ov["folder"]
+
+        def work():
+            try:
+                return mod_service.preview_overhaul_setup(profile, folder, config, loc=loc), ""
+            except Exception as e:
+                return None, str(e)
+
+        def got(result) -> None:
+            preview, why = result
+            if preview is None:
+                self._refuse(Refusal(tr("Can't set it up"), why))
+                return
+            words = self.presenter.install_setup(preview)
+            if isinstance(words, Refusal):
+                self._refuse(words)
+                return
+
+            def answered(ok: bool, _option: bool) -> None:
+                if not ok or self.host.busy:
+                    return
+
+                def job(_setup, loc):
+                    from roundtable_souls.platform import logging as run_logging
+
+                    run_logging.start_log(f"launcher: set up {preview.label} as an overhaul", loc.game.key)
+                    mod_service.install_overhaul_setup(preview, loc=loc)
+
+                self._want = "overhaul"
+                self.host.run_job(job, tr("Installing {label} as an overhaul...").format(label=preview.label))
+
+            self.notifier.ask(words, answered)
+
+        self.host.run_in_background(work, got)
+
+    @Slot(str)
+    def addOverhaulSetup(self, key: str) -> None:
+        """Set a mod of the profile up as an overhaul: the mod of the node key (its button), else one picked from a
+        list of the profile's mods."""
+        profile = self._profile
+        if profile is None or self.host.busy:
+            self.notifier.toast(tr("Wait for the current job"), error=True)
+            return
+        mods = mod_configs.mods_to_set_up(profile)
+        node = next((n for n in self._nodes if n.key == key), None) if key else None
+
+        def go(mod: dict) -> None:
+            try:
+                config = mod_service.propose_overhaul_setup(
+                    mod["folder"], mod["name"], loc=self.host.locations, overhaul_id=mod["id"] or None
+                )
+            except ValueError as e:
+                self._refuse(Refusal(tr("Can't set it up"), str(e)))
+                return
+            self._guard(lambda: self._start_new(config, mod))
+
+        chosen = next((m for m in mods if node is not None and m["name"] == node.name), None)
+        if chosen is not None:
+            go(chosen)
+        elif mods:
+            self._pick(
+                self.presenter.pick_overhaul_mod(),
+                [m["name"] for m in mods],
+                lambda ticked: go(mods[ticked[0]]) if ticked else None,
+            )
+        else:
+            self._refuse(Refusal(tr("Nothing to set up"), self._words["noMods"]))
+
+    @Slot()
+    def turnOffOverhaul(self) -> None:
+        profile, loc = self._profile, self.host.locations
+        ov = self._ov
+        if profile is None or ov is None or ov["new"] or self.host.busy:
+            return
+        label = ov["setup"]["config"].label
+
+        def work():
+            try:
+                return mod_service.preview_turn_off_overhaul(profile, loc=loc), ""
+            except Exception as e:
+                return None, str(e)
+
+        def got(result) -> None:
+            preview, why = result
+            if preview is None:
+                self._refuse(Refusal(tr("Can't turn it off"), why))
+                return
+            words = self.presenter.turn_off(preview)
+            if isinstance(words, Refusal):
+                self._refuse(words)
+                return
+
+            def answered(ok: bool, _option: bool) -> None:
+                if not ok or self.host.busy:
+                    return
+
+                def job(_setup, loc):
+                    from roundtable_souls.platform import logging as run_logging
+
+                    run_logging.start_log(f"launcher: turn off overhaul {label}", loc.game.key)
+                    mod_service.turn_off_overhaul(preview)
+
+                self.host.run_job(job, tr("Removing the overhaul setup of {label}...").format(label=label))
+
+            self.notifier.ask(words, answered, destructive=True)
+
+        self.host.run_in_background(work, got)
+
+    def _pick(self, words: Pick, rows: list[str], then) -> None:
+        key = f"pick-{len(self._picks) + 1}"
+        self._picks[key] = then
+        self.pickRequested.emit(key, plain(words), rows)
+
+    @Slot(str, list)
+    def picked(self, key: str, indexes: list) -> None:
+        then = self._picks.pop(key, None)
+        if then is not None:
+            then([int(i) for i in indexes])
+
+    @Slot(str)
+    def pickCancelled(self, key: str) -> None:
+        self._picks.pop(key, None)
 
     # ---- attaching a file to a mod
     @Slot()

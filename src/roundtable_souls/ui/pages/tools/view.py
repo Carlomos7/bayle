@@ -420,9 +420,16 @@ class ToolsView:
             save_game_settings(self.game.key, game_exe=value)
         else:
             save_settings(**{key: value})
+        self._after_location(key)
+        self._toast("Location updated", "Detecting again." if not value else Path(value).name)
+
+    def _after_location(self, key):
+        """A location was saved (here or on the new Settings page): read the settings again and detect again."""
         self.settings = self.ctx.reload_settings()
-        self.loc[key].setText(value or "detected")
-        self.loc[key].setToolTip(value)
+        if key in self.loc:
+            value = self._location_value(key)
+            self.loc[key].setText(value or "detected")
+            self.loc[key].setToolTip(value)
         self.setups = (
             discover(remembered_setup(self.settings, self.game), self.ctx.locations) if self.game.ready else []
         )
@@ -430,7 +437,80 @@ class ToolsView:
         self._refresh_me3()
         self._fill_mods()
         self._update_plan()
-        self._toast("Location updated", "Detecting again." if not value else Path(value).name)
+        if key == "saves_dir":
+            self.refresh_saves()
+
+    def _settings_changed(self, key):
+        """The new Settings page saved key: this window follows (its switches, locations, theme and logo)."""
+        if key in ("me3_path", "game_exe", "me3_profile_dir", "saves_dir"):
+            self._after_location(key)
+            return
+        self.settings = self.ctx.reload_settings()
+        if key == "warn_dead_shells":
+            self._on_shells(dead_shells_count(loc=self.ctx.locations))
+        elif key == "overhaul_install":
+            self._sync_overhaul_button()
+        elif key == "logo":
+            self.logo_box.blockSignals(True)
+            self.logo_box.setCurrentIndex({"auto": 0, "dark": 1, "light": 2}.get(self.settings.logo, 0))
+            self.logo_box.blockSignals(False)
+            self._apply_logo()
+        elif key == "theme":
+            dark = widgets_dark(self.settings.theme)
+            self.theme_sw.blockSignals(True)
+            self.theme_sw.setChecked(dark)
+            self.theme_sw.blockSignals(False)
+            setTheme(Theme.DARK if dark else Theme.LIGHT)
+            setThemeColor(ACCENT if dark else ACCENT_LIGHT)
+            self._restyle()
+        elif key == "launcher_channel":
+            self._offered = None
+            self.channel_box.blockSignals(True)
+            self.channel_box.setCurrentIndex(1 if self.settings.launcher_channel == "beta" else 0)
+            self.channel_box.blockSignals(False)
+        switches = {**self.play_sw, "offline_strip_overhaul": self.off_overhaul}
+        switches.update(offline_start_steam=self.off_steam, offline_skip_confirm=self.off_quiet)
+        for name, sw in switches.items():
+            attr = play_service.repair_key(self.game) if name == "play_repair_after" else name
+            want = bool(getattr(self.settings, attr))
+            if sw.isChecked() != want:
+                sw.blockSignals(True)
+                sw.setChecked(want)
+                sw.blockSignals(False)
+
+    # ---- the update state both windows show (the Settings page reads it through LauncherHost)
+    def update_state(self) -> dict:
+        return {"line": self.launcher_line.text(), "tone": self._launcher_tone, "notices": list(self._notices.values())}
+
+    def _notify_update(self):
+        for call in list(self._update_listeners):
+            try:
+                call()
+            except RuntimeError:  # the page's window is gone
+                self._update_listeners.remove(call)
+
+    def _drop_notice(self, notice_id, bar=None):
+        if bar is None or self._notice_bars.get(notice_id) is bar:
+            self._notice_bars.pop(notice_id, None)
+            if self._notices.pop(notice_id, None) is not None:
+                self._notify_update()
+
+    def _dismiss_notice(self, notice_id):
+        bar = self._notice_bars.get(notice_id)
+        if bar is not None:
+            try:
+                bar.close()  # its closedSignal drops the notice
+                return
+            except RuntimeError:
+                pass
+        self._drop_notice(notice_id)
+
+    def _run_notice_action(self, notice_id, key):
+        """A notice button pressed on the new Settings page: the same path as pressing it on this window."""
+        n = self._notices.get(notice_id)
+        a = next((a for a in (n.actions if n else ()) if a.key == key), None)
+        if a is not None:
+            self._notice_action(a, self._notice_bars.get(notice_id))
 
     def _refresh_me3(self):
         setup, loc = self.setup, self.ctx.locations
@@ -469,6 +549,8 @@ class ToolsView:
         text, tone = sp.launcher_status(check, self.settings.launcher_channel)
         self.launcher_line.setText(text)
         tone_label(self.launcher_line, tone)
+        self._launcher_tone = tone
+        self._notify_update()
         if advisory:
             self._show_advisory(advisory, check.offer)
         said = sp.check_toast(check) if force else None
@@ -488,8 +570,18 @@ class ToolsView:
                 b.setToolTip(a.tip)
             b.clicked.connect(lambda _=False, a=a: self._notice_action(a, box[0]))
             buttons.append(b)
+        old = self._notice_bars.pop(n.id, None)  # a new notice with the same id replaces the old one
+        if old is not None:
+            try:
+                old.close()
+            except RuntimeError:
+                pass
         bar = notice(self, n.level, n.title, n.body, actions=buttons, closable=n.closable)
         box.append(bar)
+        self._notice_bars[n.id] = bar
+        self._notices[n.id] = n
+        bar.closedSignal.connect(lambda: self._drop_notice(n.id, bar))
+        self._notify_update()
         return bar
 
     def _notice_action(self, a, bar):
@@ -523,12 +615,13 @@ class ToolsView:
         """Why the program cannot be replaced now, or ''."""
         return sp.cannot_update(self.game_running, self.game.name, self.busy, updates.busy_reason())
 
-    def _start_update(self, info, bar):
+    def _start_update(self, info, bar=None):
         why = self._cannot_update()
         if why:
             self._toast("Cannot update now", why, error=True)
             return
-        bar.close()
+        if bar is not None:
+            bar.close()
         version = info["version"]
         self._update_bar = self._show_notice(sp.downloading_notice(version))
 
@@ -555,6 +648,9 @@ class ToolsView:
                 self._update_bar.contentLabel.setText(text)
             except RuntimeError:
                 self._update_bar = None
+        if "flow" in self._notices and self._offer_info:
+            self._notices["flow"] = sp.downloading_notice(self._offer_info["version"], text)
+            self._notify_update()
 
     def _on_update_ready(self, result):
         if self._update_bar is not None:

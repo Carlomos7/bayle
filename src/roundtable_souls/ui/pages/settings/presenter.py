@@ -516,6 +516,11 @@ def migration_notice(record: dict | None) -> UpdateNotice | None:
     return None
 
 
+def data_location() -> str:
+    """Where this copy keeps its data, in words."""
+    return updates.data_location_text()
+
+
 # ----------------------------------------------------------------------------- about
 def licence_url(file: str) -> str:
     """A licence file on GitHub at the tag of the running version (D8)."""

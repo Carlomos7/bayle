@@ -86,6 +86,9 @@ class SelfTestHost:
     def open_profile_import(self, unpacked, profiles, staging=None) -> None:
         pass
 
+    def saves_in_use(self) -> dict:
+        return {}
+
 
 class Report:
     def __init__(self, out: Callable[[str], None] = print):

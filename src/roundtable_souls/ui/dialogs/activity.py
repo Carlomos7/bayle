@@ -172,6 +172,7 @@ class JobRow(GlassCard):
         undo = rec.get("undo")
         if on_undo is not None and undo and rec.get("outcome") in ("done", "warnings"):
             from roundtable_souls.mods import undo as undo_tools
+            from roundtable_souls.services import saves as _saves_service  # noqa: F401  registers save-restore
 
             if undo_tools.available(undo):
                 self.undo_btn = ghost_btn(undo_tools.label(undo), FI.RETURN)

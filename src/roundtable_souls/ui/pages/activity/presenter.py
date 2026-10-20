@@ -17,6 +17,7 @@ from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import undo as mod_undo
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.platform import trash
+from roundtable_souls.services import saves as _saves_service  # noqa: F401  registers the save-restore Undo
 from roundtable_souls.ui.text import plural, tr
 
 SHOWN = 100  # entries listed at most (retention keeps about this many anyway)

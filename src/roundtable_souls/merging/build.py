@@ -284,6 +284,14 @@ class Operation:
         self.steps.append({"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")})
         self._save()
 
+    def move_folder(self, src: Path, dst: Path) -> None:
+        """A folder that is somebody's own (a mod's, in an adoption or a rename) is renamed src -> dst on commit and
+        back on undo or recovery. Neither side is ever deleted, by discard() or a rollback: unlike replace_folder
+        there is no staged copy to throw away. "live" (= dst) is written for launchers before this step existed: they
+        skip a step they do not know."""
+        self.steps.append({"type": "move", "src": str(src), "dst": str(dst), "live": str(dst)})
+        self._save()
+
     def write_file(self, live: Path, data: bytes | None, expect: str | None = None) -> None:
         """live gets these bytes (None: live is removed); the bytes it had (if any) are kept in the operation's
         folder. expect: the sha256 of the bytes the caller read (or "missing": the file was not there): commit()
@@ -338,7 +346,9 @@ class Operation:
         builds = iter(self._builds)
         try:
             for step in self.steps:
-                if step["type"] == "folder":
+                if step["type"] == "move":
+                    _move(Path(step["src"]), Path(step["dst"]))
+                elif step["type"] == "folder":
                     if step["previous"]:
                         _move(Path(step["live"]), Path(step["previous"]))
                     _move(Path(step["staged"]), Path(step["live"]))
@@ -382,7 +392,10 @@ def _undo(op: Operation) -> None:
     last first; then forget the operation."""
     for step in reversed(op.steps[: op.done + (0 if op.untouched else 1)]):
         live = Path(step["live"])
-        if step["type"] == "folder":
+        if step["type"] == "move":
+            if live.exists() and not Path(step["src"]).exists():
+                _move(live, Path(step["src"]))
+        elif step["type"] == "folder":
             prev, staged = (Path(step["previous"]) if step["previous"] else None), Path(step["staged"])
             if prev is not None:
                 if prev.exists():  # live was moved aside: whatever sits there now is the staged one

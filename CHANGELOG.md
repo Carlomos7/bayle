@@ -18,6 +18,20 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   makes a path too long for Windows is refused in the dialog with the reason, before anything is copied (before, a
   too-long path failed only after Install). A name that matches an installed mod's folder in another case updates
   that folder instead of making a second one.
+- New Mods window, Adopt into the library: More has Adopt into the library..., and a bar offers it the first time (Preview,
+  Not now; the confirmation can stop the offer for that setup). Adopting moves a setup you already have (a folder of
+  profiles and their mods) into the launcher's own folder, rs-<game> inside the profiles folder: mods go to
+  packages and natives, profiles to profiles, every path in them rewritten and their comments kept. It is one
+  step on one drive: nothing is copied or deleted, and if anything fails nothing moves. Entries outside the setup's
+  folder, a DLL loose in a folder other mods share and a mod another game's profile uses stay where they are, and
+  the preview says so; folders no profile uses stay unless you tick them. Undo adoption in Activity puts every file,
+  profile and setting back, and says no (leaving everything) when an adopted profile changed since. A setup with an
+  overhaul cannot be adopted yet. Installs and Combine for an adopted profile go into the library too.
+- Mod Configs: a profile with an overhaul setup shows an Overhaul setup entry. It is a form for the DLLs (load early,
+  load after the other DLLs, initializer), the settings files kept when the mod updates and which binders are merged;
+  a hand-edited one shows what it does and Edit as text changes it; a verified one that comes with the launcher
+  is read-only. Turn off makes the mod an ordinary mod again (Undo turn off in Activity). Add overhaul setup... (and
+  Set up as overhaul... on a mod) sets any mod of the profile up as an overhaul, showing what it does before it does it.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

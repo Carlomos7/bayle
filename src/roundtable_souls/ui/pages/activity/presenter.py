@@ -121,6 +121,8 @@ class UndoPlan:
                 if u.get("type") == "rebuild"
                 else f"launcher: {mod_undo.label(u).lower()} {name}"
                 if u.get("type") in mod_undo.OPERATIONS or u.get("type") in mod_undo.OVERHAUL
+                else f"launcher: undo the adoption of {name}"
+                if u.get("type") == "library-adopt"
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -443,6 +445,21 @@ class ActivityPresenter:
                 tr("If {name} changed since, only the imported entries are taken out of it.").format(name=name),
                 tr("Undo import"),
                 tr("Undoing the import..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "library-adopt":
+            name = u.get("name") or tr("the setup")
+            return UndoPlan(
+                tr("Undo the adoption of {name}").format(name=name),
+                (
+                    tr("Every folder and profile goes back to the place it came from, exactly as it was"),
+                    tr("Nothing is copied or deleted"),
+                ),
+                tr("If an adopted profile changed since, nothing is moved and you are told why."),
+                tr("Undo adoption"),
+                tr("Undoing the adoption..."),
                 u,
                 job_id,
                 name,

@@ -42,6 +42,16 @@ ModalDialog {
             }
         },
         GhostButton {
+            objectName: "installImportInstead"
+            text: dlg.w.importInstead
+            visible: !!dlg.v.profilesInside
+
+            onClicked: {
+                if (dlg.inst.importInstead())
+                    dlg.close();
+            }
+        },
+        GhostButton {
             objectName: "installCancel"
             text: dlg.w.cancel
 

@@ -63,6 +63,7 @@ def words() -> dict[str, str]:
         "install": tr("Install"),
         "cancel": tr("Cancel"),
         "working": tr("Working..."),
+        "importInstead": tr("Import its profile instead..."),
         "overhaulOption": tr("Set up as an overhaul (loads last, merged with the mods before it)"),
     }
 
@@ -418,6 +419,7 @@ class InstallDraft:
             "option": self._option_view(),
             "overhaul": self._overhaul_preview(mode),
             "mode": mode,
+            "profilesInside": bool(p.get("profiles_inside")),  # the download ships .me3 profiles: Import can take them
             "canInstall": self.can_install(),
             "busy": self.busy,
             "installText": tr("Install as overhaul") if mode else tr("Install"),

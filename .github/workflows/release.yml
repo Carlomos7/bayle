@@ -78,6 +78,8 @@ jobs:
         uv run pytest -q tests/unit/test_theme_contrast.py
 
     - name: Run tests
+      # owner 2026-10-20: betas skip this (the commit already passed the Tests workflow); the packaged self-test still runs
+      if: ${{ !contains(github.ref_name, '-beta.') }}
       run: uv run pytest
 
     - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -176,6 +178,8 @@ jobs:
       run: uv sync --locked
 
     - name: Run tests
+      # owner 2026-10-20: betas skip this (the commit already passed the Tests workflow); the packaged self-test still runs
+      if: ${{ !contains(github.ref_name, '-beta.') }}
       run: uv run pytest
 
     - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0

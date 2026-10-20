@@ -24,6 +24,7 @@ ENABLED, BUSY, RUNNING, BLOCKED = "enabled", "busy", "running", "blocked"
 NEW_PROFILE = "new_profile"
 LOCATIONS = "settings:locations"
 MODS = "mods"
+PICK_PROFILE = "pick_profile"  # opens the top bar's profile drop-down (the one picker)
 MOD_CONFIGS = "mod_configs"
 ME3_UPDATE = "settings:me3"
 OPEN_STEAM = "open_steam"
@@ -99,13 +100,15 @@ def _short(problem: str) -> str:
     low = problem.lower()
     name = Path(problem.split(": ", 1)[1]).name if ": " in problem else ""
     if low.startswith("game exe"):
-        return tr("Game program missing: {name}").format(name=name) if name else tr("Game program missing")
+        return tr("Game program not found: {name}").format(name=name) if name else tr("Game program not found")
     if low.startswith("me3 missing"):
-        return tr("me3 is missing: {name}").format(name=name) if name else tr("me3 is missing")
+        return tr("Mod loader (me3) not found: {name}").format(name=name) if name else tr("Mod loader (me3) not found")
     if low.startswith("me3 is not installed"):
-        return tr("me3 is not installed on this PC")
+        return tr("Mod loader (me3) not found")
     if low.startswith("profile missing"):
         return tr("The profile file is missing")
+    if low.startswith("this profile is for"):
+        return tr("This profile is for another game")
     if ": " not in problem:
         return problem
     kind, rest = problem.split(": ", 1)
@@ -115,7 +118,9 @@ def _short(problem: str) -> str:
 def _problem_link(problem: str) -> Link:
     low = problem.lower()
     if low.startswith(("me3 ", "game exe")) or "me3 is not installed" in low:
-        return Link(tr("Settings > Locations"), LOCATIONS)
+        return Link(tr("Fix in Settings > Locations"), LOCATIONS)
+    if low.startswith(("this profile is for", "profile missing")):
+        return Link(tr("Pick another profile"), PICK_PROFILE)
     return Link(tr("Mods"), MODS)
 
 

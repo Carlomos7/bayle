@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Launch: the reasons it is blocked are in plain words (no more "Tools"), each with a link that fixes it; a wrong-game or missing profile opens the profile drop-down. First-run hints close with Esc and no longer cover the navigation labels.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - Importing a profile or a full export now asks when a mod has the same name as one you have installed but other

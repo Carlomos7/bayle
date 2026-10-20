@@ -48,6 +48,7 @@ class ShellAdapter(QObject):
     closePrompt = Signal()  # a job is running: confirm before closing
     quitRequested = Signal()
     forwardRequested = Signal()  # a second start: bring the window forward
+    profilePickerRequested = Signal()  # a link asks for the top bar's profile drop-down
     newProfileRequested = Signal(str, bool)  # the suggested name, Seamless can come along
 
     def __init__(self, host: ShellHost, parent: QObject | None = None):
@@ -430,6 +431,8 @@ class ShellAdapter(QObject):
         h = self.host
         if action == topbar.NEW_PROFILE:
             self._shell_command("newProfile", [])
+        elif action == topbar.PICK_PROFILE:
+            self.profilePickerRequested.emit()
         elif action == topbar.LOCATIONS:
             self.runCommand("settings", "show", ["locations"])
         elif action == topbar.ME3_UPDATE:

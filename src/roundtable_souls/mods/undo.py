@@ -3,9 +3,9 @@
     remove   an entry removed from a profile: its text and where it was, and the folder when it went to the
              Recycle Bin (see system.trash). Restore puts both back.
     install  a fresh install, update an update, rollback a rollback (see mods.operations): the operation's own
-             folder (.roundtable-ops/<id>) says what to take back. An install is undone (the profile's exact
-             previous bytes, the files it created that nobody changed); an update or a rollback is rolled back as
-             a set, with a rebuild when the install asked for one.
+             folder (.roundtable/ops/<id>, older ones .roundtable-ops/<id>) says what to take back. An install is
+             undone (the profile's exact previous bytes, the files it created that nobody changed); an update or a
+             rollback is rolled back as a set, with a rebuild when the install asked for one.
     rebuild  a rebuild of combined parameters: the profile as it was before (mods.history), the combined output it
              replaced (kept in the data folder), and the rebuild tool's own backup (its restore.json). Undo swaps each
              back by renaming, so it takes no time or space, and doing it again redoes the rebuild.
@@ -35,11 +35,13 @@ LABEL = {
     "overhaul-install": "Undo install",
     "overhaul-update": "Roll back",
     "overhaul-remove": "Restore",
+    "overhaul-turn-off": "Undo turn off",
+    "profile-import": "Undo import",
 }
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
 # says what to take back; the removal's folders come back from the Recycle Bin.
-OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove")
+OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove", "overhaul-turn-off")
 
 
 class UndoError(RuntimeError):
@@ -79,7 +81,7 @@ def available(undo: dict | None) -> bool:
         if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
             return False
         return not _listed(profile, undo.get("path") or "") or _in_bin(undo)
-    if undo.get("type") in OPERATIONS or undo.get("type") in OVERHAUL:
+    if undo.get("type") in OPERATIONS or undo.get("type") in OVERHAUL or undo.get("type") == "profile-import":
         from roundtable_souls.merging import build
 
         op = Path(str(undo.get("operation") or ""))
@@ -109,6 +111,12 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         return _take_back(undo, log, loc)
     if undo.get("type") in OVERHAUL:
         return _overhaul_back(undo, log)
+    if undo.get("type") == "profile-import":
+        from roundtable_souls.mods import profile_import
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
+        return profile_import.undo_import(Path(undo["operation"]), log)
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 
 
@@ -165,7 +173,7 @@ def _overhaul_back(undo: dict, log) -> str:
     if not available(undo):
         raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
     try:
-        if undo["type"] == "overhaul-remove":
+        if undo["type"] in ("overhaul-remove", "overhaul-turn-off"):
             return overhaul_install.undo_remove(undo, log)
         return operations.take_back(Path(undo["operation"]), log)
     except overhaul_install.OverhaulError as e:

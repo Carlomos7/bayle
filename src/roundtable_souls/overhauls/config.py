@@ -251,6 +251,26 @@ class Build(_Strict):
         return self
 
 
+# ----------------------------------------------------------------------------- the basic level
+class BasicNative(_Strict):
+    """One of the mod's DLLs, as the Overhaul setup form sets it."""
+
+    file: str  # its path in the mod's folder
+    load_early: bool = False
+    initializer: str | None = None  # the function me3 calls after loading it
+    after_others: bool = True  # loads after every other enabled DLL in the profile
+
+
+class Basic(_Strict):
+    """What the Overhaul setup form sets (overhauls.basic derives the rest of the config from it and the mod's
+    files). The config's recognise and builds are written beside it; it loads last whatever is set here."""
+
+    version: str | None = None  # the label shown (from the archive's name or the form); nothing depends on it
+    natives: list[BasicNative] = Field(default_factory=list)
+    keep: list[str] = Field(default_factory=list)  # settings files the player keeps on updates
+    not_merged: list[str] = Field(default_factory=list)  # binders used whole instead of merged
+
+
 # ----------------------------------------------------------------------------- the config
 class OverhaulConfig(_Strict):
     overhaul: Literal[1]  # the version of this format
@@ -262,6 +282,8 @@ class OverhaulConfig(_Strict):
     builds: list[Build] = Field(default_factory=list)
     # Editions its installer knows that the launcher does not install, and why (edition -> reason).
     install_unsupported: dict[str, str] = Field(default_factory=dict)
+    # The Overhaul setup form's values, for a config made with it (None: written by hand, or a shipped one).
+    basic: Basic | None = None
 
     def recipe(self, build: Build) -> dict:
         """One build in the shape mods.engine reads (the former data/recipes JSON). Only what the file sets is
@@ -288,6 +310,7 @@ def recipe_sha256(recipe: dict) -> str:
 
 # ----------------------------------------------------------------------------- loading
 _problems: list[str] = []
+_origins: dict[str, Path] = {}  # config id -> the file the last load() took it from
 
 
 def local_dir() -> Path | None:
@@ -310,6 +333,7 @@ def load(game: str | None = None) -> list[OverhaulConfig]:
     given. Files that do not read or fit are left out; problems() lists them."""
     found: dict[str, OverhaulConfig] = {}
     _problems.clear()
+    _origins.clear()
     for folder in (SHIPPED_DIR, local_dir()):
         if folder is None or not folder.is_dir():
             continue
@@ -325,6 +349,7 @@ def load(game: str | None = None) -> list[OverhaulConfig]:
                 _problems.append(f"{f}: {str(e).splitlines()[0] if str(e) else type(e).__name__}")
                 continue
             found[cfg.id] = cfg
+            _origins[cfg.id] = f
     return [c for c in found.values() if game is None or c.game == game]
 
 
@@ -341,6 +366,18 @@ def _moved(error: ErrorDetails) -> str:
         if any(h == key for h in hits) or f"'{key}'" in error.get("msg", ""):
             return f" ({key}: {why})"
     return ""
+
+
+def origin(config_id: str) -> Path | None:
+    """The file the last load() took the config with this id from."""
+    return _origins.get(config_id)
+
+
+def verified(config_id: str) -> bool:
+    """A shipped config not replaced by a local one ("verified"); a local one is the player's ("your config, not
+    verified")."""
+    found = _origins.get(config_id)
+    return found is not None and found.parent == SHIPPED_DIR
 
 
 def problems() -> list[str]:

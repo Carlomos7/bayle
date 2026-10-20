@@ -409,9 +409,11 @@ def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: 
 
 def delete_profile(path: Path) -> Path:
     """Move the .me3 into the launcher's deleted profiles (data_folder.deleted_profiles), with a note of where it
-    lived. Mod folders are never touched; its .bak goes along, its offline copy is regenerated when needed."""
+    lived. Mod folders are never touched; its .bak (in .roundtable/backups, or beside it from launchers before 3.23) and
+    its offline copy are removed; the offline copy is regenerated when needed."""
     import json
 
+    from roundtable_souls.mods import library
     from roundtable_souls.platform import data_folder
 
     path = Path(path)
@@ -424,7 +426,8 @@ def delete_profile(path: Path) -> Path:
     Path(str(dest) + ".json").write_text(
         json.dumps({"from": str(path), "when": time.strftime("%Y-%m-%d %H:%M:%S")}, indent=1), encoding="utf-8"
     )
-    for extra in (path.with_name(path.name + ".bak"), path.with_name(path.stem + ".offline.me3")):
+    baks = (library.state_of(path).backups / (path.name + ".bak"), path.with_name(path.name + ".bak"))
+    for extra in (*baks, path.with_name(path.stem + ".offline.me3")):
         if extra.exists():
             try:
                 extra.unlink()

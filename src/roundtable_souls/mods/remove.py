@@ -96,3 +96,39 @@ def uninstall(profile: Path, index: int, delete_folder: bool = True, to_trash: b
         "where": where,
         "trash": trashed,  # where the folder went in the Recycle Bin (system.trash), when it went there
     }
+
+
+def remove_holder(profile: Path, index: int, ref: str, needs: list[str], *, loc: Locations) -> Path | None:
+    """Take out the entry at index, which points at a folder of mods (it loads nothing), and the dependency on it
+    (ref, its id or folder name) from the packages named in needs: one profile write inside one operation, so an
+    interruption leaves the profile as it was or as asked, never half changed. The folder and its mods stay.
+    Returns the .bak."""
+    from roundtable_souls.mods import operations
+
+    profile = Path(profile)
+    low = ref.lower()
+
+    def keep(deps: list) -> list:
+        return [dep for dep in deps if str(dep["id"]).lower() != low]
+
+    with operations.lock(profile):
+        operations.recover(profile)
+        writer = ProfileWriter(profile, loc)
+        name = writer.options(index)["id"] or ref
+        for other in writer.entries():  # the dependents first: the indexes still hold until the holder goes
+            if other["kind"] == "package" and other["name"] in needs:
+                writer.set_options(
+                    other["index"],
+                    {"load_after": keep(other["load_after"] or []), "load_before": keep(other["load_before"] or [])},
+                )
+        writer.remove_entry(index)
+        op = operations.start(profile, f"removal of {name}")
+        try:
+            bak = writer.commit(writer.plan(f"before removing {name}"), operation=op)
+            op.note(kind="remove", name=name)
+        except BaseException:
+            op.discard()
+            raise
+        operations.commit(op)
+        op.release()  # put back through Versions (the .bak), not this record
+    return bak

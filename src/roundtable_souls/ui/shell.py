@@ -189,11 +189,37 @@ class LauncherHost:
     def install_paths(self, paths: list[Path]) -> None:
         self._w._install_paths(paths)
 
-    def attach_config(self, entry: dict) -> None:
-        self._w._native_settings(entry)
+    def open_mod_configs(self, select: str = "") -> None:
+        self._w._open_mod_configs_window(select)
 
     def open_path(self, path: Path) -> None:
         desktop.open_path(str(path))
+
+    def profiles(self) -> list[str]:
+        """The Play list's setups for this game, as the Play page names them."""
+        box = self._w.setup_box
+        return [box.itemText(i) for i in range(box.count())]
+
+    def profile_index(self) -> int:
+        return self._w.setup_box.currentIndex()
+
+    def pick_profile(self, index: int) -> None:
+        """Make the index'th setup the current one, as picking it on Play does."""
+        box = self._w.setup_box
+        if 0 <= index < box.count() and index != box.currentIndex():
+            box.setCurrentIndex(index)
+
+    def pick_folder(self, title: str) -> Path | None:
+        got = QFileDialog.getExistingDirectory(self._w, title, "")
+        return Path(got) if got else None
+
+    def pick_file(self, title: str, filters: str) -> Path | None:
+        got, _ = QFileDialog.getOpenFileName(self._w, title, "", filters)
+        return Path(got) if got else None
+
+    def save_file(self, title: str, name: str) -> Path | None:
+        got, _ = QFileDialog.getSaveFileName(self._w, title, name)
+        return Path(got) if got else None
 
 
 # ----------------------------------------------------------------------------- window
@@ -209,6 +235,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.jobs = Jobs(self)
         self.activity_window: PageWindow | None = None  # the QML Activity trial (S5)
         self.mods_window: PageWindow | None = None  # the QML Mods page (S6)
+        self.mod_configs_window: PageWindow | None = None  # the QML Mod Configs page (S7b)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -710,11 +737,27 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
             for line in self.mods_window.warnings:
                 core.run_logging.log_line(line)
 
+    def _open_mod_configs_window(self, select: str = ""):
+        """The new Mod Configs page in a window of its own (owner, D6 A; the button goes when the QML shell lands).
+        select: a mod to show (its name), from the new Mods window's links."""
+        if self.mod_configs_window is None:
+            self.mod_configs_window = PageWindow(
+                qml_pages.page("modConfigs"), LauncherHost(self), load_settings().theme
+            )
+            self.mod_configs_window.notifier.status(self._job_label if self.busy else tr("Ready"))
+        if not self.mod_configs_window.show():
+            self._toast("The new Mod Configs window did not open", "The details are in launcher.log.", error=True)
+            for line in self.mod_configs_window.warnings:
+                core.run_logging.log_line(line)
+            return
+        if select:
+            self.mod_configs_window.adapter.select_mod(select)
+
     def _page_windows(self) -> list[PageWindow]:
-        """The QML page windows open now (Activity, Mods): the hooks below keep them in step with this window."""
-        return [
-            w for w in (getattr(self, "activity_window", None), getattr(self, "mods_window", None)) if w is not None
-        ]
+        """The QML page windows open now (Activity, Mods, Mod Configs): the hooks below keep them in step with this
+        window."""
+        names = ("activity_window", "mods_window", "mod_configs_window")
+        return [w for w in (getattr(self, name, None) for name in names) if w is not None]
 
     def _mark_activity_seen(self):
         save_settings(activity_seen=time.time())

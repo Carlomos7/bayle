@@ -21,7 +21,7 @@ class ModPlan(BaseModel):
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
-    kind: Literal["package", "native", "profile", "unknown"]
+    kind: Literal["package", "native", "me3", "profile", "unknown"]  # me3: only a profile, refused
     name: str
     root: Path
     staging: Path | None = None

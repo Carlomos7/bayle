@@ -108,13 +108,13 @@ def _json_value(setup: Path, file: str, key: str):
         return None
 
 
-def match(setup: Path | None) -> tuple[dict | None, str | None, str | None]:
+def match(setup: Path | None, among: list[dict] | None = None) -> tuple[dict | None, str | None, str | None]:
     """(recipe, version, why not) for a mod's setup folder: the recipe that fits it and the version it is; or None
-    and, when a recipe fits the layout but not this version, why."""
+    and, when a recipe fits the layout but not this version, why. among: the recipes to try (else every one)."""
     if setup is None or not Path(setup).is_dir():
         return None, None, None
     setup = Path(setup)
-    for r in recipes():
+    for r in recipes() if among is None else among:
         m = r["match"]
         if not all((setup / f).is_file() for f in m.get("files") or []):
             continue

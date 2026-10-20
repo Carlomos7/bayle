@@ -63,6 +63,7 @@ from roundtable_souls.services.play import (
     forget_setup,
     play_options,
     remember_setup,
+    same_source,
 )
 from roundtable_souls.services.settings import (
     load_settings,
@@ -80,6 +81,7 @@ from roundtable_souls.ui.dialogs.config_files import ConfigFilesDialog
 from roundtable_souls.ui.dialogs.install import InstallDialog
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter, Refusal
 from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
+from roundtable_souls.ui.pages.mods.presenter import Refusal as ModsRefusal
 from roundtable_souls.ui.theme import (
     ghost_btn,
     hint,
@@ -221,7 +223,9 @@ class ModsView:
         )
         self.fix_order_btn.clicked.connect(self._fix_order)
         self.keep_after_btn = ghost_btn("Keep it after", FI.ACCEPT)
-        self.keep_after_btn.setToolTip("They load after it on purpose: stop warning (kept in roundtable.json).")
+        self.keep_after_btn.setToolTip(
+            "They load after it on purpose: stop warning (kept with the profile's settings)."
+        )
         self.keep_after_btn.clicked.connect(lambda: self._keep_after(True))
         self.put_before_btn = ghost_btn("Put them before", FI.RETURN)
         self.put_before_btn.setToolTip("Stop keeping these after it, and put it after them again.")
@@ -1487,7 +1491,7 @@ class ModsView:
     def _overhaul_install(self):
         if self._mods_locked():
             return
-        src = QFileDialog.getExistingDirectory(self, "Install an overhaul: pick the folder you unpacked it into", "")
+        src = QFileDialog.getExistingDirectory(self, WORDS.overhaul_folder_title(), "")
         if not src:
             return
         prof = Path(self.setup.profile)
@@ -1497,21 +1501,16 @@ class ModsView:
             preview = mod_service.preview_overhaul_install(prof, src, loc=loc)
         except Exception as e:
             QApplication.restoreOverrideCursor()
-            self._toast(f"Can't install from {Path(src).name}", str(e), error=True)
+            said = WORDS.overhaul_unreadable(src, str(e))
+            self._toast(said.title, said.body, error=True)
             return
         QApplication.restoreOverrideCursor()
-        if not preview.ok:
-            self._toast(f"{preview.label} can't be installed here", " ".join(preview.refusals), error=True)
+        words = WORDS.overhaul_install(prof, preview)
+        if isinstance(words, ModsRefusal):
+            self._toast(words.title, words.body, error=True)
             return
         verb = "Update" if preview.update else "Install"
-        if not confirm(
-            self,
-            f"{verb} {preview.label} in {prof.name}",
-            changes=[*preview.lines, *preview.notes],
-            safety="It's one step: if anything fails, nothing changes, and you can undo it from Activity. Nothing "
-            "of the overhaul's own installer runs.",
-            apply_text=verb,
-        ):
+        if not confirm(self, words.title, changes=list(words.changes), safety=words.safety, apply_text=words.apply):
             return
 
         def job(_setup, _loc):
@@ -1522,7 +1521,7 @@ class ModsView:
                 run_logging.log(f"error: {e}")
                 raise SystemExit(1) from e
 
-        self.start(job, f"{'Updating' if preview.update else 'Installing'} {preview.label}...", need_setup=False)
+        self.start(job, WORDS.overhaul_installing(preview), need_setup=False)
 
     def _overhaul_remove(self, has):
         if not has or self._mods_locked():
@@ -1533,15 +1532,15 @@ class ModsView:
         if has["legacy"]:
             choices = mod_service.legacy_overhaul_choices(prof, loc=loc)
             if choices:
+                ask = WORDS.overhaul_put_back(has["label"])
                 pick = ChoiceListDialog(
-                    f"Put back what {has['label']}'s installer changed?",
-                    "Its installer changed these in your profile (compared with its oldest backup of it). Tick the "
-                    "ones to put back; the others stay as they are now.",
+                    ask.title,
+                    ask.body,
                     [text for text, _ in choices],
                     self,
-                    apply_text="Put back",
+                    apply_text=ask.apply,
                     allow_none=True,
-                    none_text="Leave them",
+                    none_text=ask.none,
                 )
                 if not pick.exec():
                     return
@@ -1549,19 +1548,20 @@ class ModsView:
         try:
             preview = mod_service.preview_overhaul_removal(prof, loc=loc, legacy_choices=chosen)
         except Exception as e:
-            self._toast(f"Can't remove {has['label']}", str(e), error=True)
+            said = WORDS.overhaul_remove_failed(has["label"], str(e))
+            self._toast(said.title, said.body, error=True)
             return
-        if not preview.ok:
-            self._toast(f"Can't remove {has['label']}", " ".join(preview.refusals), error=True)
+        words = WORDS.overhaul_remove(prof, has["label"], preview)
+        if isinstance(words, ModsRefusal):
+            self._toast(words.title, words.body, error=True)
             return
-        asked = ", ".join(str(e.entry) for e in preview.asked)
         dlg = ConfirmDialog(
-            f"Remove {has['label']} from {prof.name}",
+            words.title,
             self,
-            changes=list(preview.lines),
-            safety="It's one step, and Restore in Activity puts it all back. Folders go to the Recycle Bin.",
-            apply_text="Remove",
-            option=f"Also switch {asked} back off, as it was before the install" if asked else None,
+            changes=list(words.changes),
+            safety=words.safety,
+            apply_text=words.apply,
+            option=words.option or None,
             option_checked=False,
         )
         if not dlg.exec():
@@ -1569,7 +1569,8 @@ class ModsView:
         if dlg.option_on():
             preview = mod_service.preview_overhaul_removal(prof, loc=loc, revert_asked=True, legacy_choices=chosen)
             if not preview.ok:
-                self._toast(f"Can't remove {has['label']}", " ".join(preview.refusals), error=True)
+                said = WORDS.overhaul_remove_failed(has["label"], " ".join(preview.refusals))
+                self._toast(said.title, said.body, error=True)
                 return
 
         def job(_setup, _loc):
@@ -1580,13 +1581,10 @@ class ModsView:
                 run_logging.log(f"error: {e}")
                 raise SystemExit(1) from e
 
-        self.start(job, f"Removing {has['label']}...", need_setup=False)
+        self.start(job, WORDS.overhaul_removing(has["label"]), need_setup=False)
         if has["legacy"]:
-            self._toast(
-                f"{has['label']}'s installer left folders behind",
-                "Overhaul > Clean up installer leftovers shows them with their sizes once the removal is done.",
-                info=True,
-            )
+            later = WORDS.overhaul_leftovers_later(has["label"])
+            self._toast(later.title, later.body, info=True)
 
     def _overhaul_leftovers(self):
         if self._mods_locked():
@@ -1597,27 +1595,27 @@ class ModsView:
         backups = [x for x in left if x.backups]
         picked = []
         if folders:
+            ask = WORDS.leftovers(bool(backups))
             pick = ChoiceListDialog(
-                "Clean up installer leftovers",
-                "What an overhaul's own installer left beside your profile, which no profile there uses any more. "
-                "The ticked ones go to the Recycle Bin.",
+                ask.title,
+                ask.body,
                 [x.label for x in folders],
                 self,
-                apply_text="Move to Recycle Bin",
+                apply_text=ask.apply,
                 allow_none=bool(backups),
-                none_text="Next",
+                none_text=ask.none or "Next",
             )
             if not pick.exec():
                 return
             picked = [folders[i].path for i in pick.selected()]
         for x in backups:  # last, and one at a time: the only copy of the profile from before the overhaul
+            said = WORDS.leftover_backups(x)
             if ConfirmDialog(
-                f"Also remove {x.path.name}?",
+                said.title,
                 self,
-                changes=[f"{x.label} goes to the Recycle Bin"],
-                warning="These are its installer's backups of your profiles: the only copy from before the overhaul "
-                "was installed. Keep them unless you're sure you don't need them.",
-                apply_text="Move to Recycle Bin",
+                changes=list(said.changes),
+                warning=said.warning,
+                apply_text=said.apply,
                 cancel_text="Keep it",
             ).exec():
                 picked.append(x.path)
@@ -1632,7 +1630,7 @@ class ModsView:
                 run_logging.log(f"error: {e}")
                 raise SystemExit(1) from e
 
-        self.start(job, "Moving leftovers to the Recycle Bin...", need_setup=False)
+        self.start(job, WORDS.leftovers_moving(), need_setup=False)
 
     def eventFilter(self, obj, e):
         # A drag entering the Mods page (or anything on it, such as the profile editor, which would take the file
@@ -1656,22 +1654,26 @@ class ModsView:
         )
 
     def _new_profile(self):
-        cur = self.setup.profile if self.setup and Path(self.setup.profile).is_file() else None
+        profiles = []  # every profile of this game the launcher knows (the Play list), each once
+        for s in self.setups:
+            if Path(s.profile).is_file() and not any(same_source(s.profile, p) for p in profiles):
+                profiles.append(s.profile)
         dlg = TextDialog(
             "New me3 profile",
             f"Created in me3's profile folder, in {self.game.key}-mods with its own mod and natives folders. A copy goes beside the profile it copies, so its mods keep working.",
             self,
             placeholder="name, e.g. vanilla-plus",
-            option=(f"Start from a copy of {Path(cur).name}" if cur else None),
-            option_checked=False,
             apply_text="Create",
+            choices=["Empty profile"] + [f"Copy of {Path(p).name}  ·  {Path(p).parent.name}" for p in profiles],
+            choice_label="Start from",
         )
         if not dlg.exec():
             return
+        pick = dlg.choice.currentIndex() if dlg.choice is not None else 0
         try:
             p = create_profile(
                 dlg.edit.text().strip(),
-                copy_from=cur if (dlg.option is not None and dlg.option.isChecked()) else None,
+                copy_from=profiles[pick - 1] if pick > 0 else None,
                 loc=self.ctx.locations,
             )
         except Exception as e:
@@ -1685,7 +1687,7 @@ class ModsView:
         self._toast("Profile created", f"{p.name} is now the setup on Play.")
 
     def _delete_profile(self):
-        refusal = profile_mods.delete_refusal(self.setup, self.busy)
+        refusal = profile_mods.delete_refusal(self.setup, self.busy, loc=self.ctx.locations)
         if refusal == profile_mods.DELETE_NO_PROFILE:
             self._toast("No profile", "Pick a setup on Play first.", error=True)
             return
@@ -1700,6 +1702,11 @@ class ModsView:
             changes=[
                 f"{p.name} moves into the launcher's deleted profiles, with a note of where it lived",
                 "Mod folders and natives stay where they are",
+                *(
+                    [WORDS.delete_profile(p, kept).changes[-1]]
+                    if (kept := profile_mods.overhaul_to_keep(p, loc=self.ctx.locations))
+                    else []
+                ),
             ],
             warning="This setup disappears from the Play list.",
             safety="The moved file can be copied back by hand at any time.",

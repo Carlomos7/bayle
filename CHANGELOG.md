@@ -2,6 +2,43 @@
 
 All notable changes to Roundtable Souls. The version is shown in the window title.
 
+## [Unreleased]
+
+- New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
+  current one could be copied).
+- The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.
+- New Mods window: a warning when the profile goes online with a mod's parameters (regulation.bin), with Play
+  offline to turn online matchmaking off (Undo puts it back); the Parameters card shows a fingerprint of the
+  parameters the game will use, with Copy, so co-op partners can check they have the same; and, with the overhaul
+  preview on, More has Install an overhaul with the launcher, Remove <overhaul> and Clean up installer leftovers,
+  as the Overhaul button does. It also puts right a change that was interrupted, as the Mods page does.
+- Delete profile: a profile an overhaul's own installer set up is refused whichever way it was picked (before, its
+  .me3 could be deleted directly). A profile the launcher installed an overhaul into can be deleted; the confirmation
+  says the overhaul's shared files stay. Removing an entry that only points at a folder of mods is now one change
+  to the profile (one backup, one entry in Versions).
+- Mod Configs, a first look at the new page: a new button on the Co-op page, Open new Mod Configs window, lists the
+  profile's mods that have settings files, Seamless Co-op first. An .ini, .cfg or .toml file opens as a form (a
+  switch, a list or a number per setting, the file's own comment as help, Reset to a default the comment states);
+  any file can be edited as text. Save changes only the values you edited: comments, order and spacing stay, and
+  a file changed elsewhere since it was opened is not overwritten. Seamless Co-op has its own panel: password,
+  difficulty, language (the game's, or a translation in its locale folder) and Share with a friend (Copy, Paste,
+  Load and Save settings as plain ini lines; a pasted older JSON export still reads; the parameters fingerprint).
+  In the new Mods window, a DLL's file icon and Mod options' Open on Mod Configs open it on that mod.
+- Remove overhaul no longer leaves empty builds, overhauls or sources folders in the launcher's library folder.
+- Combining parameter packs that add many rows is much faster: 66,000 added rows took about 5 minutes, now under
+  a second.
+- Install mod: a mod that ships game files and DLLs together now gets both kinds of entries. Before, it was installed
+  as a package only and its DLLs were never loaded. Only the DLLs directly in the mod's folder are added (you can
+  untick them); DLLs in its subfolders stay part of its files, and settings files beside its DLLs are grouped as
+  settings.
+- Install mod: a download that is only a me3 profile now gets its plain message ("This is a whole me3 profile, not a
+  mod...") instead of an error.
+- The launcher's own files beside a profile now live in one hidden .roundtable folder: the profile's launcher
+  settings (before, roundtable.json), its .bak, the records that let an install be finished or undone, and the copy
+  of a mod kept after an update (before, a .previous folder beside the mod). Nothing is moved: roundtable.json is
+  copied the first time it is read and left as it is, older .bak files and records stay where they are and are still
+  read, so an older launcher keeps working with the same folder.
+
 ## [3.22.0] - 2026-10-15
 
 - Nightreign Revive, a preview you turn on (Tools > Play session > "Install overhauls with the launcher (preview)"):

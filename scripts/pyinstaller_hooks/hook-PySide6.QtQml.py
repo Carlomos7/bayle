@@ -18,7 +18,9 @@ WANTED = json.loads((ROOT / "src" / "roundtable_souls" / "data" / "self-test.jso
 _QMLDIR_DEP = re.compile(r"^\s*(?:import|depends)\s+([A-Za-z_][\w.]*)", re.MULTILINE)
 _QML_IMPORT = re.compile(r"^\s*import\s+([A-Za-z_][\w.]*)", re.MULTILINE)
 
-hiddenimports, binaries, datas = add_qt6_dependencies(__file__)
+# Read by the tests (tests/unit/test_self_test.py) with run_name CLOSURE_ONLY: only closure() is used, so the
+# collection below (slow: it asks Qt in a child process) is skipped.
+CLOSURE_ONLY = "closure-only"
 
 qml_root = Path(pyside6_library_info.location["QmlImportsPath"]).resolve()
 qml_dest = Path(pyside6_library_info.qt_rel_dir) / "qml"
@@ -50,7 +52,9 @@ def dest_of(src: Path) -> str:
     return str(qml_dest / (src.relative_to(qml_root) if src.is_dir() else src.parent.relative_to(qml_root)))
 
 
-for name in closure(WANTED):
-    plugin_binaries, plugin_datas = pyside6_library_info._process_qml_plugin(module_dir(name) / "qmldir")
-    binaries += [(str(src), dest_of(src)) for src in plugin_binaries]
-    datas += [(str(src), dest_of(src)) for src in plugin_datas]
+if __name__ != CLOSURE_ONLY:
+    hiddenimports, binaries, datas = add_qt6_dependencies(__file__)
+    for name in closure(WANTED):
+        plugin_binaries, plugin_datas = pyside6_library_info._process_qml_plugin(module_dir(name) / "qmldir")
+        binaries += [(str(src), dest_of(src)) for src in plugin_binaries]
+        datas += [(str(src), dest_of(src)) for src in plugin_datas]

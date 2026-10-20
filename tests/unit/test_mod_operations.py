@@ -25,7 +25,7 @@ def files(folder):
     return {
         p.relative_to(folder).as_posix(): p.read_bytes()
         for p in Path(folder).rglob("*")
-        if p.is_file() and not p.relative_to(folder).as_posix().startswith(B.OPS) and p.suffix != ".bak"
+        if p.is_file() and not p.relative_to(folder).as_posix().startswith(".roundtable") and p.suffix != ".bak"
     }
 
 
@@ -127,6 +127,41 @@ def test_an_interrupted_install_is_undone_on_the_next_start(profile, tmp_path, m
     assert files(profile.parent) == before and operations.problem(profile) is None
 
 
+@pytest.mark.parametrize("where", [".roundtable-ops", ".roundtable/ops"])
+def test_an_interrupted_install_is_undone_wherever_its_journal_is(profile, tmp_path, monkeypatch, where):
+    """Safety (players' files): a journal left in .roundtable-ops beside the profile (launchers before 3.23) blocks
+    Play and is undone on the next start, as one in the profile's .roundtable/ops is."""
+
+    def before_3_23(prof, what):
+        op = B.Operation(Path(prof).parent, what)
+        op.note(profile=str(Path(prof)))
+        return op
+
+    before = files(profile.parent)
+    real = B.os.replace
+    n = {"i": 0}
+
+    def dying(src, dst):
+        if "journal" not in str(dst) and Path(dst).is_relative_to(profile.parent):
+            n["i"] += 1
+            if n["i"] == 2:
+                raise Crash()
+        return real(src, dst)
+
+    with monkeypatch.context() as m:
+        if where == ".roundtable-ops":
+            m.setattr(operations, "start", before_3_23)
+        m.setattr(B.os, "replace", dying)
+        m.setattr(B, "_undo", lambda op: None)
+        with pytest.raises(Crash):
+            do_install(profile, source(tmp_path, "1"))
+    assert [d for d in (profile.parent / where).iterdir() if d.is_dir()]
+    assert "did not finish" in (operations.problem(profile) or "")
+    said = operations.recover(profile)
+    assert said and "undone" in said[0]
+    assert files(profile.parent) == before and operations.problem(profile) is None
+
+
 def test_update_keeps_the_previous_version_and_rolls_back_as_a_set(profile, tmp_path):
     do_install(profile, source(tmp_path, "1"))
     v1_profile = profile.read_bytes()
@@ -140,9 +175,10 @@ def test_update_keeps_the_previous_version_and_rolls_back_as_a_set(profile, tmp_
     assert profile.read_bytes() == v1_profile
     [rb] = operations.kept_versions(profile)
     assert rb["kind"] == "rollback"  # the version rolled back is kept aside until kept
-    aside = [p for p in grass.parent.iterdir() if p.name.startswith(".grass.previous-")]
+    aside = list((profile.parent / ".roundtable" / "previous").glob("grass-*"))  # in the profile's .roundtable
     assert len(aside) == 1 and files(aside[0])["new.txt"] == b"n"
     operations.keep(Path(rb["dir"]))
+    assert not list((profile.parent / ".roundtable" / "previous").glob("grass-*"))
     assert not any(p.name.startswith(".grass.") for p in grass.parent.iterdir())
 
 
@@ -319,3 +355,51 @@ def test_looking_for_interrupted_operations_writes_nothing(profile):
     before = sorted(p.name for p in profile.parent.iterdir())
     assert operations.recover(profile) == [] and operations.problem(profile) is None
     assert sorted(p.name for p in profile.parent.iterdir()) == before
+
+
+def test_importing_a_bundled_profile_renames_a_clash_keeps_the_rest_and_undo_puts_it_back(tmp_path):
+    import difflib
+    import tomllib
+
+    from roundtable_souls.mods import profile_import, undo
+
+    p = tmp_path / "prof" / "my.me3"
+    (p.parent / "mod" / "flora").mkdir(parents=True)
+    (p.parent / "natives" / "SeamlessCoop").mkdir(parents=True)
+    (p.parent / "natives" / "SeamlessCoop" / "ersc.dll").write_bytes(b"d")
+    text = PROFILE.replace('[[packages]]\r\nid = "flora"', '# keep me\r\n[[packages]]\r\nid = "flora"')
+    p.write_bytes(text.encode())
+    before = p.read_bytes()
+    pack = tmp_path / "pack"
+    (pack / "mods" / "Flora" / "parts").mkdir(parents=True)
+    (pack / "mods" / "Flora" / "parts" / "a.partsbnd.dcx").write_bytes(b"a")
+    (pack / "mods" / "Other" / "chr").mkdir(parents=True)
+    (pack / "mods" / "Other" / "chr" / "b.anibnd.dcx").write_bytes(b"b")
+    (pack / "natives" / "Cool").mkdir(parents=True)
+    (pack / "natives" / "Cool" / "cool.dll").write_bytes(b"c")
+    (pack / "me3.exe").write_bytes(b"never copied")
+    (pack / "Pack.me3").write_text(
+        'profileVersion = "v1"\n\n[[packages]]\nid = "flora"\npath = \'mods/Flora\'\n\n'
+        '[[packages]]\nid = "other"\npath = \'mods/Other\'\nload_after = [{ id = "flora", optional = false }]\n\n'
+        "[[natives]]\npath = 'natives/Cool/cool.dll'\nload_early = true\n\n"
+        "[[natives]]\npath = 'C:/elsewhere/x.dll'\n",
+        encoding="utf-8",
+    )
+    pre = profile_import.preview_import(pack, "Pack.me3", p, loc=er())
+    assert pre.ok, pre.refusals
+    assert pre.renamed == {"flora": "flora-2"} and len(pre.skipped) == 1
+    out = profile_import.apply_import(pre)
+    old, new = before.decode().splitlines(), p.read_bytes().decode().splitlines()
+    assert [d for d in difflib.ndiff(old, new) if d[0] == "-"] == []  # every line kept (comment, CRLF)
+    data = tomllib.loads(p.read_text(encoding="utf-8"))
+    pk = {x["id"]: x for x in data["packages"]}
+    assert pk["flora-2"]["path"] == "mod/flora-2" and pk["flora"]["path"] == "mod/flora"
+    assert pk["other"]["load_after"] == [{"id": "flora-2", "optional": False}]
+    assert {"path": "natives/cool/cool.dll", "load_early": True}.items() <= data["natives"][-1].items()
+    assert (p.parent / "mod" / "flora-2" / "parts" / "a.partsbnd.dcx").is_file()
+    assert not any(x.name == "me3.exe" for x in p.parent.rglob("*"))
+    rec = {"type": "profile-import", "profile": str(p), "name": p.name, "operation": out["operation"]}
+    assert undo.available(rec) and undo.label(rec) == "Undo import"
+    undo.run(rec, lambda s: None, loc=er())
+    assert p.read_bytes() == before
+    assert not (p.parent / "mod" / "flora-2").exists() and not (p.parent / "natives" / "cool").exists()

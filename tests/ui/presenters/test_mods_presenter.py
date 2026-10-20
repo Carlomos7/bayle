@@ -163,6 +163,53 @@ def test_the_parameters_card():
     )
 
 
+def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
+    from roundtable_souls.services.game_checks import Fingerprint
+
+    p = ModsPresenter()
+    stale = {"state": "stale", "packs": ["a"], "backend": "t", "reasons": []}
+    tool = SimpleNamespace(label="rebuild.json", package={"name": "Revive"})
+    state = p.page(facts(online_with="flora", fingerprint=Fingerprint("1A2B3C4D", 9, "flora")), scan(health=stale))
+    online = state.notices[0]
+    assert (online.key, online.severity, online.action, online.closable) == ("online", "warning", "Play offline", True)
+    assert online.text == (
+        "This profile goes online with changed parameters (flora's regulation.bin). FromSoftware's servers can see "
+        "the change."
+    )
+    assert [n.key for n in p.notices(stale, tool, (), "flora")] == ["online", "stale"]  # two at most
+    assert state.parameters.fingerprint == "Parameters fingerprint: 1A2B3C4D (flora's regulation.bin)"
+    assert state.parameters.fingerprint_note.startswith("Co-op partners should use the same parameters.")
+    own = p.parameters(stale, False, Fingerprint("00FF00FF", 9, ""))
+    assert own.fingerprint == "Parameters fingerprint: 00FF00FF (the game's own regulation.bin)"
+    assert p.parameters(stale, False).fingerprint == "" and p.page(facts(), None).notices == ()
+
+
+def test_the_overhaul_words():
+    p = ModsPresenter()
+    menu = p.overhaul_menu(True, None, False)
+    assert (menu.visible, menu.remove, menu.can_remove, menu.can_clean) == (True, "Remove overhaul...", False, False)
+    assert p.overhaul_menu(False, {"label": "Toy"}, True).remove == "Remove Toy..."
+    found = SimpleNamespace(ok=True, update=False, label="Toy", lines=["a line"], notes=["a note"], refusals=[])
+    install = p.overhaul_install(PROFILE, found)
+    assert install.title == "Install Toy in main.me3" and install.changes == ("a line", "a note")
+    assert install.apply == "Install" and "Nothing of the overhaul's own installer runs." in install.safety
+    assert p.overhaul_installing(found) == "Installing Toy..."
+    update = p.overhaul_install(PROFILE, SimpleNamespace(**{**found.__dict__, "update": True}))
+    assert update.title == "Update Toy in main.me3" and update.apply == "Update"
+    refused = p.overhaul_install(PROFILE, SimpleNamespace(**{**found.__dict__, "ok": False, "refusals": ["No."]}))
+    assert (refused.title, refused.body) == ("Toy can't be installed here", "No.")
+    removal = SimpleNamespace(ok=True, lines=["out"], refusals=[], asked=[SimpleNamespace(entry="ersc.dll")])
+    remove = p.overhaul_remove(PROFILE, "Toy", removal)
+    assert remove.title == "Remove Toy from main.me3" and not remove.option_checked
+    assert remove.option == "Also switch ersc.dll back off, as it was before the install"
+    assert p.overhaul_remove(PROFILE, "Toy", SimpleNamespace(**{**removal.__dict__, "asked": []})).option == ""
+    assert p.overhaul_put_back("Toy").none == "Leave them"
+    assert p.leftovers(True).none == "Next" and p.leftovers(False).none == ""
+    backups = p.leftover_backups(SimpleNamespace(path=Path("C:/x/Revive Backups"), label="Revive Backups (2 MB)"))
+    assert backups.title == "Also remove Revive Backups?"
+    assert backups.changes == ("Revive Backups (2 MB) goes to the Recycle Bin",)
+
+
 def test_infobars_two_at_once_and_a_closed_one_stays_closed():
     p = ModsPresenter()
     tool = SimpleNamespace(label="rebuild.json", package={"name": "Revive"})
@@ -205,6 +252,10 @@ def test_the_confirmations_words():
     managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "Nightreign Revive")
     assert managed is not None and managed.body == "Nightreign Revive is managed by its installer; delete it there."
     assert p.delete_refusal(None) is None
+    assert len(p.delete_profile(PROFILE).changes) == 2
+    assert p.delete_profile(PROFILE, "Nightreign Revive").changes[-1] == (
+        "Nightreign Revive's shared files stay; Remove overhaul first to take them out too."
+    )
     assert (
         p.holder(PROFILE, "bundle", ["revive"]).changes[-1]
         == "revive must load after it: that setting is taken out too"

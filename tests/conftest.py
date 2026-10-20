@@ -130,6 +130,24 @@ def installed_me3_not_asked(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_programs_running(monkeypatch):
+    """Tests never list this machine's processes (whether Steam or the game runs here): nothing is running unless a
+    test says so. Listing them took about a second each time on Windows."""
+    from roundtable_souls.platform import proc
+
+    monkeypatch.setattr(proc, "processes", lambda name: [])
+
+
+@pytest.fixture(autouse=True)
+def saves_written_without_waiting(monkeypatch):
+    """The save lock waits until a save has been unchanged for 4 seconds; a test's save was always just written, so
+    every write waited. Tests that check the wait set services.saves.SETTLE_SECONDS themselves."""
+    from roundtable_souls.services import saves
+
+    monkeypatch.setattr(saves, "SETTLE_SECONDS", 0.0)
+
+
+@pytest.fixture(autouse=True)
 def run_in_a_temporary_folder(tmp_path, monkeypatch):
     """Every test runs from its own temporary folder, never the repository: a relative path gone wrong (an empty path
     is the current folder) can then only reach that folder."""
@@ -166,8 +184,9 @@ def recycle_bin_left_clean(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def clean_logging():
-    """No job, sink or standalone run survives a test, so one test's lines never reach another's files."""
+def clean_logging(isolated_settings):
+    """No job, sink or standalone run survives a test, so one test's lines never reach another's files. Ended while
+    the test's own data folder is still in place (isolated_settings), where the job's index is written."""
     from roundtable_souls.platform import logging as run_logging
 
     yield

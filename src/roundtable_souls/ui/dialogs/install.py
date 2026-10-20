@@ -380,8 +380,10 @@ class InstallDialog(Dialog):
             lines.append("It is already in the profile, so no new entry is added.")
         else:
             lines.append("Options changes its load order, and anything else, once it is in.")
-        self.note.setText(" ".join(lines))
-        tone_label(self.note, "error" if p.get("exists") and not p.get("in_place") else "muted")
+        self.note.setText(p.get("name_problem") or " ".join(lines))
+        tone_label(
+            self.note, "error" if p.get("name_problem") or (p.get("exists") and not p.get("in_place")) else "muted"
+        )
         if self.reg_place.count() == 0 or self.reg_place.itemData(0) != (
             p.get("merge_target") or (p.get("regulation_packages") or [{}])[-1].get("name")
         ):
@@ -396,7 +398,7 @@ class InstallDialog(Dialog):
         if self._timer.isActive() and not quiet:  # Install pressed right after typing: use what was typed
             self._timer.stop()
             self._apply()
-        ok = bool(self.name.text().strip()) and not self.plan.get("error")
+        ok = bool(self.name.text().strip()) and not self.plan.get("error") and not self.plan.get("name_problem")
         if self.plan["kind"] == "package":
             ok = ok and bool(self.id.text().strip()) and not self.plan.get("id_taken")
         if self.boxes:  # something the game loads must be ticked

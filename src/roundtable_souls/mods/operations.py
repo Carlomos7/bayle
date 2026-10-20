@@ -257,8 +257,10 @@ def _profile_back(op: build.Operation, profile: Path, notes: list[str]) -> tuple
     """The profile's bytes once op is taken back, with the sha256 of its bytes now (what Operation.write_file
     expects to find, so a profile edited outside the launcher meanwhile is not overwritten): its exact previous bytes
     when it has not changed since; else the current text without the entries op added. None: leave it as it is."""
-    from roundtable_souls.mods import profile_edit
+    from roundtable_souls.mods import profile_edit, rename
 
+    if op.info.get("kind") == rename.KIND:
+        return rename.profile_back(op, profile, notes)
     step = _profile_step(op)
     if step is None:
         return None
@@ -342,12 +344,28 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
     notes: list[str] = []
     emptied: list[Path] = []
     profile_step = _profile_step(op)
+    moves = [s for s in op.steps if s["type"] == "move"]
+    src = dst = Path()
+    if moves:  # a renamed folder goes back only to a free place: checked before anything else changes
+        src, dst = Path(moves[0]["src"]), Path(moves[-1]["dst"])
+        if not dst.is_dir() or (src.exists() and not same_folder(src, dst)):
+            raise OperationError(
+                f"{dst.name} is not where it was left, or {src.name} is there again, so nothing was changed."
+            )
     with lock(profile):
         new = _new_op(op, f"undo of the {op.what}")
         try:
             for step in op.steps:
                 live = Path(step["live"])
-                if step["type"] == "folder":
+                if step["type"] == "move":
+                    if step is moves[0]:
+                        if same_folder(src, dst):  # a case-only rename: out of the way first
+                            aside = dst.with_name(f".{dst.name}.rename-{new.id}")
+                            new.move_folder(dst, aside)
+                            new.move_folder(aside, src)
+                        else:
+                            new.move_folder(dst, src)
+                elif step["type"] == "folder":
                     previous = Path(step["previous"]) if step["previous"] else None
                     if previous is not None and previous.is_dir():
                         new.replace_folder(live, previous)
@@ -372,6 +390,10 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
                         new.write_file(profile, back[0], expect=back[1])
                 elif step["type"] == "file":
                     now = hashlib.sha256(live.read_bytes()).hexdigest() if live.is_file() else "missing"
+                    if op.info.get("kind") == "rename" and step["after"]:
+                        if now != hashlib.sha256((op.dir / step["after"]).read_bytes()).hexdigest():
+                            notes.append(f"{live.name} changed since, so it was left as it is")
+                            continue
                     before = (op.dir / step["before"]).read_bytes() if step["before"] else None
                     new.write_file(live, before, expect=now)
         except BaseException:

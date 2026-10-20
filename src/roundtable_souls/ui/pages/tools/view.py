@@ -66,6 +66,7 @@ from roundtable_souls.ui.theme import (
     hint,
     primary_btn,
     tone_label,
+    widgets_dark,
 )
 from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard, LogoPreview, PairRow, SettingRow, card, icon_btn
 from roundtable_souls.ui.widgets.layout import action_row, page, titled
@@ -172,7 +173,7 @@ class ToolsView:
         self.theme_sw = SwitchButton()
         self.theme_sw.setOnText("Dark")
         self.theme_sw.setOffText("Light")
-        self.theme_sw.setChecked(self.settings.theme == "dark")
+        self.theme_sw.setChecked(widgets_dark(self.settings.theme))
         self.theme_sw.checkedChanged.connect(self._on_theme)
         row.addWidget(BodyLabel("Theme"))
         row.addWidget(self.theme_sw)

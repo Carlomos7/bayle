@@ -32,6 +32,15 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
   a hand-edited one shows what it does and Edit as text changes it; a verified one that comes with the launcher
   is read-only. Turn off makes the mod an ordinary mod again (Undo turn off in Activity). Add overhaul setup... (and
   Set up as overhaul... on a mod) sets any mod of the profile up as an overhaul, showing what it does before it does it.
+- Export / Import profile, a first look at the new page (the Mods window's profile gear, and a button on the Mods
+  page): Share list writes one small file with your mods, their order and options, the profile settings and your
+  mods' settings files (the Seamless Co-op password is left out unless you tick it); Full export also puts the mods
+  in a zip with a README and a changelog. Import shows what each file would change, with a tick per file, and
+  writes the ticked ones as one change you can Undo from Activity. A share list matches mods by id (DLLs by file
+  name) and skips the ones you don't have; a zip is imported into a new profile by default. An import never turns
+  online play on, only takes a save file name that is a plain .sl2 name, never writes a save from a zip, and
+  never writes a settings file outside the folder of a mod your profile has. A mod download that also ships a
+  profile offers "Import it instead..." in the Install dialog. Paste in Mod Configs now uses the same merge.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

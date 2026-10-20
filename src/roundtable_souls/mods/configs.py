@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 
 from roundtable_souls.config.settings import LauncherSettings
+from roundtable_souls.mods import naming
 
 CONFIG_SUFFIXES = {".ini", ".txt", ".toml", ".json", ".cfg", ".conf", ".yaml", ".yml", ".xml"}
 NOT_SETTINGS = re.compile(
@@ -37,14 +38,21 @@ def key_for(dll: Path) -> str:
     return os.path.normcase(os.path.abspath(str(dll)))
 
 
-def looks_like_settings(p: Path) -> bool:
-    name = p.name.lower()
+def settings_name(name: str) -> bool:
+    """Whether a file name alone is a settings file's (no .dll, .exe, readme, backup, ...); a plain name that
+    Windows accepts (no path, no stream, no device name)."""
+    p = Path(name)
     return (
-        p.is_file()
+        p.name == name
+        and naming.unsafe(name) is None
         and p.suffix.lower() in CONFIG_SUFFIXES
         and not NOT_SETTINGS.match(p.stem)
-        and not re.search(r"\.(bak|old|orig|tmp)(\.|$)|\d{8}", name)  # dated / backup copies
+        and not re.search(r"\.(bak|old|orig|tmp)(\.|$)|\d{8}", name.lower())  # dated / backup copies
     )
+
+
+def looks_like_settings(p: Path) -> bool:
+    return p.is_file() and settings_name(p.name)
 
 
 def found(dll: Path) -> list[Path]:
@@ -159,12 +167,16 @@ def write(p: Path, text: str, encoding: str, crlf: bool, expect: str | None = No
             now = "missing"
         if now != expect:
             raise ConfigError(f"{p.name} changed on disk since it was read; reload it and try again.")
+    atomic_write(p, encode(p.name, text, encoding, crlf), backup=True)
+    return p.with_name(p.name + ".bak")
+
+
+def encode(name: str, text: str, encoding: str, crlf: bool) -> bytes:
+    """The bytes write() stores: the encoding and line endings the file had."""
     body = text.replace("\n", "\r\n") if crlf else text
     try:
-        data = body.encode(encoding)
+        return body.encode(encoding)
     except UnicodeEncodeError as e:
         raise ConfigError(
-            f"A character cannot be stored in {p.name}'s encoding ({encoding}): {e.object[e.start]!r}"
+            f"A character cannot be stored in {name}'s encoding ({encoding}): {e.object[e.start]!r}"
         ) from e
-    atomic_write(p, data, backup=True)
-    return p.with_name(p.name + ".bak")

@@ -30,6 +30,9 @@ PageScroll {
         function onImportNameRequested(path, name) {
             nameDialog.ask("import", path, "", name);
         }
+        function onNameAsked(mode, path) {   // a live save dropped on the Library: the same name dialog as the menu
+            page.askName(mode, path);
+        }
 
         target: page.adapter
     }
@@ -118,6 +121,7 @@ PageScroll {
 
                 adapter: page.adapter
                 card: modelData
+                scroller: page
                 width: page.wide ? Math.floor((cardGrid.width - cardGrid.columnSpacing) / 2) : cardGrid.width
 
                 onNameRequested: (mode, path) => page.askName(mode, path)
@@ -126,6 +130,7 @@ PageScroll {
     }
     SavedCopies {
         adapter: page.adapter
+        scroller: page
         visible: page.adapter.cards.length > 0
         width: parent.width
 

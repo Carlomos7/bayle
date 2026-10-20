@@ -281,6 +281,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## tomlkit (MIT)
+
+- [tomlkit](https://github.com/python-poetry/tomlkit) by Sébastien Eustace, a style-preserving TOML library. A
+  dependency (version 0.15.1), used by the Mod Configs form to read and write a mod's TOML settings file with every
+  comment, blank line and spacing kept (`src/roundtable_souls/formats/config_model.py`).
+
+```
+Copyright (c) 2018 Sébastien Eustace
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## lupa and Lua 5.1 (MIT)
 
 - [lupa](https://github.com/scoder/lupa) by Stefan Behnel, with the Lua 5.1 sources by Lua.org, PUC-Rio, that its
@@ -319,7 +347,7 @@ THE SOFTWARE.
 ## Libraries
 
 Bundled into the release exe: PySide6 and Qt (LGPL-3.0), pydantic (MIT), py7zr (LGPL-2.1), SQLAlchemy (MIT),
-Alembic (MIT), Mako (MIT), MarkupSafe (BSD-3-Clause), lupa (MIT). Their license
+Alembic (MIT), Mako (MIT), MarkupSafe (BSD-3-Clause), lupa (MIT), tomlkit (MIT). Their license
 texts ship inside the installed packages; the complete source of this program is the repository it was built from.
 
 ## Apache License 2.0

@@ -79,4 +79,6 @@ Button {
             easing.type: Easing.OutCubic
         }
     }
+    HandCursor {
+    }
 }

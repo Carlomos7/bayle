@@ -18,7 +18,9 @@ Card {
 
     signal nameRequested(string mode, string path)
 
-    implicitHeight: body.implicitHeight
+    readonly property int listH: 240   // 6 character rows; the list scrolls when the ten slots do not fit
+
+    implicitHeight: 64 + 32 + listH + footer.implicitHeight
     padding: 0
 
     Column {
@@ -62,28 +64,49 @@ Card {
         }
         Txt {  // what is wrong with the file as a whole, in words (the details are in Check & repair)
             color: Theme.textSecondary
-            elide: Text.ElideNone
             kind: "hint"
             leftPadding: Theme.padCard
             rightPadding: Theme.padCard
+            elide: Text.ElideRight
+            height: 32
+            maximumLineCount: 2
             text: root.card.error !== "" ? root.card.error : root.card.contents
-            visible: text !== ""
+            verticalAlignment: Text.AlignVCenter
             width: parent.width
             wrapMode: Text.WordWrap
         }
-        Repeater {
-            model: root.card.characters
+        ListView {  // all ten slots, empty ones too (they are where a character can be dropped or copied to)
+            id: slotList
 
-            HoverRow {
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
+            height: root.listH
+            model: root.card.slots
+            objectName: "slotList"
+            width: parent.width
+            Accessible.name: root.card.kind
+
+            ScrollBar.vertical: ScrollBar {
+            }
+            delegate: HoverRow {
                 id: row
+
+                readonly property bool isEmpty: modelData.empty
+                readonly property int slotNumber: modelData.slot
 
                 required property int index
                 required property var modelData
 
                 divider: true
-                width: body.width
+                implicitHeight: isEmpty ? 32 : Theme.rowH
+                objectName: "slotRow_" + modelData.slot
+                pressable: !isEmpty
+                width: slotList.width
 
-                onClicked: root.adapter.openSheet(root.card.path, row.modelData.slot)
+                onClicked: {
+                    if (!isEmpty)
+                        root.adapter.openSheet(root.card.path, row.modelData.slot);
+                }
 
                 Txt {
                     id: slotText
@@ -99,7 +122,8 @@ Card {
                     anchors.right: meta.left
                     anchors.rightMargin: Theme.sp8
                     anchors.verticalCenter: parent.verticalCenter
-                    kind: "rowTitle"
+                    color: row.isEmpty ? Theme.textSecondary : Theme.textPrimary
+                    kind: row.isEmpty ? "caption" : "rowTitle"
                     text: row.modelData.name
                 }
                 Row {
@@ -132,6 +156,7 @@ Card {
                     anchors.verticalCenter: parent.verticalCenter
                     enabled: !root.locked && root.card.canCopyCharacters && row.modelData.runes !== ""
                     icon_: "More"
+                    visible: !row.isEmpty
 
                     onClicked: charMenu.popup()
 
@@ -153,18 +178,10 @@ Card {
                         }
                     }
                 }
-            }
-        }
-        Txt {  // the empty slots, as targets
-            color: Theme.textSecondary   // 5:1 on the light card; the tertiary grey is 3.6:1 there
-            kind: "hint"
-            leftPadding: Theme.padCard
-            text: root.words.emptySlots + " " + root.card.freeSlots.join(", ")
-            topPadding: Theme.sp8
-            visible: root.card.freeSlots.length > 0 && root.card.characters.length > 0
-            width: parent.width
-        }
+            }        }
         Row {  // the footer
+            id: footer
+
             bottomPadding: Theme.padCard
             leftPadding: Theme.padCard
             spacing: Theme.sp8

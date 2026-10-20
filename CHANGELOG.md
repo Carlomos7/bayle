@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves: both live-save cards are the same fixed size and list all ten character slots (empty ones too); the slot list and the Library and Backups lists scroll inside fixed-height areas; two cards sit side by side from about 900 px.
 - Settings: plainer help for the four location fields, the theme note and the stuck-process switches.
 - Activity: the summary cards wrap instead of cutting the text, and an opened job's log buttons wrap at narrow widths.
 - Check & repair says in plain words what each box does and what happens if you leave it unticked (no more "checksum" or "regulation block"), and its descriptions wrap instead of being cut off.

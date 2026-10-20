@@ -206,3 +206,96 @@ def test_vanilla_starts_through_steam_without_me3_a_profile_or_the_save_repair(m
     monkeypatch.setattr(core, "_after_play", forbidden)
     core.job_play_vanilla(None, RealLocations(catalog.ELDEN_RING), backup=core.BACKUP_SKIP)
     assert opened == ["steam://rungameid/1245620"]
+
+
+# Merged mods that are out of date (ported from the retired Widgets window's tests)
+class RebuildPorts(Ports):
+    """Like Ports, but a job that raises SystemExit (a failed rebuild) reports failure to on_done."""
+
+    def __init__(self, answers=(), fail=False):
+        super().__init__(answers)
+        self.fail = fail
+
+    def run_job(self, job, label, kind, on_done=None):
+        self.jobs.append((label, kind))
+        ok = True
+        try:
+            job(None, Locations())
+        except SystemExit:
+            ok = False
+        if kind == "update" and self.fail:
+            ok = False
+        if on_done:
+            on_done(ok)
+
+
+def stale_flow(answers=(), auto=True, blocked="", fail=False, tool_ok=True):
+    from roundtable_souls.mods import rebuild as mod_merge
+
+    ports, calls = RebuildPorts(answers, fail), Calls()
+    services = calls.services()
+    rebuilt: list[int] = []
+    stale = {"reasons": ["a mod changed"], "blocked": blocked}
+
+    def update_before_play(prof, log, loc):
+        rebuilt.append(1)
+        if fail:
+            raise mod_merge.MergeError("refused")
+        stale.clear()  # now current
+        return None
+
+    services.play_options = lambda settings=None: {"play_backup_before": False, "play_update_merge": auto}
+    services.play_check = lambda prof, loc: dict(stale) or None
+    services.update_before_play = update_before_play
+    services.last_run = lambda prof: {"message": "refused"}
+    services.tool_state = lambda prof, loc: SimpleNamespace(
+        tool=None if tool_ok else SimpleNamespace(label="the tool"), problem="", allowed=tool_ok
+    )
+    return LaunchFlow(State(), ports, services), ports, calls, rebuilt
+
+
+def test_launch_updates_the_merged_mods_first_then_starts():
+    f, ports, calls, rebuilt = stale_flow()
+    f.start(PROFILE)
+    assert rebuilt == [1] and [k for _, k in ports.jobs] == ["update", "launch"]
+    assert [name for name, _ in calls.started] == ["play"]
+
+
+def test_stop_after_the_rebuild_lets_it_finish_but_does_not_start():
+    f, ports, calls, rebuilt = stale_flow()
+
+    def run_job(job, label, kind, on_done=None):
+        f.stop_after_rebuild()
+        RebuildPorts.run_job(ports, job, label, kind, on_done)
+
+    ports.run_job = run_job  # type: ignore[method-assign]
+    f.start(PROFILE)
+    assert rebuilt == [1] and calls.started == []
+
+
+def test_with_automatic_rebuilds_off_launch_asks_and_never_starts_silently():
+    f, ports, calls, rebuilt = stale_flow([launch.CANCEL], auto=False)
+    f.start(PROFILE)
+    assert [c.key for c in ports.asked[0].choices] == [launch.REBUILD, launch.PLAY_ANYWAY, launch.CANCEL]
+    assert rebuilt == [] and calls.started == []
+    f, ports, calls, rebuilt = stale_flow([launch.PLAY_ANYWAY], auto=False)
+    f.start(PROFILE)
+    assert rebuilt == [] and [name for name, _ in calls.started] == ["play"]  # this once, with the previous result
+
+
+def test_launch_asks_when_the_merged_mods_cannot_be_rebuilt_or_the_tool_is_not_allowed():
+    for kwargs in ({"blocked": "the last package is missing"}, {"tool_ok": False}):
+        f, ports, calls, rebuilt = stale_flow([launch.CANCEL], **kwargs)
+        f.start(PROFILE)
+        assert ports.asked[0].title == "Your merged mods are out of date"
+        assert launch.PLAY_ANYWAY in [c.key for c in ports.asked[0].choices]
+        assert rebuilt == [] and calls.started == []
+
+
+def test_a_failed_update_offers_play_anyway_and_is_not_retried_silently():
+    f, ports, calls, rebuilt = stale_flow([launch.PLAY_ANYWAY, launch.CANCEL], fail=True)
+    f.start(PROFILE)
+    assert ports.asked[0].title == "The merged mods could not be updated"
+    assert [name for name, _ in calls.started] == ["play"]
+    f.start(PROFILE)  # same inputs: it asks again instead of rebuilding or starting
+    assert rebuilt == [1] and len(calls.started) == 1 and ports.asked[1].title == "Your merged mods are out of date"

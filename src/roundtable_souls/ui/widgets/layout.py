@@ -32,12 +32,10 @@ from qfluentwidgets.common.icon import FluentIconBase, drawIcon
 
 from roundtable_souls.ui.theme import (
     RADIUS,
-    RADIUS_HERO,
     hint,
     tokens,
 )
 from roundtable_souls.ui.widgets.cards import ExpandGroupSettingCard, GlassCard
-from roundtable_souls.ui.widgets.hero import HeroBanner
 
 
 def _paint_nav_row(w, e):
@@ -118,7 +116,7 @@ class _Surface(QWidget):
         self._watched = set()
 
     def _elevated(self):
-        kinds = (HeroBanner, GlassCard, ExpandGroupSettingCard)
+        kinds = (GlassCard, ExpandGroupSettingCard)
         for kind in kinds:
             for w in self.findChildren(kind):
                 if not getattr(w, "elevated", True) or not w.isVisibleTo(self):
@@ -153,7 +151,7 @@ class _Surface(QWidget):
                 w.destroyed.connect(lambda _=None, k=id(w): self._watched.discard(k))
             r = QRectF(w.geometry() if w.parentWidget() is self else QRect(w.mapTo(self, QPoint()), w.size()))
             r = r.adjusted(1, 1, -1, -1).translated(0, self.OFFSET)
-            radius = RADIUS_HERO if isinstance(w, HeroBanner) else RADIUS
+            radius = RADIUS
             if not area.intersects(r.adjusted(-self.BLUR, -self.BLUR, self.BLUR, self.BLUR)):
                 continue
             for i in range(self.STEPS):

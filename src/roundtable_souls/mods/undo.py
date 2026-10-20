@@ -39,6 +39,7 @@ LABEL = {
     "overhaul-turn-off": "Undo turn off",
     "profile-import": "Undo import",
     "library-adopt": "Undo adoption",
+    "rename": "Undo rename",
     "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
@@ -91,7 +92,7 @@ def available(undo: dict | None) -> bool:
         if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
             return False
         return not _listed(profile, undo.get("path") or "") or _in_bin(undo)
-    if undo.get("type") in OPERATIONS or undo.get("type") in OVERHAUL or undo.get("type") == "profile-import":
+    if undo.get("type") in (*OPERATIONS, *OVERHAUL, "profile-import", "rename"):
         from roundtable_souls.merging import build
 
         op = Path(str(undo.get("operation") or ""))
@@ -136,6 +137,15 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         if not available(undo):
             raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
         return profile_import.undo_import(Path(undo["operation"]), log)
+    if undo.get("type") == "rename":
+        from roundtable_souls.mods import operations
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'The rename'} can no longer be taken back.")
+        try:
+            return operations.take_back(Path(undo["operation"]), log)
+        except operations.OperationError as e:
+            raise UndoError(str(e)) from e
     if undo.get("type") == "library-adopt":
         from roundtable_souls.mods import adopt
 

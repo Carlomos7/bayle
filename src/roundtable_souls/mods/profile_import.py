@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.mods import naming, operations
+from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods.profile_edit import ModError, roots
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
 from roundtable_souls.mods.profile_writer import ProfileWriter
@@ -115,12 +116,6 @@ def _installed_twin(item: Path, root: Path) -> tuple[Path, int] | None:
     return None
 
 
-def _refs(deps: list, renamed: dict[str, str]) -> list:
-    """load_after / load_before with the renamed package ids changed."""
-    low = {k.lower(): v for k, v in renamed.items()}
-    return [{**d, "id": low.get(str(d.get("id", "")).lower(), d.get("id"))} for d in deps]
-
-
 def preview_import(
     unpacked: Path,
     me3: str,
@@ -189,8 +184,8 @@ def preview_import(
         row = {
             k: e[k] for k in ("enabled", "optional", "load_early", "initializer", "finalizer") if e.get(k) is not None
         }
-        row["load_after"] = _refs(e["load_after"], out.renamed)
-        row["load_before"] = _refs(e["load_before"], out.renamed)
+        row["load_after"] = mod_order.rename_refs(e["load_after"], out.renamed)
+        row["load_before"] = mod_order.rename_refs(e["load_before"], out.renamed)
         if e["kind"] == "package":
             row["id"] = out.renamed.get(e["id"], e["id"]) if e["id"] else None
         row["path"] = live

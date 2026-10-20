@@ -544,6 +544,12 @@ class ProfileWriter:
         self.text = profile_edit.set_block_options(self.as_blocks(), index, opts)
         self.changes.append(Change("options", o["kind"], index, o["path"], row=dict(opts), before=o))
 
+    def set_path(self, index: int, path: str) -> None:
+        """Point one entry at a new path (a string as the profile should hold it); everything else stays."""
+        o = self.options(index)
+        self.text = profile_edit.set_block_path(self.as_blocks(), index, path)
+        self.changes.append(Change("options", o["kind"], index, o["path"], row={"path": path}, before=o))
+
     def replace_block(self, index: int, lines: list[str]) -> None:
         """One block's lines replaced as given (an edit profile_edit has no function for)."""
         o = self.options(index)

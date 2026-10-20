@@ -36,10 +36,17 @@ def _mod_configs(host, notifier: Notifier):
     return ModConfigsAdapter(host, notifier)
 
 
+def _saves(host, notifier: Notifier):
+    from roundtable_souls.ui.pages.saves.adapter import SavesAdapter
+
+    return SavesAdapter(host, notifier)
+
+
 QML_PAGES: tuple[QmlPage, ...] = (
     QmlPage("activity", "Pages/ActivityPage.qml", _activity),
     QmlPage("mods", "Pages/ModsPage.qml", _mods),
     QmlPage("modConfigs", "Pages/ModConfigsPage.qml", _mod_configs),
+    QmlPage("saves", "Pages/SavesPage.qml", _saves),
 )
 
 

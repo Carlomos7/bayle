@@ -77,6 +77,9 @@ class SelfTestHost:
     def open_mod_configs(self, select: str = "") -> None:
         pass
 
+    def saves_in_use(self) -> dict:
+        return {}
+
 
 class Report:
     def __init__(self, out: Callable[[str], None] = print):

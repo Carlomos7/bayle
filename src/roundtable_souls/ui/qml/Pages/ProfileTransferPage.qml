@@ -26,32 +26,20 @@ PageScroll {
 
     Component.onCompleted: page.adapter.refresh()
 
-    Item {  // the header: the profile, and the Export / Import tabs
+    Item {  // the header: the profile's name, and the Export / Import tabs
         height: Theme.controlH
         visible: page.mode !== "bundled"
         width: parent ? parent.width : 0
 
-        DropButton {
+        Txt {  // the shell's profile (the top bar's drop-down is the only picker)
             anchors.left: parent.left
+            anchors.right: modeTabs.left
+            anchors.rightMargin: Theme.sp8
             anchors.verticalCenter: parent.verticalCenter
-            enabled: !page.adapter.working
-            implicitHeight: Theme.controlH
-            objectName: "profilePicker"
-            text: page.s.profileName !== "" ? page.s.profileName : page.words.noProfile
-
-            Repeater {
-                model: page.adapter.profiles
-
-                MenuEntry {
-                    required property int index
-                    required property string modelData
-
-                    checked: index === page.adapter.profileIndex
-                    text: modelData
-
-                    onTriggered: page.adapter.pickProfile(index)
-                }
-            }
+            elide: Text.ElideRight
+            kind: "strong"
+            objectName: "profileName"
+            text: page.s.profileName === "" ? page.words.noProfile : (page.mode === "import" ? page.words.importingInto : page.words.exportingProfile).replace("{name}", page.s.profileName)
         }
         TabRow {
             id: modeTabs
@@ -170,8 +158,9 @@ PageScroll {
             width: parent ? parent.width : 0
             wrapMode: Text.WordWrap
         }
-        Row {
+        Flow {  // wraps at narrow widths
             spacing: Theme.sp12
+            width: parent ? parent.width : 0
 
             Column {
                 spacing: Theme.sp4
@@ -309,10 +298,10 @@ PageScroll {
                         onClicked: page.readmePreview = !page.readmePreview
                     }
                 }
-                CodeArea {
+                CodeEditor {
                     enabled: !page.adapter.working
                     height: 200
-                    mono: false
+                    language: "markdown"
                     objectName: "exportReadme"
                     text: page.s.ex.readme
                     visible: !page.readmePreview
@@ -334,10 +323,10 @@ PageScroll {
 
                     onClicked: page.showChangelog = !page.showChangelog
                 }
-                CodeArea {
+                CodeEditor {
                     enabled: !page.adapter.working
                     height: 140
-                    mono: false
+                    language: "markdown"
                     objectName: "exportChangelog"
                     text: page.s.ex.changelog
                     visible: page.showChangelog
@@ -428,9 +417,18 @@ PageScroll {
             GhostButton {
                 enabled: !page.adapter.working
                 objectName: "chooseFolder"
-                text: page.words.outFolder + ": " + (page.s.ex.folder !== "" ? page.s.ex.folder : page.words.chooseFolder)
+                text: page.words.chooseFolder
 
                 onClicked: page.adapter.chooseFolder()
+            }
+            Txt {  // the chosen folder, muted
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.textSecondary
+                elide: Text.ElideMiddle
+                kind: "caption"
+                text: page.s.ex.folder
+                visible: text !== ""
+                width: Math.min(implicitWidth, 260)
             }
             PrimaryButton {
                 enabled: page.s.ex.ready && !page.adapter.working
@@ -441,7 +439,7 @@ PageScroll {
             }
             Txt {
                 anchors.verticalCenter: parent.verticalCenter
-                color: page.s.ex.nameError || page.s.ex.folderError || page.s.ex.modsError ? Theme.statusDanger : Theme.textSecondary
+                color: Theme.textSecondary
                 kind: "caption"
                 objectName: "exportReason"
                 text: page.s.ex.reason

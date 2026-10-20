@@ -150,6 +150,18 @@ def choice_label(key: str, n: int, raw: str) -> str:
 
 
 # ----------------------------------------------------------------------------- the page
+def nested_title(path: str) -> str:
+    """A TOML section path in player words: "window.deep" -> "Window › Deep", "[[builds]] #1" -> "Builds · 1"."""
+    m = re.fullmatch(r"\[\[(.+?)\]\]\s*#(\d+)", path.strip())
+    if m:
+        return f"{_nice(m.group(1))} · {m.group(2)}"
+    return " › ".join(_nice(p) for p in path.split(".")) if "." in path else path
+
+
+def _nice(part: str) -> str:
+    return part.strip().replace("_", " ").capitalize()
+
+
 class ModConfigsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
@@ -167,12 +179,27 @@ class ModConfigsPresenter:
             "noMods": tr(
                 "No mod in this profile has a settings file. A DLL's file icon on the Mods page attaches one."
             ),
-            "pickFile": tr("Pick a mod's file on the left."),
+            "pickFile": tr("Pick a file to edit it."),
             "editAsText": tr("Edit as text"),
             "save": tr("Save"),
             "discard": tr("Discard"),
             "resetAll": tr("Reset all"),
-            "reset": tr("Reset"),
+            "reset": tr("Reset to default"),
+            "resetDisk": tr("Reset to the file's value"),
+            "changed": tr("Changed"),
+            "diskChanged": tr(
+                "This file was changed outside the launcher. Reload to see its current settings; your unsaved edits are dropped."
+            ),
+            "reload": tr("Reload"),
+            "noMatch": tr("No setting matches"),
+            "matchCount": tr("{n} settings match"),
+            "noChanges": tr("No changes"),
+            "findSetting": tr("Find a setting"),
+            "emptyPickTitle": tr("Pick a file to edit"),
+            "emptyPickBody": tr("Its settings show here as a form."),
+            "emptyNoFilesTitle": tr("No settings files yet"),
+            "emptyNoFilesBody": tr("A DLL mod's settings file shows here once you attach it on the Mods page."),
+            "goToMods": tr("Go to Mods"),
             "back": tr("Back"),
             "cancel": tr("Cancel"),
             "on": tr("On"),
@@ -185,6 +212,8 @@ class ModConfigsPresenter:
             "attach": tr("Attach a file..."),
             "detach": tr("Detach"),
             "password": tr("Password"),
+            "showPassword": tr("Show"),
+            "hidePassword": tr("Hide"),
             "passwordHint": tr("Friends type the same password to join your session."),
             "difficulty": tr("Difficulty"),
             "preset": tr("Party size"),
@@ -201,7 +230,7 @@ class ModConfigsPresenter:
             "load": tr("Load settings..."),
             "saveAs": tr("Save settings..."),
             "addOverhaul": tr("Add overhaul setup..."),
-            "setUpAsOverhaul": tr("Set up as overhaul..."),
+            "setUpAsOverhaul": tr("Add overhaul setup..."),
             "turnOff": tr("Turn off"),
         }
 
@@ -270,11 +299,19 @@ class ModConfigsPresenter:
             for n in values["natives"]:
                 f = n["file"]
                 rows = [
-                    self._ov_row(f, "early:" + f, tr("Load early"), "bool", str(bool(n["load_early"])).lower()),
+                    self._ov_row(
+                        f,
+                        "early:" + f,
+                        tr("Start before the game sets itself up"),
+                        "bool",
+                        str(bool(n["load_early"])).lower(),
+                    ),
                     self._ov_row(
                         f, "after:" + f, tr("Load after the other DLLs"), "bool", str(bool(n["after_others"])).lower()
                     ),
-                    self._ov_row(f, "init:" + f, tr("Initializer function"), "text", n.get("initializer") or ""),
+                    self._ov_row(
+                        f, "init:" + f, tr("Run a function when it loads"), "text", n.get("initializer") or ""
+                    ),
                 ]
                 sections.append({"title": Path(f).name, "rows": rows})
             if choices["keep"]:
@@ -382,7 +419,13 @@ class ModConfigsPresenter:
                 continue
             rows = [self.row(item, seamless) for item in s.settings]
             if rows:
-                out.append({"title": section_title(s.name) if seamless else (s.name or ""), "rows": rows})
+                out.append(
+                    {
+                        "title": section_title(s.name) if seamless else nested_title(s.name or ""),
+                        "path": s.name or "",
+                        "rows": rows,
+                    }
+                )
         return out
 
     def row(self, item: config_model.Setting, seamless: bool = False) -> dict[str, Any]:

@@ -25,27 +25,13 @@ Item {
         anchors.fill: parent
         spacing: Theme.gapInline
 
-        DropButton {  // the profile: every setup on the Play list, picked here as on Play
+        Txt {  // the profile (picked in the top bar)
             Layout.alignment: Qt.AlignVCenter
             Layout.maximumWidth: 360
-            Layout.minimumWidth: 80
-            implicitHeight: Theme.controlH
-            objectName: "profilePicker"
+            elide: Text.ElideRight
+            kind: "rowTitle"
+            objectName: "profileTitle"
             text: header.adapter.title
-
-            Repeater {
-                model: header.adapter.profiles
-
-                MenuEntry {
-                    required property int index
-                    required property string modelData
-
-                    checked: index === header.adapter.profileIndex
-                    text: modelData
-
-                    onTriggered: header.adapter.pickProfile(index)
-                }
-            }
         }
         Txt {
             Layout.alignment: Qt.AlignVCenter

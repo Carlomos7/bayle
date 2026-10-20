@@ -24,7 +24,9 @@ Card {
 
     signal nameRequested(string mode, string path)
 
-    implicitHeight: body.implicitHeight
+    readonly property int listH: 240   // 6 character rows; the list scrolls when the ten slots do not fit
+
+    implicitHeight: 64 + 32 + listH + footer.implicitHeight
     padding: 0
 
     DropTarget {  // the card body: a character goes into the first free slot; a copy or backup replaces the save
@@ -91,39 +93,88 @@ Card {
         }
         Txt {  // what is wrong with the file as a whole, in words (the details are in Check & repair)
             color: Theme.textSecondary
-            elide: Text.ElideNone
             kind: "hint"
             leftPadding: Theme.padCard
             rightPadding: Theme.padCard
+            elide: Text.ElideRight
+            height: text !== "" ? 32 : 0   // no empty band; the list takes the room instead
+            maximumLineCount: 2
             text: root.card.error !== "" ? root.card.error : root.card.contents
+            verticalAlignment: Text.AlignVCenter
             visible: text !== ""
             width: parent.width
             wrapMode: Text.WordWrap
         }
-        Repeater {
-            model: root.card.characters
+        ListView {  // all ten slots, empty ones too (they are where a character can be dropped or copied to)
+            id: slotList
 
-            HoverRow {
+            activeFocusOnTab: true
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
+            height: root.listH + (root.card.error !== "" || root.card.contents !== "" ? 0 : 32)
+            highlight: Rectangle {  // the keyboard focus ring
+                border.color: Theme.accent
+                border.width: 2
+                color: "transparent"
+                visible: slotList.activeFocus
+            }
+            highlightMoveDuration: 0
+            keyNavigationEnabled: true
+            model: root.card.slots
+            objectName: "slotList"
+            width: parent.width
+            Accessible.name: root.card.kind
+
+            Keys.onPressed: event => {
+                const cur = root.card.slots[slotList.currentIndex];
+                if ((event.modifiers & Qt.ControlModifier) && cur) {   // Ctrl+C on a character, Ctrl+V on a slot
+                    if (event.key === Qt.Key_C && !cur.empty && root.card.canCopyCharacters) {
+                        root.adapter.copyCharacterKey(root.card.path, cur.slot);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_V) {
+                        root.adapter.pasteInto({
+                            "type": "slot",
+                            "path": root.card.path,
+                            "slot": cur.slot
+                        });
+                        event.accepted = true;
+                    }
+                }
+                if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
+                    slotList.contentY = Math.max(0, Math.min(slotList.contentHeight - slotList.height, slotList.contentY + (event.key === Qt.Key_PageDown ? 1 : -1) * slotList.height));
+                    event.accepted = true;
+                }
+            }
+            ScrollBar.vertical: ScrollBar {
+                policy: slotList.contentHeight > slotList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff   // the cue that more slots are below
+                width: 8
+            }
+            delegate: HoverRow {
                 id: row
 
-                required property int index
-                required property var modelData
+                readonly property bool isEmpty: modelData.empty
+                readonly property int slotNumber: modelData.slot
                 readonly property var slotSpec: ({
                         "type": "slot",
                         "path": root.card.path,
                         "slot": modelData.slot
                     })
 
-                activeFocusOnTab: true
+                required property int index
+                required property var modelData
+
                 divider: true
-                width: body.width
+                implicitHeight: isEmpty ? 32 : Theme.rowH
+                objectName: "slotRow_" + modelData.slot
+                pressable: !isEmpty
+                width: slotList.width
 
                 onClicked: {
-                    row.forceActiveFocus();
-                    root.adapter.openSheet(root.card.path, row.modelData.slot);
+                    if (!isEmpty)
+                        root.adapter.openSheet(root.card.path, row.modelData.slot);
                 }
 
-                DropTarget {  // this slot: the character in it is replaced (after the usual confirmation)
+                DropTarget {  // this slot (empty, or the character in it is replaced after the usual confirmation)
                     anchors.fill: parent
                     anchors.leftMargin: -row.padding
                     anchors.rightMargin: -row.padding
@@ -147,20 +198,8 @@ Card {
                             "slot": row.modelData.slot
                         })
                     scroller: root.scroller
-                    visible: !root.locked && root.card.canCopyCharacters && row.modelData.runes !== ""
+                    visible: !row.isEmpty && !root.locked && root.card.canCopyCharacters && row.modelData.runes !== ""
                 }
-                Keys.onPressed: event => {  // Ctrl+C on a character, Ctrl+V on a slot
-                    if (!(event.modifiers & Qt.ControlModifier))
-                        return;
-                    if (event.key === Qt.Key_C && rowGrip.visible) {
-                        root.adapter.copyCharacterKey(root.card.path, row.modelData.slot);
-                        event.accepted = true;
-                    } else if (event.key === Qt.Key_V) {
-                        root.adapter.pasteInto(row.slotSpec);
-                        event.accepted = true;
-                    }
-                }
-
                 Txt {
                     id: slotText
 
@@ -176,7 +215,8 @@ Card {
                     anchors.right: meta.left
                     anchors.rightMargin: Theme.sp8
                     anchors.verticalCenter: parent.verticalCenter
-                    kind: "rowTitle"
+                    color: row.isEmpty ? Theme.textSecondary : Theme.textPrimary
+                    kind: row.isEmpty ? "caption" : "rowTitle"
                     text: row.modelData.name
                 }
                 Row {
@@ -209,6 +249,7 @@ Card {
                     anchors.verticalCenter: parent.verticalCenter
                     enabled: !root.locked && root.card.canCopyCharacters && row.modelData.runes !== ""
                     icon_: "More"
+                    visible: !row.isEmpty
 
                     onClicked: charMenu.popup()
 
@@ -230,15 +271,10 @@ Card {
                         }
                     }
                 }
-            }
-        }
-        EmptySlots {  // the empty slots, as drop targets
-            adapter: root.adapter
-            card: root.card
-            visible: root.card.freeSlots.length > 0 && root.card.characters.length > 0
-            width: parent.width
-        }
+            }        }
         Row {  // the footer
+            id: footer
+
             bottomPadding: Theme.padCard
             leftPadding: Theme.padCard
             spacing: Theme.sp8

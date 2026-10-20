@@ -135,7 +135,7 @@ def test_a_character_dropped_on_a_slot_is_the_copy_twin(page):
 
 def test_a_character_dropped_on_an_empty_slot_chip(page):
     w, calls = page
-    drag(w, "dragChar_ER0000.sl2_1", "dropEmpty_ER0000.co2_2")
+    drag(w, "dragChar_ER0000.sl2_1", "dropSlot_ER0000.co2_2", hold=lambda: shot(w, "empty-slot-valid"))
     assert [c[0] for c in calls] == ["copyCharacter"] and calls[0][1][3] == 2
 
 

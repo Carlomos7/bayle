@@ -118,14 +118,12 @@ jobs:
       shell: bash
       timeout-minutes: 10
       run: |
-        ./dist/RoundtableSouls/RoundtableSouls.exe --shots shots && ls shots
         # the packaged migrations create a database (in a temporary data folder, never a real one)
         ROUNDTABLE_SOULS_DATA="$RUNNER_TEMP/storage-check" ./dist/RoundtableSouls/RoundtableSouls.exe --check-storage
         cat "$RUNNER_TEMP/storage-check/storage-check.txt"
 
     # The packaged program starts and initializes: its modules, data and QML, and every QML page in every theme with
-    # no QML warning (technical specification §8.5). Beside --shots, not instead: --shots still covers the Widgets
-    # window, which the self-test does not until the QML shell (S9) replaces it.
+    # no QML warning, in the QML shell itself at both window sizes (technical specification §8.5).
     - name: Self-test the program
       shell: bash
       timeout-minutes: 10

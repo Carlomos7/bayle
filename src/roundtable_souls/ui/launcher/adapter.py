@@ -74,7 +74,8 @@ class ShellAdapter(QObject):
         host.pageRequested.connect(self.goTo)
         host.gameChanged.connect(self._game_changed)
         self._recompute()
-        self.open_page(self._current)  # the first page is made before the window asks for it
+        self.adapterFor(self._current)  # the first page is made before the window asks for it
+        self._visited.append(self._current)
 
     # ---------------------------------------------------------------- recomputing what the bar shows
     def _host_changed(self) -> None:

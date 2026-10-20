@@ -274,6 +274,32 @@ def test_the_previous_build_is_kept_and_undo_swaps_it_back(world):
     assert (world.own / "mod/regulation.bin").read_bytes() != b"OLD BUILD"
 
 
+def test_a_kill_between_the_two_renames_is_recovered_and_no_journal_means_no_touching(world, monkeypatch):
+    from roundtable_souls.merging import build as B
+    from roundtable_souls.mods import operations
+
+    real, calls = B._move, []
+
+    def dies_on_the_second(src, dst):
+        calls.append(src)
+        if len(calls) == 2:
+            raise SystemExit  # the process is killed: nothing after this runs, not even the in-process undo
+        real(src, dst)
+
+    with monkeypatch.context() as m:
+        m.setattr(B, "_move", dies_on_the_second)
+        m.setattr(B, "_undo", lambda op: None)
+        with pytest.raises(SystemExit):
+            world.build()
+    assert not world.own.exists() and (world.base / engine.WORK / "previous/mod/regulation.bin").is_file()
+    operations.recover(world.profile)  # the next launcher start
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+    # a player who deletes the build on purpose: no journal is left, so nothing is resurrected
+    out = world.build()
+    shutil.rmtree(world.own)
+    assert operations.recover(world.profile) == [] and not world.own.exists() and out["previous"].exists()
+
+
 def test_a_build_can_be_left_staged_for_an_operation_to_put_in_place(world):
     """swap=False (an overhaul install's operation): built and checked beside its place, nothing live changes, and
     the kept previous build for Undo rebuild is not touched."""

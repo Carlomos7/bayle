@@ -7,6 +7,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - A rebuild of an engine mod (the overhaul and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.
+- Importing a full-export zip unpacks each mod once, straight into its place next to the final folder (before, every byte
+  was written twice, first into a temporary folder). The preview no longer unpacks the zip, the import checks for free
+  space before it writes, and the page shows how much has been unpacked.
 - Undo import of a profile the import created now removes the whole profile and every folder it copied, Seamless
   Co-op's copy included (before, the co-op entry and its folder were left behind). The co-op guard still protects
   your own profiles. Export opens on the small share list; the Full export tab shows its size.

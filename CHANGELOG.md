@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mod Configs now reads TOML settings files with the real TOML library (tomlkit): nested tables, dotted keys, inline tables, lists and `[[arrays of tables]]` (one group per table) show in the form, and saving keeps every comment and all spacing, changing only the value you edited.
 - The packaged build now ships the QtQuick.Controls module, so the shared tooltip exists in it.
 - The packaged build's self-test no longer trips over the shared tooltip or a page whose adapter is not ready yet.
 - Importing a profile or a full export now asks when a mod has the same name as one you have installed but other

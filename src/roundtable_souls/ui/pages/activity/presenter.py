@@ -126,7 +126,9 @@ class UndoPlan:
                 else f"launcher: undo the adoption of {name}"
                 if u.get("type") == "library-adopt"
                 else f"launcher: undo the rename of {name}"
-                if u.get("type") == "rename"
+                if u.get("type") in ("rename", "profile-rename")
+                else f"launcher: undo the copy {name}"
+                if u.get("type") == "profile-duplicate"
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -487,6 +489,33 @@ class ActivityPresenter:
                 tr("If something changed since, it is left as it is and you are told why."),
                 tr("Undo rename"),
                 tr("Undoing the rename..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "profile-rename":
+            name = u.get("name") or tr("the profile")
+            return UndoPlan(
+                tr("Undo the rename of profile {name}").format(name=name),
+                (
+                    tr("The profile, its settings, backup copy and version history go back to the old name"),
+                    tr("The mods are not moved or copied"),
+                ),
+                tr("If the profile changed since, it keeps its changes; nothing is deleted."),
+                tr("Undo rename"),
+                tr("Undoing the rename..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "profile-duplicate":
+            name = u.get("name") or tr("the copy")
+            return UndoPlan(
+                tr("Remove the copy {name}").format(name=name),
+                (tr("The copy of the profile is removed; the original is not touched"),),
+                tr("If the copy was changed since, it stays and you are told why."),
+                tr("Undo copy"),
+                tr("Removing the copy..."),
                 u,
                 job_id,
                 name,

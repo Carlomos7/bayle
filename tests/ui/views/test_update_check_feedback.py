@@ -44,3 +44,51 @@ def test_a_forced_check_shows_a_line_and_a_toast_on_a_listened_notifier(qt_app, 
     assert lines[-1] and not lines[-1].startswith("Checking")
     assert seen[-1][1] is error and seen[-1][0]
     assert host.update_state()["checking"] is False
+
+
+def _settle_until(cond, ms=4000):
+    end = time.time() + ms / 1000
+    while not cond() and time.time() < end:
+        QCoreApplication.processEvents()
+        time.sleep(0.01)
+    return cond()
+
+
+def _toast(w) -> str:
+    """The text of the toast the shell's Overlays show right now ("" when none is on show)."""
+    win = w.window  # kept: the item wrappers die with a window wrapper that was only a temporary
+    todo = [win.contentItem()]
+    while todo:
+        item = todo.pop()
+        try:
+            if item.objectName() == "overlays":
+                return str(item.property("toastText")) if item.property("toastShown") else ""
+            todo.extend(item.childItems())
+        except RuntimeError:  # an item that went away while looking
+            continue
+    return ""
+
+
+def test_the_real_shell_renders_the_check_toast_and_other_pages_toasts(qt_app, tmp_path, monkeypatch):
+    from roundtable_souls.ui.launcher.window import ShellWindow
+
+    monkeypatch.setattr(updates_mod.feed, "check_launcher_update", lambda force=False: feed.UpdateCheck("fresh"))
+    monkeypatch.setattr(updates_mod.feed, "check_advisory", lambda force=False: None)
+    host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
+    w = ShellWindow(host)
+    try:
+        assert w.build() and w.window is not None
+        w.window.resize(1100, 760)
+        w.window.show()
+        w.adapter.open_page("settings")
+        assert _settle_until(lambda: w.page_item("settings") is not None)
+        adapter = w.adapter.adapterFor("settings")
+        host.check_for_updates()
+        assert adapter.launcherLine.startswith("Checking for updates")
+        assert _settle_until(lambda: "Up to date" in _toast(w)), "the check toast never showed"
+        assert not adapter.launcherLine.startswith("Checking")
+        w.adapter.open_page("mods")
+        w.adapter.notifierFor("mods").toast("Hello from Mods")
+        assert _settle_until(lambda: "Hello from Mods" in _toast(w)), "a page's toast never showed"
+    finally:
+        w.dispose()

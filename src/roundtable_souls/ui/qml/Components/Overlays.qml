@@ -21,6 +21,8 @@ Item {
     property var fullSource: null
     property var notifiers: []
     property Item toastItem: null
+    readonly property string toastText: toastItem ? toastItem.text : ""  // what is on show (tests)
+    readonly property bool toastShown: !!toastItem && toastItem.visible && toastItem.opacity > 0
 
     function dismissToast() {
         if (root.toastItem)
@@ -28,6 +30,7 @@ Item {
     }
 
     anchors.fill: parent
+    objectName: "overlays"
 
     Item {  // toasts float above the page
         id: overlay
@@ -89,6 +92,7 @@ Item {
             function onToastActionRequested(text, isError, actionLabel, token) {
                 root.dismissToast();
                 root.toastItem = toastComponent.createObject(overlay, {
+                    "objectName": "toast",
                     "text": text,
                     "isError": isError,
                     "actionLabel": actionLabel,
@@ -100,6 +104,7 @@ Item {
             function onToastRequested(text, isError) {
                 root.dismissToast();
                 root.toastItem = toastComponent.createObject(overlay, {
+                    "objectName": "toast",
                     "text": text,
                     "isError": isError
                 });

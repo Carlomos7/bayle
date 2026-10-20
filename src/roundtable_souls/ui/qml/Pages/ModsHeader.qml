@@ -170,6 +170,20 @@ Item {
 
                     onTriggered: header.adapter.openVersions()
                 }
+                MenuEntry {
+                    icon_: "Share"
+                    objectName: "exportProfile"
+                    text: header.words.exportProfile
+
+                    onTriggered: header.adapter.openProfileTransfer("export")
+                }
+                MenuEntry {
+                    icon_: "Download"
+                    objectName: "importProfile"
+                    text: header.words.importProfile
+
+                    onTriggered: header.adapter.openProfileTransfer("import")
+                }
                 MenuSep {
                 }
                 MenuEntry {

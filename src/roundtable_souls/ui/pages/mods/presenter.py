@@ -791,6 +791,9 @@ class ModsPresenter:
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
 
+    def move_busy(self) -> Refusal:
+        return Refusal(tr("Load order not changed"), tr("Wait for the current job to finish, then move it."))
+
     def edit_options_text(self) -> str:
         return tr("Edit options")
 

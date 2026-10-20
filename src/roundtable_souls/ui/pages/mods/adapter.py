@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from roundtable_souls.mods import conflicts as mod_overview
+from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile_edit
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import adopt as adopt_service
@@ -124,6 +125,7 @@ class ModsAdapter(QObject):
         self.notifier = notifier
         self.presenter = presenter or ModsPresenter()
         self._facts: profile_mods.PageFacts | None = None
+        self._drag: dict = {}
         self._scan: dict | None = None
         self._tool: Any = None
         self._rebuild_undo: dict | None = None
@@ -422,6 +424,10 @@ class ModsAdapter(QObject):
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None:
             return
+        if self.host.busy:  # a running job holds the profile: say so, never a silent revert
+            self.notifier.toast(self.presenter.move_busy().body, error=True)
+            self.refresh()
+            return
         try:
             plan = profile_mods.move_entry(profile, entry["kind"], index, to, loc=self.host.locations)
         except Exception as e:
@@ -448,6 +454,47 @@ class ModsAdapter(QObject):
             self.refresh()
             return
         self._changed(f"profile: moved {entry['name']}", tr("Load order changed"))
+
+    @Slot(int)
+    def beginDrag(self, index: int) -> None:
+        """A drag starts: read the profile text and the stays-last target once, so the drop spots are judged in memory
+        (no disk read while the pointer moves). The real check and the write happen on drop (moveTo)."""
+        self._drag = {}
+        profile, entry = self._profile(), self._entry(index)
+        if profile is None or entry is None or self.host.busy:
+            return
+        try:
+            loc = self.host.locations
+            self._drag = {
+                "profile": profile,
+                "text": profile_edit.read_text(Path(profile)),
+                "tgt": mod_order.target(Path(profile), loc),
+                "kind": entry["kind"],
+                "memo": {},
+            }
+        except Exception:
+            self._drag = {}
+
+    @Slot()
+    def endDrag(self) -> None:
+        self._drag = {}
+
+    @Slot(int, int, result=str)
+    def dropReason(self, index: int, to: int) -> str:
+        """Why dropping entry `index` at position `to` would be refused (words for the drop spot), or "" when allowed.
+        The same rules moveTo applies (mods.order.move), over the text read when the drag began."""
+        if self.host.busy:
+            return self.presenter.move_busy().body
+        d = self._drag
+        if not d:
+            return ""
+        if to not in d["memo"]:
+            try:
+                plan = mod_order.move(Path(d["profile"]), d["text"], d["kind"], index, to, d["tgt"])
+                d["memo"][to] = plan.problem if plan.text is None and plan.problem else ""
+            except Exception as e:
+                d["memo"][to] = str(e)
+        return d["memo"][to]
 
     @Slot(int, int)
     def moveBy(self, index: int, delta: int) -> None:

@@ -282,10 +282,16 @@ def _state_folders(root: Path) -> StateFolders:
 def state_of(profile: Path) -> StateFolders:
     """The launcher's own folder for a profile: the library's .roundtable for a profile in rs-<game>/profiles, else
     .roundtable beside the profile (existing setups keep everything where they are)."""
+    lib = library_of(profile)
+    return lib.state if lib is not None else _state_folders(Path(profile).parent / STATE)
+
+
+def library_of(profile: Path) -> ModLibrary | None:
+    """The library a profile in rs-<game>/profiles belongs to, else None (a profile kept elsewhere)."""
     folder = Path(profile).parent
     if folder.name == "profiles" and folder.parent.name.startswith(PREFIX):
-        return _state_folders(folder.parent / STATE)
-    return _state_folders(folder / STATE)
+        return ModLibrary(folder.parent, folder.parent.name[len(PREFIX) :])
+    return None
 
 
 def ensure_state(state: StateFolders, *folders: Path) -> None:

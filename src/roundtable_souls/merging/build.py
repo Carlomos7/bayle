@@ -271,17 +271,21 @@ class Operation:
         self._save()
 
     # -------------------------------------------------------------- preparing (nothing live changes)
-    def replace_folder(self, live: Path, staged: Path) -> None:
+    def replace_folder(self, live: Path, staged: Path, keep: bool = False) -> None:
         """staged (filled and checked beside live, on the same drive) takes live's place; a live folder already
         there is kept as <name>-<id>-<step> in aside when that is on the same drive (the step number keeps two folders
-        of one name apart, an overhaul's sources and its runtime folder, say), else as .<name>.previous-<id> beside it."""
+        of one name apart, an overhaul's sources and its runtime folder, say), else as .<name>.previous-<id> beside it.
+        keep: staged is somebody's own folder being moved (an adoption), not a temporary one: discard() leaves it."""
         live, staged = Path(live), Path(staged)
         prev = None
         if live.exists():
             prev = live.with_name(f".{live.name}.previous-{self.id}")
             if self.aside is not None and _same_drive(self.aside.parent, live.parent):
                 prev = self.aside / f"{live.name}-{self.id}-{len(self.steps)}"
-        self.steps.append({"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")})
+        step = {"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")}
+        if keep:
+            step["keep"] = True
+        self.steps.append(step)
         self._save()
 
     def write_file(self, live: Path, data: bytes | None, expect: str | None = None) -> None:
@@ -313,7 +317,8 @@ class Operation:
         """Give up before commit(): the staged folders and builds go, nothing live was touched."""
         for step in self.steps:
             if step["type"] == "folder":
-                shutil.rmtree(step["staged"], ignore_errors=True)
+                if not step.get("keep"):
+                    shutil.rmtree(step["staged"], ignore_errors=True)
             elif step["type"] == "build":
                 shutil.rmtree(Path(step["live"]).with_name("." + Path(step["live"]).name + ".staging"), True)
         for b in self._builds:

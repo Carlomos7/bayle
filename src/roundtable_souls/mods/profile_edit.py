@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
+import os
 import re
 import shutil
 import time
@@ -315,6 +316,11 @@ def roots(profile: Path, text: str) -> tuple[Path, Path]:
     named mod / mods / packages beside the profile), else mod/; natives likewise into natives/. A package that lives
     inside another mod's own folder (Revive's NightreignRevive/mod) is never used as the container."""
     profile = Path(profile)
+    from roundtable_souls.mods import library
+
+    lib = library.library_of(profile)
+    if lib is not None:
+        return lib.packages, lib.natives
     if is_array_form(text):
         text = to_blocks(text)
     counts: dict[tuple[str, Path], int] = {}
@@ -346,9 +352,16 @@ def slug(name: str) -> str:
 
 
 def rel(profile: Path, target: Path) -> str:
+    """target as a path from the profile's folder; in a library profile a place elsewhere in the library is reached
+    with ../ (the library can be moved as one), anything else stays as given."""
+    from roundtable_souls.mods import library
+
     try:
         return str(Path(target).relative_to(Path(profile).parent)).replace("\\", "/")
     except ValueError:
+        lib = library.library_of(profile)
+        if lib is not None and lib.place_of(target) is not None:
+            return os.path.relpath(target, Path(profile).parent).replace("\\", "/")
         return str(target).replace("\\", "/")
 
 

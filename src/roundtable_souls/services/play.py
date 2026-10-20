@@ -707,7 +707,7 @@ def play_headless(
     if setup is None:
         run_logging.start_log("launcher: play (no window)", game.key)
         run_logging.log(
-            f"error: no working {game.name} setup found; open Roundtable Souls once, pick the {game.name} tab, "
+            f"error: no working {game.name} profile found; open Roundtable Souls once, pick the {game.name} tab, "
             "and choose one on the Play page"
         )
         return 1
@@ -791,7 +791,7 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
     lines.append(f"installed games: {', '.join(installed) or 'none found'}")
     remembered = remembered_setup(settings, game)
     setups = discover(remembered, loc) if game.ready else []
-    lines.append(f"setups found: {len(setups)}")
+    lines.append(f"profiles found: {len(setups)}")
     for s in setups:
         spec = scaling_spec(s.ini) if s.ini else None
         sc = read_scaling(s.ini, spec) if s.ini else None

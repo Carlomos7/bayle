@@ -49,7 +49,7 @@ GAMES
 The game button at the top of the window picks the game: click it for Elden
 Ring, Nightreign, Dark Souls III or Sekiro, or press Ctrl+Tab and
 Ctrl+Shift+Tab to step through them. Every page then works on that game: its
-setups, its Seamless Co-op settings, its mods and its saves. Settings is shared
+profiles, its Seamless Co-op settings, its mods and its saves. Settings is shared
 by all games. The window opens on the game you used last.
 
   Elden Ring    everything described below.
@@ -71,7 +71,7 @@ THE PAGES
 ---------
 
 Play
-  Your character, the setup that Play will start, and the Play button. Leave
+  Your character, the profile that Play will start, and the Play button. Leave
   the window open while you play; it can be minimised. After you quit it
   repairs your saves (see "Save repairs" below) and closes any leftover game
   processes. Setup lets you switch profiles or pick a .me3 file.
@@ -317,7 +317,7 @@ Saves
                         me3 leaves behind.
 
   The line at the top says which file Play uses and which one Play offline
-  uses. That follows your setup: a save file name set in the me3 profile, and
+  uses. That follows your profile: a save file name set in the me3 profile, and
   Seamless Co-op's own save file setting, are both honoured, so a renamed
   save is listed and repaired after play like the default one.
 
@@ -389,10 +389,10 @@ Roundtable Souls can run Play without its window:
      Settings > Steam shortcut shows the exact target and options for the
      game picked at the top, with Copy buttons. Make one shortcut per game.
 
-Starting the shortcut uses the setup Play last used for that game, launches
+Starting the shortcut uses the profile Play last used for that game, launches
 it, and (Elden Ring) repairs your saves when you quit, just like the Play
 button. Without --game it plays the game the window showed last. Open the
-window once in Desktop Mode first so a setup is remembered.
+window once in Desktop Mode first so a profile is remembered.
 
 
 UPDATES

@@ -437,7 +437,7 @@ class LaunchFlow:
             (
                 tr(
                     "When you play online, the game sends a fingerprint of its game data to FromSoftware's servers. "
-                    "Changed data can be detected. Roundtable starts modded setups with online play off."
+                    "Changed data can be detected. Roundtable starts modded profiles with online play off."
                 ),
                 tr("This profile has online play on."),
             ),

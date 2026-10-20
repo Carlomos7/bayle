@@ -2,14 +2,14 @@
 
 > Launcher and save toolkit for modded Elden Ring and Nightreign, on Windows, Linux and Steam Deck
 
-A desktop app (PySide6, Qt Quick) that starts Elden Ring and Nightreign through [me3](https://github.com/garyttierney/me3), keeps Seamless Co-op settings in one place, manages me3 profiles and mods, and checks and repairs PC save files. It is the one window a co-op group needs open: pick the game at the top, pick a setup, press Play, and the saves are looked after when the game closes. From Steam or a Steam Deck in Gaming Mode, a `--game <name> --play` shortcut does the same without the window. Dark Souls III and Sekiro have placeholder pages until their support lands.
+A desktop app (PySide6, Qt Quick) that starts Elden Ring and Nightreign through [me3](https://github.com/garyttierney/me3), keeps Seamless Co-op settings in one place, manages me3 profiles and mods, and checks and repairs PC save files. It is the one window a co-op group needs open: pick the game at the top, pick a profile, press Play, and the saves are looked after when the game closes. From Steam or a Steam Deck in Gaming Mode, a `--game <name> --play` shortcut does the same without the window. Dark Souls III and Sekiro have placeholder pages until their support lands.
 
 ## Architecture Overview
 
 ```mermaid
 graph TD
     UI["<b>UI</b> (ui/, cli.py)<br/>━━━━━━━━━━━━<br/>• window: Play, Co-op, Mods, Saves, Settings, Review & fix<br/>• theme, widgets, editor, dialogs, notes<br/>• cli: --play, --check, --update, --game"]
-    SERVICES["<b>SERVICES</b><br/>━━━━━━━━━━━━<br/>• play: setups, play jobs, --play, --check<br/>• mods, saves, coop, settings, updates"]
+    SERVICES["<b>SERVICES</b><br/>━━━━━━━━━━━━<br/>• play: profiles, play jobs, --play, --check<br/>• mods, saves, coop, settings, updates"]
     AREAS["<b>MODS · SAVES · COOP · UPDATES</b><br/>━━━━━━━━━━━━<br/>• mods: profiles, the profile writer and its rules, load order, install, remove, checks, conflicts, rebuild<br/>• saves: parsers, checks, repairs, library, backups<br/>• coop: Seamless ini, scaling, sharing<br/>• updates: feed, apply, signing, headless"]
     OVERHAULS["<b>OVERHAULS</b><br/>━━━━━━━━━━━━<br/>• overhaul configs (data/overhauls), install plans"]
     MERGING["<b>MERGING</b><br/>━━━━━━━━━━━━<br/>• merger and per-format rules<br/>• build, operations journal, record"]
@@ -39,7 +39,7 @@ The window never touches a save directly. Every read goes through `save_info`, e
 
 ## Key Features
 
-- Game switcher: Elden Ring and Nightreign, each with its own setup, co-op settings, mods and saves; placeholder pages for Dark Souls III and Sekiro
+- Game switcher: Elden Ring and Nightreign, each with its own profile, co-op settings, mods and saves; placeholder pages for Dark Souls III and Sekiro
 - One-click Play through me3 (or, for Elden Ring, a the overhaul installation), with Steam sign-in wait, leftover-process cleanup and save repair after the game closes
 - `--game <name> --play` for a Steam shortcut, Big Picture or Steam Deck Gaming Mode: the same session without the window, one shortcut per game
 - Seamless Co-op for both games: password where the mod has one, difficulty (presets by party size for Elden Ring), every other setting explained, and a share format for a group

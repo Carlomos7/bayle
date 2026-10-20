@@ -1201,7 +1201,7 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
     # its own config first: a folder another config also fits is still the one the player set up
     out = preview_install(profile, folder, loc=loc, configs=[made, *(c for c in configs if c.id != made.id)])
     if path.is_file():
-        out.notes.append(f"Your setup in {path.name} is replaced by this one (Undo puts the old one back).")
+        out.notes.append(f"Your profile in {path.name} is replaced by this one (Undo puts the old one back).")
     return out
 
 

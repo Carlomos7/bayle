@@ -131,11 +131,11 @@ do = "merge"
 file = "script/talk/m00_00_00_00.talkesdbnd.dcx"
 patch = "payload/settings/m00_00_00_00.talkesdbnd.dcx"
 
+# Revive's menu text in each of the game's languages, set in the game's own file (a missing one stops the build)
 [[builds.steps]]
 do = "text"
-each = { folders_in = "payload/settings/vanilla/msg", except = ["common"] }
+each = { game = "languages" }
 file = "msg/{each}/menu_dlc02.msgbnd.dcx"
-vanilla = "payload/settings/vanilla/msg/{each}/menu_dlc02.msgbnd.dcx"
 table = "eventtextfortalk.fmg"
 texts = { rusru = "payload/settings/rusru.json", "*" = "payload/settings/engus.json" }
 

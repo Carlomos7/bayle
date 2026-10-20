@@ -420,8 +420,10 @@ def _notices(recipe: dict, setup: Path, stage: Path) -> list[str]:
 def _each(step, setup) -> list:
     if not step.get("each"):
         return [None]
-    base = setup / step["each"]["folders_in"]
     skip = set(step["each"].get("except") or [])
+    if step["each"].get("game"):  # a list in the game's data: the launcher reads the game, never the download's copy
+        return sorted(n for n in getattr(game_config.load(), step["each"]["game"]) if n not in skip)
+    base = setup / step["each"]["folders_in"]
     return sorted(p.name for p in base.iterdir() if p.is_dir() and p.name not in skip)
 
 
@@ -469,8 +471,6 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         out.write_bytes(data)
         return out
     vanilla = gamearchive.read(game_dir, rel)
-    if vanilla is None and step.get("vanilla"):
-        vanilla = (setup / _fill(step["vanilla"], values)).read_bytes()
     if kind == "text":
         if vanilla is None:
             raise EngineError(f"The game's own {rel} was not found in its archives.")

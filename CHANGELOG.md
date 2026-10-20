@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The old Widgets window is gone, with the hidden `--widgets` switch and the fallback to it. The Qt Quick shell is the
+  only window. A failed start and a Steam-shortcut Play that did not start show a small Qt Quick message window. The
+  PySide6-Fluent-Widgets library (and its helpers) is no longer part of the program, so the download is smaller.
 - A rebuild of an engine mod (Revive and the like) that is interrupted at the very moment the new build replaces
   the old one no longer leaves the mod folder missing: the next start puts the old build back. A folder you delete
   yourself stays deleted.

@@ -373,7 +373,7 @@ def torrent_text(horse) -> str:
 
 
 def character_detail(info: dict, slot_index: int) -> dict:
-    """Everything the workshop's About card shows for one character (0-based slot)."""
+    """Everything the Check & repair page's About card shows for one character (0-based slot)."""
     ch = next((c for c in info.get("characters") or [] if c["slot"] == slot_index + 1), None)
     if not ch:
         return {}

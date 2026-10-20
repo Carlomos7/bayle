@@ -92,7 +92,7 @@ class Services:
     job_play_vanilla: Callable[..., None] = core.job_play_vanilla
 
 
-def gate(state: LauncherState, mode: str) -> str:
+def gate(state: LauncherState, mode: str, problems: tuple[str, ...] | None = None) -> str:
     """Why Launch cannot start now, or "" when it can: a job or the game running, an unsupported or missing game,
     no profile, a profile with problems (an incomplete managed setup, me3 missing). The pill shows the same reasons."""
     if state.busy:
@@ -104,7 +104,7 @@ def gate(state: LauncherState, mode: str) -> str:
         game=state.game,
         installed=bool(state.locations.game_dir()),
         profile_count=1 if setup else 0,
-        problems=tuple(setup.problems()) if setup else (),
+        problems=tuple(setup.problems()) if setup and problems is None else (problems or ()),
     )
     why = topbar.blocked(facts, mode)
     return why[0] if why else ""
@@ -120,6 +120,7 @@ class _Run:
     cancelled: bool = False  # "Stop after the rebuild"
     profile: Path | None = None
     confirmed: bool = False  # "Launch Offline" was confirmed
+    refused: bool = False  # the fresh check found a reason not to start
 
 
 class LaunchFlow:
@@ -137,17 +138,33 @@ class LaunchFlow:
         if self.active:
             return False
         mode = mode if mode in topbar.MODES else topbar.PROFILE
-        why = gate(self.state, mode)
+        why = gate(self.state, mode, ())  # the quick reasons first, with no disk reads
         if why:
             self.ports.toast(why, error=True)
             return False
         self.active = True
         setup = self.state.setup
         run = self._run = _Run(mode, allow_without_backup=allow_without_backup)
+        self.ports.progress(tr("Checking..."))
+
+        def check():  # the profile's disk checks, read fresh now (never a cached answer), off the UI thread
+            return tuple(setup.problems()) if setup and mode != topbar.VANILLA else ()
+
+        self.ports.background(check, lambda problems: self._gated(run, mode, problems))
+        return not run.refused
+
+    def _gated(self, run: _Run, mode: str, problems: tuple[str, ...]) -> None:
+        """The fresh check is back: the full gate on it, then the flow."""
+        why = gate(self.state, mode, problems)
+        if why:
+            run.refused = True
+            self.ports.toast(why, error=True)
+            self._end()
+            return
+        setup = self.state.setup
         run.profile = Path(setup.profile) if setup and mode != topbar.VANILLA else None
         self.ports.progress(tr("Starting..."))
         self._pending_edits(run)
-        return True
 
     def stop_after_rebuild(self) -> None:
         """ "Stop after the rebuild" (spec 1174, owner D6 A): the rebuild finishes (a tool stopped midway could leave

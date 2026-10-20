@@ -2,7 +2,7 @@
 
 All notable changes to Roundtable Souls. The version is shown in the window title.
 
-## [Unreleased]
+## [4.0.0] - 2026-10-20
 
 - Settings > Updates > Check for updates answers at once: the line says "Checking for updates..." and the button waits, then a toast says up to date, could not check, or that an update is available.
 - Wording: "setup" that means a launchable profile reads "profile" in the window, the CLI, the docs and the README (folders, installer and Setup.exe keep their names).

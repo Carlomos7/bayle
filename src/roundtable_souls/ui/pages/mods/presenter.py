@@ -225,6 +225,7 @@ class ModsPresenter:
             "discard": tr("Discard"),
             "cancel": tr("Cancel"),
             "close": tr("Close"),
+            "createProfile": tr("Create a profile"),
             "unsavedTitle": tr("Unsaved changes"),
             "unsavedBody": tr(
                 "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
@@ -296,15 +297,22 @@ class ModsPresenter:
         recovered: tuple[str, ...] = (),
         adopt: str = "",
         seamless: str = "",
+        no_profiles: bool = False,
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
         changes put right as the page opened (one line each); adopt: the folder name of a setup to offer to adopt into the
-        library ("" for none)."""
+        library ("" for none). no_profiles: this game has no profile at all, so the page says how to start."""
         if facts is None:
-            return ModsState(
-                tr("Mods"), "", None, (), self.parameters(None, game_running), (), tr("Pick a profile first.")
+            words = (
+                tr(
+                    "You have no profile yet. A profile is the list of mods the game starts with. "
+                    "Create one, then add mods to it here."
+                )
+                if no_profiles
+                else tr("Pick a profile first.")
             )
+            return ModsState(tr("Mods"), "", None, (), self.parameters(None, game_running), (), words)
         if facts.error:
             return ModsState(
                 facts.profile.stem,

@@ -309,7 +309,7 @@ Item {
     TeachingTip {
         parent: Overlay.overlay
         text: qsTr("Launch runs the selected profile. The mode word picks Profile, Offline or Vanilla.")
-        visible: !root.compact && root.shell.tips.indexOf("launch") >= 0
+        visible: !root.compact && root.shell.tips.indexOf("launch") >= 0 && root.shell.pill.state === "enabled"   // not over the first-run page text while Launch is blocked
         x: 8 + 36 + 10 + 8
         y: root.implicitHeight + 6
         z: 30

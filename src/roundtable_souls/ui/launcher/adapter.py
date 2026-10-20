@@ -72,6 +72,7 @@ class ShellAdapter(QObject):
         host.forwardRequested.connect(self.forwardRequested)
         host.quitRequested.connect(self._quit)
         host.pageRequested.connect(self.goTo)
+        host.newProfileAsked.connect(lambda: self._shell_command("newProfile", []))
         host.gameChanged.connect(self._game_changed)
         self._recompute()
         self.adapterFor(self._current)  # the first page is made before the window asks for it

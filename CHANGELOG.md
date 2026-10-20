@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves: an empty Library says "No saved copies yet" with one sentence and one Import button; the Library and Backups lists are virtualized (they stay smooth with hundreds of copies), and an expanded copy stays open when it scrolls out of view.
 - Text sizes: the shortcut hints and the navigation badge use the theme's type scale; nothing is below 12 px any more.
 - Saves: a Library copy is restored over a live save (Restore, as for a backup), and the confirmation says when a Seamless .co2 goes over a Standard .sl2. Dropping several files imports each and names any that are not save files. Refusals say why instead of "cannot be dropped". Save a copy and Import only read, so they work while the game runs (Back up now still waits for it to close).
 - Saves: a backup is removed, not deleted ("Remove this backup" / "Remove"), as Library copies already are.

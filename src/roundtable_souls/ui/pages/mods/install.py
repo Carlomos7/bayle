@@ -56,20 +56,14 @@ def words() -> dict[str, str]:
     return {
         "variantLabel": tr("The archive has more than one: which to install"),
         "folderName": tr("Folder name"),
-        "overhaulName": tr("Name"),
         "id": tr("Id"),
         "whatToInstall": tr("What to install"),
         "itemsNote": tr("Unticked files are left out. Tick one to keep it with the mod anyway."),
         "regulation": tr("regulation.bin"),
-        "placeBefore": tr("Before the package that must stay last"),
-        "placeLast": tr("Last: this mod's regulation.bin is used"),
         "install": tr("Install"),
-        "installOverhaul": tr("Install as overhaul"),
         "cancel": tr("Cancel"),
         "working": tr("Working..."),
         "overhaulOption": tr("Set up as an overhaul (loads last, merged with the mods before it)"),
-        "verified": tr("verified"),
-        "yourConfig": tr("your config, not verified"),
     }
 
 
@@ -184,6 +178,7 @@ class InstallDraft:
             "badge": (tr("verified") if found.get("verified") else tr("your config, not verified"))
             if state == "matched"
             else "",
+            "badgeLevel": "success" if found.get("verified") else "warning",
         }
 
     # ---- regulation.bin

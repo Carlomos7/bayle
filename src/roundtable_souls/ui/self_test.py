@@ -71,11 +71,56 @@ class SelfTestHost:
     def pick_file(self, title: str, filters: str) -> None:
         return None
 
+    def pick_folder(self, title: str) -> None:
+        return None
+
     def save_file(self, title: str, name: str) -> None:
         return None
 
     def open_mod_configs(self, select: str = "") -> None:
         pass
+
+    def open_profile_transfer(self, mode: str) -> None:
+        pass
+
+    def open_profile_import(self, unpacked, profiles, staging=None) -> None:
+        pass
+
+    def saves_in_use(self) -> dict:
+        return {}
+
+    def settings_changed(self, key: str) -> None:
+        pass
+
+    def set_appearance(self) -> None:
+        pass
+
+    def check_for_updates(self) -> None:
+        raise RuntimeError("the self-test checks no updates")
+
+    def update_state(self) -> dict:
+        return {"line": "", "tone": "muted", "notices": []}
+
+    def watch_updates(self, call) -> None:
+        pass
+
+    def notice_action(self, notice_id: str, key: str) -> None:
+        raise RuntimeError("the self-test updates nothing")
+
+    def dismiss_notice(self, notice_id: str) -> None:
+        pass
+
+    def point_steam_shortcuts(self) -> None:
+        raise RuntimeError("the self-test changes no Steam shortcut")
+
+    def save_logs_for_support(self) -> None:
+        raise RuntimeError("the self-test saves no logs")
+
+    def open_logs_folder(self) -> None:
+        pass
+
+    def me3_facts(self) -> dict:
+        return {}
 
 
 class Report:

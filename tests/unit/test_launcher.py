@@ -285,6 +285,7 @@ def test_offline_profile_disables_only_seamless():
     )
     assert out.count("[[natives]]") == 3 and out.startswith("# OFFLINE COPY")
     assert "Revive disabled" not in out
+    assert "start_online = true" not in g.offline_profile_text(text.replace("= false", "= true", 1))
 
 
 def test_offline_profile_can_strip_revive():

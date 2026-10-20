@@ -80,8 +80,15 @@ class Output(_Strict):
 
 # ----------------------------------------------------------------------------- steps
 class Each(_Strict):
-    folders_in: str  # the step runs once per folder in here ({each})
+    folders_in: str | None = None  # the step runs once per folder in here ({each})
+    game: Literal["languages"] | None = None  # or once per entry of this list of the game's data (game/config.py)
     except_: list[str] = Field(default_factory=list, alias="except")
+
+    @model_validator(mode="after")
+    def _one_source(self) -> Each:
+        if (self.folders_in is None) == (self.game is None):
+            raise ValueError("each names either folders_in or game")
+        return self
 
 
 class CopyTree(_Strict):
@@ -113,7 +120,6 @@ class Merge(_Strict):
     do: Literal["merge"]
     file: str
     patch: str
-    vanilla: str | None = None  # the download's copy of the game's file, when the game's archives lack it
     each: Each | None = None
 
 
@@ -122,7 +128,6 @@ class AddText(_Strict):
     file: str
     table: str
     texts: dict[str, str]  # {each} folder (or "*") -> the mod's strings, a JSON object of text ID to string
-    vanilla: str | None = None
     each: Each | None = None
 
 

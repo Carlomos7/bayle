@@ -46,6 +46,9 @@ INSTALLER_SUFFIXES = {".exe", ".cmd", ".bat", ".ps1", ".py"}  # a download that 
 SETTINGS_SUFFIXES = {".ini", ".toml", ".json", ".cfg", ".conf", ".yaml", ".yml", ".xml"}
 MERGED_ENDING = "bnd.dcx"  # binders (anibnd, behbnd, partsbnd, msgbnd, talkesdbnd, ...): the merger reads them
 PACKAGE = "mod"  # the package's folder inside the overhaul's own folder (Output.mod)
+LAUNCHER_RECORD = (
+    "roundtable.json"  # the launcher's own file at the top of its copy of a download (mods.library.RECORD)
+)
 
 
 def files_of(folder: Path) -> list[str]:
@@ -56,6 +59,8 @@ def files_of(folder: Path) -> list[str]:
     out = []
     for p in folder.rglob("*"):
         if not p.is_file() or p.suffix.lower() in INSTALLER_SUFFIXES or p.suffix.lower() == ".me3":
+            continue
+        if p.name == LAUNCHER_RECORD and p.parent == folder:
             continue
         if p.stat().st_size:
             out.append(p.relative_to(folder).as_posix())

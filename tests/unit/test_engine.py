@@ -15,6 +15,7 @@ from test_param_merge import pack, rows_of, set_word, vanilla
 from roundtable_souls import overhauls
 from roundtable_souls.config import settings
 from roundtable_souls.formats.esd import write_esd
+from roundtable_souls.game import config as game_config
 from roundtable_souls.game import locate
 from roundtable_souls.mods import backends, engine
 from roundtable_souls.mods import rebuild as merge
@@ -64,7 +65,7 @@ GAME_CLIPS = {"a000_000.hkx": b"walk", "a000_001.hkx": b"run", "a000_002.hkx": b
 
 def game_files() -> dict[str, bytes]:
     files = {rel: dcx(bnd(GAME_CLIPS)) for rel in ARCHIVES}
-    for lang in ("engus", "rusru"):
+    for lang in game_config.load().languages:
         files[f"msg/{lang}/menu_dlc02.msgbnd.dcx"] = dcx(
             bnd({"EventTextForTalk.fmg": fmg({1000: "Rest", 1001: None}), "Other.fmg": fmg({5: "x"})})
         )
@@ -95,8 +96,6 @@ class Revive:
         (self.setup / "payload/mod/regulation.bin").write_bytes(pack({"EquipParamWeapon": set_word(2000, 1, 77)}))
         (self.setup / "payload/settings/engus.json").write_text('{"99002000": "Revive: session settings"}')
         (self.setup / "payload/settings/rusru.json").write_text('{"99002000": "Revive ru"}', encoding="utf-8")
-        for lang in ("engus", "rusru"):
-            (self.setup / f"payload/settings/vanilla/msg/{lang}").mkdir(parents=True)
         (self.setup / "payload/mod/action/script").mkdir(parents=True)
         (self.setup / "payload/mod/action/script/c0000.hks").write_text(
             "-- vanilla\nfunction Update() end\n-- Wrap the current mod's Update;\nrevive stock wrapper\n"
@@ -298,6 +297,17 @@ def test_a_failed_merge_leaves_the_build_in_place_and_no_staging(world, monkeypa
 
     monkeypatch.setattr(merger, "merge", fail)
     with pytest.raises(RuntimeError, match="could not read"):
+        world.build()
+    assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
+    assert not list(world.base.glob(".NightreignRevive.building-*"))
+
+
+def test_a_language_file_missing_from_the_game_stops_the_text_step(world, monkeypatch):
+    """The text step reads the game's own file in every language of the game: with one missing it refuses, naming it,
+    and the build in place stays."""
+    files = {k: v for k, v in game_files().items() if k != "msg/thath/menu_dlc02.msgbnd.dcx"}
+    fakegame.game(monkeypatch, files)
+    with pytest.raises(engine.EngineError, match=r"msg/thath/menu_dlc02\.msgbnd\.dcx was not found in its archives"):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
     assert not list(world.base.glob(".NightreignRevive.building-*"))

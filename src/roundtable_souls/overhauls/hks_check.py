@@ -1,5 +1,5 @@
-"""Game-level checks of a composed character script (backlog H2): calls the game can't resolve, and env/act command
-IDs the game doesn't handle. Warnings only: nothing here refuses a build.
+"""Game-level checks of a composed character script (backlog H2): calls the game can't resolve, env/act command
+IDs the game doesn't handle, and numbers a float can't hold (backlog H3). Warnings only: nothing here refuses a build.
 
 A character script's calls resolve to (game-model/havok-script.md): the functions the game's exe gives it (shipped as
 data by the exe's version, game.knowledge), the four shared scripts the game always loads with it (read from the
@@ -17,6 +17,7 @@ see lua_check) is not checked here.
 from __future__ import annotations
 
 import re
+import struct
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +39,13 @@ _TESTED = (
     re.compile(r"\b([A-Za-z_]\w*)\s*[~=]=\s*nil\b"),
     re.compile(r"\bnil\s*[~=]=\s*([A-Za-z_]\w*)\b"),
 )
+# Lua's lexical pieces, in the order they must be tried: comments and strings (skipped), then numbers.
+_TOKEN = re.compile(
+    r"--\[(?P<ce>=*)\[.*?\](?P=ce)\]|--[^\n]*|\[(?P<se>=*)\[.*?\](?P=se)\]|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'"
+    r"|(?P<num>0[xX][0-9a-fA-F]+(?![hH][iIlL])(?!\w)|\b\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)",
+    re.S,
+)
+BIG = 2**24  # the game's script numbers are 4-byte floats: most whole numbers above this lose precision
 
 
 @dataclass
@@ -95,6 +103,28 @@ def _tested(text: str) -> set[str]:
     return {m.group(1) for line in text.split("\n") for r in _TESTED for m in r.finditer(line.split("--")[0])}
 
 
+def _fits_float(value: float) -> bool:
+    """Whether a 4-byte float holds the number exactly (above 2^24 only some whole numbers survive)."""
+    try:
+        return struct.unpack("f", struct.pack("f", value))[0] == value
+    except OverflowError:
+        return False
+
+
+def _big_numbers(text: str) -> dict[str, int]:
+    """Numeric constants above 2^24 that a 4-byte float can't hold exactly, outside strings and comments (hex too; Havok's own hi/hl literals are integers,
+    not floats), each with the line it first appears on."""
+    out: dict[str, int] = {}
+    for m in _TOKEN.finditer(text):
+        lit = m.group("num")
+        if lit is None:
+            continue
+        value = int(lit, 16) if lit[:2] in ("0x", "0X") else float(lit)
+        if value > BIG and not _fits_float(value):
+            out.setdefault(lit, text.count("\n", 0, m.start()) + 1)
+    return out
+
+
 def _native(name: str, declared: Sequence[str]) -> bool:
     return any(name.startswith(d[:-1]) if d.endswith("*") else name == d for d in declared)
 
@@ -148,5 +178,10 @@ def check(
         out.append(
             f"{entry} line {line}{where(line)}: {name}({shown}, ...) uses an ID the game doesn't handle; what the "
             f"game does with it isn't known{caveat}"
+        )
+    for lit, line in _big_numbers(composed.text).items():
+        out.append(
+            f"{entry} line {line}{where(line)}: {lit} is larger than the game's script numbers can hold exactly "
+            f"({BIG:,}); it will be rounded."
         )
     return out

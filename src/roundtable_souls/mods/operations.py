@@ -50,6 +50,24 @@ def _bases(profile: Path) -> list[tuple[Path, str]]:
     return [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
 
 
+def _watched(profile: Path) -> list[tuple[Path, str]]:
+    """_bases, and the ops of the libraries near the profile: an adoption (mods.adopt) is journaled in the library its
+    profiles move to, and until it is finished or undone the folder it came from is not in a known state."""
+    out = _bases(profile)
+    own = out[0][0]
+    here = Path(profile).parent
+    for folder in (here, *here.parents[:2]):
+        try:
+            near = sorted(folder.glob(library.PREFIX + "*"))
+        except OSError:
+            continue
+        for lib in near:
+            state = lib / library.STATE
+            if state != own and (state / library.OPS).is_dir() and (state, library.OPS) not in out:
+                out.append((state, library.OPS))
+    return out
+
+
 def lock(profile: Path, timeout: float = 30.0):
     """Held around an operation on this profile's folder, by every launcher process: the library's ops.lock for a
     library profile, else the lock launchers before 3.23 hold too (.roundtable-ops.lock beside the profile)."""
@@ -66,17 +84,22 @@ def _active(profile: Path) -> list[build.Operation]:
 def recover(profile: Path, timeout: float = 30.0) -> list[str]:
     """Finish or undo what an interrupted operation in this profile's folder left (see merging.build), wherever its
     journal is. Raises merging.build.BuildError when another launcher process holds the folder past timeout."""
-    bases = [(root, ops) for root, ops in _bases(profile) if (root / ops).is_dir()]
+    bases = [(root, ops) for root, ops in _watched(profile) if (root / ops).is_dir()]
     if not bases:
         return []  # nothing ever ran here: not even the lock file is made
     said: list[str] = []
     with lock(profile, timeout):  # first, so every process takes the locks in one order
         for root, ops in bases:
             said += build.recover_operations(root, timeout, ops)
-        for o in _active(profile):
+        for o in (o for root, ops in _watched(profile) for o in build.active(root, ops)):
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
                 o.release()
+            elif o.info.get("kind") == "library-adopt" and not o.info.get("state_done"):
+                from roundtable_souls.mods import adopt
+
+                adopt.finish_state(o)  # the launcher's own records were not all moved before the interruption
+                said.append("an interrupted adoption was finished")
     return said
 
 
@@ -106,7 +129,7 @@ def _release_others(op: build.Operation) -> None:
 
 
 def pending(profile: Path) -> list[str]:
-    return [w for root, ops in _bases(profile) for w in build.pending(root, ops)]
+    return [w for root, ops in _watched(profile) for w in build.pending(root, ops)]
 
 
 def problem(profile: Path) -> str | None:

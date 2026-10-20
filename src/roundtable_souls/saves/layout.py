@@ -269,7 +269,12 @@ def read_user_data_10(br):
 
 
 def parse(path):
-    data = open(path, "rb").read()
+    with open(path, "rb") as f:
+        return parse_bytes(f.read())
+
+
+def parse_bytes(data):
+    """parse() on bytes already in memory, so a changed copy can be checked before anything is written."""
     br = BR(data)
     check(data[:4] == b"BND4", "not BND4", br)
     br.pos = HEADER

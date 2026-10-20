@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
-from qfluentwidgets import BodyLabel, CheckBox, ComboBox, LineEdit, ScrollArea, SubtitleLabel
+from qfluentwidgets import BodyLabel, CheckBox, ComboBox, HyperlinkButton, LineEdit, ScrollArea, SubtitleLabel
 
 from roundtable_souls.ui.dialogs.common import Dialog
 from roundtable_souls.ui.theme import hint, tone_label
@@ -64,6 +64,13 @@ class InstallDialog(Dialog):
         self.what = hint("")
         self.what.setWordWrap(True)
         self.viewLayout.addWidget(self.what)
+
+        # a download that also ships a profile: the Export / Import page can take it instead (Cancel here leaves it)
+        self.import_instead = False
+        if plan.get("profiles_inside"):
+            link = HyperlinkButton("", "This download has a profile too. Import it instead...")
+            link.clicked.connect(self._import_instead)
+            self.viewLayout.addWidget(link)
 
         self.variant = None
         if plan.get("variants"):
@@ -167,6 +174,10 @@ class InstallDialog(Dialog):
         self._show()
 
     # -------------------------------------------------------------- edits
+    def _import_instead(self, *_):
+        self.import_instead = True
+        self.reject()
+
     def _id_edited(self, *_):
         self._id_follows_name = False
         self._changed()
@@ -380,8 +391,10 @@ class InstallDialog(Dialog):
             lines.append("It is already in the profile, so no new entry is added.")
         else:
             lines.append("Options changes its load order, and anything else, once it is in.")
-        self.note.setText(" ".join(lines))
-        tone_label(self.note, "error" if p.get("exists") and not p.get("in_place") else "muted")
+        self.note.setText(p.get("name_problem") or " ".join(lines))
+        tone_label(
+            self.note, "error" if p.get("name_problem") or (p.get("exists") and not p.get("in_place")) else "muted"
+        )
         if self.reg_place.count() == 0 or self.reg_place.itemData(0) != (
             p.get("merge_target") or (p.get("regulation_packages") or [{}])[-1].get("name")
         ):
@@ -396,7 +409,7 @@ class InstallDialog(Dialog):
         if self._timer.isActive() and not quiet:  # Install pressed right after typing: use what was typed
             self._timer.stop()
             self._apply()
-        ok = bool(self.name.text().strip()) and not self.plan.get("error")
+        ok = bool(self.name.text().strip()) and not self.plan.get("error") and not self.plan.get("name_problem")
         if self.plan["kind"] == "package":
             ok = ok and bool(self.id.text().strip()) and not self.plan.get("id_taken")
         if self.boxes:  # something the game loads must be ticked

@@ -96,6 +96,10 @@ class SavesView:
                 "saves", "Saves folder", FI.FOLDER, "The folder with your save files and the backup folders."
             )
         )
+        b = ghost_btn("Open new Saves window", FI.LINK)
+        b.setToolTip("A first look at the new Saves page, in a window of its own.")
+        b.clicked.connect(lambda: self._open_saves_window())
+        al.addWidget(b)
         b = ghost_btn("Refresh", FI.SYNC)
         b.clicked.connect(self.refresh_saves)
         al.addWidget(b)
@@ -130,7 +134,7 @@ class SavesView:
         self.backups_card, bl = card("Backups", FI.HISTORY)
         bl.addWidget(
             hint(
-                f"A backup is taken before every change to a save. The newest {save_backups.KEEP_NEWEST} of each save "
+                f"A backup is taken before every change to a save. The newest {save_backups.keep_newest()} of each save "
                 f"and everything from the last {save_backups.KEEP_DAYS} days are kept; Keep holds on to one for good. "
                 "Restore puts a backup back, and backs up the save as it is then, so a restore can be undone."
             )

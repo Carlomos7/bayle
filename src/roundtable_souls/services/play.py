@@ -533,7 +533,7 @@ def _disable_objects_matching(text: str, mark) -> str:
 
 
 def offline_profile_text(text: str, strip_revive: bool = False, coop_dll: str | None = "ersc.dll") -> str:
-    """A throwaway copy of the me3 profile with Seamless (and optionally Revive) turned off.
+    """A throwaway copy of the me3 profile with Seamless (and optionally Revive) and online play turned off.
     Seamless refuses to run without a signed-in, online Steam; without it the game uses the standard save.
     coop_dll: the game's Seamless Co-op dll (ersc.dll for Elden Ring, nrsc.dll for Nightreign)."""
     dll = (coop_dll or "").lower()
@@ -564,6 +564,7 @@ def offline_profile_text(text: str, strip_revive: bool = False, coop_dll: str | 
         out = NATIVE_BLOCK_RE.sub(strip_rev, out)
         out = PACKAGE_BLOCK_RE.sub(strip_rev, out)
         out = _disable_objects_matching(out, mark)
+    out = profile_tools.set_setting(out, "start_online", False)  # "Offline" must never go online
     note = "Seamless Co-op disabled."
     if strip_revive:
         note += " Revive disabled."

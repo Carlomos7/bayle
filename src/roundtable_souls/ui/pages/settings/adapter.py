@@ -225,6 +225,7 @@ class SettingsAdapter(QObject):
     backupsLocation = Property(str, lambda self: self._values["backups_location"], notify=changed)
     keepFrom = Property(int, lambda self: KEEP_RANGE[0], constant=True)
     keepTo = Property(int, lambda self: KEEP_RANGE[1], constant=True)
+    labels = Property(dict, lambda self: self._values["labels"], notify=changed)
     steamTarget = Property(str, lambda self: self._values["steam_target"], notify=changed)
     steamOptions = Property(str, lambda self: self._values["steam_options"], notify=changed)
     dataFolder = Property(str, lambda self: self._values["data_folder"], notify=changed)
@@ -334,6 +335,9 @@ class SettingsAdapter(QObject):
             "steam_target": target,
             "steam_options": options,
             "data_folder": sp.data_location(),
+            "labels": {
+                which: next((tr(b) for k, b in CHOICES[which] if k == getattr(s, which)), "") for which in CHOICES
+            },
             "launcher_line": f"{sp.TITLE} {sp.VERSION}  ·  {sp.install_kind()}",
         }
         try:
@@ -346,7 +350,10 @@ class SettingsAdapter(QObject):
 
     @staticmethod
     def _backups_folder() -> Path:
-        return data_folder.data_root() / "saves"
+        try:
+            return data_folder.data_root() / "saves"
+        except RuntimeError:  # the data folder is set when the program starts
+            return data_dir() / "saves"
 
     def _on_update_state(self) -> None:
         self._update = self.host.update_state()

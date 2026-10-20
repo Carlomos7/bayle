@@ -36,9 +36,11 @@
     "QtQuick",
     "QtQuick.Controls.Basic",
     "QtQuick.Controls.impl",
+    "QtQuick.Dialogs",
     "QtQuick.Effects",
     "QtQuick.Layouts",
     "QtQuick.Window",
+    "Shell",
     "Theme"
   ],
   "files": [

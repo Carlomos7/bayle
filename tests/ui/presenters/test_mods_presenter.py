@@ -109,14 +109,14 @@ def test_rows_follow_the_shown_order_and_a_folder_of_mods_is_a_line_not_a_row():
 def test_tags_come_from_the_closed_list_two_at_most_the_rest_in_the_tooltip():
     packages = rows(ModsPresenter().page(facts(), scan()))
     flora = packages[0]
-    assert [t.text for t in flora.tags] == ["Overridden · 1 file", "Outside the library"]
+    assert [t.text for t in flora.tags] == ["Clash · 1 file", "Outside the library"]
     assert flora.more.splitlines() == ["Shared · 3 profiles", "mod/flora"]
     overhaul = packages[2]
     assert [t.text for t in overhaul.tags] == ["Stays last"] and overhaul.locked
     birds = packages[1]
     assert not birds.enabled and [t.text for t in birds.tags] == ["Optional"]
     natives = rows(ModsPresenter().page(facts(), scan()), "native")
-    assert [t.text for t in natives[0].tags] == ["Starts early"] and natives[0].has_configs
+    assert [t.text for t in natives[0].tags] == ["Loads early"] and natives[0].has_configs
     assert natives[0].configs_tip == "ersc_settings.ini"
     assert [t.text for t in natives[1].tags] == ["Missing"]
 

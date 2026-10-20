@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Install mod: a folder name Windows refuses (such as CON), one of the launcher's own folder names, or one that
+  makes a path too long for Windows is refused in the dialog with the reason, before anything is copied (before, a
+  too-long path failed only after Install). A name that matches an installed mod's folder in another case updates
+  that folder instead of making a second one.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

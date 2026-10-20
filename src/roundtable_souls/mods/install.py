@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from roundtable_souls.game import catalog as games
+from roundtable_souls.mods import naming
 from roundtable_souls.mods.checks import (
     ACCEPTABLE_FOLDERS,
     IGNORED_DLLS,
@@ -353,7 +354,8 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
             "No game folders (parts, chr, msg, ...), no regulation.bin, no known game file and no DLL found in here."
         )
     elif d["kind"] == "package":
-        plan["dest"] = pk_root / base
+        plan["dest"] = _same_case(pk_root / base)
+        plan["name"] = plan["dest"].name
         ident = slug(pkg_id) if pkg_id else base
         plan["id"] = ident
         plan["entries"] = [{"kind": "package", "id": ident, "path": rel(profile, plan["dest"])}]
@@ -363,7 +365,8 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
         taken = {(e.get("id") or "").lower() for e in entries(profile) if e["kind"] == "package"}
         plan["id_taken"] = ident.lower() in taken
     else:
-        plan["dest"] = nt_root / base
+        plan["dest"] = _same_case(nt_root / base)
+        plan["name"] = plan["dest"].name
         plan["entries"] = [
             {"kind": "native", "path": rel(profile, plan["dest"] / p.relative_to(d["root"]))} for p in d["dlls"]
         ]
@@ -373,6 +376,10 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
             plan["in_place"] = Path(plan["dest"]).resolve() == Path(d["root"]).resolve()
         except OSError:
             plan["in_place"] = False
+    if plan.get("dest") and not plan.get("in_place"):
+        problem = folder_problem(Path(plan["dest"]), _deepest(d["root"]))
+        if problem:
+            plan["name_problem"] = problem
     existing = {resolve(profile, e["path"]).resolve() for e in entries(profile) if e.get("path")}
     plan["already_listed"] = [
         e["path"] for e in plan.get("entries") or [] if resolve(profile, e["path"]).resolve() in existing
@@ -396,6 +403,27 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
 
         plan.update(merge.offer(profile, d["root"], plan["regulation_packages"], loc=loc))
     return plan
+
+
+def _same_case(dest: Path) -> Path:
+    """dest, spelled as the folder already there whose name differs only in case: an update keeps the folder's own
+    spelling, and a case-sensitive drive doesn't get the same mod twice under two spellings."""
+    if not dest.parent.is_dir():
+        return dest
+    low = dest.name.lower()
+    return next((c for c in _children(dest.parent) if c.is_dir() and c.name.lower() == low), dest)
+
+
+def folder_problem(dest: Path, inside: int | None = None) -> str | None:
+    """Why a new mod folder can't be dest (the folder rules every install follows): a name Windows refuses, one of
+    the launcher's own folder names, or a path too long once the mod's deepest file (inside characters below it) is
+    in; None when it is fine."""
+    why = naming.unsafe(dest.name)
+    if why:
+        return f"Pick another folder name: {why}."
+    if dest.name.lower() in naming.RESERVED:
+        return f"Pick another folder name: {dest.name} is a name the launcher uses for its own folders."
+    return naming.path_problem(dest, inside)
 
 
 def _overhaul_of(folder: Path, loc: Locations) -> dict | None:
@@ -480,8 +508,8 @@ def install(profile: Path, plan: dict, overwrite: bool = False, then=None, *, lo
     from roundtable_souls.mods import operations
 
     profile = Path(profile)
-    if plan.get("error"):
-        raise ModError(plan["error"])
+    if plan.get("error") or plan.get("name_problem"):
+        raise ModError(plan.get("error") or plan["name_problem"])
     dest = Path(plan["dest"])
     in_place = bool(plan.get("in_place"))
     update = dest.exists() and not in_place

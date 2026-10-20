@@ -88,7 +88,6 @@ from roundtable_souls.ui.host import Host
 from roundtable_souls.ui.jobs import Jobs
 from roundtable_souls.ui.page_window import PageWindow
 from roundtable_souls.ui.pages import registry as qml_pages
-from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter
 from roundtable_souls.ui.pages.coop.view import CoopView
 from roundtable_souls.ui.pages.mods.view import ModsView
 from roundtable_souls.ui.pages.play.view import PlayView
@@ -199,7 +198,7 @@ class LauncherHost:
         self._w._install_paths(paths)
 
     def open_mod_configs(self, select: str = "") -> None:
-        self._w._open_mod_configs_window(select)
+        self._w.switchTo(self._w.coop_page)  # the Widgets window's own Co-op page
 
     def open_profile_transfer(self, mode: str) -> None:
         self._w._open_profile_transfer_window(mode)
@@ -299,12 +298,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.game = self.ctx.game
         self.bus = Bus()
         self.jobs = Jobs(self)
-        self.activity_window: PageWindow | None = None  # the QML Activity trial (S5)
-        self.mods_window: PageWindow | None = None  # the QML Mods page (S6)
-        self.mod_configs_window: PageWindow | None = None  # the QML Mod Configs page (S7b)
         self.profile_transfer_window: PageWindow | None = None  # the QML Export / Import profile page (S7e)
-        self.saves_window: PageWindow | None = None  # the QML Saves page (S9)
-        self.settings_window: PageWindow | None = None  # the QML Settings page (S9)
         self.busy = False
         self.game_running = False
         self.steam_bar = None
@@ -762,11 +756,7 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
             "sent anywhere."
         )
         share.clicked.connect(self._save_logs_for_support)
-        words = ActivityPresenter()
-        new_window = ghost_btn(words.open_window_text, FI.LINK)
-        new_window.setToolTip(words.open_window_tip)
-        new_window.clicked.connect(self._open_activity_window)
-        for b in (refresh, folder, share, new_window):
+        for b in (refresh, folder, share):
             al.addWidget(b)
         titled(
             lay,
@@ -792,40 +782,6 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         self.switchTo(self.activity_page)
         self.activity.refresh()
 
-    def _open_activity_window(self):
-        """The new Activity page in a window of its own (the S5 trial; the button goes when the QML shell lands)."""
-        if self.activity_window is None:
-            self.activity_window = PageWindow(qml_pages.page("activity"), LauncherHost(self), **_appearance())
-            self.activity_window.notifier.status(self._job_label if self.busy else tr("Ready"))
-        if not self.activity_window.show():
-            self._toast("The new Activity window did not open", "The details are in launcher.log.", error=True)
-            for line in self.activity_window.warnings:
-                core.run_logging.log_line(line)
-
-    def _open_mods_window(self):
-        """The new Mods page in a window of its own (owner, D1; the button goes when the QML shell lands)."""
-        if self.mods_window is None:
-            self.mods_window = PageWindow(qml_pages.page("mods"), LauncherHost(self), **_appearance())
-            self.mods_window.notifier.status(self._job_label if self.busy else tr("Ready"))
-        if not self.mods_window.show():
-            self._toast("The new Mods window did not open", "The details are in launcher.log.", error=True)
-            for line in self.mods_window.warnings:
-                core.run_logging.log_line(line)
-
-    def _open_mod_configs_window(self, select: str = ""):
-        """The new Mod Configs page in a window of its own (owner, D6 A; the button goes when the QML shell lands).
-        select: a mod to show (its name), from the new Mods window's links."""
-        if self.mod_configs_window is None:
-            self.mod_configs_window = PageWindow(qml_pages.page("modConfigs"), LauncherHost(self), **_appearance())
-            self.mod_configs_window.notifier.status(self._job_label if self.busy else tr("Ready"))
-        if not self.mod_configs_window.show():
-            self._toast("The new Mod Configs window did not open", "The details are in launcher.log.", error=True)
-            for line in self.mod_configs_window.warnings:
-                core.run_logging.log_line(line)
-            return
-        if select:
-            self.mod_configs_window.adapter.select_mod(select)
-
     def _open_profile_transfer_window(self, mode: str, bundled: tuple | None = None):
         """The new Export / Import profile page in a window of its own (the button goes when the QML shell lands).
         mode: "export", "import" or "bundled" (bundled: the unpacked download, its .me3 profiles, its staging)."""
@@ -847,37 +803,10 @@ class Launcher(PlayView, CoopView, ModsView, SavesView, ToolsView, FluentWindow)
         else:
             adapter.open_transfer(mode)
 
-    def _open_saves_window(self):
-        """The new Saves page in a window of its own (until the QML shell; the button is on the Saves page)."""
-        if self.saves_window is None:
-            self.saves_window = PageWindow(qml_pages.page("saves"), LauncherHost(self), **_appearance())
-            self.saves_window.notifier.status(self._job_label if self.busy else tr("Ready"))
-        if not self.saves_window.show():
-            self._toast("The new Saves window did not open", "The details are in launcher.log.", error=True)
-            for line in self.saves_window.warnings:
-                core.run_logging.log_line(line)
-
-    def _open_settings_window(self):
-        """The new Settings page in a window of its own (the button goes when the QML shell lands)."""
-        if self.settings_window is None:
-            self.settings_window = PageWindow(qml_pages.page("settings"), LauncherHost(self), **_appearance())
-            self.settings_window.notifier.status(self._job_label if self.busy else tr("Ready"))
-        if not self.settings_window.show():
-            self._toast("The new Settings window did not open", "The details are in launcher.log.", error=True)
-            for line in self.settings_window.warnings:
-                core.run_logging.log_line(line)
-
     def _page_windows(self) -> list[PageWindow]:
         """The QML page windows open now (Activity, Mods, Mod Configs, Export / Import, Saves, Settings): the hooks below
         keep them in step with this window."""
-        names = (
-            "activity_window",
-            "mods_window",
-            "mod_configs_window",
-            "profile_transfer_window",
-            "saves_window",
-            "settings_window",
-        )
+        names = ("profile_transfer_window",)
         return [w for w in (getattr(self, name, None) for name in names) if w is not None]
 
     def _mark_activity_seen(self):

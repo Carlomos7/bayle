@@ -238,7 +238,7 @@ def test_a_fresh_install_is_previewed_then_applied_with_relative_paths(world):
     # the download copy: what the build reads, at download paths; no installer, no programs
     kept = files(sources)
     assert "payload/mod/regulation.bin" in kept and "installer/overhaul.hks" in kept and "edition.json" in kept
-    assert "payload/settings/vanilla/msg/rusru/menu_dlc02.msgbnd.dcx" in kept  # the text step's languages
+    assert "payload/settings/vanilla/msg/rusru/menu_dlc02.msgbnd.dcx" not in kept  # the game's own are read instead
     assert "licenses/lupa.txt" in kept
     assert not {"installer/installer.py", "tools/python/python.exe", "Install.cmd"} & set(kept)
     assert "payload/settings/vanilla/script/talk/m00.bin" not in kept

@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- the overhaul's menu text now takes its languages from the game's own list and always starts from the game's own
+  file, never the copies in the overhaul's download (which can be from an older game version); the output is the same
+  bytes. Because the build's config changed, a the overhaul build the launcher made is rebuilt once at the next Play, and a
+  language file missing from the game's archives stops that build with its name.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

@@ -4,6 +4,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Saves says Launch Profile / Launch Vanilla / Launch Offline (not "Play") for which save each uses; the slot list has a visible scrollbar and keyboard scrolling, and no empty band above it.
+- Export: a clearer summary, "Version (optional)", "Choose output folder..." with the chosen folder beside it, and the reason shown in muted text.
 - Export / Import: name and readme start over when the top bar's profile changes, and the name, version and author fields wrap at narrow widths.
 - Check & repair: plainer words for mod items and leftover entries.
 - Activity: a failed job's row says what went wrong in plain words (the log keeps the original text).

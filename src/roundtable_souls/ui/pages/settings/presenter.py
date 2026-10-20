@@ -199,7 +199,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "offline_skip_confirm",
             tr("Skip the confirmation"),
             tr("Go straight to launch next time."),
-            tr("Stops the Play offline prompt. You can turn this back off here."),
+            tr("Stops the Launch Offline prompt. You can turn this back off here."),
             "offline",
         ),
     )

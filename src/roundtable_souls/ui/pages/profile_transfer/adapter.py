@@ -40,9 +40,6 @@ class ProfileTransferHost(Protocol):
     def settings(self) -> Any: ...
     def run_in_background(self, work, on_result) -> None: ...
     def run_job(self, job, status: str) -> None: ...
-    def profiles(self) -> list[str]: ...
-    def profile_index(self) -> int: ...
-    def pick_profile(self, index: int) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None: ...
     def pick_folder(self, title: str) -> Path | None: ...
     def open_path(self, path: Path) -> None: ...
@@ -112,8 +109,6 @@ class ProfileTransferAdapter(QObject):
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
     words = Property(dict, lambda self: self._words, constant=True)
-    profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
-    profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
     mode = Property(str, lambda self: self._mode, notify=changed)
     working = Property(bool, lambda self: self._working, notify=changed)
     state = Property(dict, lambda self: self._state(), notify=changed)
@@ -269,6 +264,8 @@ class ProfileTransferAdapter(QObject):
         profile = self.host.profile
         self._profile = Path(profile) if profile else None
         self._emit()
+        if self._mode == IMPORT and self._incoming is not None:  # the top bar's profile may have changed
+            self._make_preview()
         if self._mode != EXPORT or self._profile is None or self._working:
             return
         loc, profile = self.host.locations, self._profile
@@ -315,13 +312,6 @@ class ProfileTransferAdapter(QObject):
             self._preview = None
             self._mode = IMPORT if self._mode == BUNDLED else self._mode
             self.host.profile_changed(f"imported {res['name']}")
-
-    @Slot(int)
-    def pickProfile(self, index: int) -> None:
-        self.host.pick_profile(index)
-        self.refresh()
-        if self._mode == IMPORT and self._incoming is not None:
-            self._make_preview()
 
     @Slot(str)
     def setMode(self, mode: str) -> None:

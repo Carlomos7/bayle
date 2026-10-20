@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The new Mods window installs mods in its own Install mod dialog (From archive or DLL, From folder, or files dropped
+  on the page; several drops open one dialog after another, each once the last install has finished): the folder
+  name (and id for a package), what to install, where regulation.bin goes and the mod that must stay last, as in the
+  old dialog. Cancelling leaves nothing behind.
 - Install mod: a folder name Windows refuses (such as CON), one of the launcher's own folder names, or one that
   makes a path too long for Windows is refused in the dialog with the reason, before anything is copied (before, a
   too-long path failed only after Install). A name that matches an installed mod's folder in another case updates

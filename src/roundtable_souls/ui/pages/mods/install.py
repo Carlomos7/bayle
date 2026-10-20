@@ -92,6 +92,7 @@ class InstallDraft:
     overhaul: bool = False
     preview: dict | None = None  # {"lines", "notes", "refusals"} of the overhaul install, once worked out
     busy: bool = False  # a replan or preview is running
+    problem: str = ""  # why the last edit could not be planned (the last good plan stays)
 
     def __post_init__(self) -> None:
         self.name_text = self.plan["name"]
@@ -332,6 +333,8 @@ class InstallDraft:
 
     def _note(self, mode: str) -> tuple[str, str]:
         p = self.plan
+        if self.problem:
+            return self.problem, "error"
         if p.get("name_problem") and not mode:
             return p["name_problem"], "error"
         if mode:
@@ -351,7 +354,7 @@ class InstallDraft:
 
     def can_install(self) -> bool:
         p = self.plan
-        if self.busy or p.get("error") or not self.name_text.strip():
+        if self.busy or self.problem or p.get("error") or not self.name_text.strip():
             return False
         mode = self.overhaul_mode
         if mode:

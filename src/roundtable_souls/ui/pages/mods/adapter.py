@@ -21,6 +21,7 @@ from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter
 from roundtable_souls.ui.pages.activity.presenter import Refusal as UndoRefusal
 from roundtable_souls.ui.pages.mods import load_order
+from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
 from roundtable_souls.ui.pages.mods.presenter import ModsPresenter, ModsState, Pick, Refusal
 from roundtable_souls.ui.text import tr
 
@@ -89,7 +90,10 @@ class ModsHost(Protocol):
     def open_path(self, path: Path) -> None: ...
 
     def pick_folder(self, title: str) -> Path | None:
-        """Ask for a folder (the overhaul's unpacked download); None when cancelled."""
+        """Ask for a folder (the overhaul's unpacked download, a mod to install); None when cancelled."""
+
+    def pick_file(self, title: str, filters: str) -> Path | None:
+        """Ask for a file (a mod archive or DLL to install); None when cancelled."""
 
     def profiles(self) -> list[str]:
         """The setups the player can pick (the Play list's labels)."""
@@ -129,6 +133,7 @@ class ModsAdapter(QObject):
         self._packages = RowsModel(ROW_KEYS, self)
         self._natives = RowsModel(ROW_KEYS, self)
         self._notices = RowsModel(("key", "severity", "text", "action", "closable"), self)
+        self._install = InstallAdapter(host, notifier, self)
 
     # ---- what the page shows
     title = Property(str, lambda self: self._state.title, notify=changed)
@@ -148,6 +153,7 @@ class ModsAdapter(QObject):
     showAll = Property(bool, lambda self: self._show_all, notify=changed)
     hasProfile = Property(bool, lambda self: self._facts is not None and not self._facts.error, notify=changed)
     overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
+    installer = Property(QObject, lambda self: self._install, constant=True)
     profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
     profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
 
@@ -227,6 +233,7 @@ class ModsAdapter(QObject):
         self._render()
         if not self._edit_text:
             self._read_text()
+        self._install.after_job()
 
     def _render(self) -> None:
         self._state = self.presenter.page(
@@ -709,17 +716,12 @@ class ModsAdapter(QObject):
 
     @Slot(bool)
     def install(self, from_folder: bool) -> None:
-        if self._profile() is not None:
-            self.host.install(from_folder)
+        self._install.pick(from_folder)
 
     @Slot(list)
     def installDropped(self, urls: list) -> None:
-        """Files dropped from Explorer: the launcher's install flow takes them in turn."""
-        from PySide6.QtCore import QUrl
-
-        paths = [Path(QUrl(u).toLocalFile()) for u in urls if QUrl(u).isLocalFile()]
-        if paths and self._profile() is not None:
-            self.host.install_paths(paths)
+        """Files dropped from Explorer: the Install mod dialog takes them in turn."""
+        self._install.dropped(urls)
 
     # ---- the dialogs (Mod options, Profile settings, Versions, Add existing, attaching a config file)
     dialogRequested = Signal(str, int)  # which dialog, the entry it is about (-1: none)

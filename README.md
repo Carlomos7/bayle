@@ -2,7 +2,7 @@
 
 > Launcher and save toolkit for modded Elden Ring and Nightreign, on Windows, Linux and Steam Deck
 
-A desktop app (PySide6 + Fluent Widgets) that starts Elden Ring and Nightreign through [me3](https://github.com/garyttierney/me3), keeps Seamless Co-op settings in one place, manages me3 profiles and mods, and checks and repairs PC save files. It is the one window a co-op group needs open: pick the game at the top, pick a setup, press Play, and the saves are looked after when the game closes. From Steam or a Steam Deck in Gaming Mode, a `--game <name> --play` shortcut does the same without the window. Dark Souls III and Sekiro have placeholder pages until their support lands.
+A desktop app (PySide6, Qt Quick) that starts Elden Ring and Nightreign through [me3](https://github.com/garyttierney/me3), keeps Seamless Co-op settings in one place, manages me3 profiles and mods, and checks and repairs PC save files. It is the one window a co-op group needs open: pick the game at the top, pick a setup, press Play, and the saves are looked after when the game closes. From Steam or a Steam Deck in Gaming Mode, a `--game <name> --play` shortcut does the same without the window. Dark Souls III and Sekiro have placeholder pages until their support lands.
 
 ## Architecture Overview
 
@@ -65,7 +65,6 @@ The window never touches a save directly. Every read goes through `save_info`, e
 **Desktop UI:**
 
 - PySide6 6.11 - Qt for Python
-- PySide6-Fluent-Widgets 1.11 - Fluent design widgets
 
 **Data & Files:**
 
@@ -241,7 +240,7 @@ Updates, failed-start rollback, the Inno migration, portable data and uninstall 
 
 ## Licensing
 
-GNU General Public License v3.0 or later, see [LICENSE](LICENSE). The window is built on PySide6-Fluent-Widgets, which is GPL-3.0. Other notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+GNU General Public License v3.0 or later, see [LICENSE](LICENSE). Other notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Credits
 

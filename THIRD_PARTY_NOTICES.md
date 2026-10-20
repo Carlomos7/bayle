@@ -1,7 +1,6 @@
 # Third-party notices
 
-Roundtable Souls is licensed under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)), because the
-window is built on PySide6-Fluent-Widgets, which is GPL-3.0. It builds on the work below; none of it is endorsed by
+Roundtable Souls is licensed under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)), and it builds on the work below; none of it is endorsed by
 those authors, and each part keeps its own license.
 
 ## SoulsFormats (GPL-3.0)
@@ -319,8 +318,7 @@ THE SOFTWARE.
 
 ## Libraries
 
-Bundled into the release exe: PySide6 and Qt (LGPL-3.0), PySide6-Fluent-Widgets (GPL-3.0),
-PySideSix-Frameless-Window (LGPL-3.0), pydantic (MIT), py7zr (LGPL-2.1), darkdetect (BSD-3-Clause), SQLAlchemy (MIT),
+Bundled into the release exe: PySide6 and Qt (LGPL-3.0), pydantic (MIT), py7zr (LGPL-2.1), SQLAlchemy (MIT),
 Alembic (MIT), Mako (MIT), MarkupSafe (BSD-3-Clause), lupa (MIT). Their license
 texts ship inside the installed packages; the complete source of this program is the repository it was built from.
 

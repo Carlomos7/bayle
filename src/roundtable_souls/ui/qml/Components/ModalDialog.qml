@@ -74,9 +74,10 @@ Dialog {
         Item {
             id: bodyItem
 
-            implicitHeight: childrenRect.height + Theme.sp4
+            implicitHeight: childrenRect.height + Theme.sp8
             width: root.width - Theme.padDialog * 2
             x: Theme.padDialog
+            y: Theme.sp4   // room for a focus ring on the first control, which the body's clip would cut
         }
     }
     enter: Transition {

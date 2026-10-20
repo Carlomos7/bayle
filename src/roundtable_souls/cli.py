@@ -68,15 +68,12 @@ def main() -> int:
     from roundtable_souls.app import create_app
     from roundtable_souls.storage.db import MigrationFailed
     from roundtable_souls.ui.launcher.window import main as shell_main
-    from roundtable_souls.ui.shell import main as widgets_main
 
     try:
         ctx = create_app(game)
     except MigrationFailed as e:  # no window, so no ready report: an update's watchdog rolls back
         return storage_failed(e, window=True)
-    if "--widgets" in sys.argv:  # the old window, for a bad shell (hidden flag; it goes with the Widgets code)
-        return int(widgets_main(ctx) or 0)
-    return int(shell_main(ctx, fallback=widgets_main) or 0)
+    return int(shell_main(ctx) or 0)
 
 
 def self_test() -> int:
@@ -183,11 +180,9 @@ def storage_failed(error: Exception, window: bool) -> int:
     print(f"Roundtable Souls could not start: {error}", file=sys.stderr)
     if window:
         try:
-            from PySide6.QtWidgets import QApplication, QMessageBox
+            from roundtable_souls.ui import message_box
 
-            app = QApplication.instance() or QApplication(sys.argv[:1])
-            QMessageBox.critical(None, "Roundtable Souls", f"Roundtable Souls could not start.\n\n{error}")
-            del app
+            message_box.ask("Roundtable Souls could not start.", str(error))
         except Exception as e:  # no display: the log and the console say it
             run_logging.log(f"the message could not be shown: {e}")
     return 1
@@ -238,26 +233,17 @@ def not_started_notice(game: Game, why: str, headline: str | None = None) -> Non
     try:
         import subprocess
 
-        from PySide6.QtWidgets import QApplication, QMessageBox
+        from roundtable_souls.ui import message_box
 
-        app = QApplication.instance() or QApplication(sys.argv[:1])
-        box = QMessageBox()
-        box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle(core.TITLE)
         if headline:  # another reason than the merged mods (a failed backup before Play)
-            box.setText(headline)
-            box.setInformativeText(why)
+            heading, detail = headline, why
         else:
-            box.setText(f"{game.name} was not started: your mods need a rebuild")
-            box.setInformativeText(
+            heading = f"{game.name} was not started: your mods need a rebuild"
+            detail = (
                 f"{why}\n\nThe game does not start with merged mods that no longer match your mods, so it cannot "
                 "run with a removed or changed mod still inside them."
             )
-        open_btn = box.addButton("Open Roundtable Souls", QMessageBox.ButtonRole.AcceptRole)
-        box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
-        box.exec()
-        del app
-        if box.clickedButton() is open_btn:
+        if message_box.ask(heading, detail, ("Open Roundtable Souls", "Close")) == 0:
             command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "roundtable_souls"]
             subprocess.Popen([*command, "--game", game.key], close_fds=True)
     except Exception as e:  # no display (a console, a test): the log says it

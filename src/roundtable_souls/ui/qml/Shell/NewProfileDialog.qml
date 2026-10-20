@@ -57,6 +57,7 @@ ModalDialog {
         CheckRow {
             id: include
 
+            width: parent.width
             text: qsTr("Include Seamless Co-op from the game folder (moved into the new profile)")
             visible: root.seamless
         }

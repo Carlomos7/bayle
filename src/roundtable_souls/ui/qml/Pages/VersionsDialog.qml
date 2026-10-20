@@ -24,7 +24,7 @@ ModalDialog {
 
     footerRow: [
         GhostButton {
-            text: dlg.words.cancel
+            text: dlg.words.close
 
             onClicked: dlg.close()
         }

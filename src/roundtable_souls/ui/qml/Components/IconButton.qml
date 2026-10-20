@@ -19,8 +19,10 @@ Button {
     property color pressColor: Theme.fillGhost
     property bool selected: false
 
+    Accessible.name: ToolTip.text   // an icon has no words of its own: a screen reader reads the tooltip
+    Accessible.role: Accessible.Button
     ToolTip.delay: Theme.mTooltipDelay
-    ToolTip.visible: hovered && ToolTip.text !== ""   // the ONE shared tooltip (restyled in Main), not a popup per button
+    ToolTip.visible: (hovered || visualFocus) && ToolTip.text !== ""   // the ONE shared tooltip (restyled in Main); Tab shows it too
     focusPolicy: Qt.TabFocus
     hoverEnabled: true
     implicitHeight: Theme.controlH

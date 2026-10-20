@@ -13,6 +13,8 @@ Button {
     property color hoverColor: Theme.smearHover   // kept for callers that set it; the smear uses it
     property string icon_: ""                     // a Fluent icon name
 
+    Accessible.name: text !== "" ? text : ToolTip.text   // an icon-only button is named by its tooltip
+    Accessible.role: Accessible.Button
     focusPolicy: Qt.TabFocus
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontBody

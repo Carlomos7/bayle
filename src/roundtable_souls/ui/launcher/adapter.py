@@ -22,8 +22,8 @@ from roundtable_souls.ui.launcher import menu, topbar
 from roundtable_souls.ui.launcher.host import ShellHost
 from roundtable_souls.ui.launcher.menumodel import MenuModel
 from roundtable_souls.ui.notifications import Notifier
-from roundtable_souls.ui.page_window import QML_DIR
 from roundtable_souls.ui.pages import registry
+from roundtable_souls.ui.qml_env import QML_DIR
 from roundtable_souls.ui.text import tr
 
 # The rail, in order (Ctrl+1..5): registry name, label, icon.
@@ -72,6 +72,7 @@ class ShellAdapter(QObject):
         host.forwardRequested.connect(self.forwardRequested)
         host.quitRequested.connect(self._quit)
         host.pageRequested.connect(self.goTo)
+        host.newProfileAsked.connect(lambda: self._shell_command("newProfile", []))
         host.gameChanged.connect(self._game_changed)
         self._recompute()
         self.adapterFor(self._current)  # the first page is made before the window asks for it
@@ -101,6 +102,7 @@ class ShellAdapter(QObject):
             },
             "status": {
                 "text": status.text,
+                "idle": status.text == tr("Ready"),  # nothing to say: the compact strip stays away
                 "tone": status.tone,
                 "busy": status.busy,
                 "toActivity": status.to_activity,

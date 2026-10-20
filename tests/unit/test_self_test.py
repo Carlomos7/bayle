@@ -67,12 +67,12 @@ def test_compiled_qml_is_cached_inside_this_runs_data_folder(monkeypatch, tmp_pa
     """Qt names its QML cache folder after the program, which for the packaged build is the real data folder's name;
     use_qml_cache_folder() keeps it inside the data folder this run uses (the conftest's temporary one here)."""
     from roundtable_souls.platform import data_folder
-    from roundtable_souls.ui import page_window
+    from roundtable_souls.ui import qml_env
 
     for name in ("QML_DISK_CACHE_PATH", "QML_DISABLE_DISK_CACHE"):  # registered, so the test puts them back
         monkeypatch.setenv(name, "")
         monkeypatch.delenv(name)
-    folder = page_window.use_qml_cache_folder()
+    folder = qml_env.use_qml_cache_folder()
     root = data_folder.data_root()
     assert folder is not None and folder.is_relative_to(root)
     assert Path(os.environ["QML_DISK_CACHE_PATH"]) == folder
@@ -83,7 +83,7 @@ def test_compiled_qml_is_cached_inside_this_runs_data_folder(monkeypatch, tmp_pa
 
     monkeypatch.delenv("QML_DISK_CACHE_PATH", raising=False)
     monkeypatch.setattr(data_folder, "data_root", unset)
-    assert page_window.use_qml_cache_folder() is None
+    assert qml_env.use_qml_cache_folder() is None
     assert os.environ["QML_DISABLE_DISK_CACHE"] == "1" and "QML_DISK_CACHE_PATH" not in os.environ
 
 
@@ -103,7 +103,7 @@ def test_the_self_test_passes_from_source(tmp_path):
     text = report.read_text(encoding="utf-8")
     assert done.returncode == 0, text
     assert "ok    database opens at the current schema" in text
-    assert "ok    page activity in the light theme" in text
+    assert "ok    shell in the light theme at 1100 px, every page" in text
     assert ", 0 failed" in text
     data = next(line for line in text.splitlines() if line.startswith("ok    isolated data folder"))
     assert not Path(data.split("(", 1)[1].rstrip(")")).exists()  # the temporary data folder is gone

@@ -156,7 +156,7 @@ Card {
             }
         }
         Txt {  // the empty slots, as targets
-            color: Theme.textTertiary
+            color: Theme.textSecondary   // 5:1 on the light card; the tertiary grey is 3.6:1 there
             kind: "hint"
             leftPadding: Theme.padCard
             text: root.words.emptySlots + " " + root.card.freeSlots.join(", ")

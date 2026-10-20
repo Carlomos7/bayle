@@ -7,7 +7,7 @@ geometry and the atmosphere ceilings. Everything else is generated from it.
 | File | What it is |
 | --- | --- |
 | `tokens.json` | The source. W3C design-tokens shape; colours in hex or OKLCH, references, and `$extensions.roundtable` (`alpha`, `dL`, `composite`) |
-| `gen_theme.py` | Writes `src/roundtable_souls/ui/theme_tokens.py` (plain Python data, read by `ui/theme.py`) and `src/roundtable_souls/ui/qml/Theme/Theme.qml` with its `qmldir` |
+| `gen_theme.py` | Writes `src/roundtable_souls/ui/theme_tokens.py` (the same roles as plain Python data) and `src/roundtable_souls/ui/qml/Theme/Theme.qml` with its `qmldir` |
 | `colour.py` | The sRGB / OKLCH and contrast maths, shared by the generator and the contrast test |
 | `gen_atmosphere.py` | Renders the bloom and vignette PNGs into `src/roundtable_souls/ui/assets/atmosphere/` (Pillow) |
 | `gen_grain.py` | Renders the blue-noise grain tiles into the same folder (Pillow and NumPy) |

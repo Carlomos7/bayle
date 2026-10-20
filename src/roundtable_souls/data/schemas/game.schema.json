@@ -130,6 +130,13 @@
    "title": "Archives",
    "type": "object"
   },
+  "languages": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Languages",
+   "type": "array"
+  },
   "oodle_library": {
    "title": "Oodle Library",
    "type": "string"
@@ -170,6 +177,7 @@
   "game",
   "archive_names",
   "archives",
+  "languages",
   "oodle_library",
   "dcx_writer",
   "dflt_fallback",

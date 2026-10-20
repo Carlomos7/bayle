@@ -23,18 +23,6 @@
      "title": "Texts",
      "type": "object"
     },
-    "vanilla": {
-     "anyOf": [
-      {
-       "type": "string"
-      },
-      {
-       "type": "null"
-      }
-     ],
-     "default": null,
-     "title": "Vanilla"
-    },
     "each": {
      "anyOf": [
       {
@@ -289,8 +277,29 @@
    "additionalProperties": false,
    "properties": {
     "folders_in": {
-     "title": "Folders In",
-     "type": "string"
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Folders In"
+    },
+    "game": {
+     "anyOf": [
+      {
+       "const": "languages",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Game"
     },
     "except": {
      "items": {
@@ -300,9 +309,6 @@
      "type": "array"
     }
    },
-   "required": [
-    "folders_in"
-   ],
    "title": "Each",
    "type": "object"
   },
@@ -652,18 +658,6 @@
     "patch": {
      "title": "Patch",
      "type": "string"
-    },
-    "vanilla": {
-     "anyOf": [
-      {
-       "type": "string"
-      },
-      {
-       "type": "null"
-      }
-     ],
-     "default": null,
-     "title": "Vanilla"
     },
     "each": {
      "anyOf": [

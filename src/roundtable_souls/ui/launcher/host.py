@@ -134,6 +134,10 @@ class ShellHost(QObject):
         self.step = ""  # the Launch flow's step before its job runs ("Backing up saves...")
         self.job_detail = ""  # the newest line of the running job that says how it is going
         self.steam_bad = False
+        self._installed: dict[str, bool] | None = None
+        self._slow: tuple[tuple[str, ...], tuple[str, ...]] | None = (
+            None  # problems and warnings, kept while a job runs
+        )
         self.dead_shells = 0
         self.failed_job = ""  # a job that failed and was not looked at yet
         self.unseen = 0  # failed jobs since Activity was last looked at (the rail badge)
@@ -526,11 +530,17 @@ class ShellHost(QObject):
         st = self.state
         s = st.setup
         busy = self.busy
+        if busy and self._slow is not None:
+            problems, warnings = self._slow  # progress lines come fast: no disk reads while a job runs
+        else:
+            problems, warnings = (tuple(s.problems()), tuple(s.warnings())) if s else ((), ())
+            self._slow = (problems, warnings)
         return topbar.Facts(
             game=st.game,
             installed=bool(st.locations.game_dir()),
             profile_count=len(st.setups),
-            problems=tuple(s.problems()) if s else (),
+            problems=problems,
+            warnings=warnings,
             busy=busy,
             job_label=(self.job_detail or st.job_label) if st.busy else self.step,
             job_kind=st.job_kind if st.busy else ("launch" if self.flow.active else ""),
@@ -545,7 +555,10 @@ class ShellHost(QObject):
         )
 
     def installed_games(self) -> dict[str, bool]:
-        return {g.key: bool(installed_dir(g)) for g in games.GAMES}
+        if self.busy and self._installed is not None:
+            return self._installed
+        self._installed = {g.key: bool(installed_dir(g)) for g in games.GAMES}
+        return self._installed
 
     def mark_seen(self) -> None:
         save_settings(activity_seen=time.time())

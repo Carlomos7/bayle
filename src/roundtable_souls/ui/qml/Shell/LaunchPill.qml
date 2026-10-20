@@ -230,6 +230,10 @@ Item {
         }
     }
     Rectangle {  // the status dot (compact windows): the status text as its tooltip, a click runs the link
+        Accessible.name: root.statusText
+        Accessible.role: Accessible.Button
+
+        Accessible.onPressAction: root.statusClicked()
         anchors.right: parent.right
         anchors.rightMargin: 7
         anchors.verticalCenter: parent.verticalCenter

@@ -161,3 +161,15 @@ def test_every_setup_problem_has_a_plain_short_form_and_a_fix_link():
         reason = topbar.pill(facts(problems=(raw,))).reason
         assert "C:" not in reason and "Tools" not in reason and reason.startswith("Blocked: "), reason
         assert topbar.pill(facts(problems=(raw,))).link is not None
+
+
+def test_a_missing_mod_folder_warns_but_launch_stays_allowed():
+    f = facts(warnings=("flora folder is missing",))
+    assert topbar.pill(f).can_launch and "flora folder is missing" in topbar.pill(f).reason
+    st = topbar.status(f)
+    assert st.text == "flora folder is missing" and st.tone == "warning" and st.link.action == topbar.MODS
+    assert (
+        topbar.status(facts(warnings=("a folder is missing", "b folder is missing"))).text
+        == "2 mod folders are missing"
+    )
+    assert topbar.status(facts(warnings=("a folder is missing",), mode=topbar.VANILLA)).text == "Ready"

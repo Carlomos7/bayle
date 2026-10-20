@@ -47,6 +47,7 @@ class Facts:
     installed: bool = True  # the game's folder or exe is known
     profile_count: int = 0
     problems: tuple[str, ...] = ()  # the current setup's, from Setup.problems()
+    warnings: tuple[str, ...] = ()  # Setup.warnings(): Launch still works, a mod is left out
     busy: bool = False
     job_label: str = ""
     job_kind: str = ""  # "" | "launch" | "update" | "other"
@@ -154,10 +155,20 @@ def pill(facts: Facts) -> Pill:
     why = blocked(facts, mode)
     if why is not None:
         return Pill(mode, words, BLOCKED, tr("Launch"), why[0], why[1])
-    return Pill(mode, words, ENABLED, tr("Launch"), tr("Launch {mode} (Ctrl+L)").format(mode=words), None, True)
+    tip = tr("Launch {mode} (Ctrl+L)").format(mode=words)
+    if facts.warnings and mode != VANILLA:
+        tip += "  ·  " + _warning_words(facts)
+    return Pill(mode, words, ENABLED, tr("Launch"), tip, None, True)
 
 
 # ------------------------------------------------------------------------------------------------ status text
+def _warning_words(facts: Facts) -> str:
+    n = len(facts.warnings)
+    if n == 1:
+        return tr("{mod} folder is missing").format(mod=facts.warnings[0].removesuffix(" folder is missing"))
+    return tr("{n} mod folders are missing").format(n=n)
+
+
 def status(facts: Facts) -> Status:
     """The one line of launcher state, in order of importance. A running job and the running game come first; a
     failed job stays red until it is looked at; blocks and warnings follow; nothing to say is "Ready"."""
@@ -178,6 +189,8 @@ def status(facts: Facts) -> Status:
     why = blocked(facts, facts.mode if facts.mode in MODES else PROFILE)
     if why is not None:
         return Status(why[0], "danger", why[1], to_activity=False)
+    if facts.warnings and facts.mode != VANILLA:
+        return Status(_warning_words(facts), "warning", Link(tr("Open Mods"), MODS), to_activity=False)
     if facts.coop_unsaved:
         return Status(
             tr("Unsaved co-op settings apply on launch"),

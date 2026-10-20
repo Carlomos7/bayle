@@ -22,7 +22,7 @@ Item {
     readonly property int menuRowHeight: nativeChrome ? Math.max(Theme.menuRowH, Math.ceil(chromeTop)) : Theme.menuRowH
     required property var shell
     readonly property var st: shell.status
-    readonly property color statusColor: st.tone === "danger" ? Theme.statusDanger : st.tone === "accent" ? Theme.accent : Theme.textSecondary
+    readonly property color statusColor: st.tone === "danger" ? Theme.statusDanger : st.tone === "warning" ? Theme.statusWarning : st.tone === "accent" ? Theme.accent : Theme.textSecondary
     property Window window
 
     function openLaunchMenu() {

@@ -270,11 +270,19 @@ class ModConfigsPresenter:
             for n in values["natives"]:
                 f = n["file"]
                 rows = [
-                    self._ov_row(f, "early:" + f, tr("Load early"), "bool", str(bool(n["load_early"])).lower()),
+                    self._ov_row(
+                        f,
+                        "early:" + f,
+                        tr("Start before the game sets itself up"),
+                        "bool",
+                        str(bool(n["load_early"])).lower(),
+                    ),
                     self._ov_row(
                         f, "after:" + f, tr("Load after the other DLLs"), "bool", str(bool(n["after_others"])).lower()
                     ),
-                    self._ov_row(f, "init:" + f, tr("Initializer function"), "text", n.get("initializer") or ""),
+                    self._ov_row(
+                        f, "init:" + f, tr("Function to run when it loads"), "text", n.get("initializer") or ""
+                    ),
                 ]
                 sections.append({"title": Path(f).name, "rows": rows})
             if choices["keep"]:

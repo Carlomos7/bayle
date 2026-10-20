@@ -263,9 +263,12 @@ class SavesAdapter(QObject):
         self.host.run_job(job, tr("Undoing the change to {name}...").format(name=save.name))
 
     # ---- the gate every write goes through
-    def _blocked(self) -> bool:
-        if self.host.game_running or self.host.busy:
-            self._refuse(self.presenter.refusal_busy(self._game_name(), bool(self.host.game_running)))
+    def _blocked(self, read_only: bool = False) -> bool:
+        """read_only: a twin that only reads the live save (Save a copy, Import) is refused for a running job only."""
+        if self.host.busy or (self.host.game_running and not read_only):
+            self._refuse(
+                self.presenter.refusal_busy(self._game_name(), bool(self.host.game_running) and not self.host.busy)
+            )
             return True
         return False
 
@@ -411,12 +414,11 @@ class SavesAdapter(QObject):
 
     @Slot(str, str)
     def saveCopy(self, path: str, name: str) -> None:
-        if self._blocked():
+        if self._blocked(read_only=True):  # only reads the live save; the Library check rejects a half-written file
             return
         save, game = Path(path), self._game()
 
         def body(loc):
-            saves_service.assert_writable(save, loc=loc)
             e = save_library.add(save.parent, save, name, game, action="stash")
             return {"text": tr("Saved a copy of {file} as '{name}'").format(file=save.name, name=e["name"])}
 
@@ -431,25 +433,66 @@ class SavesAdapter(QObject):
 
     @Slot("QVariantList")
     def dropFiles(self, urls: list) -> None:
-        for url in urls[:1]:
-            text = str(url)
-            self._offer_import(Path(text[8:] if text.startswith("file:///") else text.removeprefix("file://")))
+        """Files from Explorer: one save file asks for a name; several import each under its own name, and any that
+        are not save files are named in a toast (never silently dropped)."""
+        paths = [Path(t[8:] if t.startswith("file:///") else t.removeprefix("file://")) for t in map(str, urls)]
+        good = [p for p in paths if p.suffix.lower() in (".sl2", ".co2")]
+        skipped = [p.name for p in paths if p not in good]
+        if skipped:
+            self.notifier.toast(
+                tr("Not imported, these are not save files (.sl2 or .co2): {names}").format(names=", ".join(skipped)),
+                error=True,
+            )
+        if len(good) == 1:
+            self._offer_import(good[0])
+        elif good:
+            self._import_many(good)
+
+    def _library_folder(self) -> Path | None:
+        folders = [Path(f) for f in self._libs] or sorted({Path(i["path"]).parent for i in self._infos})
+        if not folders:
+            self.notifier.toast(tr("Play once so the game creates its save folder."), error=True)
+            return None
+        return folders[0]
+
+    def _import_many(self, paths: list[Path]) -> None:
+        if self._blocked(read_only=True):
+            return
+        folder, game = self._library_folder(), self._game()
+        if folder is None:
+            return
+
+        def body(loc):
+            done, failed = [], []
+            for src in paths:
+                try:
+                    save_library.add(folder, src, save_library.default_name(src, game), game, action="import")
+                    done.append(src.name)
+                except Exception as e:
+                    run_logging.log(f"error: {src.name}: {e}")
+                    failed.append(src.name)
+            if not done:
+                raise RuntimeError(tr("None of these files could be imported: {names}").format(names=", ".join(failed)))
+            text = tr("Imported {n} files into the Library").format(n=len(done))
+            if failed:
+                text += tr(". Not imported: {names}").format(names=", ".join(failed))
+            return {"text": text}
+
+        self._write("import several files into the Library", tr("Importing {n} files...").format(n=len(paths)), body)
 
     def _offer_import(self, path: Path) -> None:
-        if self._blocked():
+        if self._blocked(read_only=True):
             return
         self.importNameRequested.emit(str(path), save_library.default_name(path, self._game()))
 
     @Slot(str, str)
     def importFile(self, path: str, name: str) -> None:
-        if self._blocked():
+        if self._blocked(read_only=True):
             return
         src, game = Path(path), self._game()
-        folders = [Path(f) for f in self._libs] or sorted({Path(i["path"]).parent for i in self._infos})
-        if not folders:
-            self.notifier.toast(tr("Play once so the game creates its save folder."), error=True)
+        folder = self._library_folder()
+        if folder is None:
             return
-        folder = folders[0]
 
         def body(loc):
             e = save_library.add(folder, src, name, game, action="import")
@@ -513,7 +556,7 @@ class SavesAdapter(QObject):
         self._plan(work, go)
 
     # ---- 2. Replace a live save with a file
-    def _replace(self, source: Path, target: Path, source_label: str, run) -> None:
+    def _replace(self, source: Path, target: Path, source_label: str, run, restore: bool = False) -> None:
         """Plan Replace (the compare table, the signing) and, on yes, run(loc) -> {backup, kept?}."""
         game = self._game()
         live = next((i for i in self._infos if Path(i["path"]) == source), None)
@@ -522,8 +565,18 @@ class SavesAdapter(QObject):
         def work():
             rows = save_transfer.compare(source, target, game) if target.exists() else []
             signed = save_library.signed_for_account(source.read_bytes(), target, game)[1]
+            kinds = None
+            if source.suffix.lower() != target.suffix.lower():
+                kinds = (self.presenter.kind_of(source), self.presenter.kind_of(target))
             words = self.presenter.replace(
-                source_label, target.name, rows, signed, holders, target.suffix.lower() == ".sl2"
+                source_label,
+                target.name,
+                rows,
+                signed,
+                holders,
+                target.suffix.lower() == ".sl2",
+                restore=restore,
+                kinds=kinds,
             )
             return words, None, True
 
@@ -568,10 +621,10 @@ class SavesAdapter(QObject):
         if save_library.changed_outside(Path(folder), entry):
             self.notifier.ask(
                 self.presenter.changed_outside(entry["name"]),
-                lambda ok, _o: self._replace(source, tgt, entry["name"], run) if ok else None,
+                lambda ok, _o: self._replace(source, tgt, entry["name"], run, True) if ok else None,
             )
             return
-        self._replace(source, tgt, entry["name"], run)
+        self._replace(source, tgt, entry["name"], run, True)
 
     @Slot(str)
     def replaceFromFile(self, target: str) -> None:

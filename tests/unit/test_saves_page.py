@@ -37,10 +37,9 @@ class Host:
         return {}
 
 
+# Save a copy and Import only read (the live save, a file) and add to the Library: they are allowed while it runs.
 WRITES = [
     ("backUpNow", ("x.sl2",)),
-    ("saveCopy", ("x.sl2", "name")),
-    ("importFile", ("x.sl2", "name")),
     ("copyCharacter", ("a.sl2", 1, "b.sl2", 2)),
     ("replaceFromLibrary", ("folder", "id", "b.sl2")),
     ("replaceFromFile", ("b.sl2",)),

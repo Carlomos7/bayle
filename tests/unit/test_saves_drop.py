@@ -2,6 +2,8 @@
 maps to exactly the call its menu entry makes (which then confirms, backs up, re-signs and reads back), and every
 refusal is said in words. Nothing here writes a save: the twins' slots are recorded, never run."""
 
+from pathlib import Path
+
 import pytest
 
 from roundtable_souls.ui.notifications import Notifier
@@ -73,8 +75,20 @@ def test_every_drop_is_the_call_its_menu_twin_makes(source, target, call):
     assert calls == [call] and told == []
 
 
-@pytest.mark.parametrize(("source", "target", "call"), TWINS)
-def test_while_the_game_runs_every_drop_is_refused_in_words(source, target, call, monkeypatch):
+WRITES = [t for t in TWINS if t[:2] != (LIVE, {"type": "library"})]  # Save a copy only reads the live save
+
+
+def test_save_a_copy_is_allowed_while_the_game_runs():
+    host = Host()
+    host.game_running = True
+    a, calls, told = adapter(host)
+    assert a.dropReason(LIVE, {"type": "library"}) == ""
+    a.drop(LIVE, {"type": "library"})
+    assert calls == [("nameAsked", ("copy", "A.sl2"))] and told == []
+
+
+@pytest.mark.parametrize(("source", "target", "call"), WRITES)
+def test_while_the_game_runs_every_write_drop_is_refused_in_words(source, target, call, monkeypatch):
     host = Host()
     host.game_running = True
     a, calls, told = adapter(host)
@@ -99,7 +113,9 @@ def test_a_running_job_refuses_a_drop_too():
         (CHAR, {"type": "library"}, "slot of a live save"),
         ({**COPY, "missing": True}, {"type": "card", "path": "B.co2"}, "missing"),
         (LIVE, {"type": "card", "path": "B.co2"}, "replace it"),
-        (COPY, {"type": "library"}, "cannot be dropped"),
+        (COPY, {"type": "library"}, "already in the Library"),
+        (BACKUP, {"type": "backups"}, "already in the Backups"),
+        ({"type": "mystery"}, SLOT, "Drop a character on a slot"),
         (COPY, SLOT, "restore it"),
         (BACKUP, SLOT, "restore it"),
         (COPY, {"type": "backups"}, "Back up now"),
@@ -136,3 +152,27 @@ def test_ctrl_c_then_ctrl_v_is_the_same_copy_as_the_drop():
     a.copyLibraryCharacterKey("lib", "c1", 2)
     a.pasteInto(SLOT)
     assert calls == [("copyFromLibrary", ("lib", "c1", 2, "B.co2", 3))]
+
+
+def test_import_of_several_files_imports_each_and_names_the_skipped(tmp_path, monkeypatch):
+    from roundtable_souls.ui.pages.saves import adapter as mod
+
+    a, calls, told = adapter()
+    jobs, added = [], []
+    a.host.run_job = lambda job, status: jobs.append(status)
+    a._libs = {str(tmp_path): {}}
+    monkeypatch.setattr(mod.save_library, "add", lambda folder, src, name, game, action: added.append(src.name) or {})
+    monkeypatch.setattr(mod.save_library, "default_name", lambda src, game: src.stem)
+    a._game = lambda: None
+    a._import_many([tmp_path / "a.sl2", tmp_path / "b.co2"])
+    assert jobs == ["Importing 2 files..."]
+    a.dropFiles([str(tmp_path / "a.sl2"), str(tmp_path / "x.txt")])  # one save file: asks for its name
+    assert told and "x.txt" in told[0][0]
+
+
+def test_import_is_allowed_while_the_game_runs():
+    host = Host()
+    host.game_running = True
+    a, calls, told = adapter(host)
+    a._offer_import(Path("A.sl2"))
+    assert told == []

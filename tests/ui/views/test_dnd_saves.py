@@ -164,7 +164,9 @@ def test_the_game_running_refuses_in_words(page):
     w.notifier.toastRequested.connect(lambda text, error: told.append(text))
     w.adapter.changed.emit()
     settle(100)
-    # handles are hidden while the game runs: the same refusal is what a drop would say
-    assert w.adapter.dropReason({"type": "live", "path": "p"}, {"type": "library"}).startswith("Close")
-    w.adapter.drop({"type": "live", "path": "p"}, {"type": "library"})
+    # character handles are hidden while the game runs: the same refusal is what a drop would say
+    assert w.adapter.dropReason({"type": "live", "path": "p"}, {"type": "backups"}).startswith("Close")
+    w.adapter.drop({"type": "live", "path": "p"}, {"type": "backups"})
     assert calls == [] and told and "Close" in told[0]
+    # Save a copy only reads the live save: still allowed
+    assert w.adapter.dropReason({"type": "live", "path": "p"}, {"type": "library"}) == ""

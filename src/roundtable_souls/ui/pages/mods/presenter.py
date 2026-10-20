@@ -233,6 +233,9 @@ class ModsPresenter:
             ),
             "undo": tr("Undo"),
             "adoptMenu": tr("Adopt into the library..."),
+            "profileRenameTip": tr("Click to rename this profile"),
+            "profileRenameField": tr("Profile name"),
+            "profileRenameHelp": tr("Enter renames it. Esc cancels. Undo puts it back."),
             "rename": tr("Rename..."),
             "renameTitle": tr("Rename {name}"),
             "renameHint": tr("The folder is renamed, and for a package its id too. Undo puts it back."),
@@ -807,6 +810,18 @@ class ModsPresenter:
         if code == profile_mods.DELETE_BUSY:
             return Refusal(tr("Wait for the current job"), tr("The profile can be deleted when it finishes."))
         return None
+
+    def rename_block(self, code: str | None, name: str, game_running: bool) -> str:
+        """Why the profile can't be renamed or copied now, in words; "" when it can (code: services.profile_rename.refusal)."""
+        if code == profile_mods.DELETE_NO_PROFILE:
+            return tr("Pick a profile first.")
+        if code == profile_mods.DELETE_MANAGED:
+            return tr("{name} is managed by its installer; rename it there.").format(name=name or tr("This profile"))
+        if code == profile_mods.DELETE_BUSY:
+            return tr("Wait for the current job to finish.")
+        if game_running:
+            return tr("Close the game first: it has these files open.")
+        return ""
 
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)

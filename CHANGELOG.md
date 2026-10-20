@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mods: click the profile's name to rename it in place (Enter renames, Esc cancels; the name is checked as you type and a refusal shows beside it), or use Profile > Rename. Profile > Duplicate makes "<name> copy" with no mod folders copied. A rename keeps the profile's settings, backup copy, version history, offline copy and the launcher's own records with it as one operation, and Undo (Activity) puts everything back. A profile with its own build folders can be renamed but not yet duplicated.
 - The top bar reads the profile's disk checks in the background and says "Checking..." only when that takes a moment; Launch re-checks fresh each time it is pressed. The Launch pill shows an amber mark (and the reason in its tooltip) when a mod folder is missing.
 - Launch warns when a mod's folder is missing (the status line says which, with a link to Mods; Launch still works). The top bar no longer re-reads the disk on every progress line of a running job, and its small status dot has a name for screen readers.
 - The mouse pointer is a hand over every button, switch, tick-box and menu item that can be clicked, and an arrow when it is off.

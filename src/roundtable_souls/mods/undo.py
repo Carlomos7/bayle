@@ -25,6 +25,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from roundtable_souls.mods import profile_edit as mod_manage
+from roundtable_souls.mods import profile_settings as ps
 from roundtable_souls.mods import profile_writer
 
 LABEL = {
@@ -40,6 +41,8 @@ LABEL = {
     "profile-import": "Undo import",
     "library-adopt": "Undo adoption",
     "rename": "Undo rename",
+    "profile-rename": "Undo rename",
+    "profile-duplicate": "Undo copy",
     "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
@@ -100,6 +103,10 @@ def available(undo: dict | None) -> bool:
             return False
         # a profile adopted into the library (mods.adopt) is no longer at the place this was recorded for
         return not undo.get("profile") or Path(undo["profile"]).is_file()
+    if undo.get("type") in ("profile-rename", "profile-duplicate"):
+        from roundtable_souls.merging import build
+
+        return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
     if undo.get("type") == "library-adopt":
         from roundtable_souls.merging import build
 
@@ -145,6 +152,17 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         try:
             return operations.take_back(Path(undo["operation"]), log)
         except operations.OperationError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in ("profile-rename", "profile-duplicate"):
+        from roundtable_souls.mods import profile_rename
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'The change'} can no longer be taken back.")
+        try:
+            if undo["type"] == "profile-rename":
+                return profile_rename.undo_rename(Path(undo["operation"]), log)
+            return profile_rename.undo_duplicate(Path(undo["operation"]), log)
+        except (profile_rename.ProfileRenameError, ps.Unreadable) as e:
             raise UndoError(str(e)) from e
     if undo.get("type") == "library-adopt":
         from roundtable_souls.mods import adopt

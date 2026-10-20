@@ -447,3 +447,56 @@ def test_profile_settings_versions_and_add_existing(qt_app, profile):
         assert "extra" in [e["name"] for e in profile_entries(profile)]
     finally:
         closed(w)
+
+
+def typed(win, text: str) -> None:
+    for ch in text:
+        QTest.keyClick(win, ch)
+
+
+def _text(w: PageWindow, name: str):
+    return find(w, name).property("text")
+
+
+def test_clicking_the_profile_name_edits_it_in_place(qt_app, profile, shots):
+    host = Host(profile)
+    w = opened(host)
+    try:
+        win = w.window
+        assert win is not None
+        assert not find(w, "profileNameEdit").property("visible")
+        click(w, find(w, "profileTitle"))
+        edit = find(w, "profileNameEdit")
+        assert edit.property("visible") and edit.property("activeFocus") and edit.property("text") == "main"
+        typed(win, "x:y")  # selected text is replaced; ":" is not a name Windows allows
+        settle(450)  # the check runs once typing pauses
+        assert "Windows doesn't allow" in _text(w, "profileNameProblem")
+        win.grabWindow().save(str(shots / "mods-profile-rename.png"))
+        QTest.keyClick(win, Qt.Key.Key_Return)
+        settle()
+        assert host.jobs == [] and edit.property("visible")  # a refused name starts nothing and stays open
+        QTest.keyClick(win, Qt.Key.Key_Escape)
+        settle()
+        assert not find(w, "profileNameEdit").property("visible") and host.jobs == []
+        click(w, find(w, "profileTitle"))
+        typed(win, "Renamed")
+        QTest.keyClick(win, Qt.Key.Key_Return)
+        settle()
+        assert host.jobs == ["Renaming main..."] and not find(w, "profileNameEdit").property("visible")
+        host.busy = True  # while a job runs the field does not open; the reason is shown
+        click(w, find(w, "profileTitle"))
+        assert not find(w, "profileNameEdit").property("visible")
+        assert "Wait for the current job" in _text(w, "profileNameProblem")
+    finally:
+        closed(w)
+
+
+def test_the_profile_menu_commands_reach_the_page(qt_app, profile):
+    w = opened(Host(profile))
+    try:
+        assert {"rename", "duplicate"} <= set(registered("mods").commands)
+        w.adapter.command("rename", [])
+        settle()
+        assert find(w, "profileNameEdit").property("visible")
+    finally:
+        closed(w)

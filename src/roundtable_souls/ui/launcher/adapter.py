@@ -69,6 +69,7 @@ class ShellAdapter(QObject):
         host.guard_prompt = self._ask_unsaved
         host.close_guard = self._guard_close
         host.changed.connect(self._host_changed)
+        host.checksChanged.connect(self._checks_changed)
         host.appearanceChanged.connect(self._appearance_changed)
         host.forwardRequested.connect(self.forwardRequested)
         host.quitRequested.connect(self._quit)
@@ -81,6 +82,11 @@ class ShellAdapter(QObject):
 
     # ---------------------------------------------------------------- recomputing what the bar shows
     def _host_changed(self) -> None:
+        self._recompute()
+        self.changed.emit()
+        self.host.schedule_checks()  # the disk reads happen off the UI thread; checksChanged brings the result
+
+    def _checks_changed(self) -> None:
         self._recompute()
         self.changed.emit()
 
@@ -98,6 +104,7 @@ class ShellAdapter(QObject):
                 "text": pill.text,
                 "reason": pill.reason,
                 "canLaunch": pill.can_launch,
+                "warn": pill.warn,
                 "linkText": pill.link.text if pill.link else "",
                 "linkAction": pill.link.action if pill.link else "",
             },

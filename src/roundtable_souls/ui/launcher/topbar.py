@@ -47,6 +47,7 @@ class Facts:
     installed: bool = True  # the game's folder or exe is known
     profile_count: int = 0
     problems: tuple[str, ...] = ()  # the current setup's, from Setup.problems()
+    checking: bool = False  # the disk checks are taking a while
     warnings: tuple[str, ...] = ()  # Setup.warnings(): Launch still works, a mod is left out
     busy: bool = False
     job_label: str = ""
@@ -70,6 +71,7 @@ class Pill:
     reason: str = ""  # why it is blocked, or the tooltip for the other states
     link: Link | None = None
     can_launch: bool = False
+    warn: bool = False  # Launch works, a mod is left out: amber
 
 
 @dataclass(frozen=True)
@@ -152,13 +154,16 @@ def pill(facts: Facts) -> Pill:
     if facts.busy:
         text = {"launch": tr("Launching..."), "update": tr("Updating...")}.get(facts.job_kind, tr("Working..."))
         return Pill(mode, words, BUSY, text, facts.job_label)
+    if facts.checking and mode != VANILLA:
+        return Pill(mode, words, BUSY, tr("Checking..."), tr("Checking the profile..."))
     why = blocked(facts, mode)
     if why is not None:
         return Pill(mode, words, BLOCKED, tr("Launch"), why[0], why[1])
     tip = tr("Launch {mode} (Ctrl+L)").format(mode=words)
-    if facts.warnings and mode != VANILLA:
+    warn = bool(facts.warnings) and mode != VANILLA
+    if warn:
         tip += "  ·  " + _warning_words(facts)
-    return Pill(mode, words, ENABLED, tr("Launch"), tip, None, True)
+    return Pill(mode, words, ENABLED, tr("Launch"), tip, None, True, warn)
 
 
 # ------------------------------------------------------------------------------------------------ status text

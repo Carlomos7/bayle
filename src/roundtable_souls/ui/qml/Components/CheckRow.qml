@@ -50,4 +50,6 @@ CheckBox {
             radiusOf: 4
         }
     }
+    HandCursor {
+    }
 }

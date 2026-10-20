@@ -66,6 +66,7 @@ class SavesAdapter(QObject):
     repairChanged = Signal()
     sheetChanged = Signal()
     importNameRequested = Signal(str, str)  # the file, a name to start from
+    nameAsked = Signal(str, str)  # a drop that needs a name first (mode, file), as the menu's Save a copy does
 
     def __init__(self, host: SavesHost, notifier: Notifier, presenter: SavesPresenter | None = None, parent=None):
         super().__init__(parent)
@@ -87,6 +88,7 @@ class SavesAdapter(QObject):
         self._keys: dict[str, tuple] = {}
         self._sheet: dict = {}
         self._sheet_open = False
+        self._clip: dict = {}
 
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
@@ -321,6 +323,73 @@ class SavesAdapter(QObject):
     def _game(self):
         loc = self.host.locations
         return loc.game
+
+    # ---- drag and drop (every drop is one of the menu twins' slots below, after the presenter's one rule set)
+    @staticmethod
+    def _plain(v) -> dict:
+        """A drag's payload or spot, from QML (a QJSValue) or Python (a dict)."""
+        return dict(v.toVariant() if hasattr(v, "toVariant") else v)
+
+    def _drop_plan(self, source, target):
+        return self.presenter.drop(
+            self._plain(source),
+            self._plain(target),
+            game=self._game_name(),
+            running=bool(self.host.game_running),
+            busy=bool(self.host.busy),
+            encrypted=self._encrypted(),
+        )
+
+    @Slot("QVariant", "QVariant", result=str)
+    def dropReason(self, source, target) -> str:
+        """Why the spot refuses this drag, in words ("" when it takes it). In memory: nothing is read from disk."""
+        plan = self._drop_plan(source, target)
+        return f"{plan.title}. {plan.body}" if isinstance(plan, Refusal) else ""
+
+    @Slot("QVariant", "QVariant")
+    def drop(self, source, target) -> None:
+        """A drop: the same slot, confirmation and write as the menu twin; a refusal is said in a toast."""
+        plan = self._drop_plan(source, target)
+        if isinstance(plan, Refusal):
+            self._refuse(plan)
+        elif plan.call == "askName":
+            self.nameAsked.emit(*plan.args)
+        else:
+            getattr(self, plan.call)(*plan.args)
+
+    @Slot(str, str, int, str, int)
+    def copyFromLibrary(self, folder: str, entry_id: str, src_slot: int, target: str, dst_slot: int) -> None:
+        """One character out of a Library copy into a slot: copyCharacter with the copy's file as the source."""
+        if self._blocked():
+            return
+        try:
+            entry = save_library.find(self._libs.get(folder) or save_library.load(Path(folder)), entry_id)
+            src = save_library.entry_path(Path(folder), entry)
+        except Exception as e:
+            self._refuse(Refusal(tr("This copy cannot be used"), str(e)))
+            return
+        if not src.is_file():
+            self._refuse(Refusal(tr("This copy cannot be used"), tr("Its file is missing from the Library.")))
+            return
+        self.copyCharacter(str(src), src_slot, target, dst_slot)
+
+    # ---- Ctrl+C on a character, Ctrl+V on a slot (a drop of the copied character)
+    @Slot(str, int)
+    def copyCharacterKey(self, path: str, slot: int) -> None:
+        self._clip = {"type": "character", "path": path, "slot": slot}
+        self.notifier.toast(tr("Character copied. Select a slot and press Ctrl+V."))
+
+    @Slot(str, str, int)
+    def copyLibraryCharacterKey(self, folder: str, entry_id: str, slot: int) -> None:
+        self._clip = {"type": "copychar", "folder": folder, "id": entry_id, "slot": slot}
+        self.notifier.toast(tr("Character copied. Select a slot and press Ctrl+V."))
+
+    @Slot("QVariant")
+    def pasteInto(self, target) -> None:
+        if not self._clip:
+            self.notifier.toast(tr("Copy a character first (Ctrl+C on its row)."), error=True)
+            return
+        self.drop(self._clip, target)
 
     # ---- 4. Back up now
     @Slot(str)

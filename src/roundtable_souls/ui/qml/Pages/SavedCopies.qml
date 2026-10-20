@@ -12,6 +12,7 @@ Column {
 
     required property var adapter
     property int tab: 0
+    property Flickable scroller   // the page, for the drag's auto-scroll
     readonly property var words: adapter.words
 
     signal nameRequested(string mode, string path)
@@ -52,6 +53,18 @@ Column {
         visible: root.tab === 0
         width: parent.width
 
+        DropTarget {  // a live save dropped here: Save a copy (the same name dialog as the menu)
+            anchors.fill: parent
+            objectName: "dropLibrary"
+            reasonOf: p => root.adapter.dropReason(p, {
+                    "type": "library"
+                })
+
+            onDropPayload: p => root.adapter.drop(p, {
+                    "type": "library"
+                })
+        }
+
         Column {
             width: parent.width
 
@@ -68,19 +81,47 @@ Column {
             Repeater {
                 model: root.adapter.libraryRows
 
+                Column {
+                    id: libBlock
+
+                    required property var modelData
+                    property bool expanded: false
+
+                    width: parent.width
+
                 HoverRow {
                     id: libRow
 
-                    required property int index
-                    required property var modelData
+                    readonly property var modelData: libBlock.modelData
 
                     divider: true
                     height: 56
-                    pressable: false
+                    pressable: true
+
+                    onClicked: libBlock.expanded = !libBlock.expanded
                     width: parent.width
 
-                    Column {
+                    DragHandle {  // the copy, dragged onto a live save: Replace
+                        id: libGrip
+
                         anchors.left: parent.left
+                        anchors.leftMargin: -Theme.sp8
+                        implicitHeight: libRow.height
+                        label: libRow.modelData.name
+                        objectName: "dragCopy_" + libRow.modelData.name
+                        payload: ({
+                                "type": "copy",
+                                "folder": libRow.modelData.folder,
+                                "id": libRow.modelData.id,
+                                "missing": libRow.modelData.missing,
+                                "count": libRow.modelData.characters.length,
+                                "only": libRow.modelData.characters.length === 1 ? libRow.modelData.characters[0].slot : 0
+                            })
+                        scroller: root.scroller
+                        visible: !libRow.modelData.stranded && !root.adapter.running
+                    }
+                    Column {
+                        anchors.left: libGrip.visible ? libGrip.right : parent.left
                         anchors.right: libActions.left
                         anchors.rightMargin: Theme.sp8
                         anchors.verticalCenter: parent.verticalCenter
@@ -176,6 +217,58 @@ Column {
                         }
                     }
                 }
+                    Repeater {  // the copy's characters, each draggable into a slot
+                        model: libBlock.expanded ? libBlock.modelData.characters : []
+
+                        HoverRow {
+                            id: charRow
+
+                            required property var modelData
+
+                            divider: true
+                            height: 40
+                            pressable: false
+                            width: libBlock.width
+
+                            DragHandle {
+                                id: charGrip
+
+                                anchors.left: parent.left
+                                anchors.leftMargin: Theme.sp16
+                                implicitHeight: charRow.height
+                                label: charRow.modelData.name + "  ·  " + charRow.modelData.levelText
+                                objectName: "dragCopyChar_" + libBlock.modelData.name + "_" + charRow.modelData.slot
+                                payload: ({
+                                        "type": "copychar",
+                                        "folder": libBlock.modelData.folder,
+                                        "id": libBlock.modelData.id,
+                                        "slot": charRow.modelData.slot
+                                    })
+                                scroller: root.scroller
+                                visible: !root.adapter.running && !libBlock.modelData.missing
+                            }
+                            Txt {
+                                anchors.left: charGrip.right
+                                anchors.leftMargin: Theme.sp8
+                                anchors.verticalCenter: parent.verticalCenter
+                                kind: "rowTitle"
+                                text: charRow.modelData.slot + "  ·  " + charRow.modelData.name + "  ·  " + charRow.modelData.levelText
+                            }
+                            Keys.onPressed: event => {  // Ctrl+C: the same copy as the drag, pasted with Ctrl+V on a slot
+                                if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_C) {
+                                    root.adapter.copyLibraryCharacterKey(libBlock.modelData.folder, libBlock.modelData.id, charRow.modelData.slot);
+                                    event.accepted = true;
+                                }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                z: -1
+
+                                onPressed: charRow.forceActiveFocus()
+                            }
+                        }
+                    }
+                }
             }
             Row {
                 leftPadding: Theme.padCard
@@ -203,6 +296,18 @@ Column {
         padding: 0
         visible: root.tab === 1
         width: parent.width
+
+        DropTarget {  // a live save dropped here: Back up now
+            anchors.fill: parent
+            objectName: "dropBackups"
+            reasonOf: p => root.adapter.dropReason(p, {
+                    "type": "backups"
+                })
+
+            onDropPayload: p => root.adapter.drop(p, {
+                    "type": "backups"
+                })
+        }
 
         Column {
             width: parent.width
@@ -249,8 +354,23 @@ Column {
                             pressable: false
                             width: dayColumn.width
 
-                            Column {
+                            DragHandle {  // the backup, dragged onto a live save: Restore
+                                id: bakGrip
+
                                 anchors.left: parent.left
+                                anchors.leftMargin: -Theme.sp8
+                                implicitHeight: bakRow.height
+                                label: bakRow.modelData.time + "  ·  " + bakRow.modelData.name
+                                objectName: "dragBackup_" + bakRow.modelData.name
+                                payload: ({
+                                        "type": "backup",
+                                        "path": bakRow.modelData.path
+                                    })
+                                scroller: root.scroller
+                                visible: !root.adapter.running
+                            }
+                            Column {
+                                anchors.left: bakGrip.visible ? bakGrip.right : parent.left
                                 anchors.right: bakActions.left
                                 anchors.rightMargin: Theme.sp8
                                 anchors.verticalCenter: parent.verticalCenter

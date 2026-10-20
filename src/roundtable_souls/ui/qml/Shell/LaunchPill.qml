@@ -21,7 +21,7 @@ Item {
     readonly property bool glowOn: !greyed && AppState.effects !== "off"
     readonly property bool greyed: p.state === "blocked" || p.state === "running"
     readonly property bool hoveredNow: leftMouse.containsMouse || rightMouse.containsMouse
-    readonly property int leftW: Math.max(launchMetrics.width, launchingMetrics.width, updatingMetrics.width) + 16 + 8 + 24
+    readonly property int leftW: Math.max(launchMetrics.width, launchingMetrics.width, updatingMetrics.width, checkingMetrics.width) + 16 + 8 + 24
     readonly property var p: shell.pill
     readonly property int rightW: rightRow.implicitWidth + 16
     required property var shell
@@ -65,11 +65,21 @@ Item {
         text: qsTr("Launching...")
     }
     TextMetrics {
+        id: checkingMetrics
+
+        font: launchMetrics.font
+        text: qsTr("Checking...")
+    }
+    TextMetrics {
         id: updatingMetrics
 
         font: launchMetrics.font
         text: qsTr("Updating...")
     }
+    ToolTip.delay: 500
+    ToolTip.text: root.p.reason
+    ToolTip.visible: root.hoveredNow && root.p.reason !== ""
+
     FocusRing {
         active: root.activeFocus  // mouse clicks go to the MouseAreas, never to the root, so this is keyboard-only
         radiusOf: Theme.radiusLaunch
@@ -97,6 +107,18 @@ Item {
                 duration: Theme.mFast
             }
         }
+    }
+    Rectangle {  // a mod is left out (Launch still works): an amber mark, the words are in the tooltip and status line
+        Accessible.name: root.p.reason
+        Accessible.role: Accessible.StaticText
+        color: Theme.statusWarning
+        height: 8
+        radius: 4
+        visible: root.p.warn
+        width: 8
+        x: 6
+        y: 6
+        z: 2
     }
     Item {
         id: leftZone
@@ -230,6 +252,10 @@ Item {
         }
     }
     Rectangle {  // the status dot (compact windows): the status text as its tooltip, a click runs the link
+        Accessible.name: root.statusText
+        Accessible.role: Accessible.Button
+
+        Accessible.onPressAction: root.statusClicked()
         anchors.right: parent.right
         anchors.rightMargin: 7
         anchors.verticalCenter: parent.verticalCenter

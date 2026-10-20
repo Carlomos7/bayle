@@ -299,3 +299,14 @@ def test_a_failed_update_offers_play_anyway_and_is_not_retried_silently():
     assert [name for name, _ in calls.started] == ["play"]
     f.start(PROFILE)  # same inputs: it asks again instead of rebuilding or starting
     assert rebuilt == [1] and len(calls.started) == 1 and ports.asked[1].title == "Your merged mods are out of date"
+
+
+def test_launch_reads_the_profile_checks_fresh_each_time():
+    setup = Setup()
+    state = State(setup=setup)
+    f, ports, calls = flow(state=state)
+    f.start(PROFILE)
+    assert calls.started  # a clean setup starts
+    calls.started.clear()
+    setup._problems = ["profile missing: gone.me3"]  # changed on disk since: the next Launch must see it
+    assert f.start(PROFILE) is False and calls.started == []

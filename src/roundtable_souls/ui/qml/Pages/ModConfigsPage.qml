@@ -251,10 +251,29 @@ Item {
                 }
             }
             Txt {
+                elide: Text.ElideMiddle
                 kind: "hint"
                 text: page.adapter.selectedFile
                 visible: text !== ""
                 width: parent.width
+            }
+            InfoBar {
+                actionLabel: page.words.reload
+                closable: false
+                objectName: "diskChangedBar"
+                open: page.adapter.diskChanged
+                severity: "warning"
+                text: page.words.diskChanged
+                width: parent.width
+
+                onActionClicked: page.adapter.reload()
+            }
+            Timer {
+                interval: 3000
+                repeat: true
+                running: page.visible && page.adapter.selectedFile !== ""
+
+                onTriggered: page.adapter.checkDisk()
             }
         }
         Flickable {

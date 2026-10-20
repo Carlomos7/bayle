@@ -187,6 +187,10 @@ class ModConfigsPresenter:
             "reset": tr("Reset to default"),
             "resetDisk": tr("Reset to the file's value"),
             "changed": tr("Changed"),
+            "diskChanged": tr(
+                "This file was changed outside the launcher. Reload to see its current settings; your unsaved edits are dropped."
+            ),
+            "reload": tr("Reload"),
             "noMatch": tr("No setting matches"),
             "matchCount": tr("{n} settings match"),
             "noChanges": tr("No changes"),

@@ -133,7 +133,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
         SwitchSpec(
             "play_clear_before",
             tr("Clear leftover processes before launch"),
-            tr("Ends dead copies of the game so Steam agrees to start it."),
+            tr("Closes copies of the game that are stuck in the background so Steam agrees to start it."),
             tr("A dead shell is a copy of the game's exe with no window. Steam refuses to launch while one exists."),
             "launch",
         ),
@@ -151,7 +151,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
         SwitchSpec(
             "play_clear_after",
             tr("Clear leftover processes after quitting"),
-            tr("Ends dead shells so Discord and Steam stop showing the game as running."),
+            tr("Closes stuck copies of the game so Discord and Steam stop showing it as running."),
             tr("Needs admin once. Turn it off if you prefer to handle processes yourself."),
             "launch",
         ),

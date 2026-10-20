@@ -253,7 +253,9 @@ def _profile_step(op: build.Operation) -> dict | None:
     return next((s for s in op.steps if s["type"] == "file"), None)
 
 
-def _profile_back(op: build.Operation, profile: Path, notes: list[str]) -> tuple[bytes, str] | None:
+def _profile_back(
+    op: build.Operation, profile: Path, notes: list[str], made_here: bool = False
+) -> tuple[bytes, str] | None:
     """The profile's bytes once op is taken back, with the sha256 of its bytes now (what Operation.write_file
     expects to find, so a profile edited outside the launcher meanwhile is not overwritten): its exact previous bytes
     when it has not changed since; else the current text without the entries op added. None: leave it as it is."""
@@ -269,7 +271,7 @@ def _profile_back(op: build.Operation, profile: Path, notes: list[str]) -> tuple
     current = now.decode("utf-8", errors="replace")
     if now == after:
         back = before.decode("utf-8", errors="replace")
-        if _coop_entries(current) <= _coop_entries(back):
+        if made_here or _coop_entries(current) <= _coop_entries(back):
             return before, expect
         notes.append("Seamless Co-op stays in the profile (it was added with this mod and other mods use it)")
     else:
@@ -342,6 +344,9 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
     notes: list[str] = []
     emptied: list[Path] = []
     profile_step = _profile_step(op)
+    # a profile the operation made (an import into a new profile) goes whole with what it copied: the Seamless
+    # guard protects the player's own profiles, not one the launcher just created
+    made_here = bool(op.info.get("new_profile"))
     with lock(profile):
         new = _new_op(op, f"undo of the {op.what}")
         try:
@@ -351,7 +356,7 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
                     previous = Path(step["previous"]) if step["previous"] else None
                     if previous is not None and previous.is_dir():
                         new.replace_folder(live, previous)
-                    elif live.is_dir() and not _shared_folder(live):
+                    elif live.is_dir() and (made_here or not _shared_folder(live)):
                         created = made.get(str(live)) or {}
                         staged = live.with_name(f".{live.name}.staging-{new.id}")
                         staged.mkdir()
@@ -367,7 +372,7 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
                         if left:
                             notes.append(f"kept in {live.name}, changed or added since: {', '.join(left[:5])}")
                 elif step is profile_step:
-                    back = _profile_back(op, profile, notes)
+                    back = _profile_back(op, profile, notes, made_here)
                     if back is not None:
                         new.write_file(profile, back[0], expect=back[1])
                 elif step["type"] == "file":

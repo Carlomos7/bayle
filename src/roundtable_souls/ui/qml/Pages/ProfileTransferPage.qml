@@ -149,7 +149,7 @@ PageScroll {
             id: kindTabs
 
             objectName: "kindTabs"
-            tabs: [page.words.shareList, page.words.fullExport]
+            tabs: [page.words.shareList, page.s.ex.fullLabel]
 
             onCurrentChanged: page.adapter.setText("kind", current === 1 ? "full" : "list")
         }

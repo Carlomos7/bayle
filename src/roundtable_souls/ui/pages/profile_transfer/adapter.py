@@ -160,6 +160,7 @@ class ProfileTransferAdapter(QObject):
             else ""
         )
         ex["run"] = dict(self._run)
+        ex["fullLabel"] = f"{self._words['fullExport']} ({size_text(size)})" if picked else self._words["fullExport"]
         prev = self._preview
         imp: dict[str, Any] = {
             "file": self.presenter.file_line(self._incoming) if self._incoming else "",

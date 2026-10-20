@@ -58,12 +58,14 @@ def hours(seconds: int) -> str:
 # ----------------------------------------------------------------------------- whole files
 def copy_file(source: Path, target: Path, game: games.Game, keep_as: str | None = None) -> dict:
     """Write source's bytes over target. An existing target goes into the library first under keep_as (a default
-    name when None), and a backup is kept for Undo. Returns {kept, backup}."""
+    name when None), and a backup is kept for Undo. A save from another Steam account is signed for the target's
+    account first (library.signed_for_account). Returns {kept, backup, signed}."""
     source, target = Path(source), Path(target)
     if source.resolve() == target.resolve():
         raise TransferError("That is the same file.")
     data = source.read_bytes()
     library.check_whole(data, game)
+    data, signed = library.signed_for_account(data, target, game)
     kept = bak = None
     if target.exists():
         kept = library.add(
@@ -75,7 +77,7 @@ def copy_file(source: Path, target: Path, game: games.Game, keep_as: str | None 
     tmp.replace(target)
     if target.read_bytes() != data:
         raise TransferError(f"{target.name} did not read back the same; restore it from Backups.")
-    return {"kept": kept, "backup": bak}
+    return {"kept": kept, "backup": bak, "signed": signed}
 
 
 # ----------------------------------------------------------------------------- one character

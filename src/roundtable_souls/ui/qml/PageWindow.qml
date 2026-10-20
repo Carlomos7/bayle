@@ -17,6 +17,8 @@ ApplicationWindow {
     required property var notifier
     required property url pageUrl
     property string themeMode: "dark"   // "dark" | "tarnished" | "light" | "system", from the launcher's setting
+    property string effects: "full"     // Settings > Appearance > Effects
+    property string grain: "subtle"     // Settings > Appearance > Grain
     property Item toastItem: null
     property int confirmToken: 0
     property bool confirmed: false
@@ -31,7 +33,11 @@ ApplicationWindow {
     Component.onCompleted: {
         AppState.softwareRender = GraphicsInfo.api === GraphicsInfo.Software;
         AppState.setThemeMode(win.themeMode);
+        AppState.effects = win.effects;
+        AppState.grain = win.grain;
     }
+    onEffectsChanged: AppState.effects = win.effects
+    onGrainChanged: AppState.grain = win.grain
     onThemeModeChanged: AppState.setThemeMode(win.themeMode)
 
     Rectangle {  // the bar: title left, the status text right

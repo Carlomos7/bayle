@@ -9,16 +9,19 @@ from pathlib import Path
 
 from roundtable_souls.game import catalog as games
 from roundtable_souls.game.locate import Locations
+from roundtable_souls.mods import undo as mod_undo
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.saves import analyze as save_analyze
 from roundtable_souls.saves import backups as save_backups
 from roundtable_souls.saves import container as save_container
 from roundtable_souls.saves import fix as save_fix
 from roundtable_souls.saves import layout as save_layout_check
+from roundtable_souls.saves import library as save_library
 from roundtable_souls.saves import loading as save_loading
 from roundtable_souls.saves import models
 from roundtable_souls.saves import nightreign as repair_nightreign
 from roundtable_souls.saves import regulation as repair_regulation
+from roundtable_souls.saves import repair as save_repair
 from roundtable_souls.saves import vanilla as save_vanilla
 
 
@@ -120,7 +123,7 @@ def _save_info(path: Path, game: games.Game | None = None, kind: str | None = No
                     "level": "warn",
                     "code": "slot_checksum",
                     "title": "Character checksum mismatch",
-                    "detail": f"Active slot(s) {', '.join(bad)}. The character still shows; some editors refuse to write that slot.",
+                    "detail": f"Active slot(s) {', '.join(bad)}. The game refuses a save whose checksums don't match ('Save data is corrupted'). Repair recomputes them.",
                 }
             )
         if not r["ud10_md5_ok"]:
@@ -129,7 +132,7 @@ def _save_info(path: Path, game: games.Game | None = None, kind: str | None = No
                     "level": "warn",
                     "code": "ud10_checksum",
                     "title": "Profile summary checksum mismatch",
-                    "detail": "The profile summary checksum does not match. Unusual; Fix checksums recomputes it.",
+                    "detail": "The profile summary checksum does not match. The game refuses a save whose checksums don't match ('Save data is corrupted'). Repair recomputes them.",
                 }
             )
         for i, why in sorted((r.get("unreadable") or {}).items()):
@@ -164,6 +167,9 @@ def _save_info(path: Path, game: games.Game | None = None, kind: str | None = No
                     level=p["level"],
                     body="Type B" if p.get("gender") == 1 else "Type A",
                     hp=p["max_health"],
+                    fp=p["max_fp"],
+                    stamina=p["max_sp"],
+                    memory=p["soulsmemory"],
                     runes=p["souls"],
                     ok=r["slot_md5_ok"][i],
                     where=place_name(s["map_id"]),
@@ -527,6 +533,8 @@ def restore_backup(bak: Path, save: Path | None = None, *, loc: Locations) -> Pa
     tmp = save.with_name(save.name + ".roundtable.tmp")
     tmp.write_bytes(data)
     tmp.replace(save)
+    if save.read_bytes() != data:
+        raise RuntimeError(f"{save.name} did not read back the same after the restore; restore it from Backups.")
     run_logging.log(f"restored {bak.name} over {save.name}" + (f" (safety copy: {safety.name})" if safety else ""))
     return safety
 
@@ -570,6 +578,27 @@ def assert_writable(path: Path, settle_seconds: float | None = None, *, loc: Loc
         time.sleep(settle_seconds - age)
         if loc.game_running():
             raise RuntimeError(f"{loc.game.name} started while waiting. Close it before changing saves.")
+    if path.exists() and not save_repair.wait_for_save_flush([path]):  # the game may still hold the file
+        raise RuntimeError(f"{path.name} is still in use. Close the program holding it and try again.")
+
+
+def back_up_now(save: Path, *, loc: Locations) -> Path:
+    """A backup of the save as it is, on request."""
+    save = Path(save)
+    assert_writable(save, loc=loc)
+    return save_fix.backup(save, {"action": "Manual backup"})
+
+
+def keep_backup_as_copy(bak: Path, name: str, *, loc: Locations) -> dict:
+    """Copy a backup into the library under a name (Keep). The backup is left as it is and ages out normally."""
+    save = save_for_backup(bak, loc=loc)
+    game = games.for_save(save) or loc.game
+    return save_library.add(save.parent, Path(bak), name, game, action="kept backup")
+
+
+def account_of(path: Path) -> int | None:
+    """The Steam account a save file belongs to (read-only), or None."""
+    return save_library.account_of(Path(path))
 
 
 def fix_checksums(path: Path, *, loc: Locations) -> dict:
@@ -714,3 +743,27 @@ def dead_shells_count(*, loc: Locations) -> int:
 def backups_folder(path: Path) -> Path:
     """The backups folder for a save's account."""
     return save_backups.backups(Path(path).parent)
+
+
+# ----------------------------------------------------------------------------- Undo for save writes
+def _restore_available(undo: dict) -> bool:
+    return (
+        bool(undo.get("save") and undo.get("backup"))
+        and Path(undo["save"]).is_file()
+        and Path(undo["backup"]).is_file()
+    )
+
+
+def _restore_run(undo: dict, log, loc: Locations) -> str:
+    if not _restore_available(undo):
+        raise mod_undo.UndoError(f"{undo.get('name') or 'The save'} can no longer be taken back.")
+    if loc.game_running():
+        raise mod_undo.UndoError(f"{loc.game.name} is running. Close it before changing saves.")
+    try:
+        restore_backup(Path(undo["backup"]), Path(undo["save"]), loc=loc)
+    except RuntimeError as e:
+        raise mod_undo.UndoError(str(e)) from e
+    return f"put {Path(undo['save']).name} back as it was"
+
+
+mod_undo.EXTERNAL["save-restore"] = (_restore_available, _restore_run)  # mods sits below this layer: it registers here

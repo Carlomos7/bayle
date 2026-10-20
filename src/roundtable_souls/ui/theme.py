@@ -28,6 +28,15 @@ BG_LIGHT = str(theme_tokens.LIGHT["surfaceBar"])
 COMPACT = 880
 
 
+def widgets_dark(theme: str) -> bool:
+    """Whether the Widgets window is dark for a saved theme: tarnished is dark, system follows the OS scheme."""
+    if theme == "system":
+        from PySide6.QtGui import QGuiApplication
+
+        return QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Dark
+    return theme in ("dark", "tarnished")
+
+
 def roles(dark: bool | None = None) -> dict[str, str]:
     """The theme's colour roles by their token names (accent, textSecondary, statusDanger ...), as colour strings.
     dark None follows the current theme."""

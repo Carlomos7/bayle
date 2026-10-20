@@ -125,6 +125,18 @@ def update(profile: Path, **changes) -> None:
     os.replace(tmp, file)
 
 
+def clear(profile: Path) -> None:
+    """Forget everything kept for this profile (its entry goes; other profiles' stay)."""
+    file = _current(profile)
+    data = _read(file)
+    profiles = dict(data.get("profiles") or {})
+    if profiles.pop(Path(profile).name, None) is None:
+        return
+    tmp = file.with_name(file.name + ".tmp")
+    tmp.write_text(json.dumps({**data, "profiles": profiles}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, file)
+
+
 def to_stored(profile: Path, target: Path | None) -> str | None:
     """A path as stored: relative (with /) when it is inside the profile's folder, else as it is."""
     if target is None:
@@ -133,6 +145,9 @@ def to_stored(profile: Path, target: Path | None) -> str | None:
     try:
         return Path(os.path.abspath(target)).relative_to(Path(os.path.abspath(base))).as_posix()
     except ValueError:
+        lib = library.library_of(profile)
+        if lib is not None and lib.place_of(target) is not None:  # elsewhere in the library: the folder moves as one
+            return Path(os.path.relpath(target, base)).as_posix()
         return str(target)
 
 
@@ -140,4 +155,4 @@ def from_stored(profile: Path, stored: str | None) -> Path | None:
     if not stored:
         return None
     p = Path(stored)
-    return p if p.is_absolute() else Path(profile).parent / p
+    return p if p.is_absolute() else Path(os.path.normpath(Path(profile).parent / p))

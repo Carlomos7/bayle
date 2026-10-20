@@ -185,6 +185,8 @@ class ModsPresenter:
             "profileSettings": settings,
             "versions": versions,
             "deleteProfile": delete,
+            "exportProfile": tr("Export profile..."),
+            "importProfile": tr("Import profile..."),
             "rescan": tr("Rescan"),
             "addExisting": tr("Add existing..."),
             "more": tr("More"),
@@ -227,6 +229,7 @@ class ModsPresenter:
                 "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
             ),
             "undo": tr("Undo"),
+            "adoptMenu": tr("Adopt into the library..."),
             **self.dialog_words(),
         }
 
@@ -285,10 +288,12 @@ class ModsPresenter:
         game_running: bool = False,
         tool_to_allow=None,
         recovered: tuple[str, ...] = (),
+        adopt: str = "",
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
-        changes put right as the page opened (one line each)."""
+        changes put right as the page opened (one line each); adopt: the folder name of a setup to offer to adopt into the
+        library ("" for none)."""
         if facts is None:
             return ModsState(
                 tr("Mods"), "", None, (), self.parameters(None, game_running), (), tr("Pick a profile first.")
@@ -322,7 +327,7 @@ class ModsPresenter:
             groups=groups,
             parameters=self.parameters(health, game_running, facts.fingerprint, facts.regulation),
             notices=self.notices(
-                health, tool_to_allow, recovered, facts.online_with, facts.regulation, str(facts.profile)
+                health, tool_to_allow, recovered, facts.online_with, facts.regulation, str(facts.profile), adopt
             ),
         )
 
@@ -541,9 +546,10 @@ class ModsPresenter:
         online_with: str = "",
         regulation: str = "regulation.bin",
         profile: str = "",
+        adopt: str = "",
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
-        permission, interrupted changes put right."""
+        permission, interrupted changes put right, a setup to adopt into the library (adopt: its folder's name)."""
         out = []
         if online_with:
             out.append(
@@ -589,6 +595,19 @@ class ModsPresenter:
                     "success",
                     tr("An interrupted change was put right: {what}").format(what=line),
                     "",
+                    True,
+                )
+            )
+        if adopt:
+            out.append(
+                Notice(
+                    "adopt",
+                    "info",
+                    tr(
+                        "{name} keeps its mods and profiles outside the launcher's library. Adopting moves them into one "
+                        "folder you can back up or copy, and Undo puts everything back."
+                    ).format(name=adopt),
+                    tr("Preview..."),
                     True,
                 )
             )
@@ -838,6 +857,41 @@ class ModsPresenter:
                 "installed. Keep them unless you're sure you don't need them."
             ),
         )
+
+    # ---- adopting a setup into the library
+    def adopt_unused(self, names: list[str]) -> Pick:
+        return Pick(
+            title=tr("Move unused folders too?"),
+            body=tr(
+                "No profile in this setup uses these folders. Tick the ones to move into the library as well; the "
+                "others stay where they are. Nothing is deleted either way."
+            ),
+            apply=tr("Move ticked"),
+            none=tr("Leave them all"),
+        )
+
+    def adopt_confirm(self, preview) -> Confirm | Refusal:
+        """The confirmation for mods.adopt.AdoptPreview, or why it can't go ahead. The check box is for stopping the
+        offer: it counts when the question is cancelled."""
+        name = preview.setup.folder.name
+        if not preview.ok:
+            return Refusal(tr("{name} can't be adopted").format(name=name), " ".join(preview.refusals))
+        return Confirm(
+            title=tr("Adopt {name} into the library").format(name=name),
+            changes=tuple(preview.lines),
+            apply=tr("Adopt"),
+            safety=tr(
+                "It's one step: if anything fails, nothing moves. Nothing is copied or deleted, and Undo adoption in "
+                "Activity puts every file back (as long as the profiles are unchanged)."
+            ),
+            option=tr("Don't offer this again for this setup"),
+        )
+
+    def adopt_running(self, name: str) -> str:
+        return tr("Adopting {name} into the library...").format(name=name)
+
+    def adopt_unavailable(self) -> Refusal:
+        return Refusal(tr("Nothing to adopt"), tr("This profile is already in the library."))
 
     def leftovers_moving(self) -> str:
         return tr("Moving leftovers to the Recycle Bin...")

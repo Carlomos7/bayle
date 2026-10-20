@@ -17,11 +17,6 @@ from roundtable_souls.platform import proc, steam
 IS_WINDOWS = sys.platform == "win32"
 IS_LINUX = sys.platform.startswith("linux")
 
-# A real game instance uses gigabytes. Failed launches leave dead game exe shells behind that sit
-# under 1 MB with no threads; Steam counts those as "running", these tools do not.
-REAL_GAME_MIN_KB = 100_000
-
-
 # Detection (Steam libraries, the game folder, me3.exe) scans PATH and the disk. The answers are stable within a
 # session, but Setup.summary()/problems() ask for them many times per game-tab switch, so they are memoised here and
 # cleared whenever the settings or the game change (app.AppContext).
@@ -40,15 +35,16 @@ def clear_detection_cache() -> None:
 
 
 def exe_running(exe_name: str) -> bool:
-    """A real copy of the game whose exe is exe_name runs (one using gigabytes, not a dead shell)."""
-    return any(kb >= REAL_GAME_MIN_KB for _, kb in proc.processes(exe_name))
+    """A real copy of the game whose exe is exe_name runs (one with threads; a starting game, even one me3 holds
+    suspended, has at least one, a dead shell has none)."""
+    return any(threads > 0 for _, threads in proc.processes(exe_name))
 
 
 def dead_exe_shells(exe_name: str) -> list[int]:
-    """Leftover zero-memory copies of the game. A Windows problem; Proton cleans up after itself."""
+    """Leftover zero-thread copies of the game. A Windows problem; Proton cleans up after itself."""
     if not IS_WINDOWS:
         return []
-    return [pid for pid, kb in proc.processes(exe_name) if kb < REAL_GAME_MIN_KB]
+    return [pid for pid, threads in proc.processes(exe_name) if threads == 0]
 
 
 def find_installed(key: str, install_dir: str, exe: str) -> Path | None:

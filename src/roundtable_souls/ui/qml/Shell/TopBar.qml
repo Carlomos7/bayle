@@ -29,7 +29,7 @@ Item {
         launch.openMenu();
     }
 
-    implicitHeight: menuRowHeight + Theme.barRowH
+    implicitHeight: menuRowHeight + Theme.barRowH + statusStrip.height
 
     // ---------------------------------------------------------------- row 1: the menu bar
     Rectangle {
@@ -137,6 +137,8 @@ Item {
 
     // ---------------------------------------------------------------- row 2: collapse, Launch, game, profile, status
     Item {
+        id: barRow
+
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: menuRow.bottom
@@ -240,68 +242,31 @@ Item {
                     onTriggered: root.shell.followLink("new_profile")
                 }
             }
-            Item {  // the status text; its link goes to the fix; a click opens Activity; a failed job stays red until clicked
+            StatusLine {
                 anchors.verticalCenter: parent.verticalCenter
-                height: 20
+                maxWidth: root.width - x - Theme.sp16
+                shell: root.shell
                 visible: !root.compact
-                width: statusRow.implicitWidth
-
-                Row {
-                    id: statusRow
-
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.sp8
-
-                    Spinner {
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.accent
-                        size: 12
-                        visible: root.st.busy
-                    }
-                    Txt {
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: root.statusColor
-                        elide: Text.ElideNone
-                        kind: "caption"
-                        text: root.st.text
-                    }
-                    Txt {
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.textSecondary
-                        kind: "caption"
-                        text: "·"
-                        visible: root.st.linkText !== ""
-                    }
-                    Txt {
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.accent
-                        elide: Text.ElideNone
-                        font.underline: true
-                        kind: "caption"
-                        text: root.st.linkText
-                        visible: root.st.linkText !== ""
-
-                        MouseArea {
-                            anchors.fill: parent
-                            anchors.margins: -4
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: root.shell.followLink(root.st.linkAction)
-                        }
-                    }
-                }
-                MouseArea {
-                    ToolTip.text: qsTr("Open in Activity")
-                    ToolTip.visible: containsMouse && root.st.toActivity && root.st.text !== qsTr("Ready")
-                    anchors.fill: parent
-                    anchors.rightMargin: root.st.linkText !== "" ? statusRow.implicitWidth / 2 : 0
-                    cursorShape: root.st.toActivity ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    enabled: root.st.toActivity
-                    hoverEnabled: true
-
-                    onClicked: root.shell.statusClicked()
-                }
             }
+        }
+    }
+    Item {  // under 820 px the status has no room in the bar: it gets a line of its own, in words
+        id: statusStrip
+
+        readonly property bool needed: root.compact && !root.st.idle
+
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.sp16
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.sp16
+        anchors.top: barRow.bottom
+        height: needed ? 28 : 0
+        visible: needed
+
+        StatusLine {
+            anchors.verticalCenter: parent.verticalCenter
+            maxWidth: statusStrip.width
+            shell: root.shell
         }
     }
 

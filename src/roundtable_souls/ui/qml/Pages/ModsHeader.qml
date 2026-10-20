@@ -83,11 +83,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 kind: "caption"
                 text: header.words.editAsText
-                visible: header.width >= 880
             }
             ToggleSwitch {
-                ToolTip.text: header.words.editAsText
-                ToolTip.visible: hovered && header.width < 880
                 anchors.verticalCenter: parent.verticalCenter
                 checked: header.adapter.editText
                 objectName: "editTextSwitch"

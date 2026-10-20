@@ -4,6 +4,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Check & repair: plainer words for mod items and leftover entries.
 - Activity: a failed job's row says what went wrong in plain words (the log keeps the original text).
 - Settings: long paths keep the drive and file name (the middle is cut), the Steam shortcut buttons stack at narrow widths, and "dead copy" became "leftover game process".
 - Saves: both live-save cards are the same fixed size and list all ten character slots (empty ones too); the slot list and the Library and Backups lists scroll inside fixed-height areas; two cards sit side by side from about 900 px.

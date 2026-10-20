@@ -147,3 +147,17 @@ def test_the_unsaved_rule_asks_before_leaving_and_discard_or_save_goes_on(tmp_pa
     shell.goTo("saves")
     shell.unsavedAnswer(asked[1][0], "discard")
     assert page.log == ["discardUnsaved"] and shell.currentPage == "saves"
+
+
+def test_every_setup_problem_has_a_plain_short_form_and_a_fix_link():
+    for raw in (
+        r"profile missing: C:\x\a.me3",
+        "this profile is for Sekiro, not Elden Ring",
+        r"me3 missing: C:\x\me3.exe",
+        "me3 is not installed on this PC (not on PATH, not in its default folder, not set in Settings)",
+        r"game exe missing: C:\x\eldenring.exe",
+        r"game exe set in Settings is missing: C:\x\eldenring.exe",
+    ):
+        reason = topbar.pill(facts(problems=(raw,))).reason
+        assert "C:" not in reason and "Tools" not in reason and reason.startswith("Blocked: "), reason
+        assert topbar.pill(facts(problems=(raw,))).link is not None

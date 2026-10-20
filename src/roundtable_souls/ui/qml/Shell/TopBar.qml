@@ -270,12 +270,21 @@ Item {
         }
     }
 
+    Connections {
+        function onProfilePickerRequested() {
+            if (profileButton.enabled)
+                profileButton.menu.open();
+        }
+
+        target: root.shell
+    }
+
     // ---------------------------------------------------------------- first-run hints (one at a time)
     TeachingTip {
         parent: Overlay.overlay
         text: qsTr("Launch runs the selected profile. The mode word picks Profile, Offline or Vanilla.")
         visible: !root.compact && root.shell.tips.indexOf("launch") >= 0 && root.shell.pill.state === "enabled"   // not over the first-run page text while Launch is blocked
-        x: 8 + 36 + 10 + 8
+        x: Theme.sp8 + launch.x  // under the pill, clear of the rail labels
         y: root.implicitHeight + 6
         z: 30
 
@@ -285,7 +294,8 @@ Item {
         parent: Overlay.overlay
         text: qsTr("This folds the navigation to icons. Click again for the labels; narrow windows fold it on their own.")
         visible: !root.compact && root.shell.tips.indexOf("launch") < 0 && root.shell.tips.indexOf("rail") >= 0
-        x: 8
+        pointer: false
+        x: (root.shell.railCollapsed ? Theme.railCollapsedW : Theme.railW) + Theme.sp8  // beside the rail, not over its labels
         y: root.implicitHeight + 6
         z: 30
 

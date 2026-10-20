@@ -70,6 +70,7 @@ class ShellAdapter(QObject):
         host.quitRequested.connect(self._quit)
         host.pageRequested.connect(self.goTo)
         self._recompute()
+        self.open_page(self._current)  # the first page is made before the window asks for it
 
     # ---------------------------------------------------------------- recomputing what the bar shows
     def _host_changed(self) -> None:
@@ -175,6 +176,33 @@ class ShellAdapter(QObject):
     games = Property(list, lambda self: self._cache["games"], notify=changed)
     profileMenu = Property(dict, lambda self: self._cache["profileMenu"], notify=changed)
     menus = Property(list, lambda self: self._cache["menus"], notify=changed)
+
+    def _menu_enabled(self) -> dict:
+        out: dict[str, bool] = {}
+
+        def walk(items: list) -> None:
+            for i in items:
+                if not i["separator"]:
+                    out[i["id"]] = i["enabled"]
+                walk(i["items"])
+
+        for m in self._cache["menus"]:
+            walk(m["items"])
+        return out
+
+    menuEnabled = Property(dict, _menu_enabled, notify=changed)
+
+    @Property(list, constant=True)
+    def shortcuts(self) -> list:
+        """Every menu entry with a shortcut: {id, sequence}; Main.qml keeps one Shortcut for each."""
+        out = []
+        for key, _title in menu.MENUS:
+            for e in menu.entries_of(key):
+                for found in (e, *e.submenu):
+                    if found.shortcut:
+                        out.append({"id": found.id, "sequence": found.shortcut})
+        return out
+
     unseen = Property(int, lambda self: self.host.unseen, notify=changed)
     unsupported = Property(bool, lambda self: not self.host.state.game.ready, notify=changed)
     gameName = Property(str, lambda self: self.host.state.game.name, notify=changed)
@@ -305,6 +333,25 @@ class ShellAdapter(QObject):
             adapter.refresh()
             adapter.seen()
         self.pageChanged.emit()
+
+    @Property(bool, notify=pageChanged)
+    def canGoBack(self) -> bool:
+        return self._current in SUB_PAGES
+
+    @Slot()
+    def rescan(self) -> None:
+        """F5: the page on show reads again."""
+        adapter = self._adapters.get(self._current)
+        if adapter is not None:
+            adapter.refresh()
+
+    @Slot()
+    def saveCurrent(self) -> None:
+        """Ctrl+S: the page on show writes what it has unsaved."""
+        adapter = self._adapters.get(self._current)
+        command = getattr(adapter, "command", None)
+        if command is not None and self._unsaved_of(self._current):
+            command("saveUnsaved", [])
 
     @Slot()
     def back(self) -> None:

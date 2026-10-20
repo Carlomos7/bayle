@@ -638,7 +638,7 @@ class SavesPresenter:
     @staticmethod
     def calls(keys: list[tuple]) -> dict:
         """The ticked boxes as the calls the services take: {loading: {slot: [issue]}, vanilla: {slot: {items,
-        orphans}}, checksums, regulation} (the mapping the Widgets page's workshop used)."""
+        orphans}}, checksums, regulation} (the mapping the Check & repair page uses)."""
         loading: dict[int, list] = {}
         vanilla: dict[int, dict] = {}
         out = {"loading": loading, "vanilla": vanilla, "checksums": False, "regulation": False}

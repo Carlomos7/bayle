@@ -31,7 +31,7 @@ def test_add_keeps_a_verified_copy_and_records_it(tmp_path):
     assert e["name"] == "before the DLC" and e["from"] == "ER0000.sl2" and e["format"] == "sl2"
     assert Lib.entry_path(tmp_path, e).read_bytes() == live.read_bytes()
     doc = json.loads((Lib.folder_for(tmp_path) / Lib.MANIFEST).read_text(encoding="utf-8"))
-    assert [x["id"] for x in doc["entries"]] == [e["id"]] and doc["history"][0]["action"] == "stash"
+    assert [x["id"] for x in doc["entries"]] == [e["id"]] and doc["history"][0]["action"] == "save copy"
     with pytest.raises(Lib.LibraryError):
         Lib.add(tmp_path, live, "   ", ER)  # a copy needs a name
     (tmp_path / "junk.sl2").write_bytes(b"not a save")
@@ -49,7 +49,7 @@ def test_swap_in_keeps_the_replaced_save_under_its_name_and_backs_it_up(tmp_path
     assert out["backup"].is_file()  # Undo works as for every other write
     doc = Lib.load(tmp_path)
     assert {e["name"] for e in doc["entries"]} == {"second run", "first run"}  # the swapped-in copy stays
-    assert [h["action"] for h in doc["history"]] == ["stash", "swapped out", "swap in"]
+    assert [h["action"] for h in doc["history"]] == ["save copy", "swapped out", "swap in"]
     assert doc["history"][-1]["target"] == "ER0000.sl2"
 
 
@@ -69,7 +69,7 @@ def test_rename_remove_and_outside_changes(tmp_path):
     moved = Lib.remove(tmp_path, e["id"])
     assert moved.is_file() and moved.parent.name == "removed"  # moved aside, never erased
     doc = Lib.load(tmp_path)
-    assert doc["entries"] == [] and [h["action"] for h in doc["history"]] == ["stash", "rename", "delete"]
+    assert doc["entries"] == [] and [h["action"] for h in doc["history"]] == ["save copy", "rename", "delete"]
 
 
 @pytest.mark.parametrize(

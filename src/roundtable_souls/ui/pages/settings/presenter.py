@@ -178,7 +178,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "check_me3_updates",
             tr("Check for me3 updates"),
             tr("Once a day, from me3's GitHub releases. A notice only; nothing is installed."),
-            tr("Roundtable Souls never replaces me3 itself: the overhaul setups ship their own copy."),
+            tr("Roundtable Souls never replaces me3 itself: the overhaul profiles ship their own copy."),
             "me3",
         ),
         SwitchSpec(
@@ -211,7 +211,7 @@ def switch(key: str, game_key: str = "eldenring") -> SwitchSpec:
 
 OFFLINE_TITLE = tr("Offline play")
 OFFLINE_BLURB = tr(
-    "Starts this setup without Seamless Co-op and with online play off, so the game uses its standard save (.sl2) "
+    "Starts this profile without Seamless Co-op and with online play off, so the game uses its standard save (.sl2) "
     "instead of Seamless's (.co2)."
 )
 OFFLINE_HELP = tr(

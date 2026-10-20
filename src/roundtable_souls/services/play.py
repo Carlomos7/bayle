@@ -710,8 +710,8 @@ def play_headless(
     if launch is None:
         run_logging.start_log("launcher: play (no window)", game.key)
         run_logging.log(
-            f"error: no working {game.name} setup found; open Roundtable Souls once, pick the {game.name} tab, "
-            "and choose one on the Play page"
+            f"error: no working {game.name} profile found; open Roundtable Souls once, pick the {game.name} tab, "
+            "and choose one in the top bar"
         )
         return 1
     why = update_merge_headless(launch, automatic=play_options(settings)["play_update_merge"])
@@ -794,7 +794,7 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
     lines.append(f"installed games: {', '.join(installed) or 'none found'}")
     remembered = remembered_profile(settings, game)
     launch_profiles = discover(remembered, loc) if game.ready else []
-    lines.append(f"setups found: {len(launch_profiles)}")
+    lines.append(f"profiles found: {len(launch_profiles)}")
     for s in launch_profiles:
         spec = scaling_spec(s.ini) if s.ini else None
         sc = read_scaling(s.ini, spec) if s.ini else None

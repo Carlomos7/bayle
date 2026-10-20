@@ -336,10 +336,10 @@ class ModConfigsPresenter:
                 )
         if verified:
             note = tr(
-                "This setup comes with the launcher and is verified. To take it out, use Remove {label} on the Mods page."
+                "This profile comes with the launcher and is verified. To take it out, use Remove {label} on the Mods page."
             ).format(label=config.short_label)
         elif not basic_level:
-            note = tr("This setup's steps were edited by hand. They are shown below; Edit as text changes them.")
+            note = tr("This profile's steps were edited by hand. They are shown below; Edit as text changes them.")
         elif new:
             note = tr("Check the settings, then Save to set this mod up as an overhaul. You see what it does first.")
         else:

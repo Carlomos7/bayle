@@ -671,7 +671,7 @@ class ModsPresenter:
                         "This profile loads its own Seamless Co-op, and the game folder still holds one too. Two copies "
                         "can conflict."
                     ),
-                    tr("Move into this setup...") if seamless == "move" else tr("Clean up the game folder..."),
+                    tr("Move into this profile...") if seamless == "move" else tr("Clean up the game folder..."),
                     True,
                 )
             )
@@ -942,7 +942,7 @@ class ModsPresenter:
         return Pick(
             title=tr("Move unused folders too?"),
             body=tr(
-                "No profile in this setup uses these folders. Tick the ones to move into the library as well; the "
+                "No profile here uses these folders. Tick the ones to move into the library as well; the "
                 "others stay where they are. Nothing is deleted either way."
             ),
             apply=tr("Move ticked"),
@@ -963,7 +963,7 @@ class ModsPresenter:
                 "It's one step: if anything fails, nothing moves. Nothing is copied or deleted, and Undo adoption in "
                 "Activity puts every file back (as long as the profiles are unchanged)."
             ),
-            option=tr("Don't offer this again for this setup"),
+            option=tr("Don't offer this again for this profile"),
         )
 
     def adopt_running(self, name: str) -> str:

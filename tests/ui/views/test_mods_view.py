@@ -129,6 +129,9 @@ class Host:
     def pick_profile(self, index):
         self.changes.append(f"picked profile {index}")
 
+    def request_new_profile(self):
+        self.changes.append("new profile asked")
+
     folder = None
 
 

@@ -24,6 +24,7 @@ class Tag:
     text: str
     level: str  # the QML Pill's level: danger | warning | accent | muted
     icon: str = ""
+    tip: str = ""  # the hover sentence
 
 
 @dataclass(frozen=True)
@@ -254,11 +255,18 @@ class ModsPresenter:
             "optionalDep": tr("optional"),
             "optionalNative": tr("Optional (the game starts without it)"),
             "loadEarly": tr("Load early"),
-            "initializer": tr("Initializer"),
+            "loadEarlyHelp": tr("Starts this DLL before the game sets itself up."),
+            "loadEarlyTip": tr("me3 setting: load_early"),
+            "initializer": tr("Run a function when it loads"),
+            "initializerHelp": tr(
+                "Some DLLs need the game to call one of their functions, or to wait, before they work."
+            ),
+            "initializerTip": tr("me3 setting: initializer"),
             "initNone": tr("None"),
             "initFunction": tr("Call a function"),
             "initDelay": tr("Wait (ms)"),
-            "finalizer": tr("Finalizer"),
+            "finalizer": tr("Run a function when the game closes"),
+            "finalizerTip": tr("me3 setting: finalizer"),
             "staysLastOption": tr("This mod must stay last"),
             "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
             "rebuildFile": tr("Rebuild-tool file"),
@@ -285,6 +293,7 @@ class ModsPresenter:
         for key, (label, help_text) in SETTING_TEXT.items():
             words[f"setting_{key}"] = tr(label)
             words[f"setting_{key}_help"] = tr(help_text)
+            words[f"setting_{key}_tip"] = tr("me3 setting: {key}").format(key=key)
         return words
 
     def page(
@@ -434,9 +443,20 @@ class ModsPresenter:
             tags.append(Tag(tr("Stays last"), "accent", "Pin"))
         lost = clashes.get(str(e.get("id") or e["name"]), 0)
         if lost:
-            tags.append(Tag(plural("Clash · {n} file", "Clash · {n} files", lost).format(n=lost), "warning", "Info"))
+            tags.append(
+                Tag(
+                    plural("Clash · {n} file", "Clash · {n} files", lost).format(n=lost),
+                    "warning",
+                    "Info",
+                    plural(
+                        "{n} file is provided by this mod and by another; the later one in the order wins.",
+                        "{n} files are provided by this mod and by another; the later one in the order wins.",
+                        lost,
+                    ).format(n=lost),
+                )
+            )
         if e["kind"] == "native" and e.get("load_early"):
-            tags.append(Tag(tr("Loads early"), "muted", "Up"))
+            tags.append(Tag(tr("Loads early"), "muted", "Up", tr("Starts this DLL before the game sets itself up.")))
         if e.get("optional"):
             tags.append(Tag(tr("Optional"), "muted", "Help"))
         if i in facts.outside:

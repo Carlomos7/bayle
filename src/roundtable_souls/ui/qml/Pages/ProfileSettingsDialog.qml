@@ -4,7 +4,7 @@ import Theme
 import Components
 
 // Profile settings (§8.10, the profile gear): the me3 options a profile can set (Save file, Online matchmaking,
-// Neutralise Arxan, Memory patch, Heap size). Each change is written at once through the adapter (online asks first);
+// Disable code protection, Memory patch, Game memory pool). Each change is written at once through the adapter (online asks first);
 // the words and explanations are the launcher's own (mods.profile.SETTING_TEXT through tr()).
 ModalDialog {
     id: dlg
@@ -59,6 +59,8 @@ ModalDialog {
                 required property string modelData
 
                 help: dlg.words["setting_" + modelData + "_help"]
+                showHelpIcon: true
+                tooltip: dlg.words["setting_" + modelData + "_tip"]
                 title: dlg.words["setting_" + modelData]
                 width: parent ? parent.width : 0
 
@@ -88,6 +90,8 @@ ModalDialog {
         }
         FormRow {
             help: dlg.words.setting_mem_patch_heap_size_help
+            showHelpIcon: true
+            tooltip: dlg.words.setting_mem_patch_heap_size_tip
             last: true
             title: dlg.words.setting_mem_patch_heap_size
             width: parent ? parent.width : 0

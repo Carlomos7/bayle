@@ -139,6 +139,7 @@ Item {
             ToolTip.text: holder.more
             ToolTip.visible: containsMouse && !holder.held && holder.more !== ""
             acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
             anchors.fill: parent
             hoverEnabled: true
 
@@ -276,6 +277,13 @@ Item {
                         icon_: modelData.icon
                         level: modelData.level
                         text: modelData.text
+
+                        HoverHandler {
+                            id: tagHover
+                        }
+                        ToolTip.delay: Theme.mTooltipDelay
+                        ToolTip.text: modelData.tip || ""
+                        ToolTip.visible: tagHover.hovered && (modelData.tip || "") !== ""
                     }
                 }
             }

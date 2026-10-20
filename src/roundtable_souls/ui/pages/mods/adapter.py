@@ -106,10 +106,6 @@ class ModsHost(Protocol):
         """The setups the player can pick (the Play list's labels)."""
         ...
 
-    def profile_index(self) -> int: ...
-
-    def pick_profile(self, index: int) -> None: ...
-
     def request_new_profile(self) -> None:
         """Ask the shell for its New profile dialog (the page's first-run button)."""
 
@@ -167,17 +163,7 @@ class ModsAdapter(QObject):
     hasProfile = Property(bool, lambda self: self._facts is not None and not self._facts.error, notify=changed)
     overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
     installer = Property(QObject, lambda self: self._install, constant=True)
-    profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
-    profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
     canAdopt = Property(bool, lambda self: self._adopt[0] is not None, notify=changed)
-
-    @Slot(int)
-    def pickProfile(self, index: int) -> None:
-        if self.host.busy:
-            self.notifier.toast(tr("Wait for the current job"), error=True)
-            return
-        self.host.pick_profile(index)
-        self.refresh()
 
     @Slot()
     def createProfile(self) -> None:
@@ -962,7 +948,15 @@ class ModsAdapter(QObject):
         folder = profile_edit.resolve(profile, entry["path"])
         return (folder if entry["kind"] == "package" else folder.parent).name
 
-    @Slot(int, str, result=dict)
+    renamePreviewReady = Signal(dict)
+
+    @Slot(int, str)
+    def requestRenamePreview(self, index: int, name: str) -> None:
+        """renamePreview off the UI thread; the answer comes on renamePreviewReady."""
+        self.host.run_in_background(
+            lambda: {**self.renamePreview(index, name), "name": name}, self.renamePreviewReady.emit
+        )
+
     def renamePreview(self, index: int, name: str) -> dict:
         """Whether renaming to `name` is allowed and what it would change: {ok, lines, refusals}."""
         entry, profile = self._entry(index), self.host.profile
@@ -1102,6 +1096,10 @@ class ModsAdapter(QObject):
         )
 
     # ---- Profile settings
+    def _heap_shown(self) -> bool:
+        """Whether me3 uses a heap size for this game (game.catalog)."""
+        return bool(getattr(self.host.locations.game, "me3_heap_setting", True))
+
     @Slot(result=dict)
     def settingsFor(self) -> dict:
         profile = self.host.profile
@@ -1119,6 +1117,7 @@ class ModsAdapter(QObject):
             "mem_patch": tri(vals.get("mem_patch")),
             "mem_patch_heap_size": int(vals.get("mem_patch_heap_size") or 0),
             "heapApplies": profile_mods.heap_size_applies(vals),
+            "heapShown": self._heap_shown(),
         }
 
     @Slot(str, "QVariant")

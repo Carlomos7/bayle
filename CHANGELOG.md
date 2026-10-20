@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Whether the game is running is now decided by its threads, not its memory: a game that is still starting (even one
+  held back at launch) counts as running, so saves and mods are not touched while it comes up; only a leftover copy
+  with no threads counts as a dead shell.
 - New profile asks what to start from: an empty profile, or a copy of any of the game's profiles (before, only the
   current one could be copied).
 - The new Mods window has a profile picker in its header: every setup on the Play list, picked there as on Play.

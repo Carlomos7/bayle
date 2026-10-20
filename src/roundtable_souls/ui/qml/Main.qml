@@ -322,7 +322,7 @@ ApplicationWindow {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            color: Theme.textTertiary
+                            color: Theme.textSecondary   // the tertiary grey is 3.5:1 on the light page, under AA for 12 px text
                             font.family: Theme.fontFamily
                             font.pixelSize: 12
                             text: hintRow.modelData[1]

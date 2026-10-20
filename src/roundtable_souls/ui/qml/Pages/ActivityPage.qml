@@ -179,7 +179,7 @@ PageScroll {
                                     anchors.verticalCenter: parent.verticalCenter
                                     icon_: job.open ? "ChevronDown" : "ChevronRight"
                                     ToolTip.text: job.open ? page.words.hideLog : page.words.showLog
-                                    ToolTip.visible: hovered
+                                    ToolTip.visible: hovered || visualFocus
 
                                     onClicked: page.adapter.toggleLog(job.modelData.id)
                                 }
@@ -235,7 +235,7 @@ PageScroll {
                                     }
                                     GhostButton {
                                         ToolTip.text: job.modelData.undo_tip
-                                        ToolTip.visible: hovered && job.modelData.undo_tip !== ""
+                                        ToolTip.visible: (hovered || visualFocus) && job.modelData.undo_tip !== ""
                                         icon_: "Return"
                                         implicitHeight: Theme.controlSmallH
                                         objectName: "undo_" + job.modelData.id
@@ -259,7 +259,7 @@ PageScroll {
 
                                     CheckRow {
                                         ToolTip.text: page.words.showDetailsTip
-                                        ToolTip.visible: hovered
+                                        ToolTip.visible: hovered || visualFocus
                                         anchors.verticalCenter: parent.verticalCenter
                                         checked: page.adapter.logDetail
                                         text: page.words.showDetails
@@ -292,7 +292,7 @@ PageScroll {
                                     }
                                     GhostButton {
                                         ToolTip.text: page.words.copyTip
-                                        ToolTip.visible: hovered
+                                        ToolTip.visible: hovered || visualFocus
                                         icon_: "Copy"
                                         implicitHeight: Theme.controlSmallH
                                         text: page.words.copy
@@ -301,7 +301,7 @@ PageScroll {
                                     }
                                     GhostButton {
                                         ToolTip.text: page.words.copySupportTip
-                                        ToolTip.visible: hovered
+                                        ToolTip.visible: hovered || visualFocus
                                         icon_: "Share"
                                         implicitHeight: Theme.controlSmallH
                                         text: page.words.copySupport

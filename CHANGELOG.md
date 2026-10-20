@@ -4,6 +4,10 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Keyboard and screen readers in the new window (UX pass): icon-only buttons (a mod's gear and bin, the header's
+  folder, profile and More buttons, the log's chevron) have a name a screen reader reads, and Tab shows their tooltip
+  as the mouse does. The hint bar's labels and the "Empty slots" line use the secondary text colour, which passes
+  4.5:1 on the light theme (the tertiary grey was 3.5:1 there).
 - Top bar and Mods list at narrow widths (UX pass): under 820 px the status (why Launch is blocked, what is running)
   gets a line of its own under the bar, with its fix link, instead of only a coloured dot; the status text gives way
   with a tooltip before its link does, and the link is reachable with Tab. A mod's tags and its status line ("Folder

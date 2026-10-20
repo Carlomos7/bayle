@@ -255,7 +255,7 @@ ModalDialog {
                 id: lastBox
 
                 ToolTip.text: dlg.words.staysLastHelp
-                ToolTip.visible: hovered
+                ToolTip.visible: hovered || visualFocus
                 text: dlg.words.staysLastOption
             }
             FormRow {

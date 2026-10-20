@@ -193,6 +193,8 @@ class LauncherSettings(BaseModel):
     me3_path: str = ""
     game_exe: str = ""
     me3_profile_dir: str = ""
+    saves_dir: str = ""  # Elden Ring's save-folder override (blank = detect); other games under `games`
+    backups_keep: int = 20  # the newest backups kept per save (5 to 200; saves.backups.keep_newest reads it)
 
     me3_latest: dict[str, Any] | None = None
     me3_latest_checked: float = 0.0
@@ -287,7 +289,7 @@ def save_settings(**changes: Any) -> None:
     change_settings(lambda current: changes)
 
 
-GAME_KEYS = ("setup", "game_exe")  # values each game keeps for itself
+GAME_KEYS = ("setup", "game_exe", "saves_dir")  # values each game keeps for itself
 
 
 def game_setting(settings: LauncherSettings, game: str, key: str, default: Any = None) -> Any:

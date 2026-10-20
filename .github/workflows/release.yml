@@ -69,6 +69,8 @@ jobs:
       run: uv sync --locked
 
     - name: Lint and type check
+      # owner 2026-10-20: betas skip this too (the Tests workflow already ran it on the commit); stable keeps it
+      if: ${{ !contains(github.ref_name, '-beta.') }}
       run: |
         uv run ruff check .
         uv run ruff format --check .

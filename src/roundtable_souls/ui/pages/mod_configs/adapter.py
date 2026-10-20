@@ -19,9 +19,18 @@ from roundtable_souls.ui.models import plain
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mod_configs.presenter import ModConfigsPresenter
 from roundtable_souls.ui.pages.mods.presenter import Confirm, ModsPresenter, Pick, Refusal
-from roundtable_souls.ui.text import tr
+from roundtable_souls.ui.text import plural, tr
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
+
+
+def _stamp(path: Path) -> tuple[int, int] | None:
+    """Modification time and size: what tells that a file changed under the page."""
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return st.st_mtime_ns, st.st_size
 
 
 class ModConfigsHost(Protocol):
@@ -36,10 +45,8 @@ class ModConfigsHost(Protocol):
     @property
     def settings(self) -> Any: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def show_page(self, name: str) -> Any: ...
     def run_job(self, job, status: str) -> None: ...
-    def profiles(self) -> list[str]: ...
-    def profile_index(self) -> int: ...
-    def pick_profile(self, index: int) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None:
         """Ask for a file to open; None when cancelled."""
 
@@ -53,6 +60,7 @@ class ModConfigsAdapter(QObject):
     changed = Signal()  # the tree, the profile
     fileChanged = Signal()  # the open file: what it shows (not each keystroke)
     dirtyChanged = Signal()
+    diskChangedChanged = Signal()
     pickRequested = Signal(str, dict, list)  # a tick list: its key, its words (presenter.Pick), the rows' labels
 
     def __init__(
@@ -79,8 +87,6 @@ class ModConfigsAdapter(QObject):
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
     words = Property(dict, lambda self: self._words, constant=True)
-    profiles = Property(list, lambda self: self.host.profiles(), notify=changed)
-    profileIndex = Property(int, lambda self: self.host.profile_index(), notify=changed)
     profileName = Property(str, lambda self: self._profile.stem if self._profile else "", notify=changed)
     hasProfile = Property(bool, lambda self: self._profile is not None, notify=changed)
     nodes = Property(
@@ -102,6 +108,10 @@ class ModConfigsAdapter(QObject):
     text = Property(str, lambda self: self._text, notify=fileChanged)
     editText = Property(bool, lambda self: self._edit_text, notify=fileChanged)
     dirty = Property(bool, lambda self: self._is_dirty(), notify=dirtyChanged)
+    diskChanged = Property(bool, lambda self: self._disk_changed, notify=diskChangedChanged)
+    changedKeys = Property(list, lambda self: self._changed_keys(), notify=dirtyChanged)
+    changeText = Property(str, lambda self: self._change_text(), notify=dirtyChanged)
+    changeCount = Property(int, lambda self: self._change_count(), notify=dirtyChanged)
     canAttach = Property(
         bool, lambda self: self._node is not None and self._node.target is not None, notify=fileChanged
     )
@@ -171,6 +181,36 @@ class ModConfigsAdapter(QObject):
             )
             s = dataclasses.replace(s, scaling=values, preset=coop_scaling.preset_of(values, s.spec))
         return self.presenter.seamless(s, line, note)
+
+    def _changed_keys(self) -> list:
+        """ "section|key" of every setting whose waiting value differs from the file's (the form's Changed marker)."""
+        opened = self._opened
+        if not self._pending or opened is None or opened.doc is None:
+            return []
+        disk = config_model.parse(opened.text, opened.doc.lang)
+        out = []
+        for (section, key), value in self._pending.items():
+            item = disk.find(key, section)
+            if item is None or item.value != value:
+                out.append(f"{section}|{key}")
+        return out
+
+    def _change_text(self) -> str:
+        n = self._change_count()
+        if n == 0:
+            return tr("No changes")
+        return plural("{n} change not saved", "{n} changes not saved", n).format(n=n)
+
+    @Slot()
+    def openMods(self) -> None:
+        self.host.show_page("mods")
+
+    def _change_count(self) -> int:
+        if self._ov is not None and not self._edit_text:
+            return 1 if self._ov["dirty"] else 0
+        if self._edit_text or self._kind() in ("text", "markdown"):
+            return 1 if self._is_dirty() else 0
+        return len(self._changed_keys())
 
     def _is_dirty(self) -> bool:
         if self._ov is not None and not self._edit_text:
@@ -250,14 +290,6 @@ class ModConfigsAdapter(QObject):
         elif node is None:
             self._close()
 
-    @Slot(int)
-    def pickProfile(self, index: int) -> None:
-        def go() -> None:
-            self.host.pick_profile(index)
-            self.refresh()
-
-        self._guard(go)
-
     def select_mod(self, name: str) -> None:
         """Select a mod by its name or key once the tree is read (the Mods page's links)."""
         self._want = name
@@ -282,21 +314,62 @@ class ModConfigsAdapter(QObject):
     def _open(self, node: mod_configs.ModNode, path: Path) -> None:
         self._node, self._pending, self._edit_text = node, {}, False
         self._seamless = self._ov = None
-        try:
-            setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
-            self._opened = mod_configs.open_file(path, form=not setup_file)
-            if node.kind == mod_configs.SEAMLESS:
-                self._seamless = mod_configs.seamless(path)
-            elif setup_file and node.setup:
-                self._ov = self._new_ov(node.setup, None)
-        except Exception as e:  # too big, not text, gone: said, nothing open
-            self._opened = None
-            self._refuse(self.presenter.unreadable(path.name, str(e)))
-        self._text = self._opened.text if self._opened else ""
-        self.fileChanged.emit()
-        self.dirtyChanged.emit()
+        self._open_token = token = getattr(self, "_open_token", 0) + 1
+        setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
+
+        def work():  # the file is read off the UI thread
+            try:
+                self._mtime = _stamp(path)
+                opened = mod_configs.open_file(path, form=not setup_file)
+                seamless = mod_configs.seamless(path) if node.kind == mod_configs.SEAMLESS else None
+                return opened, seamless, None
+            except Exception as e:  # too big, not text, gone: said, nothing open
+                return None, None, e
+
+        def got(result) -> None:
+            if token != self._open_token or self._node is not node:  # a newer open or a close came first
+                return
+            self._set_disk_changed(False)
+            self._opened, self._seamless, err = result
+            try:
+                if err is None and node.kind != mod_configs.SEAMLESS and setup_file and node.setup:
+                    self._ov = self._new_ov(node.setup, None)
+            except Exception as e:
+                self._opened, err = None, e
+            if err is not None:
+                self._refuse(self.presenter.unreadable(path.name, str(err)))
+            self._text = self._opened.text if self._opened else ""
+            self.fileChanged.emit()
+            self.dirtyChanged.emit()
+
+        self.host.run_in_background(work, got)
+
+    _mtime: tuple[int, int] | None = None
+    _disk_changed = False
+
+    def _set_disk_changed(self, on: bool) -> None:
+        if on != self._disk_changed:
+            self._disk_changed = on
+            self.diskChangedChanged.emit()
+
+    @Slot()
+    def checkDisk(self) -> None:
+        """Has the open file changed on disk since it was read? (a stat, off the UI thread)"""
+        opened, seen = self._opened, self._mtime
+        if opened is None or seen is None or self._disk_changed:
+            return
+        path = opened.path
+        self.host.run_in_background(
+            lambda: _stamp(path), lambda now: self._set_disk_changed(now is not None and now != seen)
+        )
+
+    @Slot()
+    def reload(self) -> None:
+        """Read the file again, dropping the waiting edits (the InfoBar's Reload)."""
+        self._reopen()
 
     def _close(self) -> None:
+        self._open_token = getattr(self, "_open_token", 0) + 1
         self._node = self._opened = self._seamless = self._ov = None
         self._pending, self._text = {}, ""
         self.fileChanged.emit()

@@ -312,7 +312,8 @@ Item {
                     width: parent.width
                     wrapMode: Text.WordWrap
                 }
-                CodeArea {
+                CodeEditor {
+                    fileName: page.adapter.selectedFile
                     height: Math.max(320, body.height - Theme.sp16)
                     objectName: "configText"
                     text: page.adapter.fileKind === "text" ? page.adapter.text : ""

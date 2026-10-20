@@ -96,6 +96,10 @@ class SavesView:
                 "saves", "Saves folder", FI.FOLDER, "The folder with your save files and the backup folders."
             )
         )
+        b = ghost_btn("Open new Saves window", FI.LINK)
+        b.setToolTip("A first look at the new Saves page, in a window of its own.")
+        b.clicked.connect(lambda: self._open_saves_window())
+        al.addWidget(b)
         b = ghost_btn("Refresh", FI.SYNC)
         b.clicked.connect(self.refresh_saves)
         al.addWidget(b)

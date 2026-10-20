@@ -155,6 +155,10 @@ class SavesAdapter(QObject):
         self._loading = True
         self.changed.emit()
         game = loc.game
+        try:
+            self._names = self.host.saves_in_use()  # on this thread, before the read: the locations learn the names
+        except Exception:
+            self._names = {}
 
         def work():
             files = loc.save_files()
@@ -166,21 +170,17 @@ class SavesAdapter(QObject):
                 backups = saves_service.list_backups(loc=loc)
             except Exception:
                 backups = []
-            try:
-                names = self.host.saves_in_use()
-            except Exception:
-                names = {}
-            return token, infos, libs, backups, names
+            return token, infos, libs, backups
 
         self.host.run_in_background(work, self._apply)
 
     def _apply(self, got) -> None:
-        token, infos, libs, backups, names = got
+        token, infos, libs, backups = got
         if token != self._token:  # a newer read superseded this one
             return
         loc = self.host.locations
         self._infos = [i for i in infos if loc is None or games.for_save(i["path"]) in (loc.game, None)]
-        self._libs, self._backups, self._names, self._loading = libs, backups, names, False
+        self._libs, self._backups, self._loading = libs, backups, False
         self.changed.emit()
         if self._repair_path:
             self._reload_repair()

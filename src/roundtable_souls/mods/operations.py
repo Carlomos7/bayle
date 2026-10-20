@@ -234,6 +234,13 @@ def _shared_folder(folder: Path) -> bool:
         return False
 
 
+def _kept_for(profile: Path, folder: Path) -> list[str]:
+    """The other profiles of the library that list this folder: an undo or rollback of this profile's operation
+    must not take the folder from them."""
+    lib = library.library_of(profile)
+    return lib.folder_users(folder, besides=profile) if lib is not None else []
+
+
 def _coop_entries(text: str) -> set[str]:
     """The co-op DLL entries this profile text loads (switched on), by path."""
     dlls = _coop_dlls()
@@ -306,7 +313,10 @@ def undo_install(op_dir: Path, log=lambda s: None) -> str:
             if back is not None:
                 new.write_file(profile, back[0], expect=back[1])
             left: list[str] = []
-            if dest.is_dir() and op.info.get("fresh") and not _shared_folder(dest):
+            others = _kept_for(profile, dest) if dest.is_dir() else []
+            if others:
+                notes.append(f"{dest.name} is also used by {', '.join(others)}, so its folder stays")
+            elif dest.is_dir() and op.info.get("fresh") and not _shared_folder(dest):
                 created = op.info.get("created") or {}
                 staged = dest.with_name(f".{dest.name}.staging-{new.id}")
                 staged.mkdir()
@@ -374,7 +384,7 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
                     previous = Path(step["previous"]) if step["previous"] else None
                     if previous is not None and previous.is_dir():
                         new.replace_folder(live, previous)
-                    elif live.is_dir() and (made_here or not _shared_folder(live)):
+                    elif live.is_dir() and (made_here or not _shared_folder(live)) and not _kept_for(profile, live):
                         created = made.get(str(live)) or {}
                         staged = live.with_name(f".{live.name}.staging-{new.id}")
                         staged.mkdir()
@@ -427,6 +437,11 @@ def rollback(op_dir: Path, log=lambda s: None, then=None) -> str:
     previous = Path(folder["previous"]) if folder and folder["previous"] else None
     if previous is None or not previous.is_dir():
         raise OperationError(f"The version of {name} before the update is no longer kept.")
+    if others := _kept_for(profile, dest):
+        raise OperationError(
+            f"{name} is also used by {', '.join(others)}, so rolling it back would change it for them too. "
+            "Nothing was changed."
+        )
     notes: list[str] = []
     created = op.info.get("created") or {}
     changed = [rel for rel in manifest(dest) if rel not in created or not _unchanged(dest / rel, created[rel])]

@@ -375,7 +375,7 @@ def adopt(p: AdoptPreview, *, loc: Locations, log=lambda s: None) -> dict:
             for m in p.moves:
                 if m.kind == "build":
                     lib.ensure(m.dest.parent)
-                op.replace_folder(m.dest, m.src, keep=True)
+                op.move_folder(m.src, m.dest)
             for r in p.rewrites:
                 op.write_file(r.new, r.new_bytes, expect="missing")
             for r in p.rewrites:
@@ -511,7 +511,7 @@ def undo_adopt(op_dir: Path, log=lambda s: None) -> str:
         back = build.Operation(lib.state.root, f"undo of the adoption of {info.get('name', '')}", ops=library.OPS)
         try:
             for m in moves:
-                back.replace_folder(Path(m["src"]), Path(m["dest"]), keep=True)
+                back.move_folder(Path(m["dest"]), Path(m["src"]))
             for x in profs:
                 step = next(s for s in op.steps if s["type"] == "file" and s["live"] == x["old"])
                 back.write_file(Path(x["new"]), None, expect=x["new_sha"])

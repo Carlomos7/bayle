@@ -271,21 +271,25 @@ class Operation:
         self._save()
 
     # -------------------------------------------------------------- preparing (nothing live changes)
-    def replace_folder(self, live: Path, staged: Path, keep: bool = False) -> None:
+    def replace_folder(self, live: Path, staged: Path) -> None:
         """staged (filled and checked beside live, on the same drive) takes live's place; a live folder already
         there is kept as <name>-<id>-<step> in aside when that is on the same drive (the step number keeps two folders
-        of one name apart, an overhaul's sources and its runtime folder, say), else as .<name>.previous-<id> beside it.
-        keep: staged is somebody's own folder being moved (an adoption), not a temporary one: discard() leaves it."""
+        of one name apart, an overhaul's sources and its runtime folder, say), else as .<name>.previous-<id> beside it."""
         live, staged = Path(live), Path(staged)
         prev = None
         if live.exists():
             prev = live.with_name(f".{live.name}.previous-{self.id}")
             if self.aside is not None and _same_drive(self.aside.parent, live.parent):
                 prev = self.aside / f"{live.name}-{self.id}-{len(self.steps)}"
-        step = {"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")}
-        if keep:
-            step["keep"] = True
-        self.steps.append(step)
+        self.steps.append({"type": "folder", "live": str(live), "staged": str(staged), "previous": str(prev or "")})
+        self._save()
+
+    def move_folder(self, src: Path, dst: Path) -> None:
+        """A folder that is somebody's own (a mod's, in an adoption or a rename) is renamed src -> dst on commit and
+        back on undo or recovery. Neither side is ever deleted, by discard() or a rollback: unlike replace_folder
+        there is no staged copy to throw away. "live" (= dst) is written for launchers before this step existed: they
+        skip a step they do not know."""
+        self.steps.append({"type": "move", "src": str(src), "dst": str(dst), "live": str(dst)})
         self._save()
 
     def write_file(self, live: Path, data: bytes | None, expect: str | None = None) -> None:
@@ -317,8 +321,7 @@ class Operation:
         """Give up before commit(): the staged folders and builds go, nothing live was touched."""
         for step in self.steps:
             if step["type"] == "folder":
-                if not step.get("keep"):
-                    shutil.rmtree(step["staged"], ignore_errors=True)
+                shutil.rmtree(step["staged"], ignore_errors=True)
             elif step["type"] == "build":
                 shutil.rmtree(Path(step["live"]).with_name("." + Path(step["live"]).name + ".staging"), True)
         for b in self._builds:
@@ -343,7 +346,9 @@ class Operation:
         builds = iter(self._builds)
         try:
             for step in self.steps:
-                if step["type"] == "folder":
+                if step["type"] == "move":
+                    _move(Path(step["src"]), Path(step["dst"]))
+                elif step["type"] == "folder":
                     if step["previous"]:
                         _move(Path(step["live"]), Path(step["previous"]))
                     _move(Path(step["staged"]), Path(step["live"]))
@@ -387,7 +392,10 @@ def _undo(op: Operation) -> None:
     last first; then forget the operation."""
     for step in reversed(op.steps[: op.done + (0 if op.untouched else 1)]):
         live = Path(step["live"])
-        if step["type"] == "folder":
+        if step["type"] == "move":
+            if live.exists() and not Path(step["src"]).exists():
+                _move(live, Path(step["src"]))
+        elif step["type"] == "folder":
             prev, staged = (Path(step["previous"]) if step["previous"] else None), Path(step["staged"])
             if prev is not None:
                 if prev.exists():  # live was moved aside: whatever sits there now is the staged one

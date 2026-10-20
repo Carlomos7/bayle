@@ -80,6 +80,8 @@ ApplicationWindow {
     Item {
         Component.onCompleted: {
             const shared = ToolTip.toolTip;
+            if (!shared)
+                return;
             shared.delay = Theme.mTooltipDelay;
             shared.padding = 6;
             shared.leftPadding = 10;
@@ -237,9 +239,10 @@ ApplicationWindow {
                     required property string modelData
 
                     function ensure() {
-                        if (!active) {
+                        const adapter = win.shell.adapterFor(modelData);
+                        if (!active && adapter) {  // a page never loads without its adapter
                             setSource(win.shell.pageUrl(modelData), {
-                                "adapter": win.shell.adapterFor(modelData)
+                                "adapter": adapter
                             });
                             active = true;
                         }

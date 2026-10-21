@@ -230,7 +230,7 @@ class ShellHost(QObject):
             self.failed_job = label
         self.ctx_settings_again()
         if kind != "launch" or not ok:
-            st.reload_profiles()  # an adoption or an install may have changed the profiles
+            st.reload_profiles()  # an install may have changed the profiles
         self._update_badge()
         if not ok:
             self.notifier.toast_action(

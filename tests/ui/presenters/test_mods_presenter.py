@@ -49,8 +49,8 @@ def facts(**over) -> PageFacts:
         display={"package": (0, 2, 1, 3), "native": (4, 5)},
         problems={5: ("DLL missing",)},
         loads_nothing=(1,),
-        outside=(0,),
-        shared={0: 3},
+        outside=(),  # drop with the field when services/ loses it
+        shared={},
         stays_last=(3,),
         missing=(5,),
         empty={},
@@ -109,8 +109,8 @@ def test_rows_follow_the_shown_order_and_a_folder_of_mods_is_a_line_not_a_row():
 def test_tags_come_from_the_closed_list_two_at_most_the_rest_in_the_tooltip():
     packages = rows(ModsPresenter().page(facts(), scan()))
     flora = packages[0]
-    assert [t.text for t in flora.tags] == ["Clash · 1 file", "Outside the library"]
-    assert flora.more.splitlines() == ["Shared · 3 profiles", "mod/flora"]
+    assert [t.text for t in flora.tags] == ["Clash · 1 file"]
+    assert flora.more.splitlines() == ["mod/flora"]
     example = packages[2]
     assert [t.text for t in example.tags] == ["Stays last"] and example.locked
     birds = packages[1]
@@ -127,7 +127,7 @@ def test_the_status_line_names_dependencies_and_an_initializer_and_a_problem_win
     assert natives[1].status == "DLL missing" and natives[1].status_error
     example = rows(ModsPresenter().page(facts(), scan()))[2]
     assert example.status == "after 4 others"
-    empty = rows(ModsPresenter().page(facts(empty={0: "empty"}, outside=(), shared={}), None))[0]
+    empty = rows(ModsPresenter().page(facts(empty={0: "empty"}), None))[0]
     assert empty.status.startswith("Empty.")
 
 
@@ -248,8 +248,7 @@ def test_the_confirmations_words():
     plan = Removal("package", "flora", Path("C:/mods/mod/flora"), ("birds",), ("regulation.bin",), False)
     removal = p.removal(PROFILE, plan)
     assert removal.title == "Remove flora from the profile" and removal.option == ""
-    assert removal.changes[1] == "The folder flora stays: birds still load from it"
-    assert removal.changes[2].startswith("Its regulation.bin is still in the merged mods")
+    assert removal.changes[1].startswith("Its regulation.bin is still in the merged mods")
     alone = p.removal(PROFILE, Removal("native", "x.dll", Path("C:/mods/natives/x"), (), (), True))
     assert alone.option == "Also move the folder x to the Recycle Bin"
     trim = p.trim([{"folder": Path("b4"), "size": 2 * 1048576}])

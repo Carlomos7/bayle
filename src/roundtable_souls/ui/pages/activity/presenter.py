@@ -123,8 +123,6 @@ class UndoPlan:
                 if u.get("type") == "rebuild"
                 else f"launcher: {mod_undo.label(u).lower()} {name}"
                 if u.get("type") in mod_undo.OPERATIONS or u.get("type") in mod_undo.OVERHAUL
-                else f"launcher: undo the adoption of {name}"
-                if u.get("type") == "library-adopt"
                 else f"launcher: undo the rename of {name}"
                 if u.get("type") in ("rename", "profile-rename")
                 else f"launcher: undo the copy {name}"
@@ -511,21 +509,6 @@ class ActivityPresenter:
                 tr("If the copy was changed since, it stays and you are told why."),
                 tr("Undo copy"),
                 tr("Removing the copy..."),
-                u,
-                job_id,
-                name,
-            )
-        if u.get("type") == "library-adopt":
-            name = u.get("name") or tr("the setup")
-            return UndoPlan(
-                tr("Undo the adoption of {name}").format(name=name),
-                (
-                    tr("Every folder and profile goes back to the place it came from, exactly as it was"),
-                    tr("Nothing is copied or deleted"),
-                ),
-                tr("If an adopted profile changed since, nothing is moved and you are told why."),
-                tr("Undo adoption"),
-                tr("Undoing the adoption..."),
                 u,
                 job_id,
                 name,

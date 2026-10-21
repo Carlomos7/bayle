@@ -231,7 +231,6 @@ class ModsPresenter:
                 "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
             ),
             "undo": tr("Undo"),
-            "adoptMenu": tr("Adopt into the Library..."),
             "profileRenameTip": tr("Rename profile"),
             "profileRenameField": tr("Profile name"),
             "profileRenameHelp": tr("Enter renames it. Esc cancels."),
@@ -306,14 +305,13 @@ class ModsPresenter:
         game_running: bool = False,
         tool_to_allow=None,
         recovered: tuple[str, ...] = (),
-        adopt: str = "",
         seamless: str = "",
         no_profiles: bool = False,
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
-        changes put right as the page opened (one line each); adopt: the folder name of a setup to offer to adopt into the
-        library ("" for none). no_profiles: this game has no profile at all, so the page says how to start."""
+        changes put right as the page opened (one line each);
+        no_profiles: this game has no profile at all, so the page says how to start."""
         if facts is None:
             words = (
                 tr(
@@ -359,7 +357,6 @@ class ModsPresenter:
                 facts.online_with,
                 facts.regulation,
                 str(facts.profile),
-                adopt,
                 seamless,
             ),
         )
@@ -463,11 +460,6 @@ class ModsPresenter:
             )
         if e.get("optional"):
             tags.append(Tag(tr("Optional"), "muted", "Help"))
-        if i in facts.outside:
-            tags.append(Tag(tr("Outside the library"), "muted", "FolderAdd"))
-        if i in facts.shared:
-            n = facts.shared[i]
-            tags.append(Tag(plural("Shared · {n} profile", "Shared · {n} profiles", n).format(n=n), "muted", "People"))
         problems = facts.problems.get(i, ())
         status_error = bool(problems)
         status = "  ·  ".join(problems) if problems else self._status(e, facts.empty.get(i, ""))
@@ -592,11 +584,10 @@ class ModsPresenter:
         online_with: str = "",
         regulation: str = catalog.REGULATION,
         profile: str = "",
-        adopt: str = "",
         seamless: str = "",
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
-        permission, interrupted changes put right, a setup to adopt into the library (adopt: its folder's name)."""
+        permission, interrupted changes put right."""
         out = []
         if online_with:
             out.append(
@@ -644,19 +635,6 @@ class ModsPresenter:
                     True,
                 )
             )
-        if adopt:
-            out.append(
-                Notice(
-                    "adopt",
-                    "info",
-                    tr(
-                        "{name} keeps its mods and profiles outside the Library. Adopting moves them into one folder "
-                        "you can back up or copy."
-                    ).format(name=adopt),
-                    tr("Preview..."),
-                    True,
-                )
-            )
         if seamless:
             out.append(
                 Notice(
@@ -689,11 +667,6 @@ class ModsPresenter:
                 name=plan.name, profile=prof.name
             )
         ]
-        if plan.users and plan.folder is not None:
-            names = ", ".join(plan.users[:4]) + (" ..." if len(plan.users) > 4 else "")
-            changes.append(
-                tr("The folder {folder} stays: {names} still load from it").format(folder=plan.folder.name, names=names)
-            )
         if plan.merged:
             files = ", ".join(Path(f).name for f in plan.merged[:3])
             if len(plan.merged) > 3:
@@ -930,41 +903,6 @@ class ModsPresenter:
                 "installed. Keep them unless you're sure you don't need them."
             ),
         )
-
-    # ---- adopting a setup into the library
-    def adopt_unused(self, names: list[str]) -> Pick:
-        return Pick(
-            title=tr("Move unused folders too?"),
-            body=tr(
-                "No profile here uses these folders. Tick the ones to move into the Library too; the others stay. "
-                "Nothing is deleted."
-            ),
-            apply=tr("Move ticked"),
-            none=tr("Leave them all"),
-        )
-
-    def adopt_confirm(self, preview) -> Confirm | Refusal:
-        """The confirmation for mods.adopt.AdoptPreview, or why it can't go ahead. The check box is for stopping the
-        offer: it counts when the question is cancelled."""
-        name = preview.setup.folder.name
-        if not preview.ok:
-            return Refusal(tr("{name} can't be adopted").format(name=name), " ".join(preview.refusals))
-        return Confirm(
-            title=tr("Adopt {name} into the Library").format(name=name),
-            changes=tuple(preview.lines),
-            apply=tr("Adopt"),
-            safety=tr(
-                "If anything fails, nothing moves. Nothing is copied or deleted. Undo adoption in Activity puts every "
-                "file back while the profiles are unchanged."
-            ),
-            option=tr("Don't offer this again for this profile"),
-        )
-
-    def adopt_running(self, name: str) -> str:
-        return tr("Adopting {name} into the Library...").format(name=name)
-
-    def adopt_unavailable(self) -> Refusal:
-        return Refusal(tr("Nothing to adopt"), tr("This profile is already in the Library."))
 
     def leftovers_moving(self) -> str:
         return tr("Moving leftovers to the Recycle Bin...")

@@ -253,13 +253,6 @@ PageScroll {
                             level: modRow.modelData.large ? "warning" : "muted"
                             text: modRow.modelData.size
                         }
-                        Txt {
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: Theme.textSecondary
-                            kind: "caption"
-                            text: modRow.modelData.note
-                            visible: text !== ""
-                        }
                     }
                 }
                 Txt {
@@ -805,15 +798,6 @@ PageScroll {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                             }
-                            Txt {
-                                color: Theme.textSecondary
-                                elide: Text.ElideNone
-                                kind: "caption"
-                                text: clash.modelData.usedBy
-                                visible: text !== ""
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                            }
                         }
                     }
                     TabRow {
@@ -839,7 +823,7 @@ PageScroll {
                         color: Theme.textSecondary
                         elide: Text.ElideNone
                         kind: "caption"
-                        text: clash.modelData.choice === "" ? page.words.pickOne : clash.modelData.sharedNote !== "" ? clash.modelData.sharedNote : clash.modelData.suggested && clash.modelData.choice === "incoming" ? page.words.suggested : ""
+                        text: clash.modelData.choice === "" ? page.words.pickOne : clash.modelData.suggested && clash.modelData.choice === "incoming" ? page.words.suggested : ""
                         visible: text !== ""
                         width: parent ? parent.width : 0
                         wrapMode: Text.WordWrap

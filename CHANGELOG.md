@@ -2,6 +2,8 @@
 
 All notable changes to Roundtable Souls. The version is shown in the window title.
 
+## [Unreleased]
+
 ## [4.0.2] - 2026-10-21
 
 - The first release after the repository history was cleaned; same launcher as 4.0.1.

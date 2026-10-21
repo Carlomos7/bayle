@@ -27,7 +27,7 @@ import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from pydantic_core import ErrorDetails
 
 from roundtable_souls.resources import DATA_DIR
@@ -257,6 +257,20 @@ class Build(_Strict):
 
 
 # ----------------------------------------------------------------------------- the basic level
+def _relative(path: str) -> str:
+    """A path inside a folder: forward slashes, no "..", not absolute, no drive letter (a download and a TOML are
+    not trusted)."""
+    if (
+        not path
+        or "\\" in path
+        or path.startswith("/")
+        or ":" in path
+        or any(part in ("", ".", "..") for part in path.split("/"))
+    ):
+        raise ValueError(f"{path!r} must be a path inside the folder (forward slashes, no '..', not absolute).")
+    return path
+
+
 class BasicNative(_Strict):
     """One of the mod's DLLs, as the Overhaul setup form sets it."""
 
@@ -292,6 +306,23 @@ class Basic(_Strict):
     # merge | whole | keep | copy | leave | place:<game path>. It wins over keep, not_merged, place and skip above,
     # which the form no longer writes (an older file, or a proposal, may still have them).
     files: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("place")
+    @classmethod
+    def _place_inside(cls, v: dict[str, str]) -> dict[str, str]:
+        for k, to in v.items():
+            _relative(k)
+            _relative(to)
+        return v
+
+    @field_validator("files")
+    @classmethod
+    def _files_inside(cls, v: dict[str, str]) -> dict[str, str]:
+        for k, act in v.items():
+            _relative(k)
+            if act.startswith("place:"):
+                _relative(act[6:])
+        return v
 
 
 # ----------------------------------------------------------------------------- the config

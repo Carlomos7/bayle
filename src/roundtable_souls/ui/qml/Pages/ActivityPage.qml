@@ -192,7 +192,7 @@ ListView {  // the page's own scroller: the days are virtualized, the summary an
                             divider: index < jobRows.count - 1
                             objectName: "job_" + modelData.id
                             first: index === 0
-                            implicitHeight: open ? 60 + logBox.implicitHeight + Theme.sp12 : 60
+                            implicitHeight: open ? 60 + logLoader.implicitHeight + Theme.sp12 : 60
                             last: index === jobRows.count - 1
                             padding: Theme.padCard
                             pressable: !open
@@ -285,88 +285,96 @@ ListView {  // the page's own scroller: the days are virtualized, the summary an
                                     }
                                 }
                             }
-                            Column {  // the opened log
-                                id: logBox
+                            Loader {  // the opened log is built when the job opens: ~80 hidden items on every row of a long day cost the page its start
+                                id: logLoader
 
-                                spacing: Theme.sp8
-                                visible: job.open
+                                active: job.open
                                 width: parent ? parent.width : 0
                                 y: 60
 
-                                Flow {  // wraps at narrow widths
-                                    spacing: Theme.gapInline
-                                    width: parent ? parent.width : 0
+                                sourceComponent: Component {
+                                    Column {  // the opened log
+                                        id: logBox
 
-                                    CheckRow {
-                                        ToolTip.text: page.words.showDetailsTip
-                                        ToolTip.visible: hovered || visualFocus
-                                        checked: page.adapter.logDetail
-                                        text: page.words.showDetails
-                                        visible: page.adapter.logSource === "" || page.adapter.logSource === job.modelData.sources[0].key
+                                        spacing: Theme.sp8
+                                        width: parent ? parent.width : 0
 
-                                        onToggled: page.adapter.setLogDetail(checked)
-                                    }
-                                    DropButton {
-                                        implicitHeight: Theme.controlSmallH
-                                        text: {
-                                            const s = job.modelData.sources;
-                                            for (let i = 0; i < s.length; i++)
-                                                if (s[i].key === page.adapter.logSource)
-                                                    return s[i].label;
-                                            return s.length ? s[0].label : "";
-                                        }
-                                        visible: job.modelData.sources.length > 1
+                                        Flow {  // wraps at narrow widths
+                                            spacing: Theme.gapInline
+                                            width: parent ? parent.width : 0
 
-                                        Repeater {
-                                            model: job.modelData.sources
+                                            CheckRow {
+                                                ToolTip.text: page.words.showDetailsTip
+                                                ToolTip.visible: hovered || visualFocus
+                                                checked: page.adapter.logDetail
+                                                text: page.words.showDetails
+                                                visible: page.adapter.logSource === "" || page.adapter.logSource === job.modelData.sources[0].key
 
-                                            MenuEntry {
-                                                required property var modelData
+                                                onToggled: page.adapter.setLogDetail(checked)
+                                            }
+                                            DropButton {
+                                                implicitHeight: Theme.controlSmallH
+                                                text: {
+                                                    const s = job.modelData.sources;
+                                                    for (let i = 0; i < s.length; i++)
+                                                        if (s[i].key === page.adapter.logSource)
+                                                            return s[i].label;
+                                                    return s.length ? s[0].label : "";
+                                                }
+                                                visible: job.modelData.sources.length > 1
 
-                                                text: modelData.label
+                                                Repeater {
+                                                    model: job.modelData.sources
 
-                                                onTriggered: page.adapter.setLogSource(modelData.key)
+                                                    MenuEntry {
+                                                        required property var modelData
+
+                                                        text: modelData.label
+
+                                                        onTriggered: page.adapter.setLogSource(modelData.key)
+                                                    }
+                                                }
+                                            }
+                                            GhostButton {
+                                                ToolTip.text: page.words.copyTip
+                                                ToolTip.visible: hovered || visualFocus
+                                                icon_: "Copy"
+                                                implicitHeight: Theme.controlSmallH
+                                                text: page.words.copy
+
+                                                onClicked: page.adapter.copyLog(false)
+                                            }
+                                            GhostButton {
+                                                ToolTip.text: page.words.copySupportTip
+                                                ToolTip.visible: hovered || visualFocus
+                                                icon_: "Share"
+                                                implicitHeight: Theme.controlSmallH
+                                                text: page.words.copySupport
+
+                                                onClicked: page.adapter.copyLog(true)
+                                            }
+                                            GhostButton {
+                                                icon_: "Document"
+                                                implicitHeight: Theme.controlSmallH
+                                                text: page.words.openFile
+
+                                                onClicked: page.adapter.openLogFile()
                                             }
                                         }
+                                        Txt {
+                                            kind: "hint"
+                                            text: page.adapter.logNote
+                                            visible: text !== ""
+                                            width: parent ? parent.width : 0
+                                            wrapMode: Text.WordWrap
+                                        }
+                                        CodeEditor {
+                                            height: Math.min(420, Math.max(180, implicitHeight))
+                                            readOnly: true
+                                            text: job.open ? page.adapter.logText : ""
+                                            width: parent ? parent.width : 0
+                                        }
                                     }
-                                    GhostButton {
-                                        ToolTip.text: page.words.copyTip
-                                        ToolTip.visible: hovered || visualFocus
-                                        icon_: "Copy"
-                                        implicitHeight: Theme.controlSmallH
-                                        text: page.words.copy
-
-                                        onClicked: page.adapter.copyLog(false)
-                                    }
-                                    GhostButton {
-                                        ToolTip.text: page.words.copySupportTip
-                                        ToolTip.visible: hovered || visualFocus
-                                        icon_: "Share"
-                                        implicitHeight: Theme.controlSmallH
-                                        text: page.words.copySupport
-
-                                        onClicked: page.adapter.copyLog(true)
-                                    }
-                                    GhostButton {
-                                        icon_: "Document"
-                                        implicitHeight: Theme.controlSmallH
-                                        text: page.words.openFile
-
-                                        onClicked: page.adapter.openLogFile()
-                                    }
-                                }
-                                Txt {
-                                    kind: "hint"
-                                    text: page.adapter.logNote
-                                    visible: text !== ""
-                                    width: parent ? parent.width : 0
-                                    wrapMode: Text.WordWrap
-                                }
-                                CodeEditor {
-                                    height: Math.min(420, Math.max(180, implicitHeight))
-                                    readOnly: true
-                                    text: job.open ? page.adapter.logText : ""
-                                    width: parent ? parent.width : 0
                                 }
                             }
                         }

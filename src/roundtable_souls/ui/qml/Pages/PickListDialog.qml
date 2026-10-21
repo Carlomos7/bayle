@@ -4,7 +4,7 @@ import Theme
 import Components
 
 // A tick list the adapter asks for (pickRequested): what an overhaul's installer changed to put back, the installer
-// leftovers to move to the Recycle Bin. Nothing is ticked at first. The words come with the request; the answer goes
+// leftovers to move to the Recycle Bin. Nothing is ticked at first unless the words list rows (ticked). The words come with the request; the answer goes
 // back as the ticked rows' indexes (picked), or pickCancelled when the dialog closes without one.
 ModalDialog {
     id: dlg
@@ -25,7 +25,10 @@ ModalDialog {
         key = k;
         words = w;
         rows = r;
-        ticked = {};
+        let first = {};
+        for (const i of (w.ticked || []))
+            first[i] = true;
+        ticked = first;
         answered = false;
         open();
     }

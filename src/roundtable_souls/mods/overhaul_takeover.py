@@ -6,6 +6,7 @@ overhaul's folder, its installer's setup copy and, when chosen, its installer's 
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import tomllib
@@ -100,10 +101,13 @@ class EntryChoice:
 
     kind: str
     name: str
+    copied: bool = False  # there is evidence the installer made it: ticked at first
 
     @property
     def label(self) -> str:
-        return f"{self.name} ({'DLL' if self.kind == 'native' else 'package'}): not in the profile before the installer"
+        what = "DLL" if self.kind == "native" else "package"
+        why = "copied by the installer" if self.copied else "not in the profile before the installer"
+        return f"{self.name} ({what}): {why}"
 
 
 def _key(kind: str, ident: str | None, path: str | None) -> tuple[str, str]:
@@ -149,6 +153,41 @@ def _settings(profile: Path, base: dict) -> list[records.SideEffect]:
     ]
 
 
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _made_by_installer(profile: Path, e: dict, setup: installer_leftovers.Setup) -> bool:
+    """The installer made this entry: its file is byte-identical to a file of the same name in the installer's folder,
+    its setup copy or its backups, or the installer's manifest lists it."""
+    if not e.get("path"):
+        return False
+    where = me3_profile.resolve(profile, e["path"])
+    skip = set(installer_leftovers.rules().get("base_profile_keys", []))
+
+    def without_base(o):  # the saved pre-install profile lists the player's own entries
+        if isinstance(o, dict):
+            return {k: without_base(v) for k, v in o.items() if k not in skip}
+        return [without_base(v) for v in o] if isinstance(o, list) else o
+
+    if not where.is_file():
+        return False
+    shown = json.dumps(without_base(setup.manifest))
+    if where.name.lower() in {p.lower() for p in re.split(r'[\\/"]', shown) if p}:
+        return True
+    try:
+        size, mine = where.stat().st_size, None
+        for root in [setup.folder, *(f.path for f in installer_leftovers.setup_folders(profile.parent))]:
+            for other in root.rglob(where.name):
+                if other.is_file() and other != where and other.stat().st_size == size:
+                    mine = mine or _sha(where)
+                    if _sha(other) == mine:
+                        return True
+    except OSError:
+        return False
+    return False
+
+
 def _setup_choices(profile: Path, setup: installer_leftovers.Setup) -> list:
     base = _base(profile, setup)
     out: list = []
@@ -156,7 +195,7 @@ def _setup_choices(profile: Path, setup: installer_leftovers.Setup) -> list:
         had = {_key("package", r.get("id"), r.get("path")) for r in base.get("packages", []) if isinstance(r, dict)}
         had |= {_key("native", None, r.get("path")) for r in base.get("natives", []) if isinstance(r, dict)}
         out += [
-            EntryChoice(e["kind"], e["name"])
+            EntryChoice(e["kind"], e["name"], _made_by_installer(profile, e, setup))
             for e in _entries(profile)
             if not _inside(profile, e, setup.folder) and _key(e["kind"], e.get("id"), e.get("path")) not in had
         ]
@@ -181,6 +220,22 @@ def _stand_in(setup: installer_leftovers.Setup, game: str) -> OverhaulConfig:
     )
 
 
+def _drop_references(writer: ProfileWriter, refs: set[str]) -> int:
+    """Take the removed entries (by id or DLL name) out of the other entries' load_after / load_before lists, so the
+    profile stays valid. Returns how many entries changed."""
+    changed = 0
+    for e in writer.entries():
+        edit = {}
+        for key in ("load_after", "load_before"):
+            kept = [d for d in e[key] if str(d["id"]).lower() not in refs]
+            if len(kept) != len(e[key]):
+                edit[key] = kept
+        if edit:
+            writer.set_options(e["index"], edit)
+            changed += 1
+    return changed
+
+
 def _setup_preview(
     profile: Path, setup: installer_leftovers.Setup, *, loc: Locations, chosen: Sequence, revert_asked: bool
 ) -> RemovePreview:
@@ -188,9 +243,11 @@ def _setup_preview(
     picked = {(c.kind, c.name) for c in chosen if isinstance(c, EntryChoice)}
     mine = [e for e in writer.entries() if _inside(profile, e, setup.folder) or (e["kind"], e["name"]) in picked]
     removed: list[str] = []
+    refs = {me3_profile.entry_ref(e).lower() for e in mine}
     for e in sorted(mine, key=lambda e: e["index"], reverse=True):
         writer.remove_entry(e["index"])
         removed.insert(0, e["name"])
+    fixed = _drop_references(writer, refs)
     r = RemovePreview(
         profile, _stand_in(setup, loc.game.key), setup.folder, None, True, writer, None, removed,
         [], [], [], [], [], [], revert_asked=revert_asked,
@@ -216,6 +273,11 @@ def _setup_preview(
         if setup.folder.exists():
             r.trash.append(setup.folder)
     r.lines = overhaul_install._remove_lines(r)
+    if fixed:
+        r.lines.insert(
+            1,
+            f"{fixed} other entr{'y' if fixed == 1 else 'ies'} stop waiting for what is removed (load_after / load_before)",
+        )
     for f in extra:
         what = "Its installer's backups of your profiles" if f.backups else f"Its installer's setup copy {f.path.name}"
         r.lines.insert(-1, f"{what} ({size_text(size_of(f.path))}) goes to the Recycle Bin")

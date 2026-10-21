@@ -241,3 +241,35 @@ def test_the_ui_menu_entry_and_the_reinstall_question(world):
     assert not menu(True, None, False).can_take_over
     assert not menu(True, {"label": "X", "takeover": True, "removable": False}, False).can_remove
     assert "Install X" in reinstall_words("X").title
+
+
+def test_entries_the_installer_copied_are_ticked_and_references_to_removed_entries_go(world):
+    from dataclasses import replace
+
+    live_stray(world)
+    (world.base / "natives/StrayDll").mkdir(parents=True)
+    (world.base / "natives/StrayDll/stray.dll").write_bytes(b"installer dll")
+    (world.base / ".stray-setup/payload").mkdir()
+    (world.base / ".stray-setup/payload/stray.dll").write_bytes(
+        b"installer dll"
+    )  # byte-identical: the installer made it
+    (world.base / "mod/body/added.dll").write_bytes(b"mine")
+    world.profile.write_text(
+        world.text()
+        + "\n[[natives]]\npath = 'mod/body/added.dll'\nload_after = [\n  { id = \"stray\", optional = true },\n"
+        + '  { id = "stray.dll", optional = true },\n  { id = "ersc.dll", optional = true },\n]\n',
+        encoding="utf-8",
+    )
+    chosen = overhaul_takeover.choices(world.profile, loc=world.loc)
+    by_name = {c.name: c for c in chosen if hasattr(c, "kind")}
+    assert by_name["stray.dll"].copied and not by_name["added-later"].copied and not by_name["added.dll"].copied
+    assert "copied by the installer" in by_name["stray.dll"].label
+    assert "not in the profile before the installer" in by_name["added-later"].label
+    p = overhaul_takeover.preview(
+        world.profile, loc=world.loc, chosen=[c for c in chosen if getattr(c, "copied", False)]
+    )
+    assert any("stop waiting" in line for line in p.lines)
+    overhaul_install.remove(p)
+    row = next(n for n in world.data()["natives"] if n["path"].endswith("added.dll"))
+    assert [d["id"] for d in row["load_after"]] == ["ersc.dll"]  # the others' lists keep the entries still there
+    assert replace(by_name["stray.dll"], copied=False) != by_name["stray.dll"]

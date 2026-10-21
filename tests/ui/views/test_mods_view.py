@@ -656,3 +656,30 @@ def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_ins
         assert host.installs == [True]  # opens Install mod; nothing installs by itself
     finally:
         closed(w)
+
+
+def test_take_over_ticks_the_entries_the_installer_copied(qt_app, profile, monkeypatch):
+    from roundtable_souls.mods.overhaul_takeover import EntryChoice
+    from roundtable_souls.services import mods as mod_service
+
+    overhaul_services(monkeypatch)
+    monkeypatch.setattr(
+        mod_service,
+        "profile_overhaul",
+        lambda p, loc: {"label": "Toy", "short_label": "Toy", "legacy": True, "takeover": True},
+    )
+    monkeypatch.setattr(
+        mod_service,
+        "take_over_choices",
+        lambda p, loc: [EntryChoice("native", "a.dll", False), EntryChoice("native", "toy.dll", True)],
+    )
+    w = opened(Host(profile))
+    try:
+        picks = []
+        w.adapter.pickRequested.connect(lambda key, words, rows: picks.append((words["ticked"], rows)))
+        w.adapter.takeOverOverhaul()
+        settle()
+        [(ticked, rows)] = picks
+        assert ticked == [1] and "copied by the installer" in rows[1] and "not in the profile" in rows[0]
+    finally:
+        closed(w)

@@ -4,6 +4,7 @@ the overhaul again through the launcher (the Install mod flow; nothing installs 
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -95,7 +96,7 @@ def start(page: ModsAdapter) -> None:
     choices = mod_service.take_over_choices(profile, loc=loc)
     if choices:
         page._pick(
-            pick_words(label),
+            replace(pick_words(label), ticked=tuple(i for i, c in enumerate(choices) if getattr(c, "copied", False))),
             [mod_service.choice_text(c) for c in choices],
             lambda ticked: preview_and_ask([choices[i] for i in ticked]),
         )

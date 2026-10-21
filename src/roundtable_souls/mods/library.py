@@ -77,10 +77,26 @@ class StateFolders:
     ops_lock: Path
 
 
+def game_root(profiles_dir: Path, game: str) -> Path:
+    """The launcher's folder for a game inside me3's profiles folder: profiles/<name>/ live in its profiles/ folder."""
+    return Path(profiles_dir) / "roundtable" / game
+
+
 def own_folder(profile: Path) -> bool:
-    """Whether the profile sits in a folder of its own named after it (profiles/<name>/<name>.me3)."""
+    """Whether the profile sits in a folder of its own named after it (profiles/<name>/<name>.me3) with no other
+    profile in it."""
     profile = Path(profile)
-    return profile.parent.name.lower() == profile.stem.lower()
+    if profile.parent.name.lower() != profile.stem.lower():
+        return False
+    try:
+        return not any(
+            p.suffix.lower() == ".me3"
+            and p.name.lower() != profile.name.lower()
+            and not p.name.lower().endswith(".offline.me3")
+            for p in profile.parent.iterdir()
+        )
+    except OSError:
+        return True
 
 
 @dataclass(frozen=True)

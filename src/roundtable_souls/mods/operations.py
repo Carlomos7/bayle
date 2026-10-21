@@ -48,8 +48,8 @@ def _root(profile: Path) -> Path:
 def _bases(profile: Path) -> list[tuple[Path, str]]:
     """Where this profile's operations are: its .roundtable/ops, then .roundtable-ops beside it (before 3.23)."""
     out = [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
-    if library.own_folder(profile):  # a rename or copy of a profile's folder is journaled beside the folder
-        out.append((_root(profile).parent, build.OPS))
+    if library.own_folder(profile) or _root(profile).parent.name == "profiles":
+        out.append((_root(profile).parent, build.OPS))  # a rename, copy or split of a profile's folder: beside it
     return out
 
 
@@ -73,6 +73,10 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
     with lock(profile, timeout):  # first, so every process takes the locks in one order
         for root, ops in bases:
             said += build.recover_operations(root, timeout, ops)
+            if root == _root(profile).parent:
+                from roundtable_souls.mods import folder_split
+
+                folder_split.clean_stages(root)  # what an interrupted split staged: copies only, emptied by recovery
         for o in (o for root, ops in _bases(profile) for o in build.active(root, ops)):
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
@@ -82,6 +86,11 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
 
                 migrate.finish_state(o)  # the launcher's records still name the old profiles
                 said.append("an interrupted move of the profiles into their folders was finished")
+            elif o.info.get("kind") in ("folder-rename", "folder-split") and not o.info.get("state_done"):
+                from roundtable_souls.mods import folder_check
+
+                folder_check.finish_state(o)
+                said.append("an interrupted change of a profile's folder was finished")
             elif o.info.get("kind") == "profile-rename" and not o.info.get("state_done"):
                 from roundtable_souls.mods import profile_rename
 

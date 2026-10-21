@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-10-21
+
+Bayle keeps its window responsive: heavy work runs in separate worker processes, disk reads happen in the
+background, and pages show at once while fresh data loads.
+
+### Changed
+
+- **Speed:** checking saves, combining parameters and hashing mods run in separate worker processes, so the window
+  never freezes while they work (checking a large save went from a 57 ms freeze to 4 ms).
+- **Speed:** pages show straight away and refresh in the background. Several refreshes at once become one, and a
+  page that hasn't changed isn't rebuilt. Opening Settings and Export is about twice as fast, and start-up is
+  about 0.5 s quicker.
+- **Logs:** the launcher notes which graphics backend it uses at start, and logs any moment the window freezes for
+  more than 0.2 s, so slowness can be traced.
+
+### Fixed
+
+- Closing Bayle while a long job runs no longer hangs: it waits up to 3 seconds, and the job is finished or undone
+  at the next start.
+- Mod Configs no longer loses a refresh asked for while it is loading.
+- Save checks right after installing a mod see the new mod's item names.
+
 ## [4.4.0] - 2026-10-21
 
 The launcher is now **Bayle**. Each game has its own tidy folder of profiles, you choose where it lives, and the

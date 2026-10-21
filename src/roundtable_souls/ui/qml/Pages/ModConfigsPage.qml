@@ -87,15 +87,6 @@ Item {
                 width: parent.width
                 wrapMode: Text.WordWrap
             }
-            GhostButton {
-                icon_: "Add"
-                implicitHeight: Theme.controlSmallH
-                objectName: "addOverhaulSetup"
-                text: page.words.addOverhaul
-                visible: page.adapter.hasProfile
-
-                onClicked: page.adapter.addOverhaulSetup("")
-            }
             Repeater {
                 model: page.adapter.nodes
 
@@ -112,6 +103,14 @@ Item {
                         kind: "strong"
                         text: node.modelData.name
                         width: parent.width
+
+                        MouseArea {  // right-click the mod's name: its overhaul menu
+                            acceptedButtons: Qt.RightButton
+                            anchors.fill: parent
+                            enabled: node.modelData.action !== ""
+
+                            onClicked: rowMenu.popup()
+                        }
                     }
                     Txt {
                         elide: Text.ElideNone
@@ -134,9 +133,41 @@ Item {
                             selected: modelData.path === page.adapter.selectedFile
                             width: node.width
 
+                            function openMenu() {
+                                if (node.modelData.action === "")
+                                    return;
+                                if (!fileRow.selected)
+                                    page.adapter.selectFile(node.modelData.key, fileRow.modelData.path);
+                                rowMenu.popup(fileRow, Theme.sp16, fileRow.height);
+                            }
+
+                            Accessible.name: modelData.name
+                            Accessible.role: Accessible.ListItem
+                            activeFocusOnTab: true
+
+                            Keys.onMenuPressed: openMenu()
+                            Keys.onPressed: event => {
+                                if (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier)) {
+                                    openMenu();
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                    clicked();
+                                    event.accepted = true;
+                                }
+                            }
                             onClicked: {
                                 page.adapter.selectFile(node.modelData.key, fileRow.modelData.path);
                                 page.showFile = true;
+                            }
+
+                            FocusRing {
+                                active: fileRow.activeFocus
+                            }
+                            MouseArea {
+                                acceptedButtons: Qt.RightButton
+                                anchors.fill: parent
+
+                                onClicked: fileRow.openMenu()
                             }
 
                             Txt {
@@ -146,13 +177,16 @@ Item {
                             }
                         }
                     }
-                    GhostButton {
-                        implicitHeight: Theme.controlSmallH
-                        objectName: "setUpAsOverhaul"
-                        text: page.words.setUpAsOverhaul
-                        visible: node.modelData.kind === "native" || node.modelData.kind === "package"
+                    PopupMenu {  // the row's menu: the mod's overhaul entry (the same one the detail's More offers)
+                        id: rowMenu
 
-                        onClicked: page.adapter.addOverhaulSetup(node.modelData.key)
+                        MenuEntry {
+                            icon_: node.modelData.action === "setUp" ? "Add" : "Delete"
+                            objectName: "rowOverhaulEntry"
+                            text: node.modelData.action === "setUp" ? page.words.setUpOverhaul : page.words.turnOffOverhaul
+
+                            onTriggered: node.modelData.action === "setUp" ? page.adapter.addOverhaulSetup(node.modelData.key) : page.adapter.turnOffOverhaul()
+                        }
                     }
                 }
             }
@@ -248,6 +282,35 @@ Item {
 
                         onToggled: page.adapter.setEditText(checked)
                     }
+                    GhostButton {
+                        id: moreBtn
+
+                        ToolTip.text: page.words.more
+                        ToolTip.visible: (hovered || visualFocus) && !moreMenu.opened
+                        anchors.verticalCenter: parent.verticalCenter
+                        icon_: "More"
+                        implicitHeight: Theme.controlSmallH
+                        implicitWidth: 40
+                        objectName: "overhaulMore"
+                        text: ""
+                        visible: page.adapter.overhaulAction !== ""
+
+                        onClicked: moreMenu.open()
+
+                        PopupMenu {
+                            id: moreMenu
+
+                            y: moreBtn.height + Theme.sp4
+
+                            MenuEntry {
+                                icon_: page.adapter.overhaulAction === "setUp" ? "Add" : "Delete"
+                                objectName: "overhaulEntry"
+                                text: page.adapter.overhaulAction === "setUp" ? page.words.setUpOverhaul : page.words.turnOffOverhaul
+
+                                onTriggered: page.adapter.overhaulAction === "setUp" ? page.adapter.setUpSelectedAsOverhaul() : page.adapter.turnOffOverhaul()
+                            }
+                        }
+                    }
                 }
             }
             Txt {
@@ -311,11 +374,12 @@ Item {
                     visible: page.adapter.fileKind === "overhaul"
                     width: parent.width
                 }
-                Txt {
+                Txt {  // a settings file that would not parse: why there is no form
                     elide: Text.ElideNone
-                    text: page.adapter.fileKind === "markdown" ? page.adapter.text : ""
-                    textFormat: Text.MarkdownText
-                    visible: page.adapter.fileKind === "markdown"
+                    kind: "hint"
+                    objectName: "formNote"
+                    text: page.adapter.formNote
+                    visible: text !== "" && page.adapter.fileKind === "text"
                     width: parent.width
                     wrapMode: Text.WordWrap
                 }
@@ -404,6 +468,13 @@ Item {
                 width: parent.width
                 wrapMode: Text.WordWrap
             }
+            GhostButton {
+                anchors.horizontalCenter: parent.horizontalCenter
+                objectName: "setUpModLink"
+                text: page.words.setUpModLink
+
+                onClicked: page.adapter.addOverhaulSetup("")
+            }
         }
     }
     Column {  // no mod in this profile has a settings file
@@ -432,6 +503,13 @@ Item {
             text: page.words.goToMods
 
             onClicked: page.adapter.openMods()
+        }
+        GhostButton {
+            anchors.horizontalCenter: parent.horizontalCenter
+            objectName: "setUpModLinkEmpty"
+            text: page.words.setUpModLink
+
+            onClicked: page.adapter.addOverhaulSetup("")
         }
     }
 }

@@ -4,6 +4,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mod Configs: "Set up as an overhaul..." / "Turn off overhaul setup..." now live in one place, a More menu on the open mod (and the row's right-click or Shift+F10 menu), instead of a button on every mod; "Edit as text" shows only for files that have a form, and plain text files open straight in the editor.
+
 ## [4.0.0] - 2026-10-20
 
 - Settings > Updates > Check for updates answers at once: the line says "Checking for updates..." and the button waits, then a toast says up to date, could not check, or that an update is available.

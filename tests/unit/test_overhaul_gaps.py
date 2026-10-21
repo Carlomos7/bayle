@@ -374,10 +374,11 @@ def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
     got: list[dict] = []
     monkeypatch.setattr(run_logging, "set_undo", lambda d: got.append(d))
     done = mod_service.reapply_overhaul_setup(world.profile, loc=world.loc)
-    assert done == ["my.me3", "other.me3"] and len(got) == 1 and got[0]["type"] == "overhaul-reapply"
+    assert done == ["my.me3", "other.me3"] and got[0]["type"] == "overhaul-reapply"
+    assert got[0]["others"] == [] and len(got[-1]["others"]) == 1  # set after each profile: a crash keeps an Undo
     assert all(b"Boot" in p.read_bytes() for p in before)
-    assert undo.available(got[0])
-    undo.run(got[0], lambda s: None, loc=world.loc)
+    assert undo.available(got[-1])
+    undo.run(got[-1], lambda s: None, loc=world.loc)
     assert {p: p.read_bytes() for p in before} == before
 
 

@@ -38,6 +38,7 @@ The overhaul's own installer files are never written.
 
 from __future__ import annotations
 
+import base64
 import datetime
 import fnmatch
 import hashlib
@@ -694,15 +695,15 @@ def _users(profile: Path, config: OverhaulConfig, own: Path, *, others: bool = T
 
 def apply_entries(preview: InstallPreview) -> dict:
     """Write only the profile part of a preview, for a profile that shares the overhaul's folder with one already
-    installed (the build is the same). Returns what an undo needs: {profile, before (its text), after (sha256)}.
+    installed (the build is the same). Returns what an undo needs: {profile, before_b64 (its bytes), after (sha256)}.
     Raises OverhaulError when the preview was refused."""
     p = preview
     if not p.ok or p.change is None:
         raise OverhaulError("; ".join(p.refusals) or "Nothing to apply.")
     data = p.change.bytes_to_write
-    before = p.change.read.decode("utf-8", errors="replace")
+    before = base64.b64encode(p.change.read).decode("ascii")  # the exact bytes: a profile need not be UTF-8
     p.writer.commit(p.change)
-    return {"profile": str(p.profile), "before": before, "after": hashlib.sha256(data).hexdigest()}
+    return {"profile": str(p.profile), "before_b64": before, "after": hashlib.sha256(data).hexdigest()}
 
 
 def own_folders(profile: Path, entries: list[dict], configs: Sequence[OverhaulConfig]) -> list[Path]:

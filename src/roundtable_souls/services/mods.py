@@ -589,14 +589,16 @@ def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
                     "name": out["name"],
                     "operation": out["operation"],
                 }
+                run_logging.set_undo({**first, "others": list(others)})
             else:  # the profiles sharing its folder: the build is the same, only their entries change
                 others.append(overhaul_install.apply_entries(preview))
+                run_logging.set_undo({**first, "others": list(others)})  # a crash further on still leaves an Undo
         except Exception as e:
             run_logging.log(f"skipped {p.name}: {e}")
             continue
         done.append(p.name)
     if first is not None:  # one Undo takes back every profile the job changed
-        run_logging.set_undo({**first, "others": others})
+        run_logging.set_undo({**first, "others": list(others)})
         run_logging.log(f"done: applied the setup of {config.label} to {', '.join(done)}")
     return done
 

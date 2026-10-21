@@ -107,3 +107,35 @@ def test_a_config_saved_before_package_roots_stays_basic(tmp_path):
     assert basic.level(old, folder) == "basic" and basic.level(new, folder) == "basic"
     edited = old.model_copy(update={"recognise": old.recognise.model_copy(update={"mod_ids": ["other"]})})
     assert basic.level(edited, folder) == "advanced"
+
+
+# ----------------------------------------------------------------------------- undo of the other profiles
+def test_undo_restores_the_other_profiles_exact_bytes_first_even_when_the_main_take_back_fails(tmp_path, monkeypatch):
+    import base64
+    import hashlib
+
+    from roundtable_souls.mods import operations, undo
+
+    raw = b"name = '\xe9\xff'\n"  # not UTF-8
+    other = tmp_path / "other.me3"
+    other.write_bytes(b"after")
+    record = {
+        "type": "overhaul-reapply",
+        "operation": str(tmp_path / "op"),
+        "others": [
+            {
+                "profile": str(other),
+                "before_b64": base64.b64encode(raw).decode(),
+                "after": hashlib.sha256(b"after").hexdigest(),
+            }
+        ],
+    }
+    monkeypatch.setattr(undo, "available", lambda u: True)
+
+    def boom(*a, **k):
+        raise operations.OperationError("gone")
+
+    monkeypatch.setattr(operations, "take_back", boom)
+    with pytest.raises(operations.OperationError):
+        undo._overhaul_back(record, lambda s: None)
+    assert other.read_bytes() == raw

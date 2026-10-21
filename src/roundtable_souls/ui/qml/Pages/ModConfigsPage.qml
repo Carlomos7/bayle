@@ -48,14 +48,15 @@ Item {
         anchors.rightMargin: Theme.sp16
         anchors.top: parent.top
         anchors.topMargin: Theme.sp8
-        height: 40
+        height: 48
 
         Txt {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
+            color: Theme.accent
             elide: Text.ElideRight
-            kind: "rowTitle"
+            kind: "page"
             objectName: "profileTitle"
             text: page.adapter.profileName !== "" ? page.adapter.profileName : page.words.noProfile
         }

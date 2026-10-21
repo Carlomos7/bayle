@@ -11,9 +11,13 @@ Button {
     id: root
 
     property bool danger: false
+    property bool forceDown: false   // a window button the OS hit-tests (Snap Layouts): it gets no mouse events, so it is told
+    property bool forceHover: false
     property color fg: Theme.textIcon
     property color hoverColor: Theme.smearHover
-    readonly property color iconColor: !enabled ? Theme.textDisabled : danger ? (hovered || down ? Theme.statusDanger : Theme.textTertiary) : selected || hovered ? Theme.goldText : fg
+    readonly property bool lit: hovered || forceHover
+    readonly property bool isDown: down || forceDown
+    readonly property color iconColor: !enabled ? Theme.textDisabled : danger ? (lit || isDown ? Theme.statusDanger : Theme.textTertiary) : selected || lit ? Theme.goldText : fg
     property int iconSize: 16
     property string icon_: "Setting"
     property color pressColor: Theme.fillGhost
@@ -29,20 +33,20 @@ Button {
     implicitWidth: 32
 
     background: Rectangle {
-        color: root.down ? root.pressColor : "transparent"
+        color: root.isDown ? root.pressColor : "transparent"
         radius: Theme.radiusControl
 
         Smear {
             anchors.fill: parent
             peak: 0.5
             radius: Theme.radiusControl
-            strength: root.hovered && !root.danger ? 1 : 0
+            strength: root.lit && !root.danger ? 1 : 0
             tint: root.hoverColor
         }
         Rectangle {
             anchors.fill: parent
             color: Theme.statusDangerBg
-            opacity: root.hovered && root.danger ? 1 : 0
+            opacity: root.lit && root.danger ? 1 : 0
             radius: Theme.radiusControl
         }
 

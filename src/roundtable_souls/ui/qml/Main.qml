@@ -17,20 +17,24 @@ ApplicationWindow {
     id: win
 
     readonly property real captionLeftW: nativeChrome && Qt.platform.os === "osx" ? 78 : 0  // the traffic lights
-    readonly property real captionW: nativeChrome && Qt.platform.os === "windows" ? Math.round(chromeTop * 1.5) * 3 : 0  // Qt draws 3 buttons, each 1.5x the bar height
+    readonly property real captionW: 0  // space for the OS caption buttons: none, only macOS keeps the native frame (its traffic lights are on the left)
+    property string chromeDown: ""  // Windows chrome: the caption button held down, set by chrome_win ("min", "max", "close")
+    property string chromeHot: ""  // ... the one under the pointer (those buttons only get non-client mouse messages)
     property real chromeTop: 0  // the OS title bar height (from the probe), 0 when not native
     readonly property bool compact: width < Theme.compactBelow
     readonly property var currentNotifier: shell.notifierFor(shell.currentPage)
     required property var shell
+    property bool winChrome: false  // Windows: the native frame stays, the client area is the whole window (chrome_win)
 
-    // Window chrome (v2.20). Windows and macOS on Qt 6.9+: the OS keeps the frame (rounded corners, shadow, Snap
-    // Layouts, resize borders and the caption buttons) and our client area extends under the title bar, where the
-    // menu row sits. Elsewhere, and off-screen (renders, the self-test): a frameless window with our own caption
-    // buttons and edge resizers.
-    readonly property bool nativeChrome: (Qt.platform.os === "windows" || Qt.platform.os === "osx") && Qt.platform.pluginName !== "offscreen" && Qt.ExpandedClientAreaHint !== undefined
+    // Window chrome (v2.20). macOS on Qt 6.9+: the OS keeps the frame (traffic lights, resize borders) and our client
+    // area extends under the title bar, where the menu row sits. Windows, Linux and off-screen (renders, the
+    // self-test): a frameless window with ONE row, the menus left, the title centred and our own caption buttons
+    // right; the system does the moving, the resizing and the snapping (startSystemMove / startSystemResize).
+    // Windows (winChrome) keeps its native frame (shadow, Snap Layouts) but the row is ours, hit-tested by chrome_win.
+    readonly property bool nativeChrome: Qt.platform.os === "osx" && Qt.platform.pluginName !== "offscreen" && Qt.ExpandedClientAreaHint !== undefined
 
     color: Theme.surfaceBar
-    flags: nativeChrome ? Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
+    flags: nativeChrome ? Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : winChrome ? Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint : Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
     font.family: Theme.fontFamily
     height: 760
     minimumHeight: 540
@@ -171,9 +175,12 @@ ApplicationWindow {
         captionW: win.captionW
         chromeTop: win.chromeTop
         compact: win.compact
+        chromeDown: win.chromeDown
+        chromeHot: win.chromeHot
         nativeChrome: win.nativeChrome
         shell: win.shell
         window: win
+        winChrome: win.winChrome
     }
     Rail {
         id: rail
@@ -616,9 +623,9 @@ ApplicationWindow {
         property int band: 6
         property int edges
 
-        enabled: !win.nativeChrome   // the OS owns the resize borders when the frame is native
+        enabled: !win.nativeChrome && !win.winChrome && win.visibility !== Window.Maximized   // the OS owns the borders when the frame is native; a maximized window has none
         hoverEnabled: true
-        visible: !win.nativeChrome
+        visible: enabled
 
         onPressed: win.startSystemResize(edges)
     }

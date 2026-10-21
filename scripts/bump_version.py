@@ -1,7 +1,11 @@
 """Set the version in pyproject.toml and the package, ready to commit and tag.
 
-uv run python scripts/bump_version.py 3.2.0-beta.1   a beta (Beta channel only; every version starts as betas)
-uv run python scripts/bump_version.py 3.2.0          the stable release (both channels), from the last beta's commit
+Releases are normally cut by release-please (CONTRIBUTING.md); this is the manual fallback.
+
+uv run python scripts/bump_version.py 4.1.0-rc.1   a release candidate (Beta channel only; SemVer 2.0 pre-release)
+uv run python scripts/bump_version.py 4.1.0        the stable release (both channels)
+
+Old -beta.N and -alpha.N versions are still read and accepted.
 """
 
 from __future__ import annotations
@@ -14,7 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = r"\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?"
 FILES = {
     ROOT / "pyproject.toml": re.compile(rf'^version = "({VERSION})"$', re.M),
-    ROOT / "src" / "roundtable_souls" / "__init__.py": re.compile(rf'^__version__ = "({VERSION})"$', re.M),
+    ROOT / "src" / "roundtable_souls" / "__init__.py": re.compile(
+        rf'^__version__ = "({VERSION})"(?:  # x-release-please-version)?$', re.M
+    ),
 }
 
 
@@ -34,7 +40,7 @@ def main() -> int:
         print(f"{path.relative_to(ROOT)}: {new}")
     print(
         f'\nNext:\n  uv lock\n  git commit -am "Release {new}"\n  git tag -a v{new} -m "Roundtable Souls {new}"\n'
-        "  git push && git push --tags\n\nThe Release workflow publishes a vX.Y.Z-beta.N tag to the Beta channel and a plain vX.Y.Z to both channels."
+        "  git push && git push --tags\n\nThe Release workflow publishes a vX.Y.Z-rc.N tag to the Beta channel and a plain vX.Y.Z to both channels."
     )
     return 0
 

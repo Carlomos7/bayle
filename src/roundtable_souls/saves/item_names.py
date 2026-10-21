@@ -20,6 +20,7 @@ from pathlib import Path
 from roundtable_souls import formats
 from roundtable_souls.game import catalog
 from roundtable_souls.game import oodle as game_oodle
+from roundtable_souls.platform import cpu
 
 GOODS = 0x40000000
 SEAMLESS = "Seamless Co-op"
@@ -160,6 +161,8 @@ def item_names(game: Path | None, profiles: Path | None, refresh: bool = False) 
     folders are looked at again at most every few seconds (or on refresh), and the names are rebuilt only when the
     files behind them changed."""
     global _CACHE, _CHECKED_AT
+    if refresh:
+        cpu.invalidate("item_names")  # the workers' copies too
     now = time.monotonic()
     where = (str(game or ""), str(profiles or ""))
     if _CACHE and _CACHE[0][0] == where and not refresh and now - _CHECKED_AT < RECHECK_SECONDS:

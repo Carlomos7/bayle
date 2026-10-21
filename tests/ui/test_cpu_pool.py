@@ -82,3 +82,27 @@ def test_from_the_windows_own_thread_a_task_runs_inline(app):
     pool = CpuPool(size=1)
     assert pool.submit(PROBE, {"value": 1}).result(0)["pid"] == os.getpid()
     assert cpu.run_inline(PROBE, {}).done()
+
+
+def test_a_broadcast_reaches_a_live_worker_before_the_tasks_sent_after_it(app, tmp_path):
+    log = tmp_path / "seen.txt"
+    script = (
+        "import sys, json\n"
+        f"log = open({str(log)!r}, 'a')\n"
+        "for line in sys.stdin:\n"
+        "    r = json.loads(line); log.write(r['task'] + '\\n'); log.flush()\n"
+        "    print(json.dumps({'id': r['id'], 'ok': True, 'result': 1}), flush=True)\n"
+    )
+    pool = CpuPool([sys.executable, "-c", script], size=1)
+    try:
+        ask(pool, app, task="a:one").result(0)
+        done = {}
+        threading.Thread(target=lambda: done.update(f=pool.broadcast("a:forget", {}))).start()
+        end = time.monotonic() + 30
+        while "f" not in done or not done["f"].done():
+            app.processEvents()
+            assert time.monotonic() < end
+        ask(pool, app, task="a:two")
+    finally:
+        pool.shutdown()
+    assert log.read_text().split() == ["a:one", "a:forget", "a:two"]

@@ -37,10 +37,12 @@ class _Worker:
         self.out = b""
         self.err = b""
         self.job: _Job | None = None
+        self.pinned: list[_Job] = []  # broadcasts waiting for this worker to be free: they go before any task
 
 
 class CpuPool(QObject):
     _submitted = Signal(object)
+    _broadcasting = Signal(object)
 
     def __init__(self, command: list[str] | None = None, size: int | None = None):
         super().__init__()
@@ -52,18 +54,30 @@ class CpuPool(QObject):
         self._threads_only = False
         self._closed = False
         self._submitted.connect(self._accept)
+        self._broadcasting.connect(self._pin)
 
     # ------------------------------------------------------------------ any thread
     def submit(self, task: str, args: dict) -> Future:
-        """The backend platform.cpu.run_cpu uses. From the window's own thread the task runs inline (a caller could
-        not wait for a worker there without freezing the window)."""
+        """The backend platform.cpu.run_cpu uses (run_cpu has already dealt with the window's own thread)."""
         if QThread.currentThread() is self.thread():
             return cpu.run_inline(task, args)
         future: Future = Future()
         self._submitted.emit(_Job(next(self._ids), task, args, future))
         return future
 
+    def broadcast(self, task: str, args: dict) -> Future:
+        """The task on every live worker, before whatever is sent to it after this call."""
+        future: Future = Future()
+        self._broadcasting.emit(_Job(0, task, args, future))
+        return future
+
     # ------------------------------------------------------------------ the window's thread
+    def _pin(self, job: _Job) -> None:
+        for w in self._workers:
+            w.pinned.append(_Job(next(self._ids), job.task, job.args, Future()))
+        job.future.set_result(None)
+        self._pump()
+
     def _accept(self, job: _Job) -> None:
         if self._closed:
             job.future.set_exception(RuntimeError("the program is closing"))
@@ -73,7 +87,15 @@ class CpuPool(QObject):
             self._queue.append(job)
             self._pump()
 
+    def _send(self, worker: _Worker, job: _Job) -> None:
+        worker.job = job
+        line = json.dumps({"id": job.id, "task": job.task, "args": job.args}) + "\n"
+        worker.proc.write(line.encode("utf-8"))
+
     def _pump(self) -> None:
+        for w in self._workers:
+            if w.job is None and w.pinned:
+                self._send(w, w.pinned.pop(0))
         while self._queue and not self._threads_only:
             worker = next((w for w in self._workers if w.job is None), None)
             if worker is None:
@@ -82,10 +104,7 @@ class CpuPool(QObject):
                 worker = self._spawn()
                 if self._threads_only:  # it could not start, and the queue went to threads
                     return
-            job = self._queue.popleft()
-            worker.job = job
-            line = json.dumps({"id": job.id, "task": job.task, "args": job.args}) + "\n"
-            worker.proc.write(line.encode("utf-8"))
+            self._send(worker, self._queue.popleft())
 
     def _spawn(self) -> _Worker:
         proc = QProcess(self)
@@ -180,7 +199,7 @@ def install() -> CpuPool:
     """Make this program's CPU tasks run in worker processes; shut them down when the application quits."""
     global _pool
     _pool = CpuPool()
-    cpu.install(_pool.submit)
+    cpu.install(_pool.submit, _pool.broadcast, threading.get_ident())
     app: Any = QCoreApplication.instance()
     app.aboutToQuit.connect(_pool.shutdown)
     return _pool

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from roundtable_souls.game.locate import Locations
+from roundtable_souls.platform import cpu
 from roundtable_souls.platform import logging as run_logging
 
 PROGRESS = "progress"
@@ -84,7 +85,10 @@ def run_job(job: Callable[[Any, Locations], None], launch, loc: Locations, title
     record = run_logging.begin_job(title.rstrip(". "), game=loc.game.key, profile=profile)
     log = run_logging.get_logger("job")
     try:
-        job(launch, loc)
+        try:
+            job(launch, loc)
+        finally:
+            cpu.invalidate("item_names")  # installs, removals and rebuilds change which mods give items names
     except SystemExit as e:
         stopped = e.code == 130
         run_logging.end_job(record, "stopped" if stopped else "failed" if e.code not in (0, None) else None)

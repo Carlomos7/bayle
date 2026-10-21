@@ -4,7 +4,9 @@ the same results as before. The window's QProcess pool is tested in tests/ui/tes
 
 import hashlib
 import json
+import logging
 import subprocess
+import threading
 
 import pytest
 
@@ -12,7 +14,8 @@ from roundtable_souls.game import catalog
 from roundtable_souls.game.locate import Locations
 from roundtable_souls.mods import shared_mods
 from roundtable_souls.platform import cpu
-from roundtable_souls.services import saves
+from roundtable_souls.saves import analyze, caches, item_names
+from roundtable_souls.services import jobs, saves
 
 
 def test_a_task_runs_inline_without_a_backend():
@@ -77,3 +80,61 @@ def test_save_info_is_the_same_through_a_task_as_the_direct_call(tmp_path):
     save.write_bytes(b"not a save" * 10)
     loc = Locations(catalog.ELDEN_RING)
     assert saves.save_info(save, loc=loc) == saves._save_info(save, loc=loc)
+
+
+# ----------------------------------------------------------------------------- the window's thread, and stale caches
+@pytest.fixture
+def ui_thread():
+    cpu.install(None, None, threading.get_ident())  # this (the test's) thread plays the window's
+    cpu._warned.clear()
+    yield
+    cpu.install(None)
+
+
+def test_cpu_work_on_the_ui_thread_raises_in_strict_mode(ui_thread):
+    with pytest.raises(cpu.UiThreadError):
+        cpu.run_cpu("roundtable_souls.platform.cpu:probe", {})
+    got = {}
+    t = threading.Thread(target=lambda: got.update(f=cpu.run_cpu("roundtable_souls.platform.cpu:probe", {})))
+    t.start()
+    t.join()
+    assert got["f"].result()["value"] == 1  # another thread is fine
+
+
+def test_outside_strict_mode_it_runs_inline_and_warns_once_per_call_site(ui_thread, monkeypatch, caplog):
+    monkeypatch.delenv("PYTEST_CURRENT_TEST")
+    monkeypatch.delenv("ROUNDTABLE_SOULS_STRICT_CPU", raising=False)
+    monkeypatch.setattr("roundtable_souls.platform.logging.get_logger", lambda name=None: logging.getLogger("rs.cpu"))
+    with caplog.at_level(logging.WARNING, logger="rs.cpu"):
+        for _ in range(3):
+            assert cpu.run_cpu("roundtable_souls.platform.cpu:probe", {}).result()["value"] == 1
+        cpu.run_cpu("roundtable_souls.platform.cpu:probe", {})  # a second call site
+    warned = [r for r in caplog.records if "UI thread" in r.getMessage()]
+    assert len(warned) == 2 and "test_cpu.py" in warned[0].getMessage()
+
+
+def test_invalidate_goes_to_the_workers_and_forget_clears_the_caches(monkeypatch):
+    sent = []
+    cpu.install(None, lambda task, args: sent.append((task, args)))
+    try:
+        cpu.invalidate("item_names")
+    finally:
+        cpu.install(None)
+    assert sent == [("roundtable_souls.saves.caches:forget", {"kind": "item_names"})]
+    monkeypatch.setattr(item_names, "_CACHE", ("k", "v"))
+    monkeypatch.setattr(analyze, "_GAME_IDS", ("s", frozenset({1})))
+    caches.forget("item_names")
+    assert item_names._CACHE is None and analyze._GAME_IDS is not None
+    caches.forget("all")
+    assert analyze._GAME_IDS is None
+    with pytest.raises(ValueError):
+        caches.forget("nothing")
+
+
+def test_finishing_a_job_tells_the_workers(monkeypatch):
+    told = []
+    monkeypatch.setattr(cpu, "invalidate", told.append)
+    monkeypatch.setattr(jobs.run_logging, "begin_job", lambda *a, **k: None)
+    monkeypatch.setattr(jobs.run_logging, "end_job", lambda *a, **k: None)
+    jobs.run_job(lambda launch, loc: None, None, Locations(catalog.ELDEN_RING), "t")
+    assert told == ["item_names"]

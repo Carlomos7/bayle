@@ -328,11 +328,11 @@ def build(
                 names = _each(step, setup)
                 for each in names:
                     try:
-                        made.append(
-                            _launcher_step(
-                                step, each, setup, inputs, game_dir, mod, sources, report, log, game=loc.game.key
-                            )
+                        done = _launcher_step(
+                            step, each, setup, inputs, game_dir, mod, sources, report, log, game=loc.game.key
                         )
+                        if done is not None:
+                            made.append(done)
                     except FormatError as e:
                         where = _fill(step["file"], {"each": each or ""})
                         raise EngineError(f"{where} could not be merged: {e}") from e
@@ -439,7 +439,9 @@ def _codecs(game_dir: Path):
     return _oodle[key]
 
 
-def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, log, game: str = "eldenring") -> Path:
+def _launcher_step(
+    step, each, setup, inputs, game_dir, mod, sources, report, log, game: str = "eldenring"
+) -> Path | None:
     from roundtable_souls.game import archives as gamearchive
     from roundtable_souls.merging import merger
     from roundtable_souls.merging.rules import fmg as fmg_rule
@@ -473,8 +475,16 @@ def _launcher_step(step, each, setup, inputs, game_dir, mod, sources, report, lo
         if vanilla is None:
             raise EngineError(f"The game's own {rel} was not found in its archives.")
         text_map = step["texts"]
-        texts_file = setup / text_map.get(each or "", text_map.get("*", ""))
-        texts = {int(k): v for k, v in json.loads(texts_file.read_text(encoding="utf-8-sig")).items()}
+        named = text_map.get(each or "", text_map.get("*"))
+        if named is None:  # no texts for this language: its binder is left as the packages before it have it
+            line = f"note: {rel}: the mod has no texts for this language; left as it is"
+            report.append(line)
+            log(f"  {line}")
+            return None
+        try:
+            texts = {int(k): str(v) for k, v in json.loads((setup / named).read_text(encoding="utf-8-sig")).items()}
+        except (ValueError, AttributeError) as e:
+            raise EngineError(f"{named} is not a JSON object of text IDs to texts: {e}") from e
         body, how = formats.dcx.unpack(vanilla, dec)
         fallback = game_config.load().dflt_fallback_for(rel)
         patch = formats.dcx.pack(fmg_rule.add_text(body, step["table"], texts), how, comp, fallback)

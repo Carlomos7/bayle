@@ -359,8 +359,10 @@ class ShellAdapter(QObject):
         if name not in self._visited:
             self._visited.append(name)
             self.visitedChanged.emit()
+        refreshed = self.host.page_shown(name)
         if name == "activity":
-            adapter.refresh()
+            if not refreshed:
+                adapter.refresh()
             adapter.seen()
         self.pageChanged.emit()
 

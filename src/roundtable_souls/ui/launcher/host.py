@@ -128,6 +128,8 @@ class ShellHost(QObject):
         self.notifier = Notifier(self)  # the shell's own toasts and forks (a page's Notifier is its own)
         self.pickers: Pickers = NoPickers()
         self.pages: dict[str, Any] = {}  # registered page adapters, by registry name
+        self.shown_page = ""  # the page on show: the only one that reads at once
+        self._stale: set[str] = set()  # pages that missed a refresh while hidden; each reads when it is shown
         self.page_opener: Callable[[str], Any] | None = None  # opens a page (creating it) and gives its adapter
         self.close_guard: Callable[[Callable[[], None]], None] = lambda proceed: proceed()
         # asks Save / Discard / Cancel about unsaved edits (words, what is about to happen, how to go on)
@@ -263,10 +265,29 @@ class ShellHost(QObject):
         names = None if self.state.game.ready else ("activity", "settings", "placeholder")
         for name, adapter in list(self.pages.items()):
             if names is None or name in names:
+                if name != self.shown_page:  # a hidden page reads when it is shown, not after every job
+                    self._stale.add(name)
+                    continue
                 try:
                     adapter.refresh()
                 except RuntimeError:  # the page is gone
                     self.pages.pop(name, None)
+
+    def page_shown(self, name: str) -> bool:
+        """The shell shows this page now; True when it read again because it had missed a refresh."""
+        self.shown_page = name
+        if name not in self._stale:
+            return False
+        self._stale.discard(name)
+        adapter = self.pages.get(name)
+        if adapter is None:
+            return False
+        try:
+            adapter.refresh()
+        except RuntimeError:  # the page is gone
+            self.pages.pop(name, None)
+            return False
+        return True
 
     def unsaved(self) -> list[str]:
         """What has edits that are not written yet, in words for a prompt (each page that can say offers

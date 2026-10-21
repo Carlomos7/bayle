@@ -56,7 +56,7 @@ def test_migration_uninstalls_the_old_program_keeps_data_and_fixes_shortcuts(tmp
     shortcuts()["desktop"].parent.mkdir()
     shortcuts()["desktop"].write_text("old desktop shortcut")
     made, steam_calls = [], []
-    target = tmp_path / "Carlomos7.RoundtableSouls" / "Roundtable Souls.exe"
+    target = tmp_path / "Carlomos7.RoundtableSouls" / "Bayle.exe"
 
     def steam(olds, new):
         steam_calls.append((olds, new))
@@ -80,7 +80,7 @@ def test_migration_uninstalls_the_old_program_keeps_data_and_fixes_shortcuts(tmp
 def test_migration_waits_while_the_old_program_runs(tmp_path, installed):
     inno = _Inno(tmp_path)
     record = migration.migrate_from_inno(
-        find=inno.find, run=inno.run, running=lambda exe: True, target=tmp_path / "Roundtable Souls.exe"
+        find=inno.find, run=inno.run, running=lambda exe: True, target=tmp_path / "Bayle.exe"
     )
     assert record["status"] == "waiting" and inno.ran == [] and inno.registered
 
@@ -93,11 +93,11 @@ def test_steam_step_waits_for_steam_to_close_then_finishes(tmp_path, installed, 
 
     record = migration.migrate_from_inno(
         find=inno.find, run=inno.run, running=lambda exe: False, shortcuts=_links(tmp_path),
-        make_shortcut=lambda *a: None, steam=steam_open, target=tmp_path / "Roundtable Souls.exe", wait=lambda s: None,
+        make_shortcut=lambda *a: None, steam=steam_open, target=tmp_path / "Bayle.exe", wait=lambda s: None,
     )  # fmt: skip
     assert record["status"] == "steam_pending" and not record["done"] and not inno.registered
     monkeypatch.setattr(migration, "retarget_steam", lambda olds, new: [])
-    migration.finish_steam_step(target=tmp_path / "Roundtable Souls.exe")
+    migration.finish_steam_step(target=tmp_path / "Bayle.exe")
     assert settings.load_settings().inno_migration["done"]
 
 

@@ -22,7 +22,10 @@ class Identity:
     # Velopack: installs to %LOCALAPPDATA%\<pack_id> and removes that whole folder on uninstall, so it must never be
     # the launcher's data folder (data_dir_name).
     pack_id: str = "Carlomos7.RoundtableSouls"
-    title: str = "Roundtable Souls"  # shortcuts, the uninstall entry, and the stub "<title>.exe" beside current\
+    title: str = "Bayle"  # shortcuts, the uninstall entry, and the stub "<title>.exe" beside current\
+    # What releases before the rename called the app: their shortcuts and the stub "<this>.exe" (kept beside the new
+    # stub, so Steam shortcuts that point at it keep working).
+    previous_title: str = "Roundtable Souls"
     exe_name: str = "RoundtableSouls"  # the program inside current\ (".exe" on Windows)
     data_dir_name: str = "RoundtableSouls"  # %LOCALAPPDATA%\<this> / $XDG_DATA_HOME/<this>
     portable_data_name: str = "RoundtableSouls-data"  # a portable copy's data folder, beside Update.exe
@@ -41,6 +44,10 @@ class Identity:
     @property
     def stub_name(self) -> str:
         return f"{self.title}.exe"
+
+    @property
+    def previous_stub_name(self) -> str:
+        return f"{self.previous_title}.exe"
 
 
 @lru_cache

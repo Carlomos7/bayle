@@ -41,7 +41,8 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 ROOT = Path(__file__).resolve().parents[2]
 SHARE = ROOT / "dist" / "share"
 PACK = "Carlomos7.RoundtableSouls"
-TITLE = "Roundtable Souls"
+TITLE = "Bayle"
+PREVIOUS_TITLE = "Roundtable Souls"  # releases before the rename; Steam shortcuts point at their stub
 PORT = 8797
 LOCAL = Path(os.environ.get("LOCALAPPDATA", ""))
 DATA = LOCAL / "RoundtableSouls"  # the app's data folder (its identity's data_dir_name)
@@ -155,7 +156,7 @@ def serve(version: str, files: dict[str, bytes]) -> ThreadingHTTPServer:
     base = f"http://127.0.0.1:{PORT}"
     release = {
         "tag_name": f"v{version}",
-        "name": f"Roundtable Souls v{version}",
+        "name": f"Bayle v{version}",
         "draft": False,
         "prerelease": is_prerelease(version),
         "html_url": f"{base}/releases/v{version}",
@@ -281,6 +282,7 @@ def main() -> None:
             fail("the database has no schema version")
         if (DATA / "updates" / "state" / "rollback.json").exists() or installed() != new:
             fail(f"a rollback happened (installed: {installed()})")
+        check_title()
         say(f"updated {prev} -> {new}: ready, database at {row[0]}, no rollback")
     finally:
         server.shutdown()
@@ -293,6 +295,28 @@ def main() -> None:
     if not wait_until(lambda: not (INSTALL / f"{TITLE}.exe").exists(), 60):
         fail("the uninstaller left the program")
     say("uninstalled")
+
+
+def check_title() -> None:
+    """After the update: the new stub is there, an old-title stub is kept for Steam shortcuts, the uninstall entry
+    and the Start menu shortcut carry the new title (Velopack renames them on update), no shortcut keeps the old one."""
+    if not (INSTALL / f"{TITLE}.exe").is_file():
+        fail(f"the update did not leave the stub {TITLE}.exe")
+    had_old_stub = (INSTALL / f"{PREVIOUS_TITLE}.exe").is_file()
+    say(f"old stub {PREVIOUS_TITLE}.exe kept: {had_old_stub} (expected when updating from a release with that title)")
+    key = "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/".replace("/", chr(92)) + PACK
+    script = (
+        f"(Get-ItemProperty '{key}').DisplayName; "
+        "$p = [Environment]::GetFolderPath('Programs'); "
+        f"Test-Path (Join-Path $p '{TITLE}.lnk'); Test-Path (Join-Path $p '{PREVIOUS_TITLE}.lnk')"
+    )
+    run = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True)
+    out = run.stdout.splitlines()
+    shown, new_lnk, old_lnk = (out + ["", "", ""])[:3]
+    if shown.strip() != TITLE:
+        fail(f"the uninstall entry is called '{shown.strip()}', not '{TITLE}'")
+    if new_lnk.strip() != "True" or old_lnk.strip() == "True":
+        fail(f"the Start menu shortcut was not renamed (new: {new_lnk.strip()}, old: {old_lnk.strip()})")
 
 
 def _running(exe: Path) -> bool:

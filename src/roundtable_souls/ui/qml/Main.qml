@@ -39,7 +39,7 @@ ApplicationWindow {
     height: 760
     minimumHeight: 540
     minimumWidth: 740
-    title: "Bayle Mod Manager " + shell.version + " - " + shell.gameName
+    title: "Bayle " + shell.version + " - " + shell.gameName
     width: 1100
 
     Component.onCompleted: {

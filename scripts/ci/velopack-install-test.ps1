@@ -20,7 +20,8 @@
 $ErrorActionPreference = 'Stop'
 
 $pack = 'Carlomos7.RoundtableSouls'
-$title = 'Roundtable Souls'
+$title = 'Bayle'
+$prevTitle = 'Roundtable Souls'  # what releases before the rename were called (an old-title previous release)
 $innoKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{B8463238-E9B5-4FD4-AEB5-A537E4B53D8E}_is1'
 $vpKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$pack"
 $started = Get-Date
@@ -119,7 +120,7 @@ if ($prevIsVelopack) {
     # Velopack's setup ignores Inno's flags; without --silent it shows its window and starts the launcher
     $p = Invoke-Bounded $prevSetup @('--silent', '--installto', $install) 300 "the $prevTag setup"
     if ($p.ExitCode -ne 0) { Fail "the $prevTag setup exited with $($p.ExitCode)" }
-    if (-not (Test-Path (Join-Path $install "$title.exe"))) { Fail "the $prevTag setup did not install into $install" }
+    if (-not ((Test-Path (Join-Path $install "$title.exe")) -or (Test-Path (Join-Path $install "$prevTitle.exe")))) { Fail "the $prevTag setup did not install into $install" }
     Stop-Launchers $install "started by the $prevTag setup"
 } else {
     $p = Invoke-Bounded $prevSetup @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$work\prev.log") 300 "the $prevTag setup"
@@ -143,6 +144,8 @@ $p = Invoke-Bounded (Resolve-Path 'dist/share/RoundtableSouls-Setup.exe') @('--s
 if ($p.ExitCode -ne 0) { Fail "the setup exited with $($p.ExitCode)" }
 $stub = Join-Path $install "$title.exe"
 if (-not (Test-Path $stub) -or -not (Test-Path $vpKey)) { Fail 'the setup did not install the stub or its uninstall entry' }
+$shown = (Get-ItemProperty $vpKey).DisplayName
+if ($shown -ne $title) { Fail "the uninstall entry is called '$shown', not '$title'" }
 Start-Sleep -Seconds 3
 Stop-Launchers $install 'started by the setup'
 Say 'starting the installed launcher'

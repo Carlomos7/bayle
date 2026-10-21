@@ -790,6 +790,22 @@ class ModsPresenter:
             return tr("Close the game first. It has these files open.")
         return ""
 
+    def move_in_confirm(self, name: str, folder: str, moved: int, copied: int) -> tuple[str, tuple[str, ...], str, str]:
+        """(title, changes, safety, apply) of the Move into Roundtable's folder confirm."""
+        line = tr("{n} mods move.").format(n=moved) if moved != 1 else tr("1 mod moves.")
+        if copied:
+            line = (
+                tr("{n} mods move, {m} are copied because other profiles in {folder} use them.")
+                if moved != 1
+                else tr("1 mod moves, {m} are copied because other profiles in {folder} use them.")
+            ).format(n=moved, m=copied, folder=folder)
+        return (
+            tr("Move {name} into Roundtable's folder?").format(name=name),
+            (line,),
+            tr("Undo in Activity."),
+            tr("Move"),
+        )
+
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
 

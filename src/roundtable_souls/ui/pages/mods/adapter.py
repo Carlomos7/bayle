@@ -13,8 +13,8 @@ from typing import Any, Protocol
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from roundtable_souls.mods import conflicts as mod_overview
+from roundtable_souls.mods import move_in, profile_edit
 from roundtable_souls.mods import order as mod_order
-from roundtable_souls.mods import profile_edit
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services import mods as mod_service
@@ -188,6 +188,7 @@ class ModsAdapter(QObject):
         "deleteProfile": "deleteProfile",
         "rename": "_ask_profile_rename",
         "duplicate": "duplicateProfile",
+        "moveIn": "moveIntoLauncherFolder",
         "profileSettings": "openProfileSettings",
         "editText": "_edit_text_on",
         "fixOrder": "fixOrder",
@@ -1252,6 +1253,41 @@ class ModsAdapter(QObject):
             run_logging.log(f"done: {out['name']} is a copy of {old.stem}")
 
         self.host.run_job(job, tr("Copying {name}...").format(name=old.stem))
+
+    def profile_outside(self) -> bool:
+        """The profile is not in Roundtable's folder, so the menu offers Move into Roundtable's folder."""
+        profile = self.host.profile
+        return (
+            profile is not None
+            and Path(profile).is_file()
+            and mod_service.profile_outside(self.host.locations, profile)
+        )
+
+    @Slot()
+    def moveIntoLauncherFolder(self) -> None:
+        """Ask, then move the profile into Roundtable's folder as a logged job (its Undo is in Activity)."""
+        profile = self.host.profile
+        block = self.profileRenameBlock()
+        if block or profile is None:
+            self.notifier.toast(block, error=True)
+            return
+        old = Path(profile)
+        plan = mod_service.move_in_plan(self.host.locations, old)
+        if not plan.ok:
+            self.notifier.toast(" ".join(plan.refusals), error=True)
+            return
+        words = self.presenter.move_in_confirm(old.stem, old.parent.name, *move_in.counts(plan))
+
+        def answered(ok: bool) -> None:
+            if ok:
+
+                def job(_launch, loc):
+                    run_logging.start_log(f"launcher: move profile {old.stem} into Roundtable's folder", loc.game.key)
+                    mod_service.move_into_launcher_folder(loc, old)
+
+                self.host.run_job(job, tr("Moving {name}...").format(name=old.stem))
+
+        self.notifier.confirm(*words, answered)
 
     def _launch_profile_like(self):
         """The host's current profile as delete_refusal reads it (profile and kind)."""

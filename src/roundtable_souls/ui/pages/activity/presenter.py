@@ -127,6 +127,8 @@ class UndoPlan:
                 if u.get("type") in ("rename", "profile-rename")
                 else f"launcher: undo the copy {name}"
                 if u.get("type") == "profile-duplicate"
+                else f"launcher: undo the move of {name}"
+                if u.get("type") == "profile-move-in"
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -497,6 +499,21 @@ class ActivityPresenter:
                 tr("If the profile changed since, it keeps its changes; nothing is deleted."),
                 tr("Undo rename"),
                 tr("Undoing the rename..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "profile-move-in":
+            name = u.get("name") or tr("the profile")
+            return UndoPlan(
+                tr("Undo the move of profile {name}").format(name=name),
+                (
+                    tr("The profile, its settings and its mods go back to where they were"),
+                    tr("The copies made for the move go to the Recycle Bin"),
+                ),
+                tr("If the profile changed since, everything is left as it is and you are told why."),
+                tr("Undo move"),
+                tr("Undoing the move..."),
                 u,
                 job_id,
                 name,

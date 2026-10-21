@@ -266,7 +266,7 @@ def _imports(module: str) -> set[str]:
         ),  # fmt: skip
         ("roundtable_souls.merging.record", ("roundtable_souls.game", "roundtable_souls.formats")),
         ("roundtable_souls.game.archives", ("roundtable_souls.game", "roundtable_souls.platform")),
-        ("roundtable_souls.mods.naming", ()),
+        ("roundtable_souls.mods.naming", ("roundtable_souls.config.layout",)),
         ("roundtable_souls.mods.records", ("roundtable_souls.resources",)),
         (
             "roundtable_souls.mods.library",

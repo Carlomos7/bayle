@@ -5,6 +5,48 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0-rc.1] - 2026-10-21
+
+Overhauls set up by Bayle now cover large overhauls like Nightreign Revive from start to finish: you see and choose
+what happens to every file, the menu text gets built, and an overhaul its own installer set up can be taken over.
+
+### Added
+
+- **Overhauls:** a Files table in the overhaul setup and in Install mod shows what Bayle does with each file
+  (combine, merge, copy, keep your copy, place at a game path, leave out), and lets you change it.
+- **Overhauls:** Install as overhaul shows each DLL's options (start early, start function, load after the other
+  DLLs) and the proposed menu texts before anything is installed.
+- **Overhauls:** a file shipped outside the game folders, like a talk script, can be placed at its game path and
+  merged with the other mods' copy there.
+- **Overhauls:** menu text a mod ships as language files (JSON) is built into the game's message files, on top of
+  the other mods' text. When Bayle can't tell which table the text belongs to, the setup asks you to pick one.
+- **Overhauls:** Take over, for an overhaul its own installer set up: it shows what the installer changed, removes
+  its entries and folders with an Undo, keeps your own mods, and offers to install the overhaul again with Bayle.
+- **Overhauls:** Clean up installer leftovers finds an installer's folders, setup copy and backups even when Bayle
+  has no setup for that overhaul.
+- **Play:** Bayle tells you when the game updated since your last run, since DLL mods may need updates then.
+- **Play:** an overhaul's setup can name a log file to check after each run; a failure line shows as a toast and in
+  Activity, also after a run Bayle didn't see end.
+- **Mods:** a notice with a Move in button when the profile is outside Bayle's folder.
+
+### Changed
+
+- **Overhauls:** saving an overhaul's setup applies it to every profile that uses it, with one Undo for all of them.
+- **Overhauls:** a download whose game files sit in their own folder (such as `mod`) installs as it is.
+- **Overhauls:** an overhaul's own folder counts as part of the profile: Move in, rename, duplicate, export and
+  migration handle it, and duplicating a profile with a Bayle-installed overhaul now works.
+- **Folders:** the folder names you give packages and natives in Settings > Locations are reserved and used
+  everywhere; operation records and locks live in `.bayle`, and old `.roundtable-ops` ones are taken over safely.
+
+### Fixed
+
+- **Overhauls:** a setup's paths can't point outside the mod's folders.
+- **Overhauls:** older saved setups keep their settings when saved again, a new download that dropped a file no
+  longer breaks the setup, and a hand-edited setup file isn't rewritten.
+- **Overhauls:** a switched-off overhaul stays off when its setup is applied; Undo restores each profile's exact
+  bytes.
+- **Overhauls:** the merge report no longer shows a blank version.
+
 ## [4.5.1] - 2026-10-21
 
 ### Fixed

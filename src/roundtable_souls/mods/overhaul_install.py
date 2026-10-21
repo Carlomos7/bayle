@@ -53,7 +53,7 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls import overhauls
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.game import catalog as games
-from roundtable_souls.mods import library, operations, records
+from roundtable_souls.mods import installer_leftovers, library, operations, records
 from roundtable_souls.mods.checks import same_folder
 from roundtable_souls.mods.library import ProfileFolder
 from roundtable_souls.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
@@ -782,10 +782,7 @@ def preview_remove(
     own = _own_of(profile, config, owned)
     where = places(profile, config.id, loc)
     effects_file = where.effects if where is not None else None
-    if own.exists() and same_folder(own, own_folder(profile, config)):
-        legacy = installer_setup(profile, config) is not None
-    else:  # its folder is gone, or elsewhere: a launcher install leaves its record
-        legacy = effects_file is None or not effects_file.is_file()
+    legacy = _installer_made(profile, config, own, effects_file)
     writer = ProfileWriter(profile)
     removed = []
     for e in sorted(owned, key=lambda e: e["index"], reverse=True):
@@ -827,6 +824,27 @@ def preview_remove(
             out.trash.append(own)  # last: once it is gone the removal counts as done
     out.lines = _remove_lines(out)
     return out
+
+
+def _installer_made(profile: Path, config: OverhaulConfig, own: Path, effects_file: Path | None) -> bool:
+    """The profile's overhaul was set up by its own installer (no launcher install made it)."""
+    if own.exists() and same_folder(own, own_folder(profile, config)):
+        return installer_setup(profile, config) is not None
+    return (
+        effects_file is None or not effects_file.is_file()
+    )  # its folder is gone, or elsewhere: a launcher install leaves its record
+
+
+def installer_made(profile: Path, *, loc: Locations, configs: Sequence[OverhaulConfig] | None = None) -> bool:
+    """The profile has an overhaul and its own installer set it up (Take over applies)."""
+    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    hit = overhaul_in(Path(profile), configs)
+    if hit is None:
+        return False
+    where = places(Path(profile), hit[0].id, loc)
+    return _installer_made(
+        Path(profile), hit[0], _own_of(Path(profile), hit[0], hit[1]), where.effects if where else None
+    )
 
 
 def _engine_previous(profile: Path, own: Path) -> Path | None:
@@ -1067,6 +1085,11 @@ def leftovers(profile: Path, *, loc: Locations, configs: Sequence[OverhaulConfig
             p = profile.parent / config.recognise.installer_backups
             if p.is_dir():
                 backups.append(Leftover(p, size_of(p), True))
+    # installers no config describes (a setup the player never saved a config for): by their manifests and files
+    listed = [x.path for x in out + backups]
+    for f in installer_leftovers.find(profile.parent):
+        if not any(same_folder(f.path, x) for x in listed):
+            (backups if f.backups else out).append(Leftover(f.path, size_of(f.path), f.backups))
     return out + backups
 
 

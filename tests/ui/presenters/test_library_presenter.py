@@ -34,7 +34,7 @@ def test_the_hint_appears_only_over_a_gigabyte():
     gb = shared_mods.HINT_BYTES
     assert [n.key for n in P.page(facts(), duplicated=(2, gb)).notices] == []
     notice = P.page(facts(), duplicated=(2, gb + 1)).notices[0]
-    assert notice.key == "library-hint" and notice.action == "Library..."
+    assert notice.key == "library-hint" and notice.action == "Shared mods..."
     assert notice.text == "2 mods are in several profiles (1.0 GB). Save space by sharing"
     one = P.hint_text(1, 3 * gb // 2)
     assert one == "1 mod is in several profiles (1.5 GB). Save space by sharing"
@@ -96,3 +96,11 @@ def test_a_shared_update_with_parameters_is_refused_with_a_reason():
     view = d.view()
     assert not d.can_install() and view["noteLevel"] == "error" and "separate copy" in view["note"]
     assert view["library"] == {"shown": False}
+
+
+def test_the_feature_is_called_shared_mods_in_the_ui():
+    words = P.words()
+    assert words["library"] == "Shared mods..." and words["libraryTitle"] == "Shared mods"
+    shown = " ".join(str(v) for k, v in words.items() if k.startswith("library") or k in ("share", "useInOthers"))
+    assert "Library" not in shown and "opt-in" not in shown.lower()
+    assert "Library" not in " ".join(P.share_confirm(["a"]).changes)

@@ -241,8 +241,8 @@ class ModsPresenter:
             "share": tr("Share"),
             "useInOthers": tr("Use in other profiles..."),
             "useSeparate": tr("Use a separate copy"),
-            "library": tr("Library..."),
-            "libraryTitle": tr("Library"),
+            "library": tr("Shared mods..."),
+            "libraryTitle": tr("Shared mods"),
             "libraryBody": tr(
                 "Mods that several profiles use from one copy. Their files are read-only; use a separate copy to edit "
                 "them."
@@ -715,7 +715,7 @@ class ModsPresenter:
                 )
             )
         if duplicated[1] > shared_mods.HINT_BYTES:
-            out.append(Notice("library-hint", "info", self.hint_text(*duplicated), tr("Library..."), True))
+            out.append(Notice("library-hint", "info", self.hint_text(*duplicated), tr("Shared mods..."), True))
         return tuple(n for n in out if (profile, n.key) not in self._closed)[: self.notices_shown]
 
     def close_notice(self, key: str, profile: str = "") -> None:
@@ -757,7 +757,7 @@ class ModsPresenter:
         return Confirm(
             tr("Share {name}").format(name=", ".join(names)),
             (
-                tr("The files move to the Library, and this profile uses them from there."),
+                tr("The files become shared mods, and this profile uses them from there."),
                 tr("Other profiles can then use the same files without a copy of their own."),
                 tr("Shared files are read-only; use a separate copy to edit them."),
             ),

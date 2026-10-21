@@ -337,7 +337,7 @@ class _Job:
         if mod_id not in self.records:
             rec = read_mod(self.root, mod_id)
             if rec is None and (self.root / mod_id / RECORD).exists():
-                raise LibraryError(f"The library's record of {mod_id} can't be read, so nothing was changed.")
+                raise LibraryError(f"The record of the shared mod {mod_id} can't be read, so nothing was changed.")
             self.records[mod_id] = rec
         return self.records[mod_id]
 
@@ -362,9 +362,9 @@ class _Job:
         rec = self.record(mod_id)
         folder = version_path(self.root, mod_id, version)
         if rec is None or rec.version(version) is None or not folder.is_dir():
-            raise LibraryError(f"{mod_id} is not in the library.")
+            raise LibraryError(f"{mod_id} is not in Shared mods.")
         if tree_hash(folder)[0] != version:
-            raise LibraryError(f"The library's copy of {rec.name} does not match its record. Nothing was changed.")
+            raise LibraryError(f"The shared copy of {rec.name} does not match its record. Nothing was changed.")
         return rec
 
     # -------------------------------------------------------------- steps
@@ -384,7 +384,7 @@ class _Job:
             self.verified(mod_id, digest)
             return digest, True
         if live.exists():
-            raise LibraryError(f"The library has a folder for this version of {name} that it has no record of.")
+            raise LibraryError(f"Shared mods has a folder for this version of {name} that it has no record of.")
         stage = self.root / mod_id / f".stage-{op.id}-{digest}"
         stage.parent.mkdir(parents=True, exist_ok=True)
         _copy_verified(source, stage, digest)
@@ -652,7 +652,7 @@ def remove_unused(*, loc: Locations) -> dict:
         if why:
             raise LibraryError(why)
         if not found:
-            raise LibraryError("Every version in the library is in use.")
+            raise LibraryError("Every shared version is in use.")
         size = 0
         by_mod: dict[str, list[Version]] = {}
         for m, v in found:

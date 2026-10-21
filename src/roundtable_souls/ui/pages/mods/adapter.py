@@ -415,7 +415,7 @@ class ModsAdapter(QObject):
             if why:
                 self.notifier.toast(why, error=True)
             elif not found:
-                self.notifier.toast(tr("Every version in the library is in use."))
+                self.notifier.toast(tr("Every shared version is in use."))
             else:
                 size = sum(v.size for _m, v in found)
 

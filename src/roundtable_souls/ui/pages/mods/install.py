@@ -122,7 +122,7 @@ class InstallDraft:
                     "{name} is Shared by {n} profiles. Update here gives this profile the new version and the others keep theirs."
                 )
                 if info["profiles"] > 1
-                else tr("{name} is Shared. The new version is added to the Library.")
+                else tr("{name} is Shared. The new version is added to its shared files.")
             ).format(name=info["name"], n=info["profiles"])
             options = [{"key": "here", "text": tr("Update here")}]
             if info["profiles"] > 1:

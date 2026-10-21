@@ -42,6 +42,7 @@ LABEL = {
     "rename": "Undo rename",
     "profile-rename": "Undo rename",
     "profile-duplicate": "Undo copy",
+    "profile-folders": "Undo move",
     "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
@@ -101,7 +102,7 @@ def available(undo: dict | None) -> bool:
         if not undo.get("operation") or build._state(op) != build.ACTIVE:
             return False
         return not undo.get("profile") or Path(undo["profile"]).is_file()
-    if undo.get("type") in ("profile-rename", "profile-duplicate"):
+    if undo.get("type") in ("profile-rename", "profile-duplicate", "profile-folders"):
         from roundtable_souls.merging import build
 
         return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
@@ -157,6 +158,15 @@ def run(undo: dict, log, *, loc: Locations) -> str:
                 return profile_rename.undo_rename(Path(undo["operation"]), log)
             return profile_rename.undo_duplicate(Path(undo["operation"]), log)
         except (profile_rename.ProfileRenameError, ps.Unreadable) as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") == "profile-folders":
+        from roundtable_souls.mods import migrate
+
+        if not available(undo):
+            raise UndoError("The move into profile folders can no longer be taken back.")
+        try:
+            return migrate.undo_migration(Path(undo["operation"]), log)
+        except migrate.MigrateError as e:
             raise UndoError(str(e)) from e
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 

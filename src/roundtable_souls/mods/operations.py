@@ -77,6 +77,11 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
                 o.release()
+            elif o.info.get("kind") == "profile-folders" and not o.info.get("state_done"):
+                from roundtable_souls.mods import migrate
+
+                migrate.finish_state(o)  # the launcher's records still name the old profiles
+                said.append("an interrupted move of the profiles into their folders was finished")
             elif o.info.get("kind") == "profile-rename" and not o.info.get("state_done"):
                 from roundtable_souls.mods import profile_rename
 

@@ -261,6 +261,25 @@ def installable_overhauls(game: str) -> list[str]:
     return out
 
 
+def migrate_profile_folders(loc: Locations) -> dict | None:
+    """Move the profiles of the shared library (rs-<game>, 3.21 to 4.0.x) into folders of their own, once (mods.migrate):
+    a logged job with an undo record (Undo move). None when there is nothing to move; raises mods.migrate.MigrateError
+    (nothing changed) when it can't be done now. Call it at start, before the game's profiles are listed."""
+    from roundtable_souls.mods import migrate
+
+    if loc.me3_profiles_dir() is None or not migrate.old_profiles(loc.me3_profiles_dir(), loc.game.key):
+        return None
+    run_logging.start_log("launcher: move profiles into their own folders", loc.game.key)
+    out = migrate.migrate(loc, run_logging.log)
+    if out is not None:
+        run_logging.set_undo(
+            {"type": "profile-folders", "profile": out["profile"], "name": loc.game.key, "operation": out["operation"]}
+        )
+        for note in out["notes"]:
+            run_logging.log(f"warning: {note}")
+    return out
+
+
 def overhaul_switch_text(game: str) -> str:
     """The line under the Settings switch: what it covers for this game, and where the launcher keeps its files."""
     names = installable_overhauls(game)

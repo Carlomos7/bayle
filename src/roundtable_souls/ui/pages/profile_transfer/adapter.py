@@ -120,7 +120,6 @@ class ProfileTransferAdapter(QObject):
                 "key": it.key,
                 "name": it.entry["name"],
                 "size": size_text(it.size),
-                "note": self.presenter.mod_note(it),
                 "checked": it.key in self._picked,
             }
             for it in self._items
@@ -279,7 +278,7 @@ class ProfileTransferAdapter(QObject):
 
         def got(result) -> None:
             self._items, save = result
-            self._picked = {it.key for it in self._items if it.inside}
+            self._picked = {it.key for it in self._items}
             self._ex["name"] = self._ex["name"] or profile.stem
             self._ex["saveName"] = save.name if save else ""
             if not self._ex["readmeEdited"]:

@@ -140,7 +140,7 @@ def preview(profile: Path, loc: Locations) -> Plan:
         name = dll.stem
         target = nt_root / name
         why = naming.unsafe(name) or (
-            f"{name} is a name the launcher keeps" if name.lower() in naming.RESERVED else None
+            f"{name} is a name the launcher keeps" if name.lower() in naming.reserved() else None
         )
         if why is None and name.lower() in taken:
             why = f"A folder called {name} is already there"

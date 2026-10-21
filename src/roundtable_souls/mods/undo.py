@@ -21,12 +21,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
+import hashlib
 from collections.abc import Callable
 from pathlib import Path
 
 from roundtable_souls.mods import profile_edit as mod_manage
 from roundtable_souls.mods import profile_settings as ps
 from roundtable_souls.mods import profile_writer
+from roundtable_souls.platform import files
 
 LABEL = {
     "remove": "Restore",
@@ -36,6 +38,7 @@ LABEL = {
     "rollback": "Roll back again",
     "overhaul-install": "Undo install",
     "overhaul-update": "Roll back",
+    "overhaul-reapply": "Roll back",
     "overhaul-remove": "Restore",
     "overhaul-turn-off": "Undo turn off",
     "profile-import": "Undo import",
@@ -61,7 +64,7 @@ LIBRARY = ("library-share", "library-use", "library-separate", "library-update",
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
 # says what to take back; the removal's folders come back from the Recycle Bin.
-OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove", "overhaul-turn-off")
+OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove", "overhaul-turn-off", "overhaul-reapply")
 
 
 # Undo types a layer above this one does (saves: services.saves registers "save-restore" when it is imported):
@@ -321,7 +324,15 @@ def _overhaul_back(undo: dict, log) -> str:
     try:
         if undo["type"] in ("overhaul-remove", "overhaul-turn-off"):
             return overhaul_install.undo_remove(undo, log)
-        return operations.take_back(Path(undo["operation"]), log)
+        said = operations.take_back(Path(undo["operation"]), log)
+        for other in undo.get("others") or []:  # profiles that only had their entries changed: their earlier text
+            path = Path(other["profile"])
+            if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == other["after"]:
+                files.atomic_write(path, other["before"].encode("utf-8"))
+                log(f"undo: {path.name} has its earlier entries back")
+            else:
+                said += f"; {path.name} was changed since and is left as it is"
+        return said
     except overhaul_install.OverhaulError as e:
         raise UndoError(str(e)) from e
 

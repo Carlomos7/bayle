@@ -546,8 +546,9 @@ def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -
 
 def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
     """After the setup is saved: install it again in every profile that uses the overhaul (the profile first), from
-    each one's copy of the download, so their entries (DLL options, package) follow it. One operation each, so Undo
-    takes the last back (run inside a logged job). Returns the profiles' names; raises OverhaulError."""
+    each one's copy of the download, so their entries (DLL options, package) follow it. One operation per profile and
+    one Undo for the job: it takes back every profile it changed (run inside a logged job). A profile that refuses
+    is skipped and said. Returns the names of the profiles changed; raises OverhaulError."""
     from roundtable_souls import overhauls
     from roundtable_souls.mods import overhaul_install
 
@@ -555,7 +556,9 @@ def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
     if hit is None:
         return []
     config, entries = hit
-    done = []
+    done: list[str] = []
+    first: dict | None = None
+    others: list[dict] = []
     for p in overhaul_install.users_of(Path(profile), config, entries):
         where = overhaul_install.places(p, config.id, loc)
         if where is None or not where.sources.is_dir():
@@ -563,11 +566,23 @@ def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
             continue
         try:  # a profile that is busy, changed meanwhile or refuses: skipped and said, the others still go on
             preview = overhaul_install.preview_setup(p, where.sources, config, loc=loc)
-            install_overhaul_setup(preview, loc=loc)
+            if first is None:  # the build, the config and this profile: one operation
+                out = overhaul_install.install_setup(preview, loc=loc, log=run_logging.log)
+                first = {
+                    "type": "overhaul-reapply",
+                    "profile": str(p),
+                    "name": out["name"],
+                    "operation": out["operation"],
+                }
+            else:  # the profiles sharing its folder: the build is the same, only their entries change
+                others.append(overhaul_install.apply_entries(preview))
         except Exception as e:
             run_logging.log(f"skipped {p.name}: {e}")
             continue
         done.append(p.name)
+    if first is not None:  # one Undo takes back every profile the job changed
+        run_logging.set_undo({**first, "others": others})
+        run_logging.log(f"done: applied the setup of {config.label} to {', '.join(done)}")
     return done
 
 

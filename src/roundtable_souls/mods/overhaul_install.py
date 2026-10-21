@@ -433,6 +433,7 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
     effects: list[records.SideEffect] = []
     removes = [c for c in plan.changes if c.action == "remove"]
     found = [_find(writer, c.kind, c.key) for c in removes]
+    off = {requirements.entry_name(e["kind"], e) for e in found if e is not None and e["row"].get("enabled") is False}
     for e in sorted((e for e in found if e is not None), key=lambda e: e["index"], reverse=True):
         writer.remove_entry(e["index"])
     for c in plan.changes:
@@ -459,6 +460,10 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 effects.append(
                     records.SideEffect(entry=name, setting="added", before=None, before_set=False, after=True)
                 )
+    for name in sorted(off):  # an entry the player had switched off stays off when it is added again
+        e = _entry_named(writer, name)
+        if e is not None:
+            _set_entry(writer, e["index"], "enabled", False)
     return effects
 
 
@@ -685,6 +690,19 @@ def _users(profile: Path, config: OverhaulConfig, own: Path, *, others: bool = T
         if any(_inside(other, e, own) for e in mine):
             out.append(other)
     return out
+
+
+def apply_entries(preview: InstallPreview) -> dict:
+    """Write only the profile part of a preview, for a profile that shares the overhaul's folder with one already
+    installed (the build is the same). Returns what an undo needs: {profile, before (its text), after (sha256)}.
+    Raises OverhaulError when the preview was refused."""
+    p = preview
+    if not p.ok or p.change is None:
+        raise OverhaulError("; ".join(p.refusals) or "Nothing to apply.")
+    data = p.change.bytes_to_write
+    before = p.change.read.decode("utf-8", errors="replace")
+    p.writer.commit(p.change)
+    return {"profile": str(p.profile), "before": before, "after": hashlib.sha256(data).hexdigest()}
 
 
 def own_folders(profile: Path, entries: list[dict], configs: Sequence[OverhaulConfig]) -> list[Path]:

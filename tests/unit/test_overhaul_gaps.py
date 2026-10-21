@@ -324,3 +324,67 @@ def test_a_texts_file_the_mod_does_not_have_is_refused_and_the_form_keeps_the_te
         )
     saved = mod_configs.with_basic(config, natives=[], files={})
     assert saved.basic.texts == config.basic.texts
+
+
+def two_profiles(world):
+    """The set-up overhaul in my.me3 and in a second profile beside it (its own copy of the download), the saved
+    config changed so applying it changes both."""
+    import shutil
+
+    from test_overhaul_install import set_up
+
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.overhauls import writer
+
+    _folder, toml, _out = set_up(world)
+    other = world.base / "other.me3"
+    other.write_bytes(world.profile.read_bytes())
+    config = overhauls.read(toml)
+    for p in (world.profile, other):  # `other` gets the launcher's files for it, as if it had been set up too
+        src = overhaul_install.places(world.profile, config.id, world.loc)
+        dst = overhaul_install.places(p, config.id, world.loc)
+        if p != world.profile:
+            shutil.copytree(src.library.root, dst.library.root, dirs_exist_ok=True)
+    natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
+    saved = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
+    writer.save_local(saved, expect=writer.sha256_of(toml), path=toml)
+    return other
+
+
+def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
+    from roundtable_souls.mods import overhaul_install, undo
+    from roundtable_souls.platform import logging as run_logging
+    from roundtable_souls.services import mods as mod_service
+
+    other = two_profiles(world)
+    monkeypatch.setattr(overhaul_install, "users_of", lambda p, c, e: [Path(p), other])
+    before = {p: p.read_bytes() for p in (world.profile, other)}
+    got: list[dict] = []
+    monkeypatch.setattr(run_logging, "set_undo", lambda d: got.append(d))
+    done = mod_service.reapply_overhaul_setup(world.profile, loc=world.loc)
+    assert done == ["my.me3", "other.me3"] and len(got) == 1 and got[0]["type"] == "overhaul-reapply"
+    assert all(b"Boot" in p.read_bytes() for p in before)
+    assert undo.available(got[0])
+    undo.run(got[0], lambda s: None, loc=world.loc)
+    assert {p: p.read_bytes() for p in before} == before
+
+
+def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
+    from test_overhaul_install import set_up
+
+    from roundtable_souls import overhauls
+    from roundtable_souls.overhauls import writer
+    from roundtable_souls.services import mods as mod_service
+
+    _folder, toml, _out = set_up(world)
+    text = world.text().replace('id = "mixed-mod"', 'id = "mixed-mod"\nenabled = false')
+    text = text.replace("MixedMod.dll'", "MixedMod.dll'\nenabled = false")
+    world.profile.write_text(text, encoding="utf-8")
+    config = overhauls.read(toml)
+    writer.save_local(config, expect=writer.sha256_of(toml), path=toml)
+    mod_service.reapply_overhaul_setup(world.profile, loc=world.loc)
+    after = world.data()
+    package = next(p for p in after["packages"] if p.get("id") == "mixed-mod")
+    native = next(n for n in after["natives"] if "MixedMod" in n["path"])
+    assert package.get("enabled") is False and native.get("enabled") is False

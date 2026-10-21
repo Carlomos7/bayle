@@ -269,7 +269,40 @@ def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str]:
     return {r["file"]: values[r["file"]] for r in rows if values.get(r["file"], r["choices"][0]) != r["choices"][0]}
 
 
-def with_basic(config, *, natives: list[dict], files: dict[str, str]):
+def health_form(config) -> dict[str, str]:
+    """The log check as the form's three texts (log file, failure text, started text); the first entry the config
+    declares under [basic], else empty. Several failure patterns show as one "re:" alternation."""
+    entries = config.basic.health if config.basic is not None else []
+    if not entries:
+        return {"log": "", "fail": "", "ok": ""}
+    e = entries[0]
+    fail = e.fail[0] if len(e.fail) == 1 else "|".join(e.fail)
+    return {"log": e.log, "fail": _plain(fail, len(e.fail) == 1), "ok": _plain(e.ok or "", True)}
+
+
+def _plain(pattern: str, single: bool) -> str:
+    """A pattern as the form shows it: plain text when it is only escaped text, else "re:" and the pattern."""
+    plain = re.sub(r"\\(.)", r"\1", pattern)
+    return plain if single and re.escape(plain) == pattern else f"re:{pattern}"
+
+
+def _pattern(text: str) -> str:
+    text = text.strip()
+    return text[3:] if text.startswith("re:") else re.escape(text)
+
+
+def health_of_form(form: dict[str, str]) -> list:
+    """The Health entries the form's texts describe (none while the log file or the failure text is empty). Raises
+    ValueError when "re:" text is not a regular expression."""
+    from roundtable_souls.overhauls.config import Health
+
+    log, fail, ok = form["log"].strip(), form["fail"].strip(), form["ok"].strip()
+    if not log or not fail:
+        return []
+    return [Health(log=log, fail=[_pattern(fail)], ok=_pattern(ok) if ok else None)]
+
+
+def with_basic(config, *, natives: list[dict], files: dict[str, str], health: list | None = None):
     """The config with the form's values (overhauls.config.Basic) in place of its basic part. The Files table
     replaces the older keep, not_merged, place and skip lists, which are folded into it."""
     from roundtable_souls.overhauls.config import Basic, BasicNative
@@ -280,6 +313,7 @@ def with_basic(config, *, natives: list[dict], files: dict[str, str]):
         natives=[BasicNative(**n) for n in natives],
         files=files,
         texts=old.texts if old is not None else [],
+        health=(old.health if old is not None else []) if health is None else health,
     )
     return config.model_copy(update={"basic": new})
 

@@ -329,6 +329,8 @@ class ModConfigsPresenter:
                         ],
                     }
                 )
+        if basic_level:
+            sections.append(self.health_section(values.get("health") or {}))
         if verified:
             note = tr(
                 "This profile comes with the launcher and is verified. Use Remove {label} on the Mods page to take it out."
@@ -350,6 +352,20 @@ class ModConfigsPresenter:
             "isNew": new,
             "editable": not verified,
         }
+
+    def health_section(self, form: dict[str, str]) -> dict[str, Any]:
+        """Check a log after each run: where the mod writes it and the text that means it failed to start."""
+        rows = [
+            self._ov_row(
+                "health", "health:log", tr("Log file (relative to the mod's folder)"), "text", form.get("log", "")
+            ),
+            self._ov_row("health", "health:fail", tr("Text that means it failed"), "text", form.get("fail", "")),
+            self._ov_row(
+                "health", "health:ok", tr("Text that means it started (optional)"), "text", form.get("ok", "")
+            ),
+        ]
+        rows[1]["blurb"] = tr("Plain text; start with re: for a regular expression.")
+        return {"title": tr("Check a log after each run"), "rows": rows}
 
     def file_rows(self, r: dict, action: str) -> list[dict[str, Any]]:
         """The Files table's rows for one file: its choice, and for a placed file the game path it goes to."""

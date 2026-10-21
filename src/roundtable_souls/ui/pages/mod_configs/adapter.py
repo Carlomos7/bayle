@@ -533,6 +533,7 @@ class ModConfigsAdapter(QObject):
                 r["file"]: f"place:{r['target']}" if r["action"] == "place" else r["action"] for r in choices["files"]
             },
         }
+        values["health"] = mod_configs.health_form(setup["config"])
         return {
             "setup": setup,
             "choices": choices,
@@ -574,6 +575,9 @@ class ModConfigsAdapter(QObject):
             )
         elif kind == "target":
             values["files"][name] = f"place:{value.strip()}"
+        elif kind == "health" and name in values["health"]:
+            values["health"][name] = value
+            values["health_touched"] = True
         ov["dirty"] = True
         self.dirtyChanged.emit()
 
@@ -585,6 +589,7 @@ class ModConfigsAdapter(QObject):
             ov["setup"]["config"],
             natives=values["natives"],
             files=mod_configs.files_to_store(ov["choices"]["files"], values["files"]),
+            health=mod_configs.health_of_form(values["health"]) if values.get("health_touched") else None,
         )
 
     def _saved(self, node_key: str, said: str) -> None:
@@ -596,7 +601,11 @@ class ModConfigsAdapter(QObject):
         ov = self._ov
         if ov is None or self._node is None:
             return
-        config = self._with_values()
+        try:
+            config = self._with_values()
+        except ValueError as e:  # a "re:" text that is not a regular expression
+            self._refuse(self.presenter.could_not_save(str(e)))
+            return
         if ov["new"]:
             self._install_new(config)
             return

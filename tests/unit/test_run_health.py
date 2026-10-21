@@ -147,3 +147,19 @@ def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatc
     assert run_health.recover_all() == ["Mod: initialization failed: Missing engine signature"]
     assert "pending" not in load_settings().run_state["eldenring"]
     assert run_health.recover_all() == []  # reported once
+
+
+def test_the_setup_form_texts_become_a_health_entry_and_back():
+    from roundtable_souls.overhauls.config import Basic
+    from roundtable_souls.services import mod_configs
+
+    (entry,) = mod_configs.health_of_form({"log": "Mod.log", "fail": "failed (code 3)", "ok": r"re:started\b"})
+    assert entry.fail == [r"failed\ \(code\ 3\)"] and entry.ok == r"started\b"  # plain text is escaped, re: is not
+    assert mod_configs.health_of_form({"log": "", "fail": "x", "ok": ""}) == []
+    with pytest.raises(ValueError):
+        mod_configs.health_of_form({"log": "a", "fail": "re:(", "ok": ""})
+    cfg = SimpleNamespace(basic=Basic(health=[entry]))
+    assert mod_configs.health_form(cfg) == {"log": "Mod.log", "fail": "failed (code 3)", "ok": r"re:started\b"}
+    two = SimpleNamespace(basic=Basic(health=[Health(log="a.log", fail=["x", "y"])]))
+    assert mod_configs.health_form(two)["fail"] == "re:x|y"
+    assert mod_configs.health_form(SimpleNamespace(basic=None)) == {"log": "", "fail": "", "ok": ""}

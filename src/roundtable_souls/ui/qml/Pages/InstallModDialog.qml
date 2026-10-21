@@ -285,6 +285,36 @@ ModalDialog {
                 wrapMode: Text.WordWrap
             }
         }
+        Column {  // the Library: a new version of a Shared mod, or identical copies in other profiles
+            id: libraryCol
+
+            readonly property var lib: dlg.v.library || ({})
+
+            spacing: Theme.sp4
+            visible: !!lib.shown
+            width: parent.width
+
+            Txt {
+                elide: Text.ElideNone
+                kind: "hint"
+                text: libraryCol.lib.text || ""
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
+            Repeater {
+                model: libraryCol.lib.options || []
+
+                CheckRow {
+                    required property var modelData
+
+                    checked: libraryCol.lib.choice === modelData.key
+                    objectName: "installLibrary_" + modelData.key
+                    text: modelData.text
+
+                    onToggled: dlg.inst.setLibraryChoice(modelData.key)
+                }
+            }
+        }
         Column {  // the mod that must stay last
             id: lastCol
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import shutil
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -411,6 +411,9 @@ class PageFacts:
     folder: folder_check.FolderCheck = (
         folder_check.FolderCheck()
     )  # whether the profile's folder is named and used right
+    shared: dict[int, int] = field(default_factory=dict)  # entry -> profiles using that Shared mod (the Library)
+    can_share: tuple[int, ...] = ()  # Separate packages that can be shared
+    library_used: bool = False  # some profile uses a Shared mod: Separate rows say so
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
@@ -452,6 +455,10 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
             if files:
                 configs[e["index"]] = tuple(Path(f["path"]).name for f in files)
     pk, nt = folders.get("packages") or {}, folders.get("natives") or {}
+    try:
+        shared, can_share, library_used = shared_mods.page_info(loc, prof, entries)
+    except OSError:
+        shared, can_share, library_used = {}, (), False
     return PageFacts(
         profile=prof,
         entries=tuple(entries),
@@ -467,6 +474,9 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         fingerprint=game_checks.regulation_fingerprint(prof, loc),
         regulation=loc.game.regulation,
         folder=_folder_check(prof, loc),
+        shared=shared,
+        can_share=can_share,
+        library_used=library_used,
     )
 
 

@@ -57,6 +57,8 @@ PageScroll {
                 profileSettings.openNow();
             else if (which === "versions")
                 versions.openNow();
+            else if (which === "library")
+                library.openNow();
             else if (which === "add-existing-package" || which === "add-existing-native")
                 addExisting.openFor(which.slice("add-existing-".length));
         }
@@ -83,6 +85,11 @@ PageScroll {
     }
     VersionsDialog {
         id: versions
+
+        adapter: page.adapter
+    }
+    LibraryDialog {
+        id: library
 
         adapter: page.adapter
     }

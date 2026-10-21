@@ -950,3 +950,48 @@ def share_everything(profile: Path, *, loc: Locations) -> dict | None:
     """Share every Separate package of the profile (None when it has none)."""
     job_less = [c.index for c in separate_copies(loc, only=Path(profile))]
     return share(Path(profile), job_less, loc=loc) if job_less else None
+
+
+def page_info(loc: Locations, profile: Path, entries: list[dict]) -> tuple[dict[int, int], tuple[int, ...], bool]:
+    """For the Mods page: ({entry index: profiles using that mod} for its Shared entries, the indexes of Separate
+    packages that can be shared, whether the Library holds anything in use at all)."""
+    home = loc.me3_profiles_dir()
+    profile = Path(profile)
+    if home is None or not (library.in_game_root(profile, home, loc.game.key) and library.own_folder(profile)):
+        return {}, (), False
+    root = library.library_root(home, loc.game.key)
+    seen = usage(library.profiles_root(home, loc.game.key), root)
+    count = {k: len({_canon(u.profile) for u in seen.of(*k)}) for k in {(u.mod, u.version) for u in seen.uses}}
+    shared = {u.index: count[(u.mod, u.version)] for u in seen.uses if _canon(u.profile) == _canon(profile)}
+    listed = {e["index"] for e in entries}
+    can = tuple(c.index for c in separate_copies(loc, only=profile) if c.index in listed)
+    return shared, can, bool(seen.uses)
+
+
+@dataclass(frozen=True)
+class Candidate:
+    profile: Path
+    has_copy: bool  # it has its own Separate copy of the mod: linking replaces it (only if the player ticks it)
+    uses: bool  # it already uses the mod (another version, or this one)
+
+
+def candidates(loc: Locations, profile: Path, mod_id: str) -> list[Candidate]:
+    """The other profiles that can use a Shared mod, with what each has of it now."""
+    home = loc.me3_profiles_dir()
+    if home is None:
+        return []
+    out = []
+    root = library.library_root(home, loc.game.key)
+    for p in profiles_in(library.profiles_root(home, loc.game.key)):
+        if _canon(p) == _canon(profile) or not library.own_folder(p):
+            continue
+        try:
+            found = me3_profile.entries(p.read_bytes().decode("utf-8"))
+        except OSError, ValueError:
+            continue
+        mine = next(
+            (e for e in found if e["kind"] == "package" and e["path"] and _entry_mod(p, root, e) == mod_id), None
+        )
+        linked = mine is not None and link_target(p, root, mine["path"]) is not None
+        out.append(Candidate(p, mine is not None and not linked, linked))
+    return out

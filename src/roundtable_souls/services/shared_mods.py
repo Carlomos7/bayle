@@ -51,3 +51,45 @@ def remove_unused(*, loc: Locations) -> dict:
     if out["undoable"]:
         _record("library-clean", out)
     return out
+
+
+def shared_ref(profile: Path, entry: dict, *, loc: Locations) -> tuple[str, str] | None:
+    """(mod id, version id) when a profile entry is Shared, else None."""
+    home = loc.me3_profiles_dir()
+    if home is None or not entry.get("path"):
+        return None
+    root = shared_mods.library.library_root(home, loc.game.key)
+    return shared_mods.link_target(Path(profile), root, entry["path"])
+
+
+def version_size(mod_id: str, version: str, *, loc: Locations) -> int:
+    rec = shared_mods.read_mod(shared_mods.root_of(loc), mod_id)
+    found = rec.version(version) if rec else None
+    return found.size if found else 0
+
+
+def display_name(mod_id: str, *, loc: Locations) -> str:
+    rec = shared_mods.read_mod(shared_mods.root_of(loc), mod_id)
+    return rec.name if rec else mod_id
+
+
+def candidates(profile: Path, mod_id: str, *, loc: Locations) -> list[shared_mods.Candidate]:
+    return shared_mods.candidates(loc, profile, mod_id)
+
+
+def listing(loc: Locations) -> list[shared_mods.ModInfo]:
+    return shared_mods.listing(loc)
+
+
+def duplicates(loc: Locations) -> tuple[int, int]:
+    """(mods in several profiles as Separate copies, bytes they waste) for the Mods page's hint; (0, 0) when it can't
+    be worked out."""
+    try:
+        twins = shared_mods.duplicates(loc)
+    except OSError:
+        return 0, 0
+    return len({t.name.lower() for t in twins}), shared_mods.duplicate_total(twins)
+
+
+def separate_copies(profile: Path, *, loc: Locations) -> list[shared_mods.Copy]:
+    return shared_mods.separate_copies(loc, only=Path(profile))

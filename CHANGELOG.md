@@ -4,6 +4,9 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Mods: the notices at the top of the page (adopt into the library, Seamless in the game folder, online with parameters) show their text again; it was empty since a delegate role named like the bar's own property bound to itself.
+- Mods: the pencil beside the profile name is always visible, a real focusable button (Tab, named "Rename profile"); clicking it or the name starts the rename.
+
 ## [4.0.0] - 2026-10-20
 
 - Settings > Updates > Check for updates answers at once: the line says "Checking for updates..." and the button waits, then a toast says up to date, could not check, or that an update is available.

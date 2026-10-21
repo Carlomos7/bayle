@@ -258,6 +258,18 @@ def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app
         closed(w)
 
 
+@pytest.mark.parametrize("theme", ("dark", "tarnished", "light"))
+def test_every_notice_bar_shows_its_text(qt_app, profile, theme):
+    profile.write_text(PROFILE.replace('profileVersion = "v1"\n', 'profileVersion = "v1"\nstart_online = true\n'))
+    (profile.parent / "mod/flora/regulation.bin").write_bytes(b"params")
+    w = opened(Host(profile), theme)
+    try:
+        bar = find(w, "notice_online")
+        assert bar.property("text").strip() != ""  # a delegate role named `text` once bound to itself and left it empty
+    finally:
+        closed(w)
+
+
 def test_online_with_a_packages_parameters_warns_and_play_offline_turns_it_off(qt_app, profile):
     from roundtable_souls.services.mods import read_profile_settings
 

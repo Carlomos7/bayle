@@ -11,6 +11,9 @@ from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
 from roundtable_souls.updates import feed
 
+# known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
+pytestmark = pytest.mark.ui_stall_ok
+
 
 def _wait(cond):
     end = time.time() + 5

@@ -17,12 +17,14 @@ from roundtable_souls.config.settings import data_dir, game_setting, load_settin
 from roundtable_souls.game import catalog as games
 from roundtable_souls.game.locate import saves_dir_problem
 from roundtable_souls.platform import data_folder, desktop
+from roundtable_souls.platform.threads import assert_not_ui_thread
 from roundtable_souls.services import layout as layout_service
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import play as play_service
 from roundtable_souls.ui.models import RowsModel
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.settings import presenter as sp
+from roundtable_souls.ui.refresh import Refresher
 from roundtable_souls.ui.text import tr
 
 KEEP_RANGE = (5, 200)
@@ -129,10 +131,32 @@ class SettingsAdapter(QObject):
         for k, rows in CHOICES.items():
             self._choices[k].set_rows([{"key": a, "label": tr(b)} for a, b in rows])
         self._saved_layout: dict[str, str] = {}
-        self._values: dict[str, Any] = {}
+        # what the page shows until the first read lands (it is built on a worker)
+        self._values: dict[str, Any] = {
+            **dict.fromkeys(
+                (
+                    "theme",
+                    "effects",
+                    "grain",
+                    "logo",
+                    "log_level",
+                    "launcher_channel",
+                    "backups_location",
+                    "profiles_root",
+                    "steam_target",
+                    "steam_options",
+                    "data_folder",
+                    "launcher_line",
+                ),
+                "",
+            ),
+            "backups_keep": 20,
+            "labels": dict.fromkeys(CHOICES, ""),
+        }
         self._draft: dict[str, str] = {}
         self._cancel = threading.Event()
         self._moving = False
+        self._refresher = Refresher(host, self._snapshot, self._build, self._apply)
         self.refresh()
         try:
             host.watch_updates(self._on_update_state)
@@ -274,9 +298,9 @@ class SettingsAdapter(QObject):
     def _game(self):
         return getattr(self.host, "game", None) or games.ELDEN_RING
 
-    def _detected(self, key: str) -> str:
+    @staticmethod
+    def _detected(key: str, loc) -> str:
         """What Blank detects now, for the field's placeholder."""
-        loc = self.host.locations
         if loc is None:
             return tr("detected")
         try:
@@ -293,9 +317,10 @@ class SettingsAdapter(QObject):
         except Exception:
             return tr("detected")
 
-    def _me3_profiles(self) -> str:
+    @staticmethod
+    def _me3_profiles(loc) -> str:
         try:
-            found = self.host.locations.me3_profiles_dir() if self.host.locations is not None else None
+            found = loc.me3_profiles_dir() if loc is not None else None
         except Exception:
             found = None
         return str(found) if found else tr("me3's folder")
@@ -333,8 +358,39 @@ class SettingsAdapter(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresher.request()
+
+    def _snapshot(self) -> tuple:
+        return self._game(), self.host.locations
+
+    def _build(self, snap: tuple) -> dict:
+        """Everything the page reads from the disk or the system (on a worker)."""
+        assert_not_ui_thread("Settings facts")
+        game, loc = snap
         s = load_settings()
-        game = self._game()
+        try:
+            overhaul = mod_service.overhaul_switch_text(game.key)
+        except Exception:
+            overhaul = ""
+        try:
+            target, options = play_service.play_command(game)
+        except Exception:
+            target, options = "", ""
+        return {
+            "s": s,
+            "game": game,
+            "detected": {key: self._detected(key, loc) for key, *_ in LOCATIONS},
+            "overhaul": overhaul,
+            "target": target,
+            "options": options,
+            "backups": str(self._backups_folder()),
+            "me3_profiles": s.profiles_root or self._me3_profiles(loc),
+            "data_folder": sp.data_location(),
+            "launcher_line": f"{sp.TITLE} {sp.VERSION}  ·  {sp.install_kind()}",
+        }
+
+    def _apply(self, facts: dict) -> None:
+        s, game = facts["s"], facts["game"]
         rows = []
         for key, title, help_text, is_dir, _filter in LOCATIONS:
             value = (
@@ -348,18 +404,14 @@ class SettingsAdapter(QObject):
                     "title": tr(title),
                     "help": tr(help_text),
                     "value": value,
-                    "placeholder": self._detected(key),
+                    "placeholder": facts["detected"][key],
                     "isDir": is_dir,
                     "menu": self._menu(key),
                 }
             )
         self._locations.set_rows(rows)
-        try:
-            overhaul = mod_service.overhaul_switch_text(game.key)
-        except Exception:
-            overhaul = ""
         grouped: dict[str, list[dict]] = {g: [] for g in self._switches}
-        for spec in sp.switches(overhaul, game.key):
+        for spec in sp.switches(facts["overhaul"], game.key):
             attr = play_service.repair_key(game) if spec.key == "play_repair_after" else spec.key
             grouped[spec.group].append(
                 {
@@ -373,10 +425,6 @@ class SettingsAdapter(QObject):
             )
         for g, rows_ in grouped.items():
             self._switches[g].set_rows(rows_)
-        try:
-            target, options = play_service.play_command(game)
-        except Exception:
-            target, options = "", ""
         self._values = {
             "theme": s.theme,
             "effects": s.effects,
@@ -385,15 +433,15 @@ class SettingsAdapter(QObject):
             "log_level": s.log_level,
             "launcher_channel": s.launcher_channel,
             "backups_keep": s.backups_keep if KEEP_RANGE[0] <= s.backups_keep <= KEEP_RANGE[1] else 20,
-            "backups_location": str(self._backups_folder()),
-            "profiles_root": s.profiles_root or self._me3_profiles(),
-            "steam_target": target,
-            "steam_options": options,
-            "data_folder": sp.data_location(),
+            "backups_location": facts["backups"],
+            "profiles_root": facts["me3_profiles"],
+            "steam_target": facts["target"],
+            "steam_options": facts["options"],
+            "data_folder": facts["data_folder"],
             "labels": {
                 which: next((tr(b) for k, b in CHOICES[which] if k == getattr(s, which)), "") for which in CHOICES
             },
-            "launcher_line": f"{sp.TITLE} {sp.VERSION}  ·  {sp.install_kind()}",
+            "launcher_line": facts["launcher_line"],
         }
         edited = self._layout_changes() != {}
         self._saved_layout = {k: str(getattr(s, v[0])) for k, v in LAYOUT.items()}

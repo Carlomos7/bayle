@@ -23,7 +23,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from roundtable_souls.platform import instance
 from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.services.play import TITLE
-from roundtable_souls.ui import cpu_pool
+from roundtable_souls.ui import cpu_pool, stall
 from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
 from roundtable_souls.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
@@ -127,10 +127,19 @@ class ShellWindow(QObject):
 
             self.chrome = WindowChrome(win)
             self.chrome.install()
+        win.sceneGraphInitialized.connect(lambda: self._log_backend(win))
         win.show()
         win.raise_()
         win.requestActivate()
         return True
+
+    @staticmethod
+    def _log_backend(win: QQuickWindow) -> None:
+        """The render backend in the log (a GPU one in normal runs; Software only in offscreen tests)."""
+        from roundtable_souls.platform import logging as run_logging
+
+        api = win.rendererInterface().graphicsApi()
+        run_logging.log_shown(f"render backend: {api.name.lower()}")
 
     def bring_forward(self) -> None:
         win = self.window
@@ -240,8 +249,14 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
         hold.release()
         return 1
     host.instance.take(hold)
+    stalls = stall.log_stalls(run_logging.get_logger("ui"))
     host.start_background()
     QTimer.singleShot(0, host.after_show)  # marks the version ready, reports the last update, starts the imports
     code = (run or app.exec)()
-    host.shutdown()
+    stalls.end()
+    if host.shutdown() is False:  # a job is still running: it is journaled and recovered at the next start
+        import logging
+
+        logging.shutdown()
+        os._exit(int(code))
     return int(code)

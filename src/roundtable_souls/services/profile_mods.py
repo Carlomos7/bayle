@@ -26,6 +26,7 @@ from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods import rename as mod_rename
 from roundtable_souls.mods.overhaul_manifest import launcher_installed
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.platform.threads import assert_not_ui_thread
 from roundtable_souls.services import game_checks
 from roundtable_souls.services import shared_mods as shared_service
 from roundtable_souls.services.mods import (
@@ -320,6 +321,7 @@ def tool_state(profile, *, loc: Locations) -> ToolState:
 def tool_to_offer(profile, game, *, loc: Locations) -> Any:
     """The rebuild tool to ask about now (Elden Ring only; found, able to run and not allowed yet), else None. A
     tool that cannot be read counts as nothing to ask about."""
+    assert_not_ui_thread("profile_mods.tool_to_offer")
     if game is not games.ELDEN_RING:
         return None
     try:
@@ -436,6 +438,7 @@ class PageFacts:
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     """The page's facts for profile. settings: the launcher settings (attached config files); None reads them."""
+    assert_not_ui_thread("profile_mods.page_facts")
     from roundtable_souls.mods import configs as mod_configs
 
     prof = Path(profile)
@@ -578,6 +581,7 @@ def rebuild_job(profile, combine: bool | None = None):
 
 def last_rebuild_undo(profile) -> dict | None:
     """The newest finished rebuild of this profile that can still be taken back (its job record), or None."""
+    assert_not_ui_thread("profile_mods.last_rebuild_undo")
     from roundtable_souls.mods import undo as mod_undo
 
     prof = Path(profile)

@@ -50,9 +50,18 @@ class Progress:
 class Runner:
     """post receives every event, on the worker's thread (the adapter passes them on to the UI thread)."""
 
-    def __init__(self, post: Callable[[Event], None]):
+    def __init__(
+        self, post: Callable[[Event], None], spawn: Callable[[Callable[[], None], str | None], None] | None = None
+    ):
+        """spawn(run, name) starts run on a worker; without one each piece of work gets a daemon thread (the window
+        passes its QThreadPool)."""
         self._post = post
+        self._spawn = spawn or self._thread
         self._ids = itertools.count(1)
+
+    @staticmethod
+    def _thread(run: Callable[[], None], name: str | None) -> None:
+        threading.Thread(target=run, daemon=True, name=name).start()
 
     def start(self, work: Callable[[Progress], Any], name: str | None = None) -> int:
         """Run work(progress) on a daemon thread and post its return value as the result. An exception is not caught
@@ -65,7 +74,7 @@ class Runner:
             self._post(Event(task, RESULT, work(progress)))
 
         run.__name__ = getattr(work, "__name__", run.__name__)
-        threading.Thread(target=run, daemon=True, name=name).start()
+        self._spawn(run, name)
         return task
 
     def start_job(self, job: Callable[[Any, Locations], None], launch, loc: Locations, title: str = "Job") -> int:

@@ -20,6 +20,7 @@ from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import profile_transfer as pt
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.profile_transfer.presenter import ProfileTransferPresenter, size_text
+from roundtable_souls.ui.refresh import Refresher
 from roundtable_souls.ui.text import tr
 
 EXPORT, IMPORT, BUNDLED = "export", "import", "bundled"
@@ -102,6 +103,7 @@ class ProfileTransferAdapter(QObject):
         self._run: dict[str, Any] = {"phase": "idle"}
         self._cancel = threading.Event()
         self._started = 0.0
+        self._refresher = Refresher(host, self._snapshot, self._build, self._apply_items)
         self._progressed.connect(self._on_progress)
         self._import_pct = -1  # -1: no byte count (reading, or a share list)
         self._bytes_in.connect(self._on_unpacked)
@@ -269,23 +271,28 @@ class ProfileTransferAdapter(QObject):
             self._make_preview()
         if self._mode != EXPORT or self._profile is None or self._working:
             return
-        loc, profile = self.host.locations, self._profile
+        self._refresher.request()
 
-        def work():
-            if loc is None:
-                return [], None
-            return pt.items(profile, full=True), pt.save_candidate(profile, loc=loc)
+    def _snapshot(self) -> tuple:
+        return self.host.locations, self._profile
 
-        def got(result) -> None:
-            self._items, save = result
-            self._picked = {it.key for it in self._items}
-            self._ex["name"] = self._ex["name"] or profile.stem
-            self._ex["saveName"] = save.name if save else ""
-            if not self._ex["readmeEdited"]:
-                self._ex["readme"] = pt.default_readme(self._ex["name"], "", "", self._items)
-            self._emit()
+    @staticmethod
+    def _build(snap: tuple):
+        loc, profile = snap
+        if loc is None or profile is None:
+            return [], None, profile
+        return pt.items(profile, full=True), pt.save_candidate(profile, loc=loc), profile
 
-        self.host.run_in_background(work, got)
+    def _apply_items(self, result) -> None:
+        self._items, save, profile = result
+        if profile is None or profile != self._profile:  # the top bar moved on: its own read follows
+            return
+        self._picked = {it.key for it in self._items}
+        self._ex["name"] = self._ex["name"] or profile.stem
+        self._ex["saveName"] = save.name if save else ""
+        if not self._ex["readmeEdited"]:
+            self._ex["readme"] = pt.default_readme(self._ex["name"], "", "", self._items)
+        self._emit()
 
     def _finished(self) -> None:
         """After an import job: say how it went."""

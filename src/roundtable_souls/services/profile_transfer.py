@@ -32,6 +32,7 @@ from roundtable_souls.mods.profile_edit import ModError
 from roundtable_souls.mods.profile_writer import ProfileWriter
 from roundtable_souls.platform import data_folder
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.platform.threads import assert_not_ui_thread
 from roundtable_souls.services import mod_configs
 
 if TYPE_CHECKING:
@@ -91,6 +92,7 @@ def _dep(d: dict) -> dict:
 
 def items(profile: Path, *, full: bool) -> list[Item]:
     """The profile's entries in file order. full: folders are named for a zip (unique, one per mod)."""
+    assert_not_ui_thread("profile_transfer.items")
     profile = Path(profile)
     text = me3_profile.read_text(profile)
     found = [e for e in me3_profile.entries(text) if e["path"]]
@@ -246,6 +248,7 @@ def default_readme(name: str, version: str, author: str, chosen: list[Item]) -> 
 
 def save_candidate(profile: Path, *, loc: Locations) -> Path | None:
     """The save file this profile plays on (its savefile setting, else the game's default), if there is one."""
+    assert_not_ui_thread("profile_transfer.save_candidate")
     wanted = profile_tools.read_settings(me3_profile.read_text(Path(profile))).get("savefile") or (
         loc.game.save_names[0] if loc.game.save_names else ""
     )

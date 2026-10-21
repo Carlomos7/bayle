@@ -3,12 +3,63 @@ callbacks given with each piece of work."""
 
 from __future__ import annotations
 
+import itertools
+import sys
+import threading
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
+from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import jobs
+
+# The one pool for background work in the window (reads, jobs, the game watch). A bigger pool than the core count: the
+# watch and a running job each hold a thread for a long time.
+POOL = QThreadPool()
+POOL.setMaxThreadCount(16)
+
+
+class _Task(QRunnable):
+    def __init__(self, call: Callable[[], None]):
+        super().__init__()
+        self._call = call
+
+    def run(self) -> None:
+        try:
+            self._call()
+        except Exception:  # as a thread's failure: the window's excepthook reports it, no result is posted
+            kind, value, tb = sys.exc_info()
+            threading.excepthook(threading.ExceptHookArgs((kind, value, tb, threading.current_thread())))
+
+
+_running: dict[int, str] = {}  # pool tasks in flight, by id, for the log at shutdown
+_ids = itertools.count(1)
+
+
+def drain(timeout_ms: int = 3000) -> bool:
+    """Queued work is dropped and running work is given timeout_ms; False (and a log line naming it) when some is left."""
+    POOL.clear()
+    if POOL.waitForDone(timeout_ms):
+        return True
+    # a job still runs: it is journaled, the next start recovers it, and the program exits anyway
+    run_logging.log_shown(f"closing with work still running: {', '.join(sorted(_running.values())) or '?'}")
+    return False
+
+
+def run_async(call: Callable[[], None], name: str | None = None) -> None:
+    """Run call on a pool thread (name is only for the log of whoever asks)."""
+    key = next(_ids)
+    label = name or getattr(call, "__name__", "work")
+
+    def tracked() -> None:
+        _running[key] = label
+        try:
+            call()
+        finally:
+            _running.pop(key, None)
+
+    POOL.start(_Task(tracked))
 
 
 class Jobs(QObject):
@@ -18,7 +69,7 @@ class Jobs(QObject):
         super().__init__(parent)
         self._calls: dict[int, tuple[Callable[[Any], None] | None, Callable[[Any], None] | None]] = {}
         self._arrived.connect(self._deliver)
-        self.runner = jobs.Runner(self._arrived.emit)
+        self.runner = jobs.Runner(self._arrived.emit, lambda run, name: run_async(run, name))
 
     def start(
         self,
@@ -49,3 +100,6 @@ class Jobs(QObject):
         self._calls.pop(event.task, None)
         if on_result is not None:
             on_result(event.value)
+
+    def shutdown(self, timeout_ms: int = 3000) -> bool:
+        return drain(timeout_ms)

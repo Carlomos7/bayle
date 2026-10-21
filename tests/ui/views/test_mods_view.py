@@ -18,6 +18,9 @@ from roundtable_souls.ui.host import Host as HostContract
 from roundtable_souls.ui.pages.registry import page as registered
 from support import er
 
+# known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
+pytestmark = pytest.mark.ui_stall_ok
+
 PROFILE = (
     'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n\n'
     "[[packages]]\nid = \"flora\"\npath = 'mod/flora'\n\n"

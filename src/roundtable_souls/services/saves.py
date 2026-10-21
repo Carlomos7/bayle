@@ -13,6 +13,7 @@ from roundtable_souls.game.locate import Locations, Overrides
 from roundtable_souls.mods import undo as mod_undo
 from roundtable_souls.platform import cpu
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.platform.threads import assert_not_ui_thread
 from roundtable_souls.saves import analyze as save_analyze
 from roundtable_souls.saves import backups as save_backups
 from roundtable_souls.saves import container as save_container
@@ -327,6 +328,7 @@ def _container_info(info: dict, data: bytes, game: games.Game) -> dict:
 def save_info(path: Path, game: games.Game | None = None, kind: str | None = None, *, loc: Locations) -> dict:
     """One save file: type, modified time, findings, and its active characters (shape: models.SaveInfo). Parsing a
     save takes a third of a second of CPU, so it is done in a worker process when the window has them."""
+    assert_not_ui_thread("saves.save_info")
     args = {
         "path": str(path),
         "game": game.key if game else None,
@@ -465,6 +467,7 @@ def list_backups(save: Path | None = None, *, loc: Locations) -> list:
     """Every backup of the save(s), newest first: {path, save_name, save, when, action, changes, size, keep,
     protected, metadata_unreadable, mtime}. keep is the user's choice; protected is whether pruning leaves it alone
     (also when its note can't be read: metadata_unreadable)."""
+    assert_not_ui_thread("saves.list_backups")
     out = []
     for d in backup_folders(save, loc=loc):
         if not d.is_dir():

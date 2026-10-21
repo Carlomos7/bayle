@@ -104,3 +104,18 @@ def shots(tmp_path) -> Path:
     out = Path(where) if where else tmp_path / "shots"
     out.mkdir(parents=True, exist_ok=True)
     return out
+
+
+@pytest.fixture(autouse=True)
+def _ui_stall_guard(request, qt_app):
+    from roundtable_souls.ui import stall
+
+    limit = float(os.environ.get("RS_UI_STALL_MS", stall.TEST_MS))
+    if limit <= 0 or request.node.get_closest_marker("ui_stall_ok"):
+        yield
+        return
+    request.node.ui_stalls = found = []
+    watch = stall.StallWatch(limit, lambda ms, stack: found.append((ms, stack)), only_in="roundtable_souls")
+    watch.begin()
+    yield
+    watch.end()

@@ -10,6 +10,9 @@ from roundtable_souls.ui.launcher.host import ShellHost
 from roundtable_souls.updates import apply as updates
 from roundtable_souls.updates import inno as migration
 
+# known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
+pytestmark = pytest.mark.ui_stall_ok
+
 
 class Hold:
     def release(self):

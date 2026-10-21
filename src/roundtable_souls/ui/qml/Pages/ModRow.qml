@@ -147,63 +147,73 @@ Item {
 
             onClicked: mouse => {
                 holder.forceActiveFocus();
-                if (mouse.button === Qt.RightButton && !holder.locked)
-                    rowMenu.popup();
+                if (mouse.button === Qt.RightButton && !holder.locked) {
+                    rowMenuLoader.active = true;
+                    (rowMenuLoader.item as PopupMenu).popup();
+                }
             }
         }
-        PopupMenu {
-            id: rowMenu
+        Loader {  // the menu is built when first asked for: 8 entries and a shadow on every row cost the page its start
+            id: rowMenuLoader
 
-            MenuEntry {
-                shortcut: "Ctrl+Up"
-                text: holder.words.moveUp
+            active: false
 
-                onTriggered: holder.adapter.moveBy(holder.entryIndex, -1)
-            }
-            MenuEntry {
-                shortcut: "Ctrl+Down"
-                text: holder.words.moveDown
+            sourceComponent: Component {
+                PopupMenu {
+                    id: rowMenu
 
-                onTriggered: holder.adapter.moveBy(holder.entryIndex, 1)
-            }
-            MenuEntry {
-                text: holder.words.moveTop
+                    MenuEntry {
+                        shortcut: "Ctrl+Up"
+                        text: holder.words.moveUp
 
-                onTriggered: holder.adapter.moveBy(holder.entryIndex, -1000)
-            }
-            MenuEntry {
-                text: holder.words.moveBottom
+                        onTriggered: holder.adapter.moveBy(holder.entryIndex, -1)
+                    }
+                    MenuEntry {
+                        shortcut: "Ctrl+Down"
+                        text: holder.words.moveDown
 
-                onTriggered: holder.adapter.moveBy(holder.entryIndex, 1000)
-            }
-            MenuEntry {
-                text: holder.words.rename
+                        onTriggered: holder.adapter.moveBy(holder.entryIndex, 1)
+                    }
+                    MenuEntry {
+                        text: holder.words.moveTop
 
-                onTriggered: holder.adapter.openRename(holder.entryIndex)
-            }
-            MenuEntry {
-                icon_: "Share"
-                objectName: "share_" + holder.name
-                text: holder.words.share
-                visible: holder.kind === "package" && holder.can_share
+                        onTriggered: holder.adapter.moveBy(holder.entryIndex, -1000)
+                    }
+                    MenuEntry {
+                        text: holder.words.moveBottom
 
-                onTriggered: holder.adapter.share(holder.entryIndex)
-            }
-            MenuEntry {
-                icon_: "Link"
-                objectName: "useIn_" + holder.name
-                text: holder.words.useInOthers
-                visible: holder.kind === "package" && holder.shared > 0
+                        onTriggered: holder.adapter.moveBy(holder.entryIndex, 1000)
+                    }
+                    MenuEntry {
+                        text: holder.words.rename
 
-                onTriggered: holder.adapter.useInOthers(holder.entryIndex)
-            }
-            MenuEntry {
-                icon_: "Copy"
-                objectName: "separate_" + holder.name
-                text: holder.words.useSeparate
-                visible: holder.kind === "package" && holder.shared > 0
+                        onTriggered: holder.adapter.openRename(holder.entryIndex)
+                    }
+                    MenuEntry {
+                        icon_: "Share"
+                        objectName: "share_" + holder.name
+                        text: holder.words.share
+                        visible: holder.kind === "package" && holder.can_share
 
-                onTriggered: holder.adapter.separate(holder.entryIndex)
+                        onTriggered: holder.adapter.share(holder.entryIndex)
+                    }
+                    MenuEntry {
+                        icon_: "Link"
+                        objectName: "useIn_" + holder.name
+                        text: holder.words.useInOthers
+                        visible: holder.kind === "package" && holder.shared > 0
+
+                        onTriggered: holder.adapter.useInOthers(holder.entryIndex)
+                    }
+                    MenuEntry {
+                        icon_: "Copy"
+                        objectName: "separate_" + holder.name
+                        text: holder.words.useSeparate
+                        visible: holder.kind === "package" && holder.shared > 0
+
+                        onTriggered: holder.adapter.separate(holder.entryIndex)
+                    }
+                }
             }
         }
         Item {  // the grip at x 16

@@ -256,6 +256,18 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
     assert entry["initializer"] == {"function": "Boot"} and entry["load_early"] is True
 
 
+def test_applying_a_saved_setup_leaves_a_hand_edited_file_as_it_is(world):
+    from test_overhaul_install import set_up
+
+    from roundtable_souls.services import mods as mod_service
+
+    _folder, toml, _out = set_up(world)
+    toml.write_text("# my own note" + chr(10) + toml.read_text(encoding="utf-8"), encoding="utf-8")
+    before = toml.read_bytes()
+    assert mod_service.reapply_overhaul_setup(world.profile, loc=world.loc) == ["my.me3"]
+    assert toml.read_bytes() == before
+
+
 # ----------------------------------------------------------------------------- gap 3: texts from a JSON file
 def texts_setup(world, texts: dict[str, str]):
     from roundtable_souls.overhauls.config import BasicText

@@ -1217,14 +1217,34 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
 
 
 def install_setup(preview: InstallPreview, *, loc: Locations, log=lambda s: None) -> dict:
-    """Install as previewed (preview_setup), its config written in the same operation."""
+    """Install as previewed (preview_setup), its config written in the same operation (unless the file already holds
+    it)."""
     from roundtable_souls.overhauls import writer
 
     config = preview.found.config
     path = config_path(config)
     if path is None:
         raise OverhaulError("The launcher's data folder is not set.")
-    return install(preview, loc=loc, log=log, config_file=(path, writer.render(config).encode("utf-8")))
+    return install(
+        preview,
+        loc=loc,
+        log=log,
+        config_file=None if _saved_as(path, config) else (path, writer.render(config).encode("utf-8")),
+    )
+
+
+def _saved_as(path: Path, config: OverhaulConfig) -> bool:
+    """Whether the file already holds this config: it is then left as it is (a hand-edited file keeps its comments and
+    order)."""
+    import tomllib
+
+    try:
+        return (
+            OverhaulConfig.model_validate(tomllib.loads(path.read_text(encoding="utf-8"))).model_dump()
+            == config.model_dump()
+        )
+    except OSError, ValueError:
+        return False
 
 
 @dataclass

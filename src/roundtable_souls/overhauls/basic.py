@@ -197,14 +197,18 @@ def action_of(f: str, kind: str, basic: Basic) -> str:
     if own is not None:
         return own
     placed = {k.lower(): v for k, v in basic.place.items()}.get(low)
+    legacy = []  # what the older lists say, in order; one the file's kind can't have was ignored by older versions
     if leaves(f, basic.skip):
-        return "leave"
+        legacy.append("leave")
     if placed is not None:
-        return f"place:{placed}"
+        legacy.append(f"place:{placed}")
     if low in {n.lower() for n in basic.not_merged}:
-        return "whole" if kind in ("regulation", "binder") else "copy"
+        legacy.append("whole" if kind in ("regulation", "binder") else "copy")
     if low in {k.lower() for k in basic.keep}:
-        return "keep"
+        legacy.append("keep")
+    for act in legacy:
+        if ("place" if act.startswith("place:") else act) in KINDS[kind]:
+            return act
     return KINDS[kind][0]
 
 

@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from roundtable_souls.mods import engine
+from roundtable_souls.overhauls import basic
 from roundtable_souls.overhauls.config import Basic
 
 
@@ -73,3 +74,12 @@ def test_an_overhaul_cannot_take_the_name_of_the_players_own_packages_folder(tmp
     for name in ("mypkgs", "Dlls", ".roundtable", ".previous"):
         with pytest.raises(ValueError, match="uses for its own folders"):
             basic.make(id=name, reserved=names, **kw)
+
+
+# ----------------------------------------------------------------------------- old lists a file's kind can't have
+def test_an_old_keep_for_a_file_in_a_game_folder_is_ignored_as_before():
+    b = Basic(keep=["map/x.ini"], not_merged=["map/y.ini"])
+    assert basic.action_of("map/x.ini", "game", b) == "copy"
+    assert basic.action_of("map/y.ini", "game", b) == "copy"
+    assert basic.action_of("x.ini", "settings", Basic(keep=["x.ini"])) == "keep"
+    assert basic.action_of("x.bnd", "binder", Basic(place={"x.bnd": "map/x.bnd"})) == "merge"

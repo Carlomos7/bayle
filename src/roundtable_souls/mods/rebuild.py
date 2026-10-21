@@ -164,13 +164,6 @@ def _within(inner: Path, outer: Path) -> bool:
     return a == b or b in a.parents
 
 
-def _rel_in(path: Path, folder: Path) -> str | None:
-    try:
-        return checks._canon(path).relative_to(checks._canon(folder)).as_posix()
-    except ValueError:
-        return None
-
-
 def _winner_files(folder: Path) -> list[str]:
     out = []
     for dirpath, _dirs, files in os.walk(folder):
@@ -236,12 +229,6 @@ def _stored_mark(profile: Path, folder: Path, rebuild_file: Path | None) -> dict
     from roundtable_souls.mods import profile_settings as ps
 
     return {"package": ps.to_stored(profile, folder), "rebuild": ps.to_stored(profile, rebuild_file)}
-
-
-def overlay_override(profile: Path) -> Path | None:
-    """The package folder set as this profile's parameter overlay in Options, or None."""
-    mark = overlay_mark(profile)
-    return mark["package"] if mark else None
 
 
 def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path | None = None) -> str | None:

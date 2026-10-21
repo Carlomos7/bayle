@@ -26,7 +26,6 @@ NOT_SETTINGS = re.compile(
     re.I,
 )
 MAX_BYTES = 2 * 1024 * 1024  # a settings file, not data
-LANG = {".ini": "ini", ".cfg": "ini", ".conf": "ini", ".toml": "toml", ".json": "json"}
 
 
 class ConfigError(Exception):
@@ -119,10 +118,6 @@ def without_tie(settings: LauncherSettings, dll: Path, file: Path) -> dict:
     if not ties[k]:
         ties.pop(k)
     return ties
-
-
-def lang_for(p: Path) -> str:
-    return LANG.get(Path(p).suffix.lower(), "text")
 
 
 # ----------------------------------------------------------------------------- reading and writing

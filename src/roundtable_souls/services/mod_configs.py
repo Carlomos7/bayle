@@ -388,11 +388,6 @@ def plan_merge(
     return changes, left_out
 
 
-def apply_merge(opened: Opened, changes: dict[tuple[str, str], tuple[str, str]]) -> Path:
-    """Write what plan_merge planned (only those values' characters change); the same errors as save_values."""
-    return save_values(opened, {k: new for k, (_old, new) in changes.items()})
-
-
 def plan_paste(ini: Path, text: str):
     """(changes {key: (yours, theirs)}, keys your file doesn't have, the file as read) for shared settings; nothing
     written. Hand the file to apply_paste."""

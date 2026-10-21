@@ -138,10 +138,6 @@ def save_profile_text(profile, text: str) -> None:
     w.write("before saving the editor")
 
 
-def scan_profile_conflicts(profile) -> dict:
-    return profile_tools.scan_conflicts(Path(profile))
-
-
 def profile_entries(profile) -> list:
     """Every package and native block, enabled or not, with options (mod_manage.entries)."""
     try:

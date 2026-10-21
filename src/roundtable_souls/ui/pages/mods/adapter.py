@@ -310,9 +310,7 @@ class ModsAdapter(QObject):
             self.notifier.toast(tr("Pick a profile first."), error=True)
             return None
         if self.host.busy:
-            self.notifier.toast(
-                tr("Wait for the current job. The profile is not changed while something runs."), error=True
-            )
+            self.notifier.toast(tr("Wait for the current job to finish."), error=True)
             return None
         return Path(profile)
 
@@ -352,7 +350,7 @@ class ModsAdapter(QObject):
         name = entry["name"]
         self._changed(
             f"profile: {name} {'on' if on else 'off'}",
-            (tr("{name} is loaded again") if on else tr("{name} is off: kept in the profile, me3 skips it")).format(
+            (tr("{name} is on again") if on else tr("{name} is off. It stays in the profile and me3 skips it.")).format(
                 name=name
             ),
         )
@@ -402,7 +400,7 @@ class ModsAdapter(QObject):
                 return
             self._changed(
                 f"profile: removed {entry['name']} (a folder of mods)",
-                tr("'{name}' is out of the profile. Nothing in the game changes.").format(name=entry["name"]),
+                tr("{name} is out of the profile. Nothing in the game changes.").format(name=entry["name"]),
             )
 
         self.notifier.ask(self.presenter.holder(profile, entry["name"], needs), answered)
@@ -514,11 +512,11 @@ class ModsAdapter(QObject):
             code, detail = refusal
             text = {
                 profile_mods.REBUILD_GAME_RUNNING: tr(
-                    "Close the game first: the rebuild rewrites files the game has open."
+                    "Close the game first. The rebuild rewrites files the game has open."
                 ),
                 profile_mods.REBUILD_BLOCKED: tr("It cannot be rebuilt now: {why}").format(why=detail),
                 profile_mods.REBUILD_NOTHING: tr(
-                    "Nothing to rebuild: fewer than two packs ship parameters and there is no rebuild tool."
+                    "Nothing to rebuild. Fewer than two packs ship parameters and there is no rebuild tool."
                 ),
             }[code]
             self.notifier.toast(text, error=True)
@@ -589,14 +587,14 @@ class ModsAdapter(QObject):
         extra = profile_mods.tool_backups_to_trim(profile)
         if not extra:
             self.notifier.toast(
-                tr("Nothing to trim: {n} or fewer backups are kept.").format(n=profile_mods.KEEP_TOOL_BACKUPS)
+                tr("Nothing to trim. {n} or fewer backups are kept.").format(n=profile_mods.KEEP_TOOL_BACKUPS)
             )
             return
 
         def answered(ok: bool, _option: bool) -> None:
             if ok:
                 moved = profile_mods.trim_tool_backups(profile)
-                self.notifier.toast(tr("Older rebuild backups moved: {n} to the Recycle Bin.").format(n=len(moved)))
+                self.notifier.toast(tr("{n} older rebuild backups moved to the Recycle Bin.").format(n=len(moved)))
                 self.refresh()
 
         self.notifier.ask(self.presenter.trim(extra), answered)
@@ -703,7 +701,7 @@ class ModsAdapter(QObject):
     def _ready(self) -> Path | None:
         """The profile to change, or None (with the reason said) while a job runs."""
         if self.host.busy:
-            self.notifier.toast(tr("Wait for the current job"), error=True)
+            self.notifier.toast(tr("Wait for the current job to finish."), error=True)
             return None
         return self._profile()
 
@@ -1232,7 +1230,7 @@ class ModsAdapter(QObject):
                 return
             self.host.profile_deleted(Path(profile), gone)
             self.notifier.toast(
-                tr("Profile {name} deleted: the .me3 is in Deleted profiles").format(name=Path(profile).stem)
+                tr("Profile {name} deleted. It is in Deleted profiles.").format(name=Path(profile).stem)
             )
             self.refresh()
 

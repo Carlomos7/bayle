@@ -153,6 +153,8 @@ class OverhaulMenu:
     can_remove: bool
     clean: str
     can_clean: bool
+    take_over: str = ""
+    can_take_over: bool = False
 
 
 # ----------------------------------------------------------------------------- the presenter
@@ -1039,6 +1041,8 @@ class ModsPresenter:
             can_remove=has is not None,
             clean=tr("Clean up installer leftovers..."),
             can_clean=leftovers,
+            take_over=tr("Take over {label}...").format(label=has["label"]) if has else tr("Take over overhaul..."),
+            can_take_over=bool(has and has.get("takeover")),
         )
 
     def overhaul_folder_title(self) -> str:

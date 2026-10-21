@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.1] - 2026-10-21
+
+### Fixed
+
+- **Speed:** moving the mouse over the window no longer makes Bayle stutter. On Windows, the title bar searched the
+  whole window for its buttons on every mouse move, which froze the window for up to several seconds on busy pages.
+
 ## [4.5.0] - 2026-10-21
 
 Bayle keeps its window responsive: heavy work runs in separate worker processes, disk reads happen in the

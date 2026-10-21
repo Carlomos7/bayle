@@ -562,3 +562,49 @@ def test_the_files_table_is_read_off_the_ui_thread_and_a_fresh_config_forgets_ea
     adapter._previewed = ()
     adapter._refresh()
     assert adapter._edited is False
+
+
+def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen(world):
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QCoreApplication
+    from test_overhaul_texts_propose import download
+
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.ui.pages.mods.install import InstallDraft
+    from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
+
+    QCoreApplication.instance() or QCoreApplication([])
+    folder = download(world.tmp / "dl" / "Texty", {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
+    (folder / "mod/chr").mkdir(parents=True)
+    (folder / "mod/chr/a.anibnd.dcx").write_bytes(b"x")
+    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
+    host = SimpleNamespace(
+        profile=world.profile,
+        locations=world.loc,
+        run_in_background=lambda work, done: done(work()),
+        run_job=lambda *a: None,
+    )
+    adapter = InstallAdapter(host, SimpleNamespace())
+    draft = adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
+    draft.overhaul = True
+    adapter._planned = adapter._key()
+    adapter._refresh()
+    (row,) = draft.view()["texts"]
+    assert row["table"] == "" and [c["label"] for c in row["choices"]] == ["(choose a table)", "A.fmg", "B.fmg"]
+    assert not draft.can_install() and any("Choose the table" in r for r in draft.preview["refusals"])
+    adapter.setTable(row["file"], "B.fmg")
+    adapter._timer.stop()
+    adapter._refresh()
+    assert draft.view()["texts"][0]["table"] == "B.fmg"
+    assert not any("Choose the table" in r for r in draft.preview["refusals"])
+
+
+def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
+    from roundtable_souls.ui.pages.mods.install_adapter import setup_notes
+
+    folder = make_folder(tmp_path / "dl", ["mod/chr/a.anibnd.dcx", "M.dll"])
+    b = basic.propose(folder, game="eldenring").model_copy(update={"files": {"old/gone.ini": "leave"}})
+    config = basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"files": {}}), folder=folder)
+    (note,) = setup_notes(config.model_copy(update={"basic": b}), folder)
+    assert "old/gone.ini is not in the mod's folder any more" in note

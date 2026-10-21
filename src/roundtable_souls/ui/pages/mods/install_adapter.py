@@ -15,12 +15,37 @@ from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 from roundtable_souls.mods import extract as mod_extract
 from roundtable_souls.overhauls import basic
 from roundtable_souls.platform import logging as run_logging
+from roundtable_souls.services import mod_configs, profile_mods
 from roundtable_souls.services import mods as mod_service
-from roundtable_souls.services import profile_mods
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mods.install import InstallDraft
 from roundtable_souls.ui.pages.mods.install import words as install_words
 from roundtable_souls.ui.text import tr
+
+
+def setup_notes(config, folder: Path) -> list[str]:
+    """What making the setup's steps left out or dropped (entries a newer download no longer has, ...): the notes the
+    preview shows. Reads the whole download: not for the UI thread."""
+    from roundtable_souls.config import layout
+
+    notes: list[str] = []
+    if config.basic is None:
+        return notes
+    try:
+        basic.make(
+            id=config.id,
+            label=config.label,
+            game=config.game,
+            basic=config.basic,
+            folder=folder,
+            short_label=config.short_label,
+            reserved=layout.reserved_names(),
+            notes=notes,
+            unset_tables=True,
+        )
+    except ValueError:
+        pass  # the preview itself says why it can't be set up
+    return notes
 
 
 def _drop_staging(plan: dict) -> None:
@@ -248,6 +273,20 @@ class InstallAdapter(QObject):
         self._changed(True)
 
     @Slot(str, str)
+    def setTable(self, file: str, table: str) -> None:
+        """The table a texts entry sets its strings in (chosen among the tables of the download's copy)."""
+        d, cfg = self._draft, self._config
+        if d is None or cfg is None or cfg.basic is None:
+            return
+        for t in d.texts:
+            if t["file"] == file:
+                t["table"] = table
+        texts = [t.model_copy(update={"table": table if t.file == file else t.table}) for t in cfg.basic.texts]
+        self._config = cfg.model_copy(update={"basic": cfg.basic.model_copy(update={"texts": texts})})
+        self._previewed, self._edited = (), True
+        self._changed(True)
+
+    @Slot(str, str)
     def setFile(self, file: str, value: str) -> None:
         """A choice of the Files table (an action, or place:<game path>): the preview is worked out again with it."""
         d, cfg = self._draft, self._config
@@ -291,6 +330,9 @@ class InstallAdapter(QObject):
             def rows(config, folder) -> None:  # the Files table reads the whole download: not on the UI thread
                 if not have_files or out.get("fresh"):
                     out["rows"] = mod_service.setup_file_rows(config, folder)
+                setup = {"config": config, "folder": Path(folder)}
+                out["texts"] = mod_configs.overhaul_choices(setup, loc.game_dir())["texts"]
+                out["setup_notes"] = setup_notes(config, Path(folder))
 
             try:
                 if replan:
@@ -353,6 +395,16 @@ class InstallAdapter(QObject):
                 d.natives = [n.model_dump() for n in out["config"].basic.natives]
                 if out.get("rows") is not None:
                     d.files = out["rows"]
+                d.texts = out.get("texts") or []
+                if d.preview is not None:
+                    d.preview["notes"] += out.get("setup_notes") or []
+                    for t in d.texts:
+                        if not t["table"]:
+                            d.preview["refusals"].append(
+                                tr("Choose the table for the texts added to {file} before installing.").format(
+                                    file=t["file"]
+                                )
+                            )
         self.viewChanged.emit()
 
     # ---- ending

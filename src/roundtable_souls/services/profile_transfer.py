@@ -25,7 +25,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from roundtable_souls.formats import config_model, me3_profile
-from roundtable_souls.mods import configs, naming, operations, profile_edit, profile_import, profile_share, shared_mods
+from roundtable_souls.mods import (
+    configs,
+    library,
+    naming,
+    operations,
+    profile_edit,
+    profile_import,
+    profile_share,
+    shared_mods,
+)
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile as profile_tools
 from roundtable_souls.mods.profile_edit import ModError
@@ -124,6 +133,7 @@ def items(profile: Path, *, full: bool) -> list[Item]:
         )
         root = pk_root if e["kind"] == "package" else nt_root
         inside = where == root or root in where.parents or bool(stored)
+        inside = inside or (library.own_folder(profile) and profile.parent in where.parents)  # an overhaul's folder
         row: dict[str, Any] = {"kind": e["kind"], "folder": name, "enabled": e["enabled"]}
         if e["kind"] == "package":
             row["id"] = e["id"]

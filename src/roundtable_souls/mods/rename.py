@@ -27,7 +27,7 @@ from roundtable_souls import overhauls
 from roundtable_souls.config import settings as launcher_settings
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.merging import build
-from roundtable_souls.mods import checks, naming, operations, profile_edit, profile_settings
+from roundtable_souls.mods import checks, library, naming, operations, profile_edit, profile_settings
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods.profile_edit import ModError
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
@@ -168,7 +168,10 @@ def preview(profile: Path, index: int, new_name: str, *, loc: Locations) -> Rena
         return out
     pk_root, nt_root = profile_edit.roots(profile, writer.text)
     if not any(checks.same_folder(folder.parent, r) for r in (pk_root, nt_root, profile.parent)):
-        refuse(f"{old_name} is outside this profile's mod folders, so the launcher does not move it.")
+        if library.own_folder(profile) and _inside(folder, profile.parent):  # an overhaul's folder, at the root
+            refuse(f"{old_name} belongs to an overhaul the launcher manages, so it can't be renamed on its own.")
+        else:
+            refuse(f"{old_name} is outside this profile's mod folders, so the launcher does not move it.")
     if old_name.lower() in naming.RESERVED:
         refuse(f"{old_name} is a folder the launcher uses itself.")
     # the new name

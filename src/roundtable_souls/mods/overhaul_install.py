@@ -687,6 +687,12 @@ def _users(profile: Path, config: OverhaulConfig, own: Path, *, others: bool = T
     return out
 
 
+def own_folders(profile: Path, entries: list[dict], configs: Sequence[OverhaulConfig]) -> list[Path]:
+    """The folders of the overhauls these entries belong to: each is part of the profile's layout (at its root)."""
+    owned = requirements.owned_by(configs, entries)
+    return [_own_of(profile, c, owned[c.id]) for c in configs if c.id in owned]
+
+
 def users_of(profile: Path, config: OverhaulConfig, entries: list[dict]) -> list[Path]:
     """Every profile whose entries use this overhaul's folder: the profile itself first, then the ones beside it."""
     return [Path(profile), *_users(profile, config, _own_of(profile, config, entries))]

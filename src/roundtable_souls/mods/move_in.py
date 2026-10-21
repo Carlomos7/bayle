@@ -141,6 +141,11 @@ def plan(profile: Path, loc: Locations) -> MovePlan:
     layout = library.ProfileFolder(folder)
     item = Item(profile, name, folder, library.state_of(profile).root, old_bytes=raw)
     seen: set[str] = set()
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+
+    # an overhaul's own folder is part of the profile's layout, at its root: it moves whole, not entry by entry
+    owns = [Path(os.path.abspath(o)) for o in overhaul_install.own_folders(profile, rows, overhauls.load(loc.game.key))]
     for e in rows:
         if not e.get("path"):
             continue
@@ -150,6 +155,12 @@ def plan(profile: Path, loc: Locations) -> MovePlan:
             continue
         if not _inside(target, src) or _n(target) == _n(src) or _inside(target, src / library.STATE):
             out.stays.append(str(target))
+            continue
+        own = next((o for o in owns if _inside(target, o) and _n(o) != _n(src)), None)
+        if own is not None:
+            if _n(own) not in seen:
+                seen.add(_n(own))
+                item.units.append(Unit(own, own.name, [name]))
             continue
         unit_src = target if target.is_dir() or _n(target.parent) == _n(src) else target.parent
         if _n(unit_src) in seen:

@@ -17,7 +17,7 @@ from roundtable_souls import overhauls
 from roundtable_souls.game import catalog, locate
 from roundtable_souls.game.locate import Locations, Overrides
 from roundtable_souls.merging import build as B
-from roundtable_souls.mods import operations, overhaul_install, records, undo
+from roundtable_souls.mods import library, operations, overhaul_install, records, undo
 from roundtable_souls.mods import rebuild as merge
 from roundtable_souls.mods.overhaul_install import OverhaulError
 from roundtable_souls.platform import paths as common
@@ -159,7 +159,7 @@ class World:
 
     @property
     def library(self) -> Path:
-        return self.profiles / "rs-eldenring"
+        return library.ProfileFolder.of(self.profile).root
 
 
 def files(folder: Path) -> dict[str, bytes]:
@@ -205,7 +205,7 @@ def test_a_fresh_install_is_previewed_then_applied_with_relative_paths(world):
     p = world.preview()
     assert p.ok and not p.update and files(world.base) == before  # a preview writes nothing
     said = "\n".join(p.lines)
-    assert "files its build needs" in said and "rs-eldenring" in said
+    assert "files its build needs" in said and "builds" in said
     assert (
         "gets its entries, loading after your mods: ExampleHudBootstrap.dll, ExamplePrototype.dll, example-overhaul"
         in said
@@ -231,7 +231,7 @@ def test_a_fresh_install_is_previewed_then_applied_with_relative_paths(world):
     assert (world.own / "mod/regulation.bin").is_file() and (world.own / "ExamplePrototype.dll").is_file()
     assert (world.own / "ExamplePrototype.ini").read_text() == "[Coop]\nEnabled=1\n"
     manifest = json.loads((world.own / "installation.json").read_text())
-    sources = world.library / "sources" / "example-overhaul"
+    sources = world.library / "builds" / "example-overhaul" / "sources"
     assert manifest["installedBy"].startswith("Roundtable Souls") and manifest["maintenance"] == str(sources)
     assert manifest["profile"] == str(world.profile) and "baseProfile" not in manifest
     assert not any(".installing-" in str(r["path"]) for r in manifest["sources"])
@@ -244,9 +244,9 @@ def test_a_fresh_install_is_previewed_then_applied_with_relative_paths(world):
     assert "payload/settings/vanilla/script/talk/m00.bin" not in kept
     src_record = records.SourcesRecord.load(sources / "roundtable.json")
     assert src_record.files["edition.json"].from_ == "edition.json"
-    record = records.OverhaulRecord.load(world.library / "overhauls/example-overhaul/roundtable.json")
+    record = records.OverhaulRecord.load(world.library / "builds/example-overhaul/overhaul/roundtable.json")
     assert record.build == "example-overhaul-lite" and record.from_ == str(world.download)
-    effects = records.SideEffectsRecord.load(world.library / "builds/example-overhaul/my/roundtable.json")
+    effects = records.SideEffectsRecord.load(world.library / "builds/example-overhaul/roundtable.json")
     assert [(e.entry, e.setting, e.before, e.after) for e in effects.changes] == [(None, "start_online", True, False)]
     # nothing of the installer's
     assert not (world.base / ".example-overhaul-setup").exists()
@@ -262,7 +262,7 @@ def test_a_launcher_install_whose_download_copy_is_gone_says_so(world):
     import shutil
 
     world.install()
-    shutil.rmtree(world.library / "sources" / "example-overhaul")
+    shutil.rmtree(world.library / "builds" / "example-overhaul" / "sources")
     tool = merge.find_backend(world.profile, loc=world.loc)
     assert tool is not None and tool.recipe.engine is None
     assert tool.recipe.problem is not None and "copy of example-overhaul's download is gone" in tool.recipe.problem
@@ -337,7 +337,7 @@ def test_a_profile_changed_after_the_preview_is_not_overwritten(world):
     with pytest.raises(Exception, match="changed outside the launcher"):
         overhaul_install.install(p, loc=world.loc)
     assert world.text().endswith("# edited\n") and not world.own.exists()
-    assert not (world.library / "sources" / "example-overhaul").exists()
+    assert not (world.library / "builds" / "example-overhaul" / "sources").exists()
 
 
 def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
@@ -353,7 +353,7 @@ def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
         world.install()
     assert files(world.base) == before
     assert not [p for p in world.base.iterdir() if p.name.startswith(".") and not p.name.startswith(".roundtable")]
-    assert not list((world.library / "sources").iterdir())  # no staged copy left
+    assert not list((world.library / "builds" / "example-overhaul").glob(".sources.staging*"))  # no staged copy left
     assert operations.pending(world.profile) == []
 
 
@@ -381,7 +381,7 @@ def test_an_interrupted_install_is_undone_on_the_next_start(world, monkeypatch, 
     said = operations.recover(world.profile)
     assert said and "undone" in said[0]
     assert files(world.base) == before and operations.problem(world.profile) is None
-    assert not (world.library / "sources" / "example-overhaul").exists()
+    assert not (world.library / "builds" / "example-overhaul" / "sources").exists()
 
 
 def test_undo_install_from_activity_puts_the_profile_back_exactly(world):
@@ -392,9 +392,9 @@ def test_undo_install_from_activity_puts_the_profile_back_exactly(world):
     said = undo.run(rec, lambda s: None, loc=world.loc)
     assert "took back the install of Example Overhaul" in said
     assert world.profile.read_bytes() == before
-    assert not world.own.exists() and not (world.library / "sources" / "example-overhaul").exists()
-    assert not (world.library / "overhauls/example-overhaul/roundtable.json").exists()
-    assert not (world.library / "builds/example-overhaul/my/roundtable.json").exists()
+    assert not world.own.exists() and not (world.library / "builds" / "example-overhaul" / "sources").exists()
+    assert not (world.library / "builds/example-overhaul/overhaul/roundtable.json").exists()
+    assert not (world.library / "builds/example-overhaul/roundtable.json").exists()
     assert not undo.available(rec)
 
 
@@ -414,8 +414,8 @@ def test_remove_takes_its_entries_puts_side_effects_back_and_recycles_its_folder
     assert [n["path"] for n in data["natives"]] == ["natives/SeamlessCoop/ersc.dll"]  # Seamless stays
     assert [x["id"] for x in data["packages"]] == ["body", "anims"]
     assert not world.own.exists() and len(out["trash"]) == 2
-    assert not (world.library / "sources" / "example-overhaul").exists()
-    assert not (world.library / "overhauls" / "example-overhaul").exists()
+    assert not (world.library / "builds" / "example-overhaul" / "sources").exists()
+    assert not (world.library / "builds" / "example-overhaul" / "overhaul").exists()
     assert not (world.library / "builds" / "example-overhaul").exists()
     assert operations.problem(world.profile) is None
     # Restore from Activity: all of it back
@@ -425,7 +425,7 @@ def test_remove_takes_its_entries_puts_side_effects_back_and_recycles_its_folder
     undo.run(rec, lambda s: None, loc=world.loc)
     assert world.profile.read_bytes() != removed and world.data()["start_online"] is False
     assert (world.own / "mod/regulation.bin").is_file()
-    assert (world.library / "builds/example-overhaul/my/roundtable.json").is_file()
+    assert (world.library / "builds/example-overhaul/roundtable.json").is_file()
     assert merge.health(world.profile, loc=world.loc)["state"] == "current"
 
 
@@ -440,7 +440,7 @@ def test_a_side_effect_changed_since_is_left_and_said(world):
 
 def test_a_shared_dependency_switched_on_by_the_install_is_only_switched_off_when_asked(world):
     world.install()
-    effects = world.library / "builds/example-overhaul/my/roundtable.json"
+    effects = world.library / "builds/example-overhaul/roundtable.json"
     rec = records.SideEffectsRecord(
         changes=[records.SideEffect(entry="ersc.dll", setting="enabled", before=False, before_set=True, after=True)]
     )
@@ -612,10 +612,9 @@ def test_the_switch_and_button_words_come_from_the_configs(world):
 
     assert service.installable_overhauls("eldenring") == ["Example Overhaul LITE 0.1.33-rc3"]
     assert service.installable_overhauls("nightreign") == []
-    assert service.overhaul_library_folder("eldenring") == "rs-eldenring"
     text = service.overhaul_switch_text("eldenring")
     assert "Covers only Example Overhaul LITE 0.1.33-rc3" in text
-    assert "in rs-eldenring, in me3's profiles folder" in text
+    assert "in the profile's builds folder" in text
     assert "Covers only Example Overhaul LITE 0.1.33-rc3" in service.overhaul_button_tip("eldenring")
 
 

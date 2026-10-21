@@ -25,24 +25,3 @@ def test_an_entry_for_a_folder_of_mods_or_the_profile_folder_loads_nothing(tmp_p
     items = profile_entries(p)
     names = {e["index"]: e["name"] for e in items}
     assert {names[i] for i in checks.loads_nothing(p, items)} == {"all", "here"}
-
-
-def test_outside_the_library_only_for_a_profile_kept_in_the_library(tmp_path):
-    library = tmp_path / "rs-eldenring"
-    p = library / "profiles" / "main.me3"
-    outside = tmp_path / "Downloads" / "flora"
-    outside.mkdir(parents=True)
-    write(
-        p,
-        'profileVersion = "v1"\n\n'
-        "[[packages]]\nid = \"inside\"\npath = '../packages/inside'\n\n"
-        f"[[packages]]\nid = \"flora\"\npath = '{outside.as_posix()}'\n",
-    )
-    (library / "packages" / "inside").mkdir(parents=True)
-    items = profile_entries(p)
-    flagged = {e["name"] for e in items if e["index"] in checks.outside_library(p, items, library)}
-    assert flagged == {"flora"}
-    assert checks.outside_library(p, items, None) == []
-    old = tmp_path / "eldenring-mods" / "old.me3"  # an existing setup, not in the library: no tag at all
-    write(old, f'profileVersion = "v1"\n\n[[packages]]\nid = "flora"\npath = \'{outside.as_posix()}\'\n')
-    assert checks.outside_library(old, profile_entries(old), library) == []

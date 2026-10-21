@@ -13,6 +13,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from roundtable_souls.coop import scaling as coop_scaling
 from roundtable_souls.formats import config_model
+from roundtable_souls.overhauls import basic
 from roundtable_souls.services import mod_configs
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.ui.models import plain
@@ -529,9 +530,7 @@ class ModConfigsAdapter(QObject):
         choices = mod_configs.overhaul_choices(setup)
         values = {
             "natives": choices["natives"],
-            "files": {
-                r["file"]: f"place:{r['target']}" if r["action"] == "place" else r["action"] for r in choices["files"]
-            },
+            "files": {r["file"]: basic.encode_action(r["action"], r["target"]) for r in choices["files"]},
         }
         return {
             "setup": setup,
@@ -566,14 +565,10 @@ class ModConfigsAdapter(QObject):
         elif kind == "init" and native is not None:
             native["initializer"] = value.strip() or None
         elif kind == "file":  # a choice of the Files table; placing keeps the path typed before
-            was = values["files"].get(name, "")
-            values["files"][name] = (
-                f"place:{was[6:]}"
-                if value == "place" and was.startswith("place:")
-                else ("place:" if value == "place" else value)
-            )
+            target = basic.decode_action(values["files"].get(name, ""))[1]
+            values["files"][name] = basic.encode_action(value, target)
         elif kind == "target":
-            values["files"][name] = f"place:{value.strip()}"
+            values["files"][name] = basic.encode_action("place", value.strip())
         ov["dirty"] = True
         self.dirtyChanged.emit()
 
@@ -607,12 +602,18 @@ class ModConfigsAdapter(QObject):
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         self._saved(self._node.key, self.presenter.saved_text(setup["path"].name))
-        self._reapply()
+        self._reapply(config.id)
 
-    def _reapply(self) -> None:
+    def _reapply(self, overhaul_id: str) -> None:
         """The saved setup, installed again in the profiles using it (their entries are the install's, not the file's)."""
         profile = self._profile
-        if profile is None or self.host.busy:
+        if profile is None:
+            return
+        if self.host.busy:
+            self.notifier.toast(
+                tr("Saved, but not applied to the profiles yet: wait for the current job, then save again."),
+                error=True,
+            )
             return
 
         def job(_launch, loc):
@@ -620,7 +621,7 @@ class ModConfigsAdapter(QObject):
 
             run_logging.start_log("launcher: apply the saved overhaul setup", loc.game.key)
             try:
-                mod_service.reapply_overhaul_setup(profile, loc=loc)
+                mod_service.reapply_overhaul_setup(profile, overhaul_id, loc=loc)
             except Exception as e:
                 run_logging.log(f"error: {e}")
                 raise SystemExit(1) from e
@@ -635,7 +636,7 @@ class ModConfigsAdapter(QObject):
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         self._saved(self._node.key if self._node else "overhaul", self.presenter.saved_text(opened.path.name))
-        self._reapply()
+        self._reapply(config.id)
 
     def _start_new(self, config, mod: dict) -> None:
         """Show the proposal for a mod as a new setup (nothing is written until Save is confirmed)."""

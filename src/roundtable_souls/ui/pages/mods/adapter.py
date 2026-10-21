@@ -25,7 +25,7 @@ from roundtable_souls.ui.models import RowsModel, plain
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter
 from roundtable_souls.ui.pages.activity.presenter import Refusal as UndoRefusal
-from roundtable_souls.ui.pages.mods import load_order
+from roundtable_souls.ui.pages.mods import load_order, take_over
 from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
 from roundtable_souls.ui.pages.mods.presenter import ModsPresenter, ModsState, Pick, Refusal
 from roundtable_souls.ui.refresh import Refresher, stat_key
@@ -1047,6 +1047,10 @@ class ModsAdapter(QObject):
             )
         else:
             preview_and_ask([])
+
+    @Slot()
+    def takeOverOverhaul(self) -> None:
+        take_over.start(self)
 
     @Slot()
     def cleanLeftovers(self) -> None:

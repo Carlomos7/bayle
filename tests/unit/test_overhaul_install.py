@@ -565,6 +565,7 @@ def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch)
         "label": "Example Overhaul",
         "short_label": "Example",
         "legacy": False,
+        "takeover": False,
     }
     r = service.preview_overhaul_removal(world.profile, loc=world.loc)
     service.remove_overhaul(r)

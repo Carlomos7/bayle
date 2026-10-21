@@ -391,13 +391,20 @@ def profile_overhaul(profile, *, loc: Locations) -> dict | None:
     from roundtable_souls.mods import overhaul_install
 
     hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
-    if hit is None:
-        return None
+    if hit is None:  # no config for it: a setup some installer made is still the launcher's to take over
+        from roundtable_souls.mods import installer_leftovers
+
+        setup = installer_leftovers.setup_of(Path(profile))
+        if setup is None:
+            return None
+        name = setup.folder.name
+        return {"label": name, "short_label": name, "legacy": True, "takeover": True, "removable": False}
     config = hit[0]
     return {
         "label": config.label,
         "short_label": config.short_label,
         "legacy": overhaul_install.installer_setup(Path(profile), config) is not None,
+        "takeover": overhaul_install.installer_made(Path(profile), loc=loc),
     }
 
 
@@ -435,6 +442,29 @@ def remove_overhaul(preview) -> dict:
     )
     run_logging.log(f"done: removed {out['name']} from {preview.profile.name}")
     return out
+
+
+def take_over_choices(profile, *, loc: Locations) -> list:
+    """For Take over: what the player may also choose (a SideEffect to put back, or the installer's backups folder, a
+    Leftover), to pass to preview_take_over. Nothing is chosen by default."""
+    from roundtable_souls.mods import overhaul_takeover
+
+    return overhaul_takeover.choices(Path(profile), loc=loc)
+
+
+def choice_text(choice) -> str:
+    """One Take over choice in words, for its tick list."""
+    from roundtable_souls.mods import overhaul_install
+
+    return choice.label if hasattr(choice, "label") else overhaul_install.choice_text(choice)
+
+
+def preview_take_over(profile, *, loc: Locations, chosen=(), revert_asked: bool = False):
+    """What Take over does (overhaul_install.RemovePreview: lines, asked, refusals); run it with remove_overhaul, which
+    leaves the same Undo. Raises overhaul_install.OverhaulError when the launcher made the setup or there is none."""
+    from roundtable_souls.mods import overhaul_takeover
+
+    return overhaul_takeover.preview(Path(profile), loc=loc, chosen=list(chosen), revert_asked=revert_asked)
 
 
 def overhaul_leftovers(profile, *, loc: Locations) -> list:

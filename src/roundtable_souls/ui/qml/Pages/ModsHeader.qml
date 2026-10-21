@@ -373,6 +373,16 @@ Item {
                     onTriggered: header.adapter.removeOverhaul()
                 }
                 MenuEntry {
+                    enabled: header.adapter.overhaul.can_take_over === true
+                    height: visible ? implicitHeight : 0
+                    icon_: "Folder"
+                    objectName: "takeOverOverhaul"
+                    text: header.adapter.overhaul.take_over || ""
+                    visible: header.adapter.overhaul.visible === true
+
+                    onTriggered: header.adapter.takeOverOverhaul()
+                }
+                MenuEntry {
                     enabled: header.adapter.overhaul.can_clean === true
                     height: visible ? implicitHeight : 0
                     icon_: "Broom"

@@ -153,6 +153,8 @@ class OverhaulMenu:
     can_remove: bool
     clean: str
     can_clean: bool
+    take_over: str = ""
+    can_take_over: bool = False
 
 
 # ----------------------------------------------------------------------------- the presenter
@@ -1048,9 +1050,11 @@ class ModsPresenter:
             visible=on,
             install=tr("Install an overhaul with the launcher (preview)..."),
             remove=tr("Remove {label}...").format(label=has["label"]) if has else tr("Remove overhaul..."),
-            can_remove=has is not None,
+            can_remove=has is not None and has.get("removable", True),
             clean=tr("Clean up installer leftovers..."),
             can_clean=leftovers,
+            take_over=tr("Take over {label}...").format(label=has["label"]) if has else tr("Take over overhaul..."),
+            can_take_over=bool(has and has.get("takeover")),
         )
 
     def overhaul_folder_title(self) -> str:

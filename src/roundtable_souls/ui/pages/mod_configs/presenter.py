@@ -329,6 +329,8 @@ class ModConfigsPresenter:
                         ],
                     }
                 )
+        if basic_level and config.basic.texts:
+            sections.append({"title": tr("Texts"), "rows": [self._texts_row(t) for t in config.basic.texts]})
         if verified:
             note = tr(
                 "This profile comes with the launcher and is verified. Use Remove {label} on the Mods page to take it out."
@@ -350,6 +352,21 @@ class ModConfigsPresenter:
             "isNew": new,
             "editable": not verified,
         }
+
+    def _texts_row(self, t) -> dict[str, Any]:
+        """A read-only summary of one [[basic.texts]] entry: where the strings go and which file each language uses."""
+        per = [(tr("other languages") if k == "*" else k) + ": " + v for k, v in t.texts.items()]
+        row = self._ov_row(
+            "texts",
+            "texts:" + t.file,
+            tr("Texts in {file}, table {table}").format(file=t.file, table=t.table),
+            "readonly",
+            "",
+        )
+        row["blurb"] = "; ".join(per)
+        if "*" not in t.texts:
+            row["blurb"] += ". " + tr("A language with no file of its own is left as it is.")
+        return row
 
     def file_rows(self, r: dict, action: str) -> list[dict[str, Any]]:
         """The Files table's rows for one file: its choice, and for a placed file the game path it goes to."""

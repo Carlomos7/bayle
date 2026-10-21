@@ -467,7 +467,11 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     ident = overhaul_id or naming.mod_id(name)
     game = loc.game.key
     return basic.make(
-        id=ident, label=name, game=game, basic=basic.propose(Path(folder), game=game), folder=Path(folder)
+        id=ident,
+        label=name,
+        game=game,
+        basic=basic.propose(Path(folder), game=game, game_dir=loc.game_dir()),
+        folder=Path(folder),
     )
 
 

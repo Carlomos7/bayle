@@ -335,7 +335,14 @@ def _move_root(
             _drop(stage, new if made else None)
             raise LayoutError(str(e)) from e
         notes = _finish(op)
-    return {"operation": str(op.dir), "from": str(old), "to": str(new), "copied": copy, "notes": notes}
+    return {
+        "operation": str(op.dir),
+        "from": str(old),
+        "to": str(new),
+        "copied": copy,
+        "notes": notes,
+        "undo": {"type": "layout-relocate", "name": Path(new).name, "operation": str(op.dir)},
+    }
 
 
 def _drop(stage: Path | None, made_root: Path | None) -> None:
@@ -568,7 +575,12 @@ def _rename_run(loc: Locations, games: list[dict], set_from: dict, set_to: dict)
         except build.BuildError as e:
             raise LayoutError(str(e)) from e
         notes = _finish(op)
-    return {"operation": str(op.dir), "notes": notes, "folders": len(inner) + len(outer)}
+    return {
+        "operation": str(op.dir),
+        "notes": notes,
+        "folders": len(inner) + len(outer),
+        "undo": {"type": "layout-rename", "name": "the folders", "operation": str(op.dir)},
+    }
 
 
 # ----------------------------------------------------------------------------- taking it back

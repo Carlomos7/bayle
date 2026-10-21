@@ -43,6 +43,8 @@ LABEL = {
     "profile-rename": "Undo rename",
     "profile-duplicate": "Undo copy",
     "profile-folders": "Undo move",
+    "layout-relocate": "Undo move",
+    "layout-rename": "Undo rename",
     "profile-move-in": "Undo move",
     "folder-rename": "Undo rename",
     "folder-split": "Undo split",
@@ -123,6 +125,8 @@ def available(undo: dict | None) -> bool:
         "folder-rename",
         "folder-split",
         "dll-folders",
+        "layout-relocate",
+        "layout-rename",
         *LIBRARY,
     ):
         from roundtable_souls.merging import build
@@ -231,6 +235,15 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         try:
             return migrate.undo_migration(Path(undo["operation"]), log)
         except migrate.MigrateError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in ("layout-relocate", "layout-rename"):
+        from roundtable_souls.mods import layout
+
+        if not available(undo):
+            raise UndoError("This change to the profiles folders can no longer be taken back.")
+        try:
+            return layout.undo_layout(Path(undo["operation"]), loc)
+        except layout.LayoutError as e:
             raise UndoError(str(e)) from e
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 

@@ -133,6 +133,8 @@ class UndoPlan:
                 if u.get("type") in ("folder-rename", "folder-split")
                 else f"launcher: undo the DLL folders in {name}"
                 if u.get("type") == "dll-folders"
+                else f"launcher: undo the change to the profiles folders ({name})"
+                if u.get("type") in ("layout-relocate", "layout-rename")
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -503,6 +505,23 @@ class ActivityPresenter:
                 tr("If the profile changed since, it keeps its changes; nothing is deleted."),
                 tr("Undo rename"),
                 tr("Undoing the rename..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") in ("layout-relocate", "layout-rename"):
+            moved = u.get("type") == "layout-relocate"
+            name = u.get("name") or tr("the folders")
+            return UndoPlan(
+                tr("Undo the move of the profiles folders") if moved else tr("Undo the rename of the folders"),
+                (
+                    tr("The profiles and their mods go back to the old Profiles folder")
+                    if moved
+                    else tr("The folders go back to their old names, and the profiles' paths with them"),
+                ),
+                tr("If something changed since, nothing is moved and you are told why."),
+                tr("Undo move") if moved else tr("Undo rename"),
+                tr("Undoing the move...") if moved else tr("Undoing the rename..."),
                 u,
                 job_id,
                 name,

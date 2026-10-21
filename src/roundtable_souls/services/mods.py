@@ -279,9 +279,10 @@ def migrate_profile_folders(loc: Locations) -> dict | None:
     """Move the profiles of the shared library (rs-<game>, 3.21 to 4.0.x) into folders of their own, once (mods.migrate):
     a logged job with an undo record (Undo move). None when there is nothing to move; raises mods.migrate.MigrateError
     (nothing changed) when it can't be done now. Call it at start, before the game's profiles are listed."""
-    from roundtable_souls.mods import migrate, move_in
+    from roundtable_souls.mods import layout, migrate, move_in
 
     move_in.recover(loc)  # a move into Bayle's folder that was interrupted is undone first
+    layout.finish_pending()  # likewise a move of the Profiles folder or a rename of the layout's folders
     if loc.me3_profiles_dir() is None or not migrate.old_profiles(loc.me3_profiles_dir(), loc.game.key):
         return None
     run_logging.start_log("launcher: move profiles into their own folders", loc.game.key)

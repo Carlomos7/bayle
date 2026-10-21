@@ -255,3 +255,26 @@ def test_rename_refusals(world):
     world.loc.running = False
     p = layout.preview_rename(world.loc, natives="dlls")
     assert p["refusal"] is None and p["folders"] == 1 and p["profiles"] == 2
+
+
+def test_the_activity_undo_records_take_a_relocation_and_a_rename_back(world):
+    from roundtable_souls.mods import undo
+
+    before = tree(world.root)
+    r = layout.rename_layout(world.loc, shared="common")
+    assert r["undo"]["type"] == "layout-rename" and undo.available(r["undo"])
+    assert undo.label(r["undo"]) == "Undo rename"
+    undo.run(r["undo"], lambda s: None, loc=world.loc)
+    assert tree(world.root) == before and not undo.available(r["undo"])
+    new = world.tmp / "elsewhere"
+    m = layout.relocate(world.loc, new)
+    assert m["undo"]["type"] == "layout-relocate" and undo.available(m["undo"])
+    undo.run(m["undo"], lambda s: None, loc=world.loc)
+    assert tree(world.root) == before
+
+
+def test_finish_pending_also_blocks_on_a_journal_in_a_game_folder(world):
+    op = B.Operation(world.g, "something unfinished")
+    assert "not finished" in (layout._unfinished(world.root, [world.g]) or "")
+    op.discard()
+    assert layout._unfinished(world.root, [world.g]) is None

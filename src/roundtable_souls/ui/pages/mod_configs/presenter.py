@@ -207,8 +207,7 @@ class ModConfigsPresenter:
             "readonly": tr("Only Edit as text can change this one"),
             "unsavedTitle": tr("Unsaved changes"),
             "unsavedBody": tr("This file has changes that are not saved. Save them, or discard them?"),
-            "markdownEdit": tr("Edit"),
-            "markdownView": tr("Preview"),
+            "noForm": tr("This file can't be shown as settings, so it is open here to edit directly."),
             "attach": tr("Attach a file..."),
             "detach": tr("Detach"),
             "password": tr("Password"),
@@ -229,9 +228,10 @@ class ModConfigsPresenter:
             "paste": tr("Paste settings"),
             "load": tr("Load settings..."),
             "saveAs": tr("Save settings..."),
-            "addOverhaul": tr("Add overhaul setup..."),
-            "setUpAsOverhaul": tr("Add overhaul setup..."),
-            "turnOff": tr("Turn off"),
+            "more": tr("More"),
+            "setUpOverhaul": tr("Set up as an overhaul..."),
+            "turnOffOverhaul": tr("Turn off overhaul setup..."),
+            "setUpModLink": tr("Set up a mod as an overhaul..."),
         }
 
     # ---- the tree
@@ -254,6 +254,7 @@ class ModConfigsPresenter:
             "name": name,
             "sub": sub,
             "muted": not node.loaded or not node.enabled,
+            "action": self.overhaul_action(node),
             "files": [
                 {"path": str(f.path), "name": f.path.name, "kind": f.kind, "attached": f.how == "attached"}
                 for f in node.files
@@ -267,6 +268,7 @@ class ModConfigsPresenter:
             "key": node.key,
             "kind": node.kind,
             "muted": False,
+            "action": self.overhaul_action(node),
             "name": tr("Overhaul setup") + ": " + node.name,
             "sub": self.overhaul_status(bool(setup.get("verified"))),
             "files": [
@@ -279,6 +281,14 @@ class ModConfigsPresenter:
                 for f in node.files
             ],
         }
+
+    @staticmethod
+    def overhaul_action(node: mod_configs.ModNode) -> str:
+        """The one overhaul entry a mod's menu offers: setUp (a DLL or package), turnOff (its own setup, unless the
+        launcher ships it verified), or none."""
+        if node.kind in ("native", "package"):
+            return "setUp"
+        return "turnOff" if node.kind == mod_configs.OVERHAUL and not (node.setup or {}).get("verified") else ""
 
     @staticmethod
     def overhaul_status(verified: bool) -> str:
@@ -354,7 +364,6 @@ class ModConfigsPresenter:
             "stepsTitle": tr("What it does"),
             "isNew": new,
             "editable": not verified,
-            "canTurnOff": not verified and not new,
         }
 
     @staticmethod

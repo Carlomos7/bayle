@@ -24,7 +24,7 @@ ApplicationWindow {
     height: 760
     minimumHeight: 480
     minimumWidth: 740
-    title: win.adapter ? win.adapter.title + "  ·  Bayle Mod Manager" : "Bayle Mod Manager"
+    title: win.adapter ? win.adapter.title + "  ·  Bayle" : "Bayle"
     width: 1100
 
     Component.onCompleted: {

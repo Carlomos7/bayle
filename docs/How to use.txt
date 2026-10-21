@@ -1,5 +1,5 @@
-Bayle Mod Manager
-=================
+Bayle
+=====
 
 A launcher for modded Elden Ring and Nightreign: it starts the game through
 me3, keeps your Seamless Co-op settings in one place, manages your mods, and

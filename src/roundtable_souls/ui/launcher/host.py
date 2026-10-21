@@ -38,6 +38,7 @@ from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.text import tr
 from roundtable_souls.updates import apply as updates
 from roundtable_souls.updates import inno as migration
+from roundtable_souls.updates import retitle
 
 # A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.
 PROGRESS_LINES = (
@@ -771,6 +772,10 @@ class ShellHost(QObject):
                 updates.clean_downloads(keep=pending)
             except Exception:
                 pass
+            try:
+                retitle.run()
+            except Exception:
+                pass  # shortcut names are cosmetic: never hold up the start
             try:
                 return migration.migrate_from_inno() or {}
             except Exception as e:

@@ -68,7 +68,7 @@ def report_exception(exc_type, exc, tb, where="launcher"):
             pass
 
 
-TITLE = "Bayle Mod Manager"
+TITLE = "Bayle"
 VERSION = __version__
 EXE_NAME = "RoundtableSouls"
 NOTIFY = None  # the window sets this to a function (title, message) that shows an error to the user

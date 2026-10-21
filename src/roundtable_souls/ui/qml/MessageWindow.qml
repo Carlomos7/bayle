@@ -32,7 +32,7 @@ ApplicationWindow {
     maximumWidth: width
     minimumHeight: height
     minimumWidth: width
-    title: "Bayle Mod Manager"
+    title: "Bayle"
     width: 460
 
     Component.onCompleted: AppState.setThemeMode("dark")

@@ -92,7 +92,7 @@ def test_logo_follows_theme_unless_locked():
     assert g.logo_kind(True, "light") == "light" and g.logo_kind(False, "dark") == "dark"
     assert g.logo_path(True, "auto").name == "logo-dark.png"
     assert g.logo_path(False, "auto").name == "logo-light.png"
-    assert g.TITLE == "Bayle Mod Manager" and g.EXE_NAME == "RoundtableSouls"
+    assert g.TITLE == "Bayle" and g.EXE_NAME == "RoundtableSouls"
 
 
 def test_save_findings_on_unreadable(tmp_path):

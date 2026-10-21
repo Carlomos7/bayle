@@ -88,7 +88,7 @@ def _known_folder(name: str) -> Path:
 
 
 def shortcut_paths() -> dict[str, Path]:
-    title = identity.get().inno_title
+    title = identity.get().title  # the old uninstaller removes "<inno_title>.lnk"; the new shortcut has the new name
     return {
         "start_menu": _known_folder("Programs") / f"{title}.lnk",
         "desktop": _known_folder("Desktop") / f"{title}.lnk",
@@ -237,7 +237,7 @@ def point_play_shortcuts_here(
     that program was, now starts this copy."""
     target = target or launch_target()
     name = identity.get().exe_name
-    names = (f"{name}.exe", name, identity.get().stub_name, target.name)
+    names = (f"{name}.exe", name, identity.get().stub_name, identity.get().previous_stub_name, target.name)
     return steam_shortcuts.retarget(
         steam_root(),
         lambda s: "--play" in s.options and steam_shortcuts.is_launcher(s.exe, names),
@@ -251,7 +251,7 @@ def play_shortcuts_elsewhere(target: Path | None = None) -> list[steam_shortcuts
     """Steam shortcuts with --play that start a Bayle program other than this copy."""
     target = target or launch_target()
     name = identity.get().exe_name
-    names = (f"{name}.exe", name, identity.get().stub_name, target.name)
+    names = (f"{name}.exe", name, identity.get().stub_name, identity.get().previous_stub_name, target.name)
     return [
         s for s in steam_shortcuts.launcher_shortcuts(steam_root(), names)
         if "--play" in s.options and not steam_shortcuts._same_path(s.exe, str(target))

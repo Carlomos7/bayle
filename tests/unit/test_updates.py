@@ -693,9 +693,9 @@ def test_shortcuts_start_the_stub_not_the_replaceable_program(tmp_path, monkeypa
     root = tmp_path / "root"
     (root / "current").mkdir(parents=True)
     (root / "Update.exe").write_bytes(b"x")
-    (root / "Roundtable Souls.exe").write_bytes(b"stub")
+    (root / "Bayle.exe").write_bytes(b"stub")
     _frozen_at(monkeypatch, root / "current" / "RoundtableSouls.exe")
-    assert settings.launch_target() == root / "Roundtable Souls.exe"
+    assert settings.launch_target() == root / "Bayle.exe"
 
 
 def test_apply_refuses_when_the_build_is_not_this_installs(tmp_path, monkeypatch):

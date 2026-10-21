@@ -94,9 +94,7 @@ class InstallAdapter(QObject):
             self.notifier.toast(tr("Pick a profile first."), error=True)
             return None
         if self.host.busy:
-            self.notifier.toast(
-                tr("Wait for the current job. The profile is not changed while something runs."), error=True
-            )
+            self.notifier.toast(tr("Wait for the current job to finish."), error=True)
             return None
         return Path(profile)
 

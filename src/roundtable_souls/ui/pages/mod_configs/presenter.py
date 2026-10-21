@@ -166,19 +166,13 @@ class ModConfigsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
     open_window_text = property(lambda self: tr("Open new Mod Configs window"))
-    open_window_tip = property(
-        lambda self: tr(
-            "The new Mod Configs page, in a window of its own: every mod's settings files, Seamless Co-op's among them."
-        )
-    )
+    open_window_tip = property(lambda self: tr("A preview of the new Mod Configs page, in its own window."))
 
     def words(self) -> dict[str, str]:
         return {
             "title": tr("Mod Configs"),
             "noProfile": tr("Pick a profile first."),
-            "noMods": tr(
-                "No mod in this profile has a settings file. A DLL's file icon on the Mods page attaches one."
-            ),
+            "noMods": tr("No mod in this profile has a settings file."),
             "pickFile": tr("Pick a file to edit it."),
             "editAsText": tr("Edit as text"),
             "save": tr("Save"),
@@ -188,7 +182,7 @@ class ModConfigsPresenter:
             "resetDisk": tr("Reset to the file's value"),
             "changed": tr("Changed"),
             "diskChanged": tr(
-                "This file was changed outside the launcher. Reload to see its current settings; your unsaved edits are dropped."
+                "This file changed outside the launcher. Reload to see its current settings. Unsaved edits are dropped."
             ),
             "reload": tr("Reload"),
             "noMatch": tr("No setting matches"),
@@ -198,7 +192,7 @@ class ModConfigsPresenter:
             "emptyPickTitle": tr("Pick a file to edit"),
             "emptyPickBody": tr("Its settings show here as a form."),
             "emptyNoFilesTitle": tr("No settings files yet"),
-            "emptyNoFilesBody": tr("A DLL mod's settings file shows here once you attach it on the Mods page."),
+            "emptyNoFilesBody": tr("Attach a settings file to a DLL mod on the Mods page and it shows here."),
             "goToMods": tr("Go to Mods"),
             "back": tr("Back"),
             "cancel": tr("Cancel"),
@@ -221,8 +215,8 @@ class ModConfigsPresenter:
             "otherSettings": tr("Other settings"),
             "share": tr("Share with a friend"),
             "shareBody": tr(
-                "Copy settings puts every setting on the clipboard as text, the password too: send it to the friends "
-                "you play with. Paste settings shows what their text would change before anything is written."
+                "Copy settings puts every setting, the password too, on the clipboard as text. Paste settings shows "
+                "what a friend's text would change before anything is written."
             ),
             "copy": tr("Copy settings"),
             "paste": tr("Paste settings"),
@@ -346,7 +340,7 @@ class ModConfigsPresenter:
                 )
         if verified:
             note = tr(
-                "This profile comes with the launcher and is verified. To take it out, use Remove {label} on the Mods page."
+                "This profile comes with the launcher and is verified. Use Remove {label} on the Mods page to take it out."
             ).format(label=config.short_label)
         elif not basic_level:
             note = tr("This profile's steps were edited by hand. They are shown below; Edit as text changes them.")
@@ -393,7 +387,7 @@ class ModConfigsPresenter:
             title=tr("Turn off the overhaul setup of {label}").format(label=label),
             changes=tuple(preview.lines),
             apply=tr("Turn off"),
-            safety=tr("It's one step, and Undo turn off in Activity puts it all back."),
+            safety=tr("Undo in Activity puts it all back."),
         )
 
     def install_setup(self, preview) -> Confirm | Refusal:
@@ -404,7 +398,7 @@ class ModConfigsPresenter:
             title=tr("Set up {label} as an overhaul").format(label=preview.label),
             changes=(*preview.lines, *preview.notes),
             apply=tr("Set up"),
-            safety=tr("It's one step: if anything fails, nothing changes, and you can undo it from Activity."),
+            safety=tr("If anything fails, nothing changes. Undo in Activity puts it back."),
         )
 
     def pick_overhaul_mod(self) -> Pick:
@@ -515,7 +509,7 @@ class ModConfigsPresenter:
         return Refusal(tr("Password needed"), tr("The Seamless Co-op password cannot be empty."))
 
     def copied(self) -> str:
-        return tr("Settings copied: send them to the friends you play with.")
+        return tr("Settings copied.")
 
     def not_settings(self, why: str) -> Refusal:
         return Refusal(
@@ -533,7 +527,7 @@ class ModConfigsPresenter:
             changes=tuple(f"{label_of(k)}:  {old}  →  {new}" for k, (old, new) in changes.items()),
             apply=tr("Apply"),
             detail=tr("Ignored (not in your file): {keys}").format(keys=", ".join(unknown)) if unknown else "",
-            safety=tr("They apply the next time the game starts. The file keeps a .bak of the version before."),
+            safety=tr("They apply the next time the game starts. A backup of the file is kept."),
         )
 
     def unreadable(self, name: str, why: str) -> Refusal:

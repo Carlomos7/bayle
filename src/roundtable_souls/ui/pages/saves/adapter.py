@@ -171,7 +171,7 @@ class SavesAdapter(QObject):
             self.closeSheet()
 
     def _transfer_hint(self) -> None:
-        self.notifier.toast(tr("Open a character's menu and choose Copy character to..."))
+        self.notifier.toast(tr("Open a character's menu and pick Copy character to..."))
 
     def _open_saves_folder(self) -> None:
         if self._infos:

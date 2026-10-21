@@ -614,9 +614,9 @@ def test_the_switch_and_button_words_come_from_the_configs(world):
     assert service.installable_overhauls("nightreign") == []
     assert service.overhaul_library_folder("eldenring") == "rs-eldenring"
     text = service.overhaul_switch_text("eldenring")
-    assert "only the overhauls the launcher has an install description for (the overhaul LITE 0.1.33-rc3)" in text
+    assert "Covers only the overhaul LITE 0.1.33-rc3" in text
     assert "in rs-eldenring, in me3's profiles folder" in text
-    assert "install description for: the overhaul LITE 0.1.33-rc3." in service.overhaul_button_tip("eldenring")
+    assert "Covers only the overhaul LITE 0.1.33-rc3." in service.overhaul_button_tip("eldenring")
 
 
 # ----------------------------------------------------------------------------- the Overhaul setup form (S3g)

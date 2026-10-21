@@ -128,7 +128,7 @@ def test_the_status_line_names_dependencies_and_an_initializer_and_a_problem_win
     overhaul = rows(ModsPresenter().page(facts(), scan()))[2]
     assert overhaul.status == "after 4 others"
     empty = rows(ModsPresenter().page(facts(empty={0: "empty"}, outside=(), shared={}), None))[0]
-    assert empty.status.startswith("Empty for now")
+    assert empty.status.startswith("Empty.")
 
 
 def test_the_health_pill():
@@ -183,7 +183,7 @@ def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
     )
     assert [n.key for n in p.notices(stale, tool, (), "flora")] == ["online", "stale"]  # two at most
     assert state.parameters.fingerprint == "Parameters fingerprint: 1A2B3C4D (flora's regulation.bin)"
-    assert state.parameters.fingerprint_note.startswith("Co-op partners should use the same parameters.")
+    assert state.parameters.fingerprint_note.startswith("Co-op partners need the same parameters.")
     own = p.parameters(stale, False, Fingerprint("00FF00FF", 9, ""))
     assert own.fingerprint == "Parameters fingerprint: 00FF00FF (the game's own regulation.bin)"
     assert p.parameters(stale, False).fingerprint == "" and p.page(facts(), None).notices == ()
@@ -197,7 +197,7 @@ def test_the_overhaul_words():
     found = SimpleNamespace(ok=True, update=False, label="Toy", lines=["a line"], notes=["a note"], refusals=[])
     install = p.overhaul_install(PROFILE, found)
     assert install.title == "Install Toy in main.me3" and install.changes == ("a line", "a note")
-    assert install.apply == "Install" and "Nothing of the overhaul's own installer runs." in install.safety
+    assert install.apply == "Install" and "installer does not run." in install.safety
     assert p.overhaul_installing(found) == "Installing Toy..."
     update = p.overhaul_install(PROFILE, SimpleNamespace(**{**found.__dict__, "update": True}))
     assert update.title == "Update Toy in main.me3" and update.apply == "Update"
@@ -247,7 +247,7 @@ def test_the_confirmations_words():
     removal = p.removal(PROFILE, plan)
     assert removal.title == "Remove flora from the profile" and removal.option == ""
     assert removal.changes[1] == "The folder flora stays: birds still load from it"
-    assert removal.changes[2].startswith("Its regulation.bin is still inside the merged mods")
+    assert removal.changes[2].startswith("Its regulation.bin is still in the merged mods")
     alone = p.removal(PROFILE, Removal("native", "x.dll", Path("C:/mods/natives/x"), (), (), True))
     assert alone.option == "Also move the folder x to the Recycle Bin"
     trim = p.trim([{"folder": Path("b4"), "size": 2 * 1048576}])
@@ -255,7 +255,7 @@ def test_the_confirmations_words():
     tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"}, describe=lambda: "python refresh.py")
     assert p.tool(tool).detail == "It comes with the overhaul and runs:\n\npython refresh.py"
     managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "the overhaul")
-    assert managed is not None and managed.body == "the overhaul is managed by its installer; delete it there."
+    assert managed is not None and managed.body == "the overhaul is managed by its installer. Delete it there."
     assert p.delete_refusal(None) is None
     assert len(p.delete_profile(PROFILE).changes) == 2
     assert p.delete_profile(PROFILE, "the overhaul").changes[-1] == (

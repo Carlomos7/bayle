@@ -133,59 +133,56 @@ class SettingsAdapter(QObject):
         lambda self: {
             "locations": tr("Locations"),
             "launch": tr("Launch"),
-            "launchHint": tr(
-                "What Play does around the game. The game never starts with merged mods that are out of date without "
-                "asking you first; the steps below can be turned off, the launch itself always runs."
-            ),
+            "launchHint": tr("Steps that run around Launch. Each can be turned off; Launch itself always runs."),
             "offline": sp.OFFLINE_TITLE,
             "offlineBlurb": sp.OFFLINE_BLURB,
             "offlineHelp": sp.OFFLINE_HELP,
             "steam": tr("Steam shortcut"),
-            "steamHelp": tr("Launch from Steam without this window; one shortcut per game."),
+            "steamHelp": tr("Launches from Steam without this window. One shortcut per game."),
             "copyTarget": tr("Copy target"),
             "copyOptions": tr("Copy launch options"),
             "pointSteam": tr("Point Steam shortcuts here"),
             "pointSteamTip": tr(
-                "Steam shortcuts with --play that start a Roundtable Souls program in another folder (an older "
-                "install) start this copy instead. Steam must be closed; a backup of each changed file is kept."
+                "Makes Steam shortcuts that start an older install start this copy instead. Close Steam first. Each "
+                "changed file is backed up."
             ),
             "leftover": tr("Leftover processes"),
-            "leftoverHelp": tr("A leftover game process can make Discord think the game is still open."),
+            "leftoverHelp": tr("Hidden copies of the game left running after it closes."),
             "clearNow": tr("Clear now"),
             "backups": tr("Backups"),
             "backupsLocation": tr("Location"),
-            "backupsLocationHelp": tr("Inside the launcher's data folder. Moving it is not offered yet."),
+            "backupsLocationHelp": tr("Inside the launcher's data folder."),
             "backupsKeep": tr("How many to keep"),
             "backupsKeepHelp": tr(
-                "Per save file. Everything from the last 7 days is kept too, and so is any backup you marked Keep."
+                "Per save file. Backups from the last 7 days and any you marked Keep are kept as well."
             ),
             "appearance": tr("Appearance"),
             "theme": tr("Theme"),
-            "themeHelp": tr("System follows Windows. Tarnished is a dark theme in the olive of the Lands Between."),
+            "themeHelp": tr("System follows Windows. Tarnished is a dark olive theme."),
             "effects": tr("Effects"),
-            "effectsHelp": tr("Off: no blur, no grain; blooms stay. Reduced: no blur, lighter grain."),
+            "effectsHelp": tr("Off has no blur or grain. Reduced has no blur and lighter grain."),
             "grain": tr("Grain"),
-            "grainHelp": tr("Fine texture on the page backdrop and glass panels. Subtle is hardly seen; Film is."),
+            "grainHelp": tr("Fine texture behind pages and panels."),
             "logo": tr("Logo"),
-            "logoHelp": tr("Follows the theme."),
+            "logoHelp": "",
             "updates": tr("Updates"),
             "channel": tr("Update channel"),
             "channelHelp": tr(
-                "Stable offers releases. Beta also offers pre-releases, which get less testing. Going back to Stable "
-                "never installs an older version."
+                "Beta also offers pre-releases, which get less testing. Going back to Stable never installs an older "
+                "version."
             ),
             "check": tr("Check for updates"),
             "releases": tr("Releases"),
-            "releasesTip": tr("Every version of this launcher, with notes and downloads."),
+            "releasesTip": tr("Every version, with notes and downloads."),
             "logs": tr("Logs"),
             "logsFolder": tr("Logs folder"),
             "openFolder": tr("Open folder"),
             "saveLogs": tr("Save logs for support"),
-            "saveLogsHelp": tr("A zip of the recent logs with user names and Steam IDs masked."),
+            "saveLogsHelp": tr("A zip of recent logs with user names and Steam IDs masked."),
             "save": tr("Save..."),
             "settingsFolder": tr("Settings folder"),
             "logLevel": tr("Log level"),
-            "logLevelHelp": tr("Verbose also writes the fine detail to launcher.log. It applies from the next start."),
+            "logLevelHelp": tr("Verbose adds fine detail to launcher.log."),
             "about": tr("About"),
             "aboutHelp": tr("GPL-3.0. Built on PySide6 and me3."),
             "licence": tr("Licence"),

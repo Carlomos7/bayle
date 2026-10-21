@@ -22,12 +22,7 @@ class ProfileTransferPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
     open_window_text = property(lambda self: tr("Export / Import profile (new window)"))
-    open_window_tip = property(
-        lambda self: tr(
-            "The new Export / Import profile page, in a window of its own: share a profile with a friend, or bring "
-            "one in."
-        )
-    )
+    open_window_tip = property(lambda self: tr("A preview of the new Export / Import profile page, in its own window."))
 
     def words(self) -> dict[str, str]:
         return {
@@ -46,7 +41,7 @@ class ProfileTransferPresenter:
             "version": tr("Version (optional)"),
             "author": tr("Author"),
             "mods": tr("Mods in the export"),
-            "outside": tr("Outside your library: tick it to include it anyway."),
+            "outside": tr("Outside your Library: tick it to include it anyway."),
             "readme": tr("README"),
             "readmePreview": tr("Preview"),
             "readmeEdit": tr("Edit"),
@@ -81,7 +76,7 @@ class ProfileTransferPresenter:
             "whichProfile": tr("Which profile to import"),
             "bundledTitle": tr("This download has a profile"),
             "bundledAbout": tr(
-                "Nothing in the download runs. Only the mods the profile points at are copied into your library."
+                "Nothing in the download runs. Only the mods the profile points at are copied into your Library."
             ),
             "newFile": tr("New file"),
             "openZipFolder": tr("Open the zip's folder"),
@@ -110,21 +105,8 @@ class ProfileTransferPresenter:
         return tr("{m} min {s} s").format(m=m, s=s) if m < 60 else tr("{h} h {m} min").format(h=m // 60, m=m % 60)
 
     def summary(self, full: bool, n: int, size: int, configs: bool, save: bool, password: bool) -> str:
-        yes, no = tr("yes"), tr("no")
-        pw = yes if password and configs else no
-        if not full:
-            return tr("Saves {mods}, {c}, {p}.").format(
-                mods=plural("{n} mod", "{n} mods", n).format(n=n),
-                c=tr("your mods' settings files") if configs else tr("no settings files"),
-                p=tr("with the password") if pw == yes else tr("no password"),
-            )
-        return tr("The zip will hold {mods}, about {size}. Settings files: {c}. Save: {s}. Password: {p}.").format(
-            mods=plural("{n} mod", "{n} mods", n).format(n=n),
-            size=size_text(size),
-            c=yes if configs else no,
-            s=yes if save else no,
-            p=pw,
-        )
+        """Nothing: the Include boxes, the mod total and the Full export label already say what the file holds."""
+        return ""
 
     def reason(self, name_ok: bool, folder_ok: bool, mods_ok: bool, busy: str) -> str:
         """Why Export is off, in one line ("" when it is on)."""
@@ -138,9 +120,7 @@ class ProfileTransferPresenter:
 
     def big_warning(self, total: int, biggest: list[tuple[str, int]]) -> str:
         names = ", ".join(f"{n} ({size_text(sz)})" for n, sz in biggest)
-        return tr(
-            "This export is about {size}. The biggest: {names}. Untick mods your friend already has to make it smaller."
-        ).format(size=size_text(total), names=names)
+        return tr("The biggest: {names}. Untick mods your friend already has to make it smaller.").format(names=names)
 
     def confirm_big(self, total: int) -> tuple[str, list[str]]:
         t = self.seconds(total / (pt.EXPORT_MBPS * 1024**2))
@@ -174,7 +154,7 @@ class ProfileTransferPresenter:
         return plural("{n} mod · {size}", "{n} mods · {size}", picked).format(n=picked, size=size_text(size))
 
     def mod_note(self, item: pt.Item) -> str:
-        return "" if item.inside else tr("Outside your library")
+        return "" if item.inside else tr("Outside your Library")
 
     def exported(self, path: Path) -> str:
         return tr("Exported {name}").format(name=path.name)
@@ -256,7 +236,7 @@ class ProfileTransferPresenter:
         return tr("Can't use that file. {why}").format(why=why)
 
     def imported(self, name: str) -> str:
-        return tr("Imported into {name}. Undo is on the Activity page.").format(name=name)
+        return tr("Imported into {name}. Undo it from Activity.").format(name=name)
 
     def import_failed(self, why: str) -> str:
         return tr("Not imported. {why}").format(why=why)

@@ -353,7 +353,7 @@ def test_create_and_delete_profile(tmp_path):
     assert p == home / "My-Setup.me3" and (home / "mod").is_dir() and (home / "natives").is_dir()
     with pytest.raises(M.ModError):
         M.create_profile(tmp_path / "profiles", "My Setup")
-    src = _profile(tmp_path / "src" / "src")
+    src = _profile(tmp_path / "src" / "my")
     (src.parent / "mod" / "flora").mkdir(parents=True, exist_ok=True)
     (src.parent / "mod" / "flora" / "f.dcx").write_bytes(b"f")
     c = M.create_profile(tmp_path / "profiles", "copy.me3", copy_from=src)

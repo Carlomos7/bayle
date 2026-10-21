@@ -220,7 +220,7 @@ def test_launch_profile_from_installation_json(tmp_path):
     )
     s = g.launch_profile_from_path(str(inst), er())
     assert s and s.kind == "manifest" and s.exe.endswith("eldenring.exe")
-    assert any("missing" in x for x in s.problems())  # nothing exists in tmp, so it must say so
+    assert any("missing" in str(x) for x in s.problems())  # nothing exists in tmp, so it must say so
     assert g.launch_profile_from_path(str(tmp_path / "nothing.txt"), er()) is None
 
 
@@ -336,4 +336,4 @@ def test_profile_warnings_name_a_missing_mod_folder_but_do_not_block(tmp_path):
         encoding="utf-8",
     )
     s = g.launch_profile_from_path(str(prof), er())
-    assert s and s.warnings() == ["flora folder is missing"]
+    assert s and [str(w) for w in s.warnings()] == ["flora folder is missing"]

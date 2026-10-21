@@ -92,7 +92,7 @@ class Services:
     job_play_vanilla: Callable[..., None] = core.job_play_vanilla
 
 
-def gate(state: LauncherState, mode: str, problems: tuple[str, ...] | None = None) -> str:
+def gate(state: LauncherState, mode: str, problems: tuple[core.Problem, ...] | None = None) -> str:
     """Why Launch cannot start now, or "" when it can: a job or the game running, an unsupported or missing game,
     no profile, a profile with problems (an incomplete managed setup, me3 missing). The pill shows the same reasons."""
     if state.busy:
@@ -153,7 +153,7 @@ class LaunchFlow:
         self.ports.background(check, lambda problems: self._gated(run, mode, problems))
         return not run.refused
 
-    def _gated(self, run: _Run, mode: str, problems: tuple[str, ...]) -> None:
+    def _gated(self, run: _Run, mode: str, problems: tuple[core.Problem, ...]) -> None:
         """The fresh check is back: the full gate on it, then the flow."""
         why = gate(self.state, mode, problems)
         if why:
@@ -513,6 +513,6 @@ class LaunchFlow:
 
     # ---------------------------------------------------------------- helpers
     def _locations(self):
-        """The game's locations with the save files the setup in use names."""
+        """The game's locations with the save files the profile in use names."""
         launch_profile = self.state.launch_profile
         return launch_profile.locations() if launch_profile is not None else self.state.locations

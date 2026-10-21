@@ -9,6 +9,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 - Mods: Remove no longer asks when Undo brings everything back. The mod goes out of the profile (its folder to the Recycle Bin) and a toast offers Undo, which puts back the entry where it was, with any later edit to the profile kept, and the folder. Undo says why when the folder is no longer in the Recycle Bin or the mod is already back. Remove still asks when another entry or profile loads from the folder, or the profile has an overhaul.
 - Mod Configs: "Set up as an overhaul..." / "Turn off overhaul setup..." now live in one place, a More menu on the open mod (and the row's right-click or Shift+F10 menu), instead of a button on every mod; "Edit as text" shows only for files that have a form, and plain text files open straight in the editor.
 - Wording: a copy pass over the helper text. Each fact now appears once (label, subtext or tooltip, not several), tooltips only add what is not visible, and errors say what happened and what to do.
+- Launch: the blocked reasons are translatable (each problem has a code; the top bar maps the code, so the reasons read in the window language).
 
 ## [4.0.0] - 2026-10-20
 

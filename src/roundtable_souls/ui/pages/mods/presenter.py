@@ -900,7 +900,7 @@ class ModsPresenter:
         return tr("Removing {label}...").format(label=label)
 
     def overhaul_leftovers_later(self, label: str) -> Refusal:
-        """The note after removing a setup its installer made (a toast, not a refusal)."""
+        """The note after removing a profile its installer made (a toast, not a refusal)."""
         return Refusal(
             tr("{label}'s installer left folders behind").format(label=label),
             tr("Clean up installer leftovers shows them with their sizes once the removal is done."),

@@ -5,7 +5,7 @@ of the page, in plain Python with no Qt. The Widgets Settings page (ui/pages/too
 It holds the launcher status line, the me3 line, the switch table, and the update notices (offer, download, ready,
 outcome, advisory, migration) as data: a notice has a level, words and actions, each action a key the window knows
 how to run. Nothing here downloads or installs anything; "Update now" and "Restart now" stay the window's paths
-(ToolsView._start_update, _restart_updated), which check the program's identity before an update is applied.
+(the Settings page: _start_update, _restart_updated), which check the program's identity before an update is applied.
 Every string goes through tr()."""
 
 from __future__ import annotations

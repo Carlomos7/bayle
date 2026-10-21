@@ -12,6 +12,7 @@ from pathlib import Path, PureWindowsPath
 
 from roundtable_souls.config.settings import LauncherSettings, game_setting
 from roundtable_souls.game import catalog as games
+from roundtable_souls.services.play import Problem
 from roundtable_souls.ui.text import tr
 
 PROFILE, OFFLINE, VANILLA = "profile", "offline", "vanilla"
@@ -46,9 +47,9 @@ class Facts:
     game: games.Game
     installed: bool = True  # the game's folder or exe is known
     profile_count: int = 0
-    problems: tuple[str, ...] = ()  # the current setup's, from Setup.problems()
+    problems: tuple[Problem, ...] = ()  # the current profile's, from LaunchProfile.problems()
     checking: bool = False  # the disk checks are taking a while
-    warnings: tuple[str, ...] = ()  # Setup.warnings(): Launch still works, a mod is left out
+    warnings: tuple[Problem, ...] = ()  # LaunchProfile.warnings(): Launch still works, a mod is left out
     busy: bool = False
     job_label: str = ""
     job_kind: str = ""  # "" | "launch" | "update" | "other"
@@ -98,32 +99,28 @@ def mode_menu(current: str) -> list[dict]:
 
 
 # ------------------------------------------------------------------------------------------------ blocked
-def _short(problem: str) -> str:
+def _short(problem: Problem) -> str:
     """The reason in plain words, without a long path (so the line is not this PC's folder tree)."""
-    low = problem.lower()
     # PureWindowsPath splits on both / and \, so a Windows path gives its file name on Linux too
-    name = PureWindowsPath(problem.split(": ", 1)[1]).name if ": " in problem else ""
-    if low.startswith("game exe"):
+    name = PureWindowsPath(problem.path).name if problem.path else ""
+    code = problem.code
+    if code in ("game_exe_missing", "game_exe_setting_missing"):
         return tr("Game program not found: {name}").format(name=name) if name else tr("Game program not found")
-    if low.startswith("me3 missing"):
+    if code == "me3_missing":
         return tr("Mod loader (me3) not found: {name}").format(name=name) if name else tr("Mod loader (me3) not found")
-    if low.startswith("me3 is not installed"):
+    if code == "me3_not_installed":
         return tr("Mod loader (me3) not found")
-    if low.startswith("profile missing"):
+    if code == "profile_missing":
         return tr("The profile file is missing")
-    if low.startswith("this profile is for"):
+    if code == "wrong_game":
         return tr("This profile is for another game")
-    if ": " not in problem:
-        return problem
-    kind, rest = problem.split(": ", 1)
-    return f"{kind}: {Path(rest).name}" if ("\\" in rest or "/" in rest) else problem
+    return str(problem)
 
 
-def _problem_link(problem: str) -> Link:
-    low = problem.lower()
-    if low.startswith(("me3 ", "game exe")) or "me3 is not installed" in low:
+def _problem_link(problem: Problem) -> Link:
+    if problem.code in ("me3_missing", "me3_not_installed", "game_exe_missing", "game_exe_setting_missing"):
         return Link(tr("Fix in Settings > Locations"), LOCATIONS)
-    if low.startswith(("this profile is for", "profile missing")):
+    if problem.code in ("wrong_game", "profile_missing"):
         return Link(tr("Pick another profile"), PICK_PROFILE)
     return Link(tr("Mods"), MODS)
 
@@ -171,7 +168,7 @@ def pill(facts: Facts) -> Pill:
 def _warning_words(facts: Facts) -> str:
     n = len(facts.warnings)
     if n == 1:
-        return tr("{mod} folder is missing").format(mod=facts.warnings[0].removesuffix(" folder is missing"))
+        return tr("{mod} folder is missing").format(mod=facts.warnings[0].detail)
     return tr("{n} mod folders are missing").format(n=n)
 
 

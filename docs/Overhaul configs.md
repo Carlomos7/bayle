@@ -20,7 +20,7 @@ game = "eldenring"               # the game's key: eldenring, nightreign, ...
 [recognise]
 folder = "MyOverhaul"            # its own folder beside the me3 profile (or in the game folder)
 manifest = "installation.json"   # its installer's manifest in that folder
-mod_ids = ["my-overhaul", "myoverhaul.dll"]  # profile entries meaning a setup includes it
+mod_ids = ["my-overhaul", "myoverhaul.dll"]  # profile entries meaning a profile includes it
 profile_marks = ["myoverhaul"]   # text marking its profile entries (case aside)
 installer_folders = [".myoverhaul-setup"]  # what its own installer keeps beside the profile (optional)
 installer_backups = "MyOverhaul Backups"   # its installer's backups of the profile (optional)
@@ -62,7 +62,7 @@ to = "ui"
 ## Recognising it
 
 The Play page offers each installation it finds (`folder`/`manifest` beside the me3 profiles, or in the game folder) as
-a setup of its own, launched as its installer set it up. It says a setup includes the overhaul when the setup was
+a profile of its own, launched as its installer set it up. It says a profile includes the overhaul when the profile was
 started from its manifest, its folder is beside the profile, or the profile has one of `mod_ids`. An offline launch
 with **Skip the overhaul too** turns off the profile entries containing one of `profile_marks`.
 
@@ -217,7 +217,7 @@ installer left. Nothing in it knows a particular overhaul; everything comes from
   the launcher's build (`mods/engine.py`) made against the profile as the install leaves it, keeping the player's
   settings file, into the overhaul's own folder beside the profile (`recognise.folder`, where its installer puts it,
   so Play and the rebuild before Play find it as before); its manifest gets `installedBy`, so the launcher always
-  builds it itself. Installing again is an update; a profile with another overhaul, or a setup its own installer
+  builds it itself. Installing again is an update; a profile with another overhaul, or a profile its own installer
   made, is refused (remove that first; taking one over comes later).
 - **The launcher's own files** go in the game's library in me3's profiles folder (`rs-<game>/`, made on first use):
   `sources/<id>/` holds the download's files its build reads, at their download paths, with `roundtable.json`
@@ -228,7 +228,7 @@ installer left. Nothing in it knows a particular overhaul; everything comes from
   back only where the value is still what the install set, anything else is left and said; switching a shared
   dependency (the game's co-op DLL) back off is asked, and Seamless Co-op is never removed. Its folder, the launcher's
   copy of its download and the build kept for Undo rebuild go to the Recycle Bin only when no other profile uses them.
-- **A setup its own installer made** (its folder and manifest per `[recognise]`, no `installedBy`) is removed the same
+- **A profile its own installer made** (its folder and manifest per `[recognise]`, no `installedBy`) is removed the same
   way; its side effects are worked out from the oldest of its installer's profile backups (`installer_backups`) and
   offered as choices, none ticked. Its leftovers (`installer_folders`, its folder when no profile uses it) are then
   offered with their sizes, its backups last and one at a time.

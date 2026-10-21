@@ -279,7 +279,7 @@ class BasicText(_Strict):
     before it: becomes a "text" step."""
 
     file: str  # the binder's game path; {each} is every text language of the game
-    table: str  # the table in it, for example eventtextfortalk.fmg
+    table: str = ""  # the table in it (any case), for example EventTextForTalk.fmg; "" until the form's choice
     texts: dict[str, str]  # language folder (or "*" for the rest) -> the JSON file in the mod's folder
 
     @field_validator("file")

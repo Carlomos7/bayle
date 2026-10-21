@@ -159,6 +159,7 @@
      "type": "string"
     },
     "table": {
+     "default": "",
      "title": "Table",
      "type": "string"
     },
@@ -172,7 +173,6 @@
    },
    "required": [
     "file",
-    "table",
     "texts"
    ],
    "title": "BasicText",

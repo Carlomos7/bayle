@@ -135,40 +135,60 @@ def _mirrors(files: list[str], folders: set[str], root: str) -> tuple[dict[str, 
 
 
 def _tables(blob: bytes, oodle) -> dict[str, set[int]]:
-    """Table file name (lower case) -> its text ids, for a message binder (.msgbnd.dcx)."""
+    """Table file name -> its text ids, for a message binder (.msgbnd.dcx)."""
     from roundtable_souls import formats
 
     body, _ = formats.dcx.unpack(blob, oodle)
     out = {}
     for e in formats.bnd4.read_bnd4(body).entries:
         try:
-            out[(e.name or "").replace("\\", "/").rsplit("/", 1)[-1].lower()] = set(
-                formats.fmg.read_fmg(e.data).entries
-            )
+            out[(e.name or "").replace("\\", "/").rsplit("/", 1)[-1]] = set(formats.fmg.read_fmg(e.data).entries)
         except formats.FormatError, struct.error, IndexError:
             continue  # not a text table
     return out
 
 
-def propose_texts(folder: Path, files: list[str], folders: set[str], game_dir: Path | None = None) -> list[BasicText]:
-    """[[basic.texts]] for a download that ships the game's copies of a message binder (<anything>/msg/<language>/
-    X.msgbnd.dcx, outside the game folders) and <language>.json files of text ids to strings: the table is the one
-    of the copy holding most of the ids (more than half, and no other table as many), "*" is the engus.json (the
-    default for a language with no file of its own). Nothing when no table is clear, a file does not read, or the
-    copy can't be opened (a compressed one needs the game's own Oodle library: game_dir)."""
-    from roundtable_souls.game.oodle import find_oodle
-
-    jsons = {Path(f).stem.lower(): f for f in files if f.lower().endswith(".json")}
-    copies: dict[str, dict[str, str]] = {}  # binder name -> language -> file
+def _copies(files: list[str], folders: set[str], langs: set[str] | None = None) -> dict[str, dict[str, str]]:
+    """The game's copies of message binders a download carries outside the game folders (<anything>/msg/<language>/
+    X.msgbnd.dcx): binder name (lower case) -> language -> file. langs: only these languages."""
+    out: dict[str, dict[str, str]] = {}
     for f in files:
         parts = f.split("/")
         low = [p.lower() for p in parts]
         if not low[-1].endswith(MERGED_ENDING) or len(parts) < 4 or low[0] in folders or low[-3] != "msg":
             continue
-        if low[-2] in jsons:
-            copies.setdefault(low[-1], {})[low[-2]] = f
+        if langs is None or low[-2] in langs:
+            out.setdefault(low[-1], {})[low[-2]] = f
+    return out
+
+
+def text_tables(folder: Path, text: BasicText, folders: set[str], game_dir: Path | None = None) -> list[str]:
+    """The tables of the download's copy of the binder a texts entry sets strings in, sorted; empty when the download
+    has no copy or it can't be opened (the choice list of the form)."""
+    from roundtable_souls.game.oodle import find_oodle
+
+    langs = _copies(files_of(folder), folders).get(text.file.rsplit("/", 1)[-1].lower(), {})
+    if not langs:
+        return []
+    lang = "engus" if "engus" in langs else sorted(langs)[0]
+    try:
+        return sorted(_tables((folder / langs[lang]).read_bytes(), find_oodle(game_dir)), key=str.lower)
+    except Exception:  # noqa: BLE001  # shortcut: an unreadable copy means no choices, not an error
+        return []
+
+
+def propose_texts(folder: Path, files: list[str], folders: set[str], game_dir: Path | None = None) -> list[BasicText]:
+    """[[basic.texts]] for a download that ships the game's copies of a message binder (<anything>/msg/<language>/
+    X.msgbnd.dcx, outside the game folders) and <language>.json files of text ids to strings. The table is the one
+    of the copy holding most of the ids (more than half, and no other table as many); when none is that clear (new
+    ids, as a mod's own, are in none) it is left unset ("") for the player to choose. "*" is the engus.json (the
+    default for a language with no file of its own). Nothing when a file does not read or the copy can't be opened
+    (a compressed one needs the game's own Oodle library: game_dir)."""
+    from roundtable_souls.game.oodle import find_oodle
+
+    jsons = {Path(f).stem.lower(): f for f in files if f.lower().endswith(".json")}
     out = []
-    for name, langs in sorted(copies.items()):
+    for name, langs in sorted(_copies(files, folders, set(jsons)).items()):
         lang = "engus" if "engus" in langs else sorted(langs)[0]
         try:
             raw = json.loads((folder / jsons[lang]).read_text(encoding="utf-8-sig"))
@@ -182,12 +202,11 @@ def propose_texts(folder: Path, files: list[str], folders: set[str], game_dir: P
         except Exception:  # noqa: BLE001  # shortcut: any unreadable copy or JSON means no proposal, not an error
             continue
         ranked = sorted(held.items(), key=lambda kv: -kv[1])
-        if not ranked or ranked[0][1] * 2 <= len(ids) or (len(ranked) > 1 and ranked[1][1] == ranked[0][1]):
-            continue
+        clear = bool(ranked) and ranked[0][1] * 2 > len(ids) and (len(ranked) == 1 or ranked[1][1] < ranked[0][1])
         texts = {k: jsons[k] for k in sorted(langs) if k in jsons and k != "engus"}
         if "engus" in jsons:
             texts["*"] = jsons["engus"]
-        out.append(BasicText(file=f"msg/{{each}}/{name}", table=ranked[0][0], texts=texts))
+        out.append(BasicText(file=f"msg/{{each}}/{name}", table=ranked[0][0] if clear else "", texts=texts))
     return out
 
 
@@ -290,10 +309,18 @@ def _text(t: BasicText) -> Step:
 
 
 def make(
-    *, id: str, label: str, game: str, basic: Basic, folder: Path, short_label: str | None = None
+    *,
+    id: str,
+    label: str,
+    game: str,
+    basic: Basic,
+    folder: Path,
+    short_label: str | None = None,
+    unset_tables: bool = False,
 ) -> OverhaulConfig:
-    """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up or a
-    file the form names is not in the folder."""
+    """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up, a
+    file the form names is not in the folder, or a texts entry has no table chosen (unset_tables: it is left out of
+    the steps instead, for the form that asks for it)."""
     if id.lower() in LAUNCHER_FOLDERS or id.startswith("."):
         raise ValueError(f"{id} is a name the launcher uses for its own folders; choose another.")
     gc = game_config.load(game)
@@ -302,6 +329,9 @@ def make(
     everything = files_of(folder)
     root = package_root(everything, folders, regulation)
     have = {f.lower() for f in everything}
+    for t in basic.texts:
+        if not t.table and not unset_tables:
+            raise ValueError(f"Choose the table of {t.file} that the texts are set in.")
     texts_from = {v.lower() for t in basic.texts for v in t.texts.values()}
     named = [*(n.file for n in basic.natives), *basic.place, *basic.files, *texts_from]
     for name in named:
@@ -334,7 +364,7 @@ def make(
         else _step(f, kind, act, regulation, root)
         for f, (kind, act) in acts.items()
         if f.lower() not in texts_from
-    ] + [_text(t) for t in basic.texts]
+    ] + [_text(t) for t in basic.texts if t.table]
     files = [f for f in acts if f.lower() not in texts_from]
     if not steps:
         raise ValueError("The mod's folder has no files to set up.")
@@ -387,6 +417,7 @@ def level(config: OverhaulConfig, folder: Path) -> str:
             basic=config.basic,
             folder=folder,
             short_label=config.short_label,
+            unset_tables=True,
         )
     except ValueError:
         return "advanced"

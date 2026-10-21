@@ -39,18 +39,39 @@ def test_the_table_holding_most_of_the_ids_is_proposed(tmp_path):
     ids = {"10": "a", "11": "b", "12": "c"}
     folder = download(tmp_path, {"Talk.fmg": [10, 11, 12, 99], "Other.fmg": [10], "Menu.fmg": [5]}, ids)
     (t,) = texts_of(folder)
-    assert (t.file, t.table) == ("msg/{each}/menu_x.msgbnd.dcx", "talk.fmg")
+    assert (t.file, t.table) == ("msg/{each}/menu_x.msgbnd.dcx", "Talk.fmg")
     assert t.texts == {"rusru": "settings/rusru.json", "*": "settings/engus.json"}
 
 
-def test_a_tie_or_no_majority_proposes_nothing(tmp_path):
+def test_ids_no_table_clearly_holds_leave_the_table_to_the_player(tmp_path):
     ids = {"10": "a", "11": "b", "12": "c", "13": "d"}
-    assert texts_of(download(tmp_path / "tie", {"A.fmg": [10, 11, 12], "B.fmg": [10, 11, 12]}, ids)) == []
-    assert texts_of(download(tmp_path / "few", {"A.fmg": [10, 11], "B.fmg": [12]}, ids)) == []
+    for name, tables in {
+        "tie": {"A.fmg": [10, 11, 12], "B.fmg": [10, 11, 12]},
+        "few": {"A.fmg": [10, 11], "B.fmg": [12]},
+        "new": {"A.fmg": [1, 2], "B.fmg": [3]},  # a mod's own ids are in none
+    }.items():
+        (t,) = texts_of(download(tmp_path / name, tables, ids))
+        assert t.table == "" and t.texts["*"] == "settings/engus.json"
 
 
-def test_ids_in_none_of_the_tables_propose_nothing(tmp_path):
-    assert texts_of(download(tmp_path, {"A.fmg": [1, 2], "B.fmg": [3]}, {"50": "a"})) == []
+def test_a_setup_with_no_table_chosen_is_not_made_or_saved_but_the_form_gets_it(tmp_path):
+    from roundtable_souls.services import mod_configs
+
+    folder = download(tmp_path, {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
+    b = basic.propose(folder, game="eldenring")
+    with pytest.raises(ValueError, match="Choose the table"):
+        basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder)
+    config = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder, unset_tables=True)
+    assert not any(s.do == "text" for s in config.builds[0].steps)
+    assert mod_configs.overhaul_choices({"config": config, "folder": folder})["texts"] == [
+        {"file": "msg/{each}/menu_x.msgbnd.dcx", "table": "", "tables": ["A.fmg", "B.fmg"]}
+    ]
+    with pytest.raises(ValueError, match="Choose the table"):
+        mod_configs.with_basic(config, natives=[], files={})
+    saved = mod_configs.with_basic(config, natives=[], files={}, tables={b.texts[0].file: "B.fmg"})
+    assert saved.basic.texts[0].table == "B.fmg"
+    made = basic.make(id="m", label="M", game="eldenring", basic=saved.basic, folder=folder)
+    assert any(s.do == "text" and s.table == "B.fmg" for s in made.builds[0].steps)
 
 
 @pytest.mark.parametrize("raw", ["{not json", "[1, 2]", '{"x": "a"}', '{"10": 5}', "{}"])
@@ -87,11 +108,16 @@ def test_the_form_shows_the_proposed_texts(tmp_path):
     folder = download(tmp_path, {"A.fmg": [10]}, {"10": "a"})
     b = basic.propose(folder, game="eldenring")
     config = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder)
-    choices = {"natives": [n.model_dump() for n in b.natives], "files": []}
-    values = {"natives": choices["natives"], "files": {}}
+    choices = {
+        "natives": [n.model_dump() for n in b.natives],
+        "files": [],
+        "texts": [{"file": b.texts[0].file, "table": "A.fmg", "tables": ["A.fmg"]}],
+    }
+    values = {"natives": choices["natives"], "files": {}, "tables": {b.texts[0].file: "A.fmg"}}
     view = ModConfigsPresenter().overhaul(
         {"config": config, "level": "basic", "verified": False}, choices, values, [], True
     )
     (sec,) = [s for s in view["sections"] if s["title"] == "Texts"]
     (row,) = sec["rows"]
-    assert row["kind"] == "readonly" and "table a.fmg" in row["label"] and "rusru: settings/rusru.json" in row["blurb"]
+    assert row["kind"] == "choice" and row["value"] == "A.fmg" and [c["value"] for c in row["choices"]] == ["A.fmg"]
+    assert "rusru: settings/rusru.json" in row["blurb"]

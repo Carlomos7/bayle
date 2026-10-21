@@ -330,7 +330,17 @@ class ModConfigsPresenter:
                     }
                 )
         if basic_level and config.basic.texts:
-            sections.append({"title": tr("Texts"), "rows": [self._texts_row(t) for t in config.basic.texts]})
+            sections.append(
+                {
+                    "title": tr("Texts"),
+                    "rows": [
+                        self._texts_row(
+                            t, next((c for c in choices.get("texts", []) if c["file"] == t.file), None), values
+                        )
+                        for t in config.basic.texts
+                    ],
+                }
+            )
         if verified:
             note = tr(
                 "This profile comes with the launcher and is verified. Use Remove {label} on the Mods page to take it out."
@@ -353,16 +363,21 @@ class ModConfigsPresenter:
             "editable": not verified,
         }
 
-    def _texts_row(self, t) -> dict[str, Any]:
-        """A read-only summary of one [[basic.texts]] entry: where the strings go and which file each language uses."""
+    def _texts_row(self, t, choice: dict | None, values: dict) -> dict[str, Any]:
+        """One [[basic.texts]] entry: where the strings go and which file each language uses (the blurb), and the table
+        to set them in as a choice among the tables of the download's copy (a read-only summary when there are none)."""
+        tables = (choice or {}).get("tables") or []
+        shown = values.get("tables", {}).get(t.file, t.table)
         per = [(tr("other languages") if k == "*" else k) + ": " + v for k, v in t.texts.items()]
-        row = self._ov_row(
-            "texts",
-            "texts:" + t.file,
-            tr("Texts in {file}, table {table}").format(file=t.file, table=t.table),
-            "readonly",
-            "",
-        )
+        label = tr("Texts in {file}").format(file=t.file)
+        if tables:
+            row = self._ov_row("texts", "table:" + t.file, label + " - " + tr("table"), "choice", shown)
+            row["choices"] = [{"value": "", "label": tr("(choose a table)")}] if not shown else []
+            row["choices"] += [{"value": n, "label": n} for n in tables]
+        else:
+            row = self._ov_row(
+                "texts", "table:" + t.file, label + " - " + tr("table {table}").format(table=shown), "readonly", ""
+            )
         row["blurb"] = "; ".join(per)
         if "*" not in t.texts:
             row["blurb"] += ". " + tr("A language with no file of its own is left as it is.")

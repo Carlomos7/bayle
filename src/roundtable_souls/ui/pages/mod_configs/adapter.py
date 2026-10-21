@@ -526,12 +526,14 @@ class ModConfigsAdapter(QObject):
     # ---- the Overhaul setup (S7d): the profile's overhaul as a form, turned off, or a mod set up as one
     def _new_ov(self, setup: dict, mod: dict | None) -> dict:
         """The form's state for a setup: the choices the mod's files give and the values as the config has them."""
-        choices = mod_configs.overhaul_choices(setup)
+        loc = self.host.locations
+        choices = mod_configs.overhaul_choices(setup, loc.game_dir() if loc is not None else None)
         values = {
             "natives": choices["natives"],
             "files": {
                 r["file"]: f"place:{r['target']}" if r["action"] == "place" else r["action"] for r in choices["files"]
             },
+            "tables": {t["file"]: t["table"] for t in choices["texts"]},
         }
         return {
             "setup": setup,
@@ -572,6 +574,8 @@ class ModConfigsAdapter(QObject):
                 if value == "place" and was.startswith("place:")
                 else ("place:" if value == "place" else value)
             )
+        elif kind == "table":
+            values["tables"][name] = value
         elif kind == "target":
             values["files"][name] = f"place:{value.strip()}"
         ov["dirty"] = True
@@ -585,6 +589,7 @@ class ModConfigsAdapter(QObject):
             ov["setup"]["config"],
             natives=values["natives"],
             files=mod_configs.files_to_store(ov["choices"]["files"], values["files"]),
+            tables=values["tables"],
         )
 
     def _saved(self, node_key: str, said: str) -> None:
@@ -596,7 +601,11 @@ class ModConfigsAdapter(QObject):
         ov = self._ov
         if ov is None or self._node is None:
             return
-        config = self._with_values()
+        try:
+            config = self._with_values()
+        except ValueError as e:  # a texts entry with no table chosen
+            self._refuse(self.presenter.could_not_save(str(e)))
+            return
         if ov["new"]:
             self._install_new(config)
             return

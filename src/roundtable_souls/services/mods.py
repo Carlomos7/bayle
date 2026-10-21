@@ -554,8 +554,12 @@ def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
         if where is None or not where.sources.is_dir():
             run_logging.log(f"skipped {p.name}: the launcher has no copy of the download there")
             continue
-        preview = overhaul_install.preview_setup(p, where.sources, config, loc=loc)
-        install_overhaul_setup(preview, loc=loc)
+        try:  # a profile that is busy, changed meanwhile or refuses: skipped and said, the others still go on
+            preview = overhaul_install.preview_setup(p, where.sources, config, loc=loc)
+            install_overhaul_setup(preview, loc=loc)
+        except Exception as e:
+            run_logging.log(f"skipped {p.name}: {e}")
+            continue
         done.append(p.name)
     return done
 

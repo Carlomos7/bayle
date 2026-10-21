@@ -120,3 +120,83 @@ def test_the_form_lists_placed_files_and_saving_it_keeps_them(tmp_path):
     assert not any("base" in f for f, _on in choices["merged"] + choices["keep"])
     saved = mod_configs.with_basic(config, natives=[], keep=[], not_merged=[], place=dict(choices["place"]))
     assert saved.basic.place == b.place and saved.basic.skip == b.skip
+
+
+# ----------------------------------------------------------------------------- a Revive-shaped download, end to end
+@pytest.fixture
+def world(tmp_path, monkeypatch):
+    from test_overhaul_install import World
+
+    return World(tmp_path, monkeypatch)
+
+
+def revive_shaped(world) -> Path:
+    """Generated here, no real mod files: game files inside mod/, two DLLs and their settings, a binder meant for a
+    game path beside a folder of the game's own base copies, assets for its DLLs."""
+    from fakegame import bnd, dcx
+    from test_engine import GAME_CLIPS
+
+    d = world.tmp / "Downloads" / "Revive Shaped Ä" / "payload"
+    clips = dcx(bnd({**GAME_CLIPS, "mine.hkx": b"mine"}))
+    for rel, data in {
+        "mod/chr/c0000_a00_hi.anibnd.dcx": clips,
+        "mod/regulation.bin": (world.game / "regulation.bin").read_bytes(),
+        "RevivePrototype.dll": b"d",
+        "RevivePrototype.ini": b"[a]\nb=1\n",
+        "audio/hit.wav": b"w",
+        "settings/m00.talkesdbnd.dcx": dcx(bnd({"talk.esd": b"x"})),
+        "settings/base/script/talk/m00.talkesdbnd.dcx": dcx(bnd({"talk.esd": b"y"})),
+    }.items():
+        (d / rel).parent.mkdir(parents=True, exist_ok=True)
+        (d / rel).write_bytes(data)
+    return d
+
+
+def test_a_revive_shaped_download_installs_with_its_files_merged_placed_and_its_folder_in_the_layout(world):
+    from roundtable_souls.mods import move_in, overhaul_install
+
+    folder = revive_shaped(world)
+    b = basic.propose(folder, game="eldenring")
+    assert b.place and b.skip == ["settings/base"] and [n.file for n in b.natives] == ["RevivePrototype.dll"]
+    config = basic.make(id="revive", label="Revive", game="eldenring", basic=b, folder=folder)
+    preview = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert preview.ok, preview.refusals
+    overhaul_install.install_setup(preview, loc=world.loc)
+    out = world.base / "revive"
+    assert (out / "mod/chr/c0000_a00_hi.anibnd.dcx").is_file() and (out / "mod/regulation.bin").is_file()
+    assert (out / f"mod/{TALK}").is_file()  # placed at its game path
+    assert (out / "RevivePrototype.dll").is_file() and (out / "audio/hit.wav").is_file()
+    assert not any("base" in p.as_posix() for p in out.rglob("*") if p.is_file())
+    assert (out / "merge-report.txt").read_text(encoding="utf-8").startswith("Revive, built by")
+    plan = move_in.plan(world.profile, world.loc)  # the overhaul's folder moves whole to the profile's root
+    assert {u.dest_rel: u.src for u in plan.item.units}["revive"] == out
+
+
+@pytest.mark.parametrize("name", ["packages", "natives", "builds", ".bayle"])
+def test_an_overhaul_cannot_take_the_name_of_a_launcher_folder(tmp_path, name):
+    folder = make_folder(tmp_path / "dl", ["mod/chr/a.anibnd.dcx"])
+    with pytest.raises(ValueError, match="name the launcher uses"):
+        basic.make(id=name, label="M", game="eldenring", basic=basic.propose(folder, game="eldenring"), folder=folder)
+
+
+# ----------------------------------------------------------------------------- gap 5: saving applies the setup again
+def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped_and_said(world, monkeypatch):
+    from test_overhaul_install import set_up
+
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.overhauls import writer
+    from roundtable_souls.services import mods as mod_service
+
+    _folder, toml, _out = set_up(world)
+    config = overhauls.read(toml)
+    natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot", "load_early": True})]
+    saved = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
+    writer.save_local(saved, expect=writer.sha256_of(toml), path=toml)
+    assert "initializer" not in world.text()  # saving the file alone leaves the profile's entries as they were
+    other = world.base / "other.me3"
+    other.write_bytes(world.profile.read_bytes())
+    monkeypatch.setattr(overhaul_install, "users_of", lambda p, c, e: [Path(p), other])  # `other` has no copy of it
+    assert mod_service.reapply_overhaul_setup(world.profile, loc=world.loc) == ["my.me3"]
+    entry = world.data()["natives"][-1]
+    assert entry["initializer"] == {"function": "Boot"} and entry["load_early"] is True

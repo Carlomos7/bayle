@@ -51,6 +51,7 @@ INSTALLER_SUFFIXES = {".exe", ".cmd", ".bat", ".ps1", ".py"}  # a download that 
 SETTINGS_SUFFIXES = {".ini", ".toml", ".json", ".cfg", ".conf", ".yaml", ".yml", ".xml"}
 MERGED_ENDING = "bnd.dcx"  # binders (anibnd, behbnd, partsbnd, msgbnd, talkesdbnd, ...): the merger reads them
 PACKAGE = "mod"  # the package's folder inside the overhaul's own folder (Output.mod)
+LAUNCHER_FOLDERS = {"packages", "natives", "builds", "mods", "mod", "profiles", "overhauls", "sources", "library"}
 LAUNCHER_RECORD = (
     "roundtable.json"  # the launcher's own file at the top of its copy of a download (mods.library.RECORD)
 )
@@ -179,6 +180,8 @@ def make(
 ) -> OverhaulConfig:
     """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up or a
     file the form names is not in the folder."""
+    if id.lower() in LAUNCHER_FOLDERS or id.startswith("."):
+        raise ValueError(f"{id} is a name the launcher uses for its own folders; choose another.")
     gc = game_config.load(game)
     regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
     folders = set(gc.mod_folders)

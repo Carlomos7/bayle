@@ -349,9 +349,7 @@ def test_create_and_delete_profile(tmp_path):
     assert p.name == "My-Setup.me3" and tomllib.loads(p.read_text(encoding="utf-8"))["supports"] == [
         {"game": "eldenring"}
     ]
-    home = (
-        tmp_path / "profiles" / "roundtable" / "eldenring" / "profiles" / "My-Setup"
-    )  # each profile in a folder of its own, with its own mods
+    home = tmp_path / "profiles" / "b-eldenring" / "My-Setup"  # each profile in a folder of its own, with its own mods
     assert p == home / "My-Setup.me3" and (home / "packages").is_dir() and (home / "natives").is_dir()
     with pytest.raises(M.ModError):
         M.create_profile(tmp_path / "profiles", "My Setup")
@@ -359,10 +357,7 @@ def test_create_and_delete_profile(tmp_path):
     (src.parent / "mod" / "flora").mkdir(parents=True, exist_ok=True)
     (src.parent / "mod" / "flora" / "f.dcx").write_bytes(b"f")
     c = M.create_profile(tmp_path / "profiles", "copy.me3", copy_from=src)
-    assert (
-        c == tmp_path / "profiles" / "roundtable" / "eldenring" / "profiles" / "copy" / "copy.me3"
-        and "flora" in c.read_text(encoding="utf-8")
-    )
+    assert c == tmp_path / "profiles" / "b-eldenring" / "copy" / "copy.me3" and "flora" in c.read_text(encoding="utf-8")
     assert (c.parent / "mod" / "flora" / "f.dcx").read_bytes() == b"f"  # the mods come along
     gone = M.delete_profile(c)
     from roundtable_souls.platform import data_folder

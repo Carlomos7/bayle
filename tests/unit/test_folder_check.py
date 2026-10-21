@@ -38,7 +38,7 @@ def tree(folder: Path) -> dict[str, bytes]:
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     home = tmp_path / "profiles"
-    profiles = library.game_root(home, "eldenring") / "profiles"
+    profiles = library.game_root(home, "eldenring")
     # "Mine" holds Mine.me3 (the keeper) and other.me3; "pack" holds a.me3 and b.me3; "wrong" holds just right.me3
     mine, pack, wrong = profiles / "Mine", profiles / "pack", profiles / "wrong"
     for rel, data in {

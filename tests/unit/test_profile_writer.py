@@ -54,7 +54,7 @@ def test_edits_change_only_the_text_in_memory_until_commit(profile):
     text = profile.read_text(encoding="utf-8")
     assert "# flowers\n" in text and "# co-op\n" in text  # comments survived: text surgery
     assert "path = 'mod/grass'" in text and "enabled = false" in text
-    assert bak == (profile.parent / ".roundtable/backups/my.me3.bak") and bak.read_text(encoding="utf-8") == PROFILE
+    assert bak == (profile.parent / ".bayle/backups/my.me3.bak") and bak.read_text(encoding="utf-8") == PROFILE
     assert [v["why"] for v in history.versions(profile)] == ["before installing grass"]
     assert plan.snapshot is not None and plan.snapshot.read_text(encoding="utf-8") == PROFILE
 
@@ -62,7 +62,7 @@ def test_edits_change_only_the_text_in_memory_until_commit(profile):
 def test_nothing_to_change_writes_nothing(profile):
     w = W.ProfileWriter(profile)
     assert w.commit(w.plan("nothing")) is None
-    assert not (profile.parent / ".roundtable/backups/my.me3.bak").exists() and history.versions(profile) == []
+    assert not (profile.parent / ".bayle/backups/my.me3.bak").exists() and history.versions(profile) == []
 
 
 def test_an_inline_array_profile_is_converted_to_blocks_when_written(tmp_path):
@@ -87,7 +87,7 @@ def test_a_new_profile_is_created_and_refused_when_one_appeared_meanwhile(tmp_pa
     w.commit(plan)
     assert (
         p.read_text(encoding="utf-8") == 'profileVersion = "v1"\n'
-        and not (p.parent / ".roundtable/backups/new.me3.bak").exists()
+        and not (p.parent / ".bayle/backups/new.me3.bak").exists()
     )
 
 
@@ -104,7 +104,7 @@ def test_a_profile_changed_outside_the_launcher_is_not_overwritten(profile):
     assert str(e.value) == "the profile changed outside the launcher; reload and try again"
     assert e.value.refusals[0].rule == "unchanged-since-read"
     assert profile.read_text(encoding="utf-8") == edited
-    assert not (profile.parent / ".roundtable/backups/my.me3.bak").exists() and history.versions(profile) == []
+    assert not (profile.parent / ".bayle/backups/my.me3.bak").exists() and history.versions(profile) == []
     # planning again on the stale writer says so too, before anything is attempted
     assert [r.message for r in w.plan("again").refusals] == [W.CHANGED_OUTSIDE]
     # a fresh read goes through
@@ -202,7 +202,7 @@ def test_a_refused_plan_writes_nothing(profile):
         "me3 refers to DLLs by file name, so only one can be on"
     )
     assert profile.read_text(encoding="utf-8") == PROFILE
-    assert not (profile.parent / ".roundtable/backups/my.me3.bak").exists() and history.versions(profile) == []
+    assert not (profile.parent / ".bayle/backups/my.me3.bak").exists() and history.versions(profile) == []
 
 
 def test_a_second_dll_with_the_same_name_may_be_added_switched_off(profile):
@@ -354,7 +354,7 @@ def test_a_verbatim_text_goes_through_safety_and_the_unchanged_check_only(profil
     assert plan.ok and plan.verbatim
     w.commit(plan)
     assert "id = \"flora\"\npath = 'mod/rocks'" in profile.read_text(encoding="utf-8")
-    assert (profile.parent / ".roundtable/backups/my.me3.bak").read_text(encoding="utf-8") == PROFILE
+    assert (profile.parent / ".bayle/backups/my.me3.bak").read_text(encoding="utf-8") == PROFILE
     w = W.ProfileWriter(profile)
     w.restore_bytes(PROFILE.encode())
     profile.write_text("changed\n", encoding="utf-8")

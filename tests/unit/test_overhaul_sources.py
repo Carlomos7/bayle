@@ -270,7 +270,12 @@ def _imports(module: str) -> set[str]:
         ("roundtable_souls.mods.records", ("roundtable_souls.resources",)),
         (
             "roundtable_souls.mods.library",
-            ("roundtable_souls.formats", "roundtable_souls.platform", "roundtable_souls.game.locate"),
+            (
+                "roundtable_souls.formats",
+                "roundtable_souls.platform",
+                "roundtable_souls.game.locate",
+                "roundtable_souls.config.layout",
+            ),
         ),  # fmt: skip
     ],
 )

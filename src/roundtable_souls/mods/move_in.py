@@ -1,4 +1,4 @@
-"""Moving a profile that lives outside Roundtable's folder (roundtable/<game>/profiles in me3's profiles folder) into it,
+"""Moving a profile that lives outside Bayle's folder (roundtable/<game>/profiles in me3's profiles folder) into it,
 as one undoable operation. It ends as mods.library lays profiles out: <name>/<name>.me3 with its own packages/,
 natives/, builds/ and .roundtable/.
 
@@ -84,7 +84,7 @@ def _rows(profile: Path) -> tuple[bytes, list[dict]]:
 
 
 def outside(profile: Path, loc: Locations) -> bool:
-    """Whether the profile is outside Roundtable's folder (the Mods page offers the move only then)."""
+    """Whether the profile is outside Bayle's folder (the Mods page offers the move only then)."""
     home = loc.me3_profiles_dir()
     return home is not None and not _inside(profile, library.game_root(home, loc.game.key))
 
@@ -109,13 +109,13 @@ def plan(profile: Path, loc: Locations) -> MovePlan:
         refuse("The me3 profiles folder is not known, so there is nowhere to move it to.")
         return out
     out.root = library.game_root(home, loc.game.key)
-    out.profiles = out.root / "profiles"
+    out.profiles = library.profiles_root(home, loc.game.key)
     name = profile.stem
     if not profile.is_file():
         refuse(f"{profile.name} is not there any more.")
         return out
     if _inside(profile, out.root):
-        refuse(f"{name} is already in Roundtable's folder.")
+        refuse(f"{name} is already in Bayle's folder.")
         return out
     if profile.name.lower().endswith(("-default.me3", migrate.OFFLINE)):
         refuse(f"{profile.name} is made by me3 itself, so it can't be moved.")
@@ -130,7 +130,7 @@ def plan(profile: Path, loc: Locations) -> MovePlan:
     elif why := naming.path_problem(folder / f"{name}.me3", 0):
         refuse(why)
     if not _same_drive(profile.parent, out.profiles):
-        refuse("Roundtable's folder is on another drive than this profile, so it can't be moved there.")
+        refuse("Bayle's folder is on another drive than this profile, so it can't be moved there.")
     try:
         raw, rows = _rows(profile)
     except (OSError, ValueError) as e:
@@ -217,14 +217,14 @@ def recover(loc: Locations) -> list[str]:
     home = loc.me3_profiles_dir()
     if home is None:
         return []
-    profiles = library.game_root(home, loc.game.key) / "profiles"
+    profiles = library.profiles_root(home, loc.game.key)
     if not (profiles / build.OPS).is_dir():
         return []
     said = build.recover_operations(profiles, 30.0, build.OPS)
     for op in build.active(profiles, build.OPS):
         if op.info.get("kind") == KIND and not op.info.get("state_done"):
             finish_state(op)
-            said.append("an interrupted move into Roundtable's folder was finished")
+            said.append("an interrupted move into Bayle's folder was finished")
     for stage in profiles.glob(".move-in-*"):
         try:
             stage.rmdir()
@@ -244,7 +244,7 @@ def apply(p: MovePlan, *, loc: Locations, log: Callable[[str], None] = lambda s:
         recover(loc)
         if why := _changed(p):
             raise MoveInError(why)
-        op = build.Operation(profiles, f"move of profile {item.name} into Roundtable's folder")
+        op = build.Operation(profiles, f"move of profile {item.name} into Bayle's folder")
         stage = profiles / f".move-in-{op.id}"
         try:
             _prepare(p, op, stage)
@@ -259,7 +259,7 @@ def apply(p: MovePlan, *, loc: Locations, log: Callable[[str], None] = lambda s:
             raise MoveInError(str(e)) from e
         shutil.rmtree(stage, ignore_errors=True)
         notes = finish_state(op)
-    log(f"moved profile {item.name} into Roundtable's folder")
+    log(f"moved profile {item.name} into Bayle's folder")
     return {"operation": str(op.dir), "profile": str(item.new), "name": item.name, "notes": notes}
 
 
@@ -268,7 +268,7 @@ def _changed(p: MovePlan) -> str | None:
     if not p.profile.is_file() or p.profile.read_bytes() != p.item.old_bytes:
         return f"{p.profile.name} changed since it was checked; try again."
     if p.item.folder.exists():
-        return f"{p.item.name} already exists in Roundtable's folder. Rename the profile, then try again."
+        return f"{p.item.name} already exists in Bayle's folder. Rename the profile, then try again."
     return None
 
 

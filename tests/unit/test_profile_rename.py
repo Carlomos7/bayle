@@ -50,7 +50,7 @@ def records(*profiles: Path) -> dict:
 @pytest.fixture
 def world(tmp_path):
     home = tmp_path / "profiles"
-    root = home / "roundtable" / "eldenring" / "profiles"
+    root = home / "b-eldenring"
     a, b = root / "a" / "a.me3", root / "b" / "b.me3"
     lib = library.ProfileFolder.of(a)
     (lib.packages / "flora" / "parts").mkdir(parents=True)

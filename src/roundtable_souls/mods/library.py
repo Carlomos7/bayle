@@ -1,20 +1,22 @@
-"""A profile's own folder in me3's profiles folder, and the launcher's files in it. Each profile owns its mods:
+"""A profile's own folder in the launcher's folder for a game, and the launcher's files in it. Each profile owns its mods:
 
-    <me3 profiles>/roundtable/<game>/profiles/<name>/       (profiles/ below is that folder)
-    profiles/<name>/<name>.me3     the profile
-    profiles/<name>/packages/      packages (game-file mods), one folder each
-    profiles/<name>/natives/       DLL mods, one folder each
-    profiles/<name>/builds/<what>/ what the launcher makes for this profile: an overhaul's id (its build, merged
-                                   package, sources/ by role: merge/ text/ hooks/ base/, overhaul/) or
-                                   combined-parameters; build.json, merge-report.txt, .previous/
-    profiles/<name>/.roundtable/   the launcher's own (hidden): settings.json, backups/, previous/ (an updated mod's
-                                   old copy), ops/ and ops.lock (journals)
+    <Profiles folder>/b-<game>/                    the game's folder (Settings can rename it, move the Profiles folder,
+                                                   and rename packages/, natives/ and the Shared folder below)
+    <game folder>/<name>/<name>.me3                the profile
+    <game folder>/<name>/packages/                 packages (game-file mods), one folder each
+    <game folder>/<name>/natives/                  DLL mods, one folder each
+    <game folder>/<name>/builds/<what>/            what the launcher makes for this profile: an overhaul's id (its build,
+                                                   merged package, sources/ by role: merge/ text/ hooks/ base/,
+                                                   overhaul/) or combined-parameters; build.json, merge-report.txt, .previous/
+    <game folder>/<name>/.bayle/                   the launcher's own (hidden): settings.json, backups/, previous/ (an
+                                                   updated mod's old copy), ops/ and ops.lock (journals)
+    <game folder>/.shared/<mod id>/<version id>/   Shared mods (mods.shared_mods)
 
-A profile that sits loose in a folder with others (an existing setup) keeps its mod folders where they are
-(mods.profile_edit.roots) and gets the same builds/ under .roundtable/profiles/<name>/ so two profiles never share
-one. mods.migrate moves what older versions made (the shared rs-<game> library, rs-<game>/<name>/) into this layout.
-ProfileFolder answers where each of these is; mods.naming says what things are called. Nothing is created until
-ensure() asks for it.
+A folder in the game folder whose name starts with a dot is never a profile. A profile that sits loose in a folder
+with others (an existing setup) keeps its mod folders where they are (mods.profile_edit.roots) and gets the same
+builds/ under .bayle/profiles/<name>/ so two profiles never share one. mods.migrate moves what older versions made
+(rs-<game>, roundtable/<game>/profiles and /library) into this layout. ProfileFolder answers where each of these is;
+mods.naming says what things are called. Nothing is created until ensure() asks for it.
 """
 
 from __future__ import annotations
@@ -23,18 +25,20 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from roundtable_souls.config.layout import game_root, layout
 from roundtable_souls.platform import files
 
-ROOT = "roundtable"  # the launcher's folder in me3's profiles folder: roundtable/<game key>/profiles/<name>/
+ROOT = "roundtable"  # 4.2.0: roundtable/<game key>/profiles/<name>/ and roundtable/<game key>/library/ (mods.migrate)
 PREFIX = "rs-"  # where 3.21 to 4.0.x kept its shared library: rs-<game key>
-STATE = ".roundtable"  # the launcher's own folder beside the profile
+STATE = ".bayle"  # the launcher's own folder beside the profile
+LEGACY_STATE = ".roundtable"  # before 4.3: read where it still is, mods.migrate renames it
 SETTINGS = "settings.json"  # per-profile launcher choices (was roundtable.json beside the profile)
 BACKUPS = "backups"  # each profile's .bak (was beside the .me3)
 PREVIOUS_COPIES = "previous"  # an updated mod's old copy until it is kept or rolled back
 OPS = "ops"  # operation journals (was .roundtable-ops beside the profile)
 OPS_LOCK = OPS + ".lock"
 PREVIOUS = ".previous"  # a build's previous copy, for Undo rebuild
-HIDDEN = (STATE, PREVIOUS)  # given Windows' hidden attribute when ensure() makes them
+HIDDEN = (STATE, LEGACY_STATE, PREVIOUS)  # given Windows' hidden attribute when ensure() makes them
 RECORD = "roundtable.json"  # the launcher's file beside a mod's files
 ROLES = ("merge", "text", "hooks", "base")  # an overhaul's sources, by what its builds do with them
 
@@ -80,30 +84,44 @@ class StateFolders:
     ops_lock: Path
 
 
-def game_root(profiles_dir: Path, game: str) -> Path:
-    """The launcher's own folder for one game: roundtable/<game> in me3's profiles folder."""
+def profiles_root(profiles_dir: Path, game: str) -> Path:
+    """Where the launcher's profiles are: <name>/<name>.me3 directly in the game's folder."""
+    return game_root(profiles_dir, game)
+
+
+def shared_root(profiles_dir: Path, game: str) -> Path:
+    """Where Shared mods live: <game folder>/.shared/<mod id>/<version id> (mods.shared_mods)."""
+    return game_root(profiles_dir, game) / layout().shared
+
+
+library_root = shared_root  # the name Shared mods were first written with
+
+
+def old_game_root(profiles_dir: Path, game: str) -> Path:
+    """4.2.0's folder: roundtable/<game>, holding profiles/ and library/ (mods.migrate moves them)."""
     return Path(profiles_dir) / ROOT / game
 
 
-def library_root(profiles_dir: Path, game: str) -> Path:
-    """Where Shared mods live: roundtable/<game>/library/<mod id>/<version id> (mods.shared_mods)."""
-    return game_root(profiles_dir, game) / "library"
-
-
-def profiles_root(profiles_dir: Path, game: str) -> Path:
-    """Where the launcher's profiles are: roundtable/<game>/profiles/<name>/<name>.me3."""
-    return game_root(profiles_dir, game) / "profiles"
-
-
 def legacy_root(profiles_dir: Path, game: str) -> Path:
-    """The shared library older versions made: rs-<game> in me3's profiles folder (mods.migrate moves it)."""
+    """The shared library of 3.21 to 4.0.x: rs-<game> in me3's profiles folder (mods.migrate moves it)."""
     return Path(profiles_dir) / f"{PREFIX}{game}"
 
 
 def in_game_root(profile: Path, profiles_dir: Path, game: str) -> bool:
-    """Whether the profile is somewhere below roundtable/<game> (case aside)."""
+    """Whether the profile is somewhere below the game's folder (case aside)."""
     root = os.path.normcase(os.path.abspath(game_root(profiles_dir, game)))
     return os.path.normcase(os.path.abspath(profile)).startswith(root + os.sep)
+
+
+def is_game_folder(folder: Path) -> bool:
+    """Whether a folder looks like a game's folder of the launcher: its name fits the pattern (or is one older versions
+    used: profiles, which held 4.2.0's profiles)."""
+    pattern = layout().pattern
+    head, _, tail = pattern.partition("{game}")
+    name = Path(folder).name
+    return (name.startswith(head) and name.endswith(tail) and len(name) > len(head) + len(tail)) or (
+        name.lower() == "profiles"
+    )
 
 
 def is_user_profile(path: Path) -> bool:
@@ -121,7 +139,7 @@ def own_folder(profile: Path) -> bool:
     """Whether the profile sits alone in a folder named after it (<name>/<name>.me3). A folder that holds other
     profiles too is nobody's own: its mod/ would be wrongly owned by one of them."""
     profile = Path(profile)
-    if profile.parent.name.lower() != profile.stem.lower():
+    if profile.parent.name.lower() != profile.stem.lower() or profile.parent.name.startswith("."):
         return False
     try:
         return not any(
@@ -141,15 +159,19 @@ class ProfileFolder:
     @classmethod
     def of(cls, profile: Path) -> ProfileFolder:
         profile = Path(profile)
-        return cls(profile.parent if own_folder(profile) else profile.parent / STATE / "profiles" / profile.stem)
+        if own_folder(profile):
+            return cls(profile.parent)
+        loose = profile.parent / STATE / "profiles" / profile.stem
+        old = profile.parent / LEGACY_STATE / "profiles" / profile.stem
+        return cls(old if old.is_dir() and not loose.exists() else loose)
 
     @property
     def packages(self) -> Path:
-        return self.root / "packages"
+        return self.root / layout().packages
 
     @property
     def natives(self) -> Path:
-        return self.root / "natives"
+        return self.root / layout().natives
 
     @property
     def builds(self) -> Path:
@@ -221,9 +243,12 @@ def _state_folders(root: Path) -> StateFolders:
 
 
 def state_of(profile: Path) -> StateFolders:
-    """The launcher's own folder for a profile: .roundtable beside it (in its own folder, or shared by the loose
-    profiles of a folder)."""
-    return _state_folders(Path(profile).parent / STATE)
+    """The launcher's own folder for a profile: .bayle beside it (in its own folder, or shared by the loose
+    profiles of a folder; .roundtable where an older version made it)."""
+    folder = Path(profile).parent
+    if not (folder / STATE).exists() and (folder / LEGACY_STATE).is_dir():
+        return _state_folders(folder / LEGACY_STATE)  # before 4.3
+    return _state_folders(folder / STATE)
 
 
 def ensure_state(state: StateFolders, *folders: Path) -> None:

@@ -1,16 +1,16 @@
 """The Library: game-file mods (packages) that several profiles use from one copy. Opt-in: a profile keeps its own
 copy (Separate) until the player shares it.
 
-    roundtable/<game>/library/<mod-id>/mod.json        display name, source, versions: [{id, installed, label, size}]
-    roundtable/<game>/library/<mod-id>/<version id>/   the files; the id is the first 16 hex of a sha256 over the sorted
+    <game folder>/.shared/<mod-id>/mod.json            display name, source, versions: [{id, installed, label, size}]
+    <game folder>/.shared/<mod-id>/<version id>/       the files; the id is the first 16 hex of a sha256 over the sorted
                                                        (path, size, file hash) of the tree, so equal files are one version
-    <profile>.me3:  path = '../../library/<mod-id>/<version id>'   (relative: a renamed or copied profile still works)
+    <profile>.me3:  path = '../.shared/<mod-id>/<version id>'   (relative: a renamed or copied profile still works)
 
 A version never changes: its files are read-only once the verified copy is made. Who uses what is never stored; usage()
 reads every profile's entries. Only packages in a profile's own folder under the game root can be shared (a DLL mod's
 .ini sits beside it, so sharing it would share its settings).
 
-Each action is one merging.build.Operation, journaled in roundtable/<game>/profiles/.roundtable-ops (so
+Each action is one merging.build.Operation, journaled in <game folder>/.roundtable-ops (so
 operations.recover finds it), taken under the profiles' locks and then the root lock:
 
     share        a Separate package becomes a version (an identical one is reused) and the entry links to it; the old
@@ -229,7 +229,7 @@ class Usage:
         return [u for u in self.uses if u.mod == mod and (version is None or u.version == version)]
 
     def mentions(self, mod: str, version: str) -> bool:
-        return f"{LIBRARY}/{mod}/{version}".lower() in self.texts
+        return f"{library.layout().shared}/{mod}/{version}".lower() in self.texts
 
 
 def profiles_in(profiles_root: Path) -> list[Path]:

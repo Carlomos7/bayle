@@ -10,6 +10,7 @@ whose command line names the game's exe. Nothing here writes to disk.
 import os
 import shutil
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 from roundtable_souls.platform import proc, steam
@@ -133,16 +134,26 @@ def _iter_me3_files(root: Path, depth: int = 0):
     for e in entries:
         if e.is_file() and e.name.endswith(".me3"):
             yield Path(e.path)
-        elif e.is_dir() and depth < _PROFILE_SCAN_DEPTH and e.name.lower() not in _PROFILE_PRUNE:
+        elif (
+            e.is_dir()
+            and depth < _PROFILE_SCAN_DEPTH
+            and e.name.lower() not in _PROFILE_PRUNE
+            and not e.name.startswith(".")
+        ):
             yield from _iter_me3_files(Path(e.path), depth + 1)
 
 
-def find_profiles(root: Path | None, game_key: str, unnamed_key: str) -> list[Path]:
+def find_profiles(root: Path | None, game_key: str, unnamed_key: str, also: Iterable[Path] = ()) -> list[Path]:
     """The user-made .me3 profiles under root for one game (the *-default.me3 ones me3 generates are skipped); a
-    profile that names no game in [[supports]] counts for unnamed_key."""
+    profile that names no game in [[supports]] counts for unnamed_key. also: the launcher's game folders
+    (mods.library.game_root), whose <name>/<name>.me3 are found wherever they are; a folder starting with a dot is
+    never a profile's."""
     if not root or not root.exists():
         return []
-    ours = root.glob(f"roundtable/{game_key}/profiles/*/*.me3")  # the launcher's own folders, deeper than the scan goes
+    ours = [  # the launcher's own folders, deeper than the scan goes
+        *root.glob(f"roundtable/{game_key}/profiles/*/*.me3"),
+        *(p for d in also for p in Path(d).glob("*/*.me3") if not p.parent.name.startswith(".")),
+    ]
     return sorted(
         (
             p

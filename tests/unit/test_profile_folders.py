@@ -77,6 +77,19 @@ def world(tmp_path, monkeypatch):
     (c.parent / "mod" / "zed").mkdir(parents=True)
     (c.parent / "mod" / "zed" / "z.dcx").write_bytes(b"zed")
     c.write_bytes(text(pkg("mod/zed", "zed")))
+    # what 4.2.0 made: roundtable/eldenring/profiles/<name>/ with a .roundtable state folder and a Shared mod link
+    old = home / "roundtable" / "eldenring"
+    d = old / "profiles" / "d" / "d.me3"
+    (d.parent / "packages" / "zed2").mkdir(parents=True)
+    (d.parent / "packages" / "zed2" / "z2.dcx").write_bytes(b"zed2")
+    (d.parent / ".roundtable").mkdir()
+    (d.parent / ".roundtable" / "settings.json").write_text(
+        '{"version": 1, "schema": 1, "profiles": {"d.me3": {"after_overlay": ["q"]}}}', encoding="utf-8"
+    )
+    (old / "library" / "lib-mod" / "v1").mkdir(parents=True)
+    (old / "library" / "lib-mod" / "v1" / "f.dcx").write_bytes(b"shared")
+    (old / "library" / "lib-mod" / "mod.json").write_bytes(b"{}")
+    d.write_bytes(text(pkg("packages/zed2", "zed2"), pkg("../../library/lib-mod/v1", "lib")))
     # a profile that is not the library's: never touched
     (home / "eldenring-mods").mkdir()
     (home / "eldenring-mods" / "mine.me3").write_bytes(text(pkg("mod/x", "x")))
@@ -89,7 +102,7 @@ def world(tmp_path, monkeypatch):
 
 
 def new_root(home: Path) -> Path:
-    return home / "roundtable" / "eldenring" / "profiles"
+    return home / "b-eldenring"
 
 
 def test_migration_gives_each_profile_its_folder_and_copies_what_two_share(world):
@@ -97,8 +110,8 @@ def test_migration_gives_each_profile_its_folder_and_copies_what_two_share(world
     out = migrate.migrate(loc)
     assert out is not None
     P = new_root(home)
-    a, b, c = P / "a" / "a.me3", P / "b" / "b.me3", P / "c" / "c.me3"
-    assert a.is_file() and b.is_file() and c.is_file()
+    a, b, c, d = P / "a" / "a.me3", P / "b" / "b.me3", P / "c" / "c.me3", P / "d" / "d.me3"
+    assert a.is_file() and b.is_file() and c.is_file() and d.is_file()
     # flora is used by both: both have a full copy, the library's original is gone
     for p in (P / "a", P / "b"):
         assert (p / "packages" / "flora" / "parts" / "f.dcx").read_bytes() == b"flora"
@@ -116,13 +129,18 @@ def test_migration_gives_each_profile_its_folder_and_copies_what_two_share(world
     assert ps.load(a)["after_overlay"] == ["flora"]
     assert library.profile_backup(a).read_bytes() == b"a bak"
     assert (P / "a" / "a.offline.me3").read_bytes() == b"offline"
-    assert not root.exists()  # nothing was left in it
+    # 4.2.0's profile: its state folder is renamed whole, its Shared mod folder moved and the link follows
+    assert ps.load(d)["after_overlay"] == ["q"] and (P / "d" / ".bayle" / "settings.json").is_file()
+    assert not (P / "d" / ".roundtable").exists() and (P / "d" / "packages" / "zed2" / "z2.dcx").is_file()
+    assert (P / ".shared" / "lib-mod" / "v1" / "f.dcx").read_bytes() == b"shared"
+    assert "path = '../.shared/lib-mod/v1'" in d.read_text()
+    assert not root.exists() and not (home / "roundtable").exists()  # nothing was left in the old folders
     mine = home / "eldenring-mods"
     assert (mine / "mine.me3").is_file() and (mine / "mod" / "x" / "x.dcx").is_file()
     from roundtable_souls.platform import paths
 
     found = [p for p in paths.find_profiles(home, "eldenring", "eldenring") if not p.name.endswith(".offline.me3")]
-    assert found == sorted([a, b, c, mine / "mine.me3"], key=lambda p: (p.name.lower(), str(p).lower()))
+    assert found == sorted([a, b, c, d, mine / "mine.me3"], key=lambda p: (p.name.lower(), str(p).lower()))
 
 
 def test_the_second_run_does_nothing(world):
@@ -177,8 +195,8 @@ def test_two_games_may_use_the_same_profile_name(world):
     other.write_bytes(NEW.replace("eldenring", "nightreign").encode())
     nr = Locations(catalog.NIGHTREIGN, Overrides(profiles_dir=str(home)))
     assert migrate.migrate(loc) is not None and migrate.migrate(nr) is not None
-    assert (home / "roundtable" / "eldenring" / "profiles" / "a" / "a.me3").is_file()
-    assert (home / "roundtable" / "nightreign" / "profiles" / "a" / "a.me3").is_file()
+    assert (home / "b-eldenring" / "a" / "a.me3").is_file()
+    assert (home / "b-nightreign" / "a" / "a.me3").is_file()
 
 
 def test_an_interrupted_migration_is_undone_and_can_run_again(world, monkeypatch):
@@ -258,9 +276,9 @@ def test_the_launchers_files_for_a_profile_are_inside_its_folder(tmp_path):
     assert pf.root == own.parent and pf.packages == own.parent / "packages" and pf.natives == own.parent / "natives"
     assert pf.build("combined-parameters").root == own.parent / "builds" / "combined-parameters"
     assert pf.sources("x").record == own.parent / "builds" / "x" / "sources" / "roundtable.json"
-    assert library.state_of(own).root == own.parent / ".roundtable"
+    assert library.state_of(own).root == own.parent / ".bayle"
     loose = tmp_path / "profiles" / "eldenring-mods" / "mine.me3"  # kept in a shared folder: its own builds apart
-    assert library.ProfileFolder.of(loose).root == loose.parent / ".roundtable" / "profiles" / "mine"
+    assert library.ProfileFolder.of(loose).root == loose.parent / ".bayle" / "profiles" / "mine"
     assert not (tmp_path / "profiles" / "main").exists()  # nothing is made until asked
 
 
@@ -281,3 +299,57 @@ def test_a_folder_holding_several_profiles_is_nobodys_own(tmp_path):
     renamed.parent.mkdir()
     renamed.write_bytes(NEW.encode())
     assert not library.own_folder(renamed) and not library.named_folder(renamed)
+
+
+def test_a_second_run_after_the_move_finds_nothing_and_old_state_is_still_read(tmp_path):
+    folder = tmp_path / "x"
+    (folder / ".roundtable").mkdir(parents=True)
+    profile = folder / "x.me3"
+    profile.write_bytes(NEW.encode())
+    assert library.state_of(profile).root == folder / ".roundtable"  # an older version's state folder is read
+    (folder / ".bayle").mkdir()
+    assert library.state_of(profile).root == folder / ".bayle"
+
+
+def test_custom_folder_names_are_followed(tmp_path, monkeypatch):
+    from roundtable_souls.config import settings
+
+    monkeypatch.setattr(
+        settings,
+        "load_settings",
+        lambda: settings.LauncherSettings(
+            game_folder_pattern="my-{game}", packages_folder="mods", shared_folder="Shared"
+        ),
+    )
+    home = tmp_path / "profiles"
+    assert library.game_root(home, "eldenring") == home / "my-eldenring"
+    assert library.shared_root(home, "eldenring") == home / "my-eldenring" / "Shared"
+    pf = library.ProfileFolder.of(home / "my-eldenring" / "p" / "p.me3")
+    assert pf.packages == home / "my-eldenring" / "p" / "mods" and pf.natives.name == "natives"
+    other = tmp_path / "elsewhere"
+    monkeypatch.setattr(settings, "load_settings", lambda: settings.LauncherSettings(profiles_root=str(other)))
+    assert library.game_root(home, "eldenring") == other / "b-eldenring"
+    assert library.is_game_folder(other / "b-eldenring") and not library.is_game_folder(other / "mods")
+
+
+def test_migration_follows_a_custom_game_folder_and_dot_folders_are_never_profiles(world, monkeypatch):
+    from roundtable_souls.config import settings
+    from roundtable_souls.platform import paths
+
+    monkeypatch.setattr(
+        settings,
+        "load_settings",
+        lambda: settings.LauncherSettings(
+            game_folder_pattern="my-{game}", shared_folder="Shared", packages_folder="mods"
+        ),
+    )
+    loc, home, root = world
+    assert migrate.migrate(loc) is not None
+    P = home / "my-eldenring"
+    assert (P / "a" / "a.me3").is_file() and (P / "a" / "mods" / "flora" / "parts" / "f.dcx").is_file()
+    assert "path = 'mods/flora'" in (P / "a" / "a.me3").read_text()
+    assert (P / "Shared" / "lib-mod" / "v1" / "f.dcx").is_file()
+    (P / ".hidden").mkdir()
+    (P / ".hidden" / ".hidden.me3").write_bytes(NEW.encode())
+    found = paths.find_profiles(home, "eldenring", "eldenring", [P])
+    assert not any(".hidden" in str(f) for f in found) and (P / "a" / "a.me3") in found

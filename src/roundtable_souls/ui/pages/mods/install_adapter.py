@@ -13,6 +13,7 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 
 from roundtable_souls.mods import extract as mod_extract
+from roundtable_souls.overhauls import basic
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import profile_mods
@@ -255,10 +256,9 @@ class InstallAdapter(QObject):
         row = next((r for r in d.files if r["file"] == file), None)
         if row is None:
             return
-        row["action"], row["target"] = ("place", value[6:]) if value.startswith("place:") else (value, "")
-        if value == "place":
-            row["action"] = "place"
-        kept = {r["file"]: ("place:" + r["target"] if r["action"] == "place" else r["action"]) for r in d.files}
+        action, target = basic.decode_action(value)
+        row["action"], row["target"] = action, target or (row["target"] if action == "place" else "")
+        kept = {r["file"]: basic.encode_action(r["action"], r["target"]) for r in d.files}
         stored = {f: a for f, a in kept.items() if a != next(r for r in d.files if r["file"] == f)["choices"][0]}
         self._config = cfg.model_copy(update={"basic": cfg.basic.model_copy(update={"files": stored})})
         self._previewed, self._edited = (), True
@@ -275,6 +275,7 @@ class InstallAdapter(QObject):
         key, mode = self._key(), d.overhaul_mode
         config_in = self._config if self._config_for == (key[0], key[2]) else None
         edited = self._edited and config_in is not None
+        have_files = bool(d.files)
         replan, preview = key != self._planned, bool(mode) and (mode, key[0], key[2]) != self._previewed
         if not (replan or preview):
             d.busy = False
@@ -286,6 +287,11 @@ class InstallAdapter(QObject):
         def work():
             out: dict = {"plan": None, "preview": None, "problem": ""}
             cur = plan
+
+            def rows(config, folder) -> None:  # the Files table reads the whole download: not on the UI thread
+                if not have_files or out.get("fresh"):
+                    out["rows"] = mod_service.setup_file_rows(config, folder)
+
             try:
                 if replan:
                     out["plan"] = cur = mod_service.replan_mod_install(
@@ -307,9 +313,12 @@ class InstallAdapter(QObject):
                             )
                         elif saved is not None:  # a saved setup: its options, ready to change
                             out["config"], out["fresh"] = saved, True
+                        if "config" in out:
+                            rows(out["config"], pv.found.folder)
                     else:
                         config = config_in or mod_service.propose_overhaul_setup(cur["root"], key[0], loc=loc)
                         out["config"], out["fresh"], out["folder"] = config, config_in is None, cur["root"]
+                        rows(config, cur["root"])
                         out["preview"] = mod_service.preview_overhaul_setup(profile, cur["root"], config, loc=loc)
                 except Exception as e:  # not one the launcher can set up: the dialog says why
                     out["refusal"] = str(e)
@@ -337,11 +346,13 @@ class InstallAdapter(QObject):
             )
             self._previewed = (mode, key[0], key[2])
             self._via_setup = bool(out.get("edited"))
+            if out.get("fresh"):  # a config proposed again: the player's earlier changes were to another one
+                self._edited = False
             if out.get("config") is not None:
                 self._config, self._config_for = out["config"], (key[0], key[2])
                 d.natives = [n.model_dump() for n in out["config"].basic.natives]
-                if not d.files or out.get("fresh"):
-                    d.files = mod_service.setup_file_rows(out["config"], out["folder"])
+                if out.get("rows") is not None:
+                    d.files = out["rows"]
         self.viewChanged.emit()
 
     # ---- ending

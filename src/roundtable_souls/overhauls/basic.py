@@ -195,6 +195,16 @@ def action_of(f: str, kind: str, basic: Basic) -> str:
     return KINDS[kind][0]
 
 
+def encode_action(action: str, target: str = "") -> str:
+    """A Files table choice as Basic.files stores it: the action, or place:<game path> for a placed file."""
+    return f"place:{target}" if action == "place" else action
+
+
+def decode_action(value: str) -> tuple[str, str]:
+    """(action, game path) of a stored choice; the path is "" unless the file is placed."""
+    return ("place", value[6:]) if value.startswith("place:") else (value, "")
+
+
 def _step(f: str, kind: str, act: str, regulation: str, root: str) -> Step:
     """The step for one file of the download; f is its path there, the game's path is f without the package root."""
     g = f[len(root) + 1 :] if root and _under(f, root) else f

@@ -28,9 +28,11 @@ from roundtable_souls.mods import rebuild as mod_rebuild
 from roundtable_souls.platform import data_folder, instance, paths
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.storage import db as storage_db
+from roundtable_souls.storage import mirror
 from roundtable_souls.storage.activity import ActivityLog
 from roundtable_souls.storage.cache import HashCache
 from roundtable_souls.storage.imports import run_imports
+from roundtable_souls.storage.mirror import Mirror
 from roundtable_souls.storage.rebuild_runs import RebuildRuns
 
 
@@ -90,6 +92,7 @@ class AppContext:
         if self.storage is not None:
             mod_rebuild.use_hash_store(None)
             mod_rebuild.use_run_store(None)
+            mirror.use(None)
             run_logging.use_job_store(None)
             self.storage.close()
             self.storage = None
@@ -124,6 +127,7 @@ def create_app(start_game: catalog.Game | None = None) -> AppContext:
         ctx.rebuild_runs = RebuildRuns(ctx.storage, run_logging.log)
         mod_rebuild.use_hash_store(ctx.hash_cache)
         mod_rebuild.use_run_store(ctx.rebuild_runs)
+        mirror.use(Mirror(ctx.storage, run_logging.log))
         run_logging.use_job_store(ctx.activity)
     else:  # storage off for this run: no persistent hash cache; job records go to jobs.jsonl
         mod_rebuild.use_hash_store(None, file_in_use=False)

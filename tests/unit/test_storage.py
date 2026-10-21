@@ -108,7 +108,7 @@ def test_a_fresh_database_is_created_at_the_current_schema_in_wal(tmp_path, line
         conn = sqlite3.connect(tmp_path / db.DB_NAME)
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         conn.close()
-        assert tables == {"alembic_version", "file_hashes", "jobs", "rebuild_runs", "import_state"}
+        assert tables == {"alembic_version", "file_hashes", "jobs", "rebuild_runs", "import_state", "record_mirror"}
         assert not list(tmp_path.glob("*.snapshot"))  # nothing to snapshot before the first schema
         with database.engine.connect() as c:
             assert c.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1

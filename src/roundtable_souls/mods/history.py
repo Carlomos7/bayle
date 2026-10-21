@@ -14,6 +14,8 @@ import os
 import re
 from pathlib import Path
 
+from roundtable_souls.storage import mirror
+
 KEEP = 30
 INDEX = "versions.json"  # file name -> why, word for word (the file name only carries a short form)
 _NAME = re.compile(r"^(\d{8}-\d{6}-\d{3})_(.*)\.me3$")
@@ -47,6 +49,7 @@ def _write_index(d: Path, data: dict) -> None:
         tmp = d / (INDEX + ".tmp")
         tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
         tmp.replace(d / INDEX)
+        mirror.record(mirror.HISTORY, d / INDEX)
     except OSError:
         pass
 

@@ -33,6 +33,7 @@ from roundtable_souls.saves import container as save_container
 from roundtable_souls.saves import fix as save_fix
 from roundtable_souls.saves import layout as L
 from roundtable_souls.saves import regulation as save_regulation
+from roundtable_souls.storage import mirror
 
 MANIFEST = "library.json"
 SUMMARY_STRIDE = 0x24C  # one character's entry in the profile summary list after the ten active flags
@@ -277,6 +278,7 @@ def _save(save_dir: Path, doc: dict) -> None:
     clean["entries"] = [{k: v for k, v in e.items() if k not in _SHOWN_ONLY} for e in doc["entries"]]
     clean["history"] = doc["history"][-500:]
     atomic_write(folder / MANIFEST, json.dumps(clean, indent=1, ensure_ascii=False))
+    mirror.record(mirror.LIBRARY, folder / MANIFEST)
     for path, _lines in pending:
         path.unlink(missing_ok=True)
 

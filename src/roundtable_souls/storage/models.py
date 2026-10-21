@@ -91,6 +91,20 @@ class RebuildRun(Base):
     ran_at: Mapped[datetime.datetime] = mapped_column(UtcMillis)
     ok: Mapped[bool] = mapped_column(Boolean)
     message: Mapped[str] = mapped_column(Text, default="")
+    fingerprint: Mapped[str] = mapped_column(String(64), default="")  # SHA-256 of the merges.json entry it came from
+
+
+class RecordMirrorRow(Base):
+    """The database's copy of a record file that protects other files (storage.mirror): derived from the file, which
+    stays authoritative. fingerprint: SHA-256 of the file's bytes when the row was made."""
+
+    __tablename__ = "record_mirror"
+
+    kind: Mapped[str] = mapped_column(String, primary_key=True)  # "backup-note", "library", "history"
+    key: Mapped[str] = mapped_column(String, primary_key=True)  # os.path.normcase of the file's full path
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime.datetime] = mapped_column(UtcMillis, default=utc_now, onupdate=utc_now)
 
 
 class ImportState(Base):

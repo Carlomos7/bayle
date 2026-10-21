@@ -33,6 +33,7 @@ from pathlib import Path
 from roundtable_souls.game import catalog as games
 from roundtable_souls.platform import data_folder, filelock
 from roundtable_souls.platform.files import atomic_write, move_into
+from roundtable_souls.storage import mirror
 
 BACKUPS = "backups"
 LIBRARY = "library"
@@ -229,6 +230,8 @@ def protection(bak: Path) -> str:
     keep = note.get("keep", False)
     if not isinstance(keep, bool):
         return UNREADABLE
+    if not keep and mirror.keep_doubt(Path(str(bak) + ".json")):
+        return UNREADABLE  # the database says keep but the note was changed behind its back: err toward safety
     return KEPT if keep else NOT_KEPT
 
 
@@ -239,7 +242,9 @@ def is_kept(bak: Path) -> bool:
 
 def write_note(bak: Path, note: dict) -> None:
     """Write a backup's note atomically, so an interrupted write leaves the previous note whole."""
-    atomic_write(Path(str(bak) + ".json"), json.dumps(note, indent=1))
+    note_path = Path(str(bak) + ".json")
+    atomic_write(note_path, json.dumps(note, indent=1))  # the file first, then the database's copy
+    mirror.record(mirror.BACKUP_NOTE, note_path)
 
 
 def note_files(bak: Path) -> list[Path]:
@@ -294,6 +299,7 @@ def _remove(bak: Path) -> bool:
             p.unlink()
         except OSError:
             pass
+    mirror.forget(mirror.BACKUP_NOTE, Path(str(bak) + ".json"))
     return True
 
 
@@ -304,6 +310,7 @@ def delete(bak: Path) -> None:
         bak.unlink(missing_ok=True)
         for p in note_files(bak):
             p.unlink(missing_ok=True)
+        mirror.forget(mirror.BACKUP_NOTE, Path(str(bak) + ".json"))
 
 
 def prune(folder: Path, save_name: str, now: float | None = None) -> list[Path]:

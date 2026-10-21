@@ -254,11 +254,13 @@ def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app
     host = Host(profile)
     w = opened(host)
     try:
-        assert [n.key for n in w.adapter.state().notices if n.key != "dll-folders"] == ["recovered"]
+        assert [n.key for n in w.adapter.state().notices if n.key not in ("dll-folders", "outside")] == ["recovered"]
         host.busy = True  # a job holds the folder: it is not looked at then
         w.adapter.refresh()
         settle()
-        assert len(calls) == 1 and [n.key for n in w.adapter.state().notices if n.key != "dll-folders"] == ["recovered"]
+        assert len(calls) == 1 and [
+            n.key for n in w.adapter.state().notices if n.key not in ("dll-folders", "outside")
+        ] == ["recovered"]
     finally:
         closed(w)
 
@@ -271,6 +273,22 @@ def test_every_notice_bar_shows_its_text(qt_app, profile, theme):
     try:
         bar = find(w, "notice_online")
         assert bar.property("text").strip() != ""  # a delegate role named `text` once bound to itself and left it empty
+    finally:
+        closed(w)
+
+
+def test_a_profile_outside_bayles_folder_gets_a_notice_with_a_move_in_button(qt_app, profile, monkeypatch):
+    from roundtable_souls.services import profile_mods
+
+    monkeypatch.setattr(profile_mods, "_outside", lambda prof, loc: True)
+    w = opened(Host(profile))
+    try:
+        bar = find(w, "notice_outside")
+        assert "outside Bayle's folder" in bar.property("text")
+        moved = []
+        monkeypatch.setattr(w.adapter, "moveIntoLauncherFolder", lambda: moved.append(1))
+        w.adapter.noticeAction("outside")
+        assert moved == [1]
     finally:
         closed(w)
 

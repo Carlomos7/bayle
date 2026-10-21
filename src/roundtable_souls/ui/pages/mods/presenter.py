@@ -381,6 +381,7 @@ class ModsPresenter:
                 facts.folder,
                 len(facts.loose_dlls),
                 duplicated,
+                facts.outside,
             ),
         )
 
@@ -628,6 +629,7 @@ class ModsPresenter:
         folder: profile_mods.folder_check.FolderCheck | None = None,
         loose_dlls: int = 0,
         duplicated: tuple[int, int] = (0, 0),
+        outside: bool = False,
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -728,6 +730,16 @@ class ModsPresenter:
                     ),
                     tr("Move into this profile...") if seamless == "move" else tr("Clean up the game folder..."),
                     True,
+                )
+            )
+        if outside:
+            out.append(
+                Notice(
+                    "outside",
+                    "info",
+                    tr("This profile is outside Bayle's folder, so Bayle can't manage its layout."),
+                    tr("Move in..."),
+                    False,
                 )
             )
         if duplicated[1] > shared_mods.HINT_BYTES:

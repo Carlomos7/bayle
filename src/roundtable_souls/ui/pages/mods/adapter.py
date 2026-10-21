@@ -810,6 +810,8 @@ class ModsAdapter(QObject):
             self._folder_action()
         elif key == "dll-folders":
             self._dll_folders_action()
+        elif key == "outside":
+            self.moveIntoLauncherFolder()
         elif key == "library-hint":
             self.dialogRequested.emit("library", -1)
 

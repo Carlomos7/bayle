@@ -200,3 +200,26 @@ def test_the_confirm_words():
     assert changes == ("2 mods move, 1 are copied because other profiles in eldenring-mods use them.",)
     assert (safety, apply) == ("Undo in Activity.", "Move")
     assert ModsPresenter().move_in_confirm("a", "f", 3, 0)[1] == ("3 mods move.",)
+
+
+def test_a_crash_journaled_under_the_old_name_is_still_recovered(world, monkeypatch):
+    """Safety (players' files): a move interrupted by a launcher before 4.6 (.roundtable-ops) is undone at start."""
+    loc, home, _plain, a = world
+    before = tree(home)
+    real, calls = B._move, {"n": 0}
+
+    def dying(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 3:
+            raise Crash()
+        return real(src, dst)
+
+    with monkeypatch.context() as m:
+        m.setattr(B, "_move", dying)
+        m.setattr(B, "_undo", lambda op: None)
+        with pytest.raises(Crash):
+            move_in.apply(move_in.plan(a, loc), loc=loc)
+    profiles = library.profiles_root(home, "eldenring")
+    (profiles / B.OPS).rename(profiles / B.LEGACY_OPS)
+    assert move_in.recover(loc)
+    assert tree(home) == before and not (profiles / B.LEGACY_OPS).exists()

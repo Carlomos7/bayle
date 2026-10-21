@@ -41,7 +41,7 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "tests/unit"]
 markers = ["integration: needs a real Elden Ring save on this PC (skipped otherwise)"]
 
 [tool.coverage.run]

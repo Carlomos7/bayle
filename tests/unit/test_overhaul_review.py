@@ -45,3 +45,16 @@ def test_the_engine_refuses_a_step_path_outside_its_folder(tmp_path):
         engine._in(base, "../outside.txt")
     with pytest.raises(engine.EngineError, match="outside"):
         engine._in(base, "map/../../x")
+
+
+# ----------------------------------------------------------------------------- saving with no Files table
+def test_saving_without_the_mods_folder_keeps_the_old_lists_and_files():
+    from roundtable_souls.overhauls.config import OverhaulConfig
+    from roundtable_souls.services import mod_configs
+
+    old = Basic(keep=["a.ini"], place={"x.bnd": "map/x.bnd"}, skip=["junk"], files={"b.ini": "keep"})
+    config = OverhaulConfig.model_construct(basic=old)
+    assert mod_configs.files_to_store([], {}) is None
+    kept = mod_configs.with_basic(config, natives=[{"file": "M.dll"}], files=None).basic
+    assert (kept.keep, kept.place, kept.skip, kept.files) == (old.keep, old.place, old.skip, old.files)
+    assert [n.file for n in kept.natives] == ["M.dll"]

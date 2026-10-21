@@ -40,10 +40,10 @@ LOOSE_RULES = (
 )
 
 
-def loose_files(folder: Path) -> list[tuple[Path, str]]:
-    """(file, game folder) for loose game files sitting directly in folder."""
+def loose_files(folder: Path, kids: list[Path] | None = None) -> list[tuple[Path, str]]:
+    """(file, game folder) for loose game files sitting directly in folder (kids: its children, when already listed)."""
     out = []
-    for c in _children(Path(folder)):
+    for c in _children(Path(folder)) if kids is None else kids:
         if not c.is_file():
             continue
         for rx, sub in LOOSE_RULES:
@@ -72,7 +72,7 @@ def has_game_files(folder: Path) -> bool:
     return (
         any(c.is_dir() and c.name.lower() in ACCEPTABLE_FOLDERS - NOT_GAME_FOLDERS for c in kids)
         or (folder / games.ELDEN_RING.regulation).is_file()
-        or bool(loose_files(folder))
+        or bool(loose_files(folder, kids))
     )
 
 
@@ -97,23 +97,34 @@ def _within(inner: Path, outer: Path) -> bool:
 
 def _unlisted_packages(folder: Path, listed: set[Path], max_depth: int = 3) -> list[Path]:
     """Package folders (game files at their top level) below folder that no entry points at. A folder that holds
-    listed packages deeper down is looked past; folders starting with _ (backups) are skipped."""
-    found: list[Path] = []
+    listed packages deeper down is looked past; folders starting with _ (backups) are skipped.
 
-    def walk(d: Path, depth: int):
+    The folder is resolved once and a child is named below it by its own name: resolving every child cost a trip
+    to the file system each (seconds on Windows with many folders). Only a link is resolved by itself."""
+    found: list[Path] = []
+    holding = {p for g in listed for p in g.parents}  # every folder with a listed package somewhere below it
+
+    def key_of(c: Path, parent_key: Path) -> Path:
+        if c.is_symlink() or os.path.isjunction(c):
+            return _canon(c)
+        return parent_key / os.path.normcase(c.name)
+
+    def walk(d: Path, d_key: Path, depth: int):
         for c in sorted(_children(d), key=lambda x: x.name.lower()):
-            key = _canon(c)
-            if not c.is_dir() or c.name.startswith("_") or key in listed:
+            if not c.is_dir() or c.name.startswith("_"):
                 continue
-            if any(_within(g, key) for g in listed):
-                walk(c, depth + 1)
+            key = key_of(c, d_key)
+            if key in listed:
+                continue
+            if key in holding:
+                walk(c, key, depth + 1)
             elif has_game_files(c):
                 found.append(c)
             elif depth < max_depth:
-                walk(c, depth + 1)
+                walk(c, key, depth + 1)
 
     if Path(folder).is_dir():
-        walk(Path(folder), 1)
+        walk(Path(folder), _canon(folder), 1)
     return found
 
 

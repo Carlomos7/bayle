@@ -47,33 +47,15 @@ def _root(profile: Path) -> Path:
 
 def _bases(profile: Path) -> list[tuple[Path, str]]:
     """Where this profile's operations are: its .roundtable/ops, then .roundtable-ops beside it (before 3.23)."""
-    return [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
-
-
-def _watched(profile: Path) -> list[tuple[Path, str]]:
-    """_bases, and the ops of the libraries near the profile: an adoption (mods.adopt) is journaled in the library its
-    profiles move to, and until it is finished or undone the folder it came from is not in a known state."""
-    out = _bases(profile)
-    own = out[0][0]
-    here = Path(profile).parent
-    for folder in (here, *here.parents[:2]):
-        try:
-            near = sorted(folder.glob(library.PREFIX + "*"))
-        except OSError:
-            continue
-        for lib in near:
-            state = lib / library.STATE
-            if state != own and (state / library.OPS).is_dir() and (state, library.OPS) not in out:
-                out.append((state, library.OPS))
+    out = [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
+    if library.own_folder(profile):  # a rename or copy of a profile's folder is journaled beside the folder
+        out.append((_root(profile).parent, build.OPS))
     return out
 
 
 def lock(profile: Path, timeout: float = 30.0):
-    """Held around an operation on this profile's folder, by every launcher process: the library's ops.lock for a
-    library profile, else the lock launchers before 3.23 hold too (.roundtable-ops.lock beside the profile)."""
-    state = library.state_of(profile)
-    if state.root.parent != _root(profile):
-        return build.ops_lock(state.root, timeout, library.OPS)
+    """Held around an operation on this profile's folder, by every launcher process: the lock launchers before 3.23
+    hold too (.roundtable-ops.lock beside the profile)."""
     return build.ops_lock(_root(profile), timeout)
 
 
@@ -84,14 +66,14 @@ def _active(profile: Path) -> list[build.Operation]:
 def recover(profile: Path, timeout: float = 30.0) -> list[str]:
     """Finish or undo what an interrupted operation in this profile's folder left (see merging.build), wherever its
     journal is. Raises merging.build.BuildError when another launcher process holds the folder past timeout."""
-    bases = [(root, ops) for root, ops in _watched(profile) if (root / ops).is_dir()]
+    bases = [(root, ops) for root, ops in _bases(profile) if (root / ops).is_dir()]
     if not bases:
         return []  # nothing ever ran here: not even the lock file is made
     said: list[str] = []
     with lock(profile, timeout):  # first, so every process takes the locks in one order
         for root, ops in bases:
             said += build.recover_operations(root, timeout, ops)
-        for o in (o for root, ops in _watched(profile) for o in build.active(root, ops)):
+        for o in (o for root, ops in _bases(profile) for o in build.active(root, ops)):
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
                 o.release()
@@ -129,7 +111,7 @@ def _release_others(op: build.Operation) -> None:
 
 
 def pending(profile: Path) -> list[str]:
-    return [w for root, ops in _watched(profile) for w in build.pending(root, ops)]
+    return [w for root, ops in _bases(profile) for w in build.pending(root, ops)]
 
 
 def problem(profile: Path) -> str | None:
@@ -234,13 +216,6 @@ def _shared_folder(folder: Path) -> bool:
         return False
 
 
-def _kept_for(profile: Path, folder: Path) -> list[str]:
-    """The other profiles of the library that list this folder: an undo or rollback of this profile's operation
-    must not take the folder from them."""
-    lib = library.library_of(profile)
-    return lib.folder_users(folder, besides=profile) if lib is not None else []
-
-
 def _coop_entries(text: str) -> set[str]:
     """The co-op DLL entries this profile text loads (switched on), by path."""
     dlls = _coop_dlls()
@@ -313,10 +288,7 @@ def undo_install(op_dir: Path, log=lambda s: None) -> str:
             if back is not None:
                 new.write_file(profile, back[0], expect=back[1])
             left: list[str] = []
-            others = _kept_for(profile, dest) if dest.is_dir() else []
-            if others:
-                notes.append(f"{dest.name} is also used by {', '.join(others)}, so its folder stays")
-            elif dest.is_dir() and op.info.get("fresh") and not _shared_folder(dest):
+            if dest.is_dir() and op.info.get("fresh") and not _shared_folder(dest):
                 created = op.info.get("created") or {}
                 staged = dest.with_name(f".{dest.name}.staging-{new.id}")
                 staged.mkdir()
@@ -384,7 +356,7 @@ def take_back(op_dir: Path, log=lambda s: None) -> str:
                     previous = Path(step["previous"]) if step["previous"] else None
                     if previous is not None and previous.is_dir():
                         new.replace_folder(live, previous)
-                    elif live.is_dir() and (made_here or not _shared_folder(live)) and not _kept_for(profile, live):
+                    elif live.is_dir() and (made_here or not _shared_folder(live)):
                         created = made.get(str(live)) or {}
                         staged = live.with_name(f".{live.name}.staging-{new.id}")
                         staged.mkdir()
@@ -437,11 +409,6 @@ def rollback(op_dir: Path, log=lambda s: None, then=None) -> str:
     previous = Path(folder["previous"]) if folder and folder["previous"] else None
     if previous is None or not previous.is_dir():
         raise OperationError(f"The version of {name} before the update is no longer kept.")
-    if others := _kept_for(profile, dest):
-        raise OperationError(
-            f"{name} is also used by {', '.join(others)}, so rolling it back would change it for them too. "
-            "Nothing was changed."
-        )
     notes: list[str] = []
     created = op.info.get("created") or {}
     changed = [rel for rel in manifest(dest) if rel not in created or not _unchanged(dest / rel, created[rel])]

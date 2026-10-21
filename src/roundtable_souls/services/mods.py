@@ -261,13 +261,6 @@ def installable_overhauls(game: str) -> list[str]:
     return out
 
 
-def overhaul_library_folder(game: str) -> str:
-    """The name of the game's library folder in me3's profiles folder, where the launcher keeps its files."""
-    from roundtable_souls.mods import library
-
-    return library.ModLibrary.at(Path(), game).root.name
-
-
 def overhaul_switch_text(game: str) -> str:
     """The line under the Settings switch: what it covers for this game, and where the launcher keeps its files."""
     names = installable_overhauls(game)
@@ -279,7 +272,7 @@ def overhaul_switch_text(game: str) -> str:
     return (
         "Install an overhaul from the folder you unpacked it into, without its installer, and remove it again. "
         f"{covers}"
-        f"The launcher keeps its copy of the download in {overhaul_library_folder(game)}, in me3's profiles folder."
+        "The launcher keeps its copy of the download in the profile's builds folder."
     )
 
 

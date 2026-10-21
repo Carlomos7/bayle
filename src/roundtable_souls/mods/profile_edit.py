@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
-import os
 import re
 import shutil
 import time
@@ -333,11 +332,6 @@ def roots(profile: Path, text: str) -> tuple[Path, Path]:
     named mod / mods / packages beside the profile), else mod/; natives likewise into natives/. A package that lives
     inside another mod's own folder (an overhaul's Folder/mod) is never used as the container."""
     profile = Path(profile)
-    from roundtable_souls.mods import library
-
-    lib = library.library_of(profile)
-    if lib is not None:
-        return lib.packages, lib.natives
     if is_array_form(text):
         text = to_blocks(text)
     counts: dict[tuple[str, Path], int] = {}
@@ -369,16 +363,10 @@ def slug(name: str) -> str:
 
 
 def rel(profile: Path, target: Path) -> str:
-    """target as a path from the profile's folder; in a library profile a place elsewhere in the library is reached
-    with ../ (the library can be moved as one), anything else stays as given."""
-    from roundtable_souls.mods import library
-
+    """target as a path from the profile's folder when inside it, else as given."""
     try:
         return str(Path(target).relative_to(Path(profile).parent)).replace("\\", "/")
     except ValueError:
-        lib = library.library_of(profile)
-        if lib is not None and lib.place_of(target) is not None:
-            return os.path.relpath(target, Path(profile).parent).replace("\\", "/")
         return str(target).replace("\\", "/")
 
 
@@ -410,30 +398,29 @@ def entries(profile: Path) -> list[dict]:
 
 # ----------------------------------------------------------------------------- profiles
 def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: Path | None = None) -> Path:
-    """A new profile in me3's profiles folder `folder`, in its game's own `<game>-mods` folder with its own mod and
-    natives folders (me3's usual layout; games never share mod folders). A copy of another profile goes beside that
-    profile instead, so its relative entry paths keep pointing at the same mods."""
-    folder = Path(folder)
-    if copy_from and Path(copy_from).is_file():
-        folder = Path(copy_from).parent
-    else:
-        folder = folder / f"{game}-mods"
-    folder.mkdir(parents=True, exist_ok=True)
+    """A new profile in me3's profiles folder `folder`, in a folder of its own: <name>/<name>.me3 with mod/ and
+    natives/ beside it. A copy of another profile takes its text; when that one has a folder of its own its mod and
+    natives folders are copied too, so the relative entry paths keep working."""
     stem = slug(name)
     if stem.lower().endswith(".me3"):
         stem = stem[:-4]
-    path = folder / f"{stem}.me3"
+    home = Path(folder) / stem
+    path = home / f"{stem}.me3"
     if path.exists():
         raise ModError(f"{path.name} already exists")
-    if copy_from and Path(copy_from).is_file():
-        text = read_text(Path(copy_from))
+    src = Path(copy_from) if copy_from and Path(copy_from).is_file() else None
+    if src is not None:
+        text = read_text(src)
     else:
         text = f'profileVersion = "v1"\n\n[[supports]]\ngame = {quote(game)}\n'
+    home.mkdir(parents=True, exist_ok=True)
     from roundtable_souls.mods import profile_writer
 
     profile_writer.ProfileWriter.create(path, text).write("new profile")
-    (folder / "mod").mkdir(exist_ok=True)
-    (folder / "natives").mkdir(exist_ok=True)
+    for sub_name in ("mod", "natives"):
+        if src is not None and (src.parent / sub_name).is_dir() and src.parent.name.lower() == src.stem.lower():
+            shutil.copytree(src.parent / sub_name, home / sub_name, dirs_exist_ok=True)
+        (home / sub_name).mkdir(exist_ok=True)
     return path
 
 

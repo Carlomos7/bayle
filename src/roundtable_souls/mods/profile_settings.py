@@ -145,9 +145,6 @@ def to_stored(profile: Path, target: Path | None) -> str | None:
     try:
         return Path(os.path.abspath(target)).relative_to(Path(os.path.abspath(base))).as_posix()
     except ValueError:
-        lib = library.library_of(profile)
-        if lib is not None and lib.place_of(target) is not None:  # elsewhere in the library: the folder moves as one
-            return Path(os.path.relpath(target, base)).as_posix()
         return str(target)
 
 

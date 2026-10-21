@@ -1,41 +1,30 @@
-"""The launcher's mod folder for one game: rs-<game key> inside me3's profiles folder, with a fixed layout. Mods are
-installed there once and listed by any profile; profiles point at them with paths relative to themselves, so the
-folder can be copied or moved as one.
+"""A profile's own folder in me3's profiles folder, and the launcher's files in it. Each profile owns its mods:
 
-    profiles/<profile>.me3                 the profiles, side by side
-    packages/<mod id>/                     asset mods, their own files untouched
-    natives/<mod id>/                      DLL mods, their settings files shared by every profile
-    overhauls/<overhaul id>/               an overhaul's runtime files, shared, with roundtable.json
-    sources/<overhaul id>/                 what its builds read, by role: merge/ text/ hooks/ base/, with roundtable.json
-    builds/<what>/<profile>/               what is made per profile (an overhaul's merged package, Combine's
-                                           combined-parameters): build.json, merge-report.txt, .previous/
-    .roundtable/                           the launcher's own (hidden): settings.json (per-profile choices), backups/,
-                                           previous/ (an updated mod's old copy), ops/ and ops.lock (journals)
+    profiles/<name>/<name>.me3     the profile
+    profiles/<name>/mod/           packages (game-file mods), one folder each
+    profiles/<name>/natives/       DLL mods, one folder each
+    profiles/<name>/builds/<what>/ what the launcher makes for this profile: an overhaul's id (its build, merged
+                                   package, sources/ by role: merge/ text/ hooks/ base/, overhaul/) or
+                                   combined-parameters; build.json, merge-report.txt, .previous/
+    profiles/<name>/.roundtable/   the launcher's own (hidden): settings.json, backups/, previous/ (an updated mod's
+                                   old copy), ops/ and ops.lock (journals)
 
-ModLibrary answers where each of these is, and mods.naming says what things are called.
-Nothing is created until ensure() asks for it. Which profiles use which mod is never stored: scan() works it out from
-the profiles' entries.
-
-Today's installs, updates and Combine still use the folders they always have (3.21); this is the model they and the
-adoption of existing setups will ask. Not to be confused with the save library (saves.library).
-A profile outside the library has its own .roundtable beside it, with the same layout (state_of).
+A profile that sits loose in a folder with others (an existing setup) keeps its mod folders where they are
+(mods.profile_edit.roots) and gets the same builds/ under .roundtable/profiles/<name>/ so two profiles never share
+one. mods.migrate moves the shared rs-<game> library older versions made into this layout.
+ProfileFolder answers where each of these is; mods.naming says what things are called. Nothing is created until
+ensure() asks for it.
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-from roundtable_souls.formats import me3_profile
 from roundtable_souls.platform import files
 
-if TYPE_CHECKING:
-    from roundtable_souls.game.locate import Locations
-
-PREFIX = "rs-"
-STATE = ".roundtable"  # the launcher's own folder: in the library, or beside a profile kept elsewhere
+STATE = ".roundtable"  # the launcher's own folder beside the profile
 SETTINGS = "settings.json"  # per-profile launcher choices (was roundtable.json beside the profile)
 BACKUPS = "backups"  # each profile's .bak (was beside the .me3)
 PREVIOUS_COPIES = "previous"  # an updated mod's old copy until it is kept or rolled back
@@ -45,12 +34,11 @@ PREVIOUS = ".previous"  # a build's previous copy, for Undo rebuild
 HIDDEN = (STATE, PREVIOUS)  # given Windows' hidden attribute when ensure() makes them
 RECORD = "roundtable.json"  # the launcher's file beside a mod's files
 ROLES = ("merge", "text", "hooks", "base")  # an overhaul's sources, by what its builds do with them
-COLLECTIONS = ("packages", "natives", "overhauls")  # the folders holding one mod per folder
 
 
 @dataclass(frozen=True)
 class SourceFolders:
-    """sources/<overhaul id>/: one folder per role and the record of where each file came from."""
+    """builds/<overhaul id>/sources/: one folder per role and the record of where each file came from."""
 
     root: Path
     merge: Path
@@ -67,7 +55,7 @@ class SourceFolders:
 
 @dataclass(frozen=True)
 class BuildFolder:
-    """builds/<what>/<profile>/: what one profile's build made, its inputs (build.json), its report, the previous
+    """builds/<what>/: what a build made, its inputs (build.json), its report, the previous
     build kept for Undo rebuild, and the install's side effects on the profile (roundtable.json)."""
 
     root: Path
@@ -79,7 +67,7 @@ class BuildFolder:
 
 @dataclass(frozen=True)
 class StateFolders:
-    """.roundtable/: the launcher's own files in the library."""
+    """.roundtable/: the launcher's own files for a profile."""
 
     root: Path
     settings: Path
@@ -89,76 +77,35 @@ class StateFolders:
     ops_lock: Path
 
 
-def users_of(profiles_dir: Path, folder: Path, *, besides: Path | None = None) -> list[str]:
-    """The names of the .me3 profiles in profiles_dir (not `besides`) with an entry pointing at folder or into it."""
-    key = os.path.normcase(os.path.abspath(folder))
-    skip = os.path.normcase(os.path.abspath(besides)) if besides is not None else None
-    out: list[str] = []
-    if not profiles_dir.is_dir():
-        return out
-    for profile in sorted(profiles_dir.glob("*.me3"), key=lambda p: p.name.lower()):
-        if os.path.normcase(os.path.abspath(profile)) == skip or not profile.is_file():
-            continue
-        try:
-            rows = me3_profile.entries(me3_profile.read_text(profile))
-        except OSError, ValueError:
-            continue
-        for row in rows:
-            if not row.get("path"):
-                continue
-            at = os.path.normcase(os.path.abspath(me3_profile.resolve(profile, row["path"])))
-            if at == key or at.startswith(key + os.sep):
-                out.append(profile.stem)
-                break
-    return out
+def own_folder(profile: Path) -> bool:
+    """Whether the profile sits in a folder of its own named after it (profiles/<name>/<name>.me3)."""
+    profile = Path(profile)
+    return profile.parent.name.lower() == profile.stem.lower()
 
 
 @dataclass(frozen=True)
-class ModLibrary:
-    """Where everything goes in one game's library (paths only; nothing is read or made here but by ensure and
-    scan)."""
+class ProfileFolder:
+    """Where the launcher's files for ONE profile go (paths only; nothing is read or made here but by ensure and
+    prune)."""
 
     root: Path
-    game: str
 
     @classmethod
-    def for_game(cls, loc: Locations) -> ModLibrary | None:
-        """The library for loc's game in its me3 profiles folder (Settings > Locations may move that), or None when
-        there is no such folder on this machine."""
-        profiles = loc.me3_profiles_dir()
-        return cls.at(profiles, loc.game.key) if profiles is not None else None
-
-    @classmethod
-    def at(cls, profiles_dir: Path, game: str) -> ModLibrary:
-        return cls(Path(profiles_dir) / f"{PREFIX}{game}", game)
-
-    # ------------------------------------------------------------------ the layout
-    @property
-    def profiles(self) -> Path:
-        return self.root / "profiles"
+    def of(cls, profile: Path) -> ProfileFolder:
+        profile = Path(profile)
+        return cls(profile.parent if own_folder(profile) else profile.parent / STATE / "profiles" / profile.stem)
 
     @property
     def packages(self) -> Path:
-        return self.root / "packages"
+        return self.root / "mod"
 
     @property
     def natives(self) -> Path:
         return self.root / "natives"
 
     @property
-    def overhauls(self) -> Path:
-        return self.root / "overhauls"
-
-    @property
-    def sources_root(self) -> Path:
-        return self.root / "sources"
-
-    @property
     def builds(self) -> Path:
         return self.root / "builds"
-
-    def profile(self, name: str) -> Path:
-        return self.profiles / f"{name}.me3"
 
     def package(self, mod_id: str) -> Path:
         return self.packages / mod_id
@@ -167,28 +114,25 @@ class ModLibrary:
         return self.natives / mod_id
 
     def overhaul(self, overhaul_id: str) -> Path:
-        return self.overhauls / overhaul_id
+        """The overhaul's settings files the launcher keeps for the player."""
+        return self.builds / overhaul_id / "overhaul"
 
     def overhaul_record(self, overhaul_id: str) -> Path:
         return self.overhaul(overhaul_id) / RECORD
 
     def sources(self, overhaul_id: str) -> SourceFolders:
-        root = self.sources_root / overhaul_id
+        root = self.builds / overhaul_id / "sources"
         return SourceFolders(root, root / "merge", root / "text", root / "hooks", root / "base", root / RECORD)
 
-    def build(self, what: str, profile: str) -> BuildFolder:
-        """what: an overhaul's id, or combined-parameters; profile: the profile's name (its file name without .me3)."""
-        root = self.builds / what / profile
+    def build(self, what: str) -> BuildFolder:
+        """what: an overhaul's id, or combined-parameters."""
+        root = self.builds / what
         return BuildFolder(root, root / "build.json", root / "merge-report.txt", root / PREVIOUS, root / RECORD)
-
-    @property
-    def state(self) -> StateFolders:
-        return _state_folders(self.root / STATE)
 
     # ------------------------------------------------------------------ making folders
     def ensure(self, *folders: Path) -> list[Path]:
-        """Make these folders (inside the library) and the ones above them, only these; .roundtable and .previous
-        get Windows' hidden attribute when made. Returns the folders made."""
+        """Make these folders (inside the profile's folder) and the ones above them, only these; .roundtable and
+        .previous get Windows' hidden attribute when made. Returns the folders made."""
         made: list[Path] = []
         root = Path(os.path.abspath(self.root))
         for folder in folders:
@@ -199,15 +143,15 @@ class ModLibrary:
             for p in reversed(chain):
                 if p.is_dir():
                     continue
-                p.mkdir()
+                p.mkdir(parents=p == root)
                 made.append(p)
                 if p.name in HIDDEN:
                     files.hide(p)
         return made
 
     def prune(self, folder: Path) -> list[Path]:
-        """Remove folder and the folders above it while they are empty, up to the library's root (which stays); a
-        folder already gone counts as empty. Nothing outside the library is touched. Returns the folders removed."""
+        """Remove folder and the folders above it while they are empty, up to the profile's folder (which stays); a
+        folder already gone counts as empty. Nothing outside is touched. Returns the folders removed."""
         root = Path(os.path.abspath(self.root))
         folder = Path(os.path.abspath(folder))
         gone: list[Path] = []
@@ -223,104 +167,15 @@ class ModLibrary:
             folder = folder.parent
         return gone
 
-    # ------------------------------------------------------------------ what is there
-    def scan(self) -> Contents:
-        """What the library holds and which profiles use what, read from the folders and the profiles' entries.
-        Reads only; an unreadable profile is listed with no entries."""
-        out = Contents(self)
-        if self.profiles.is_dir():
-            out.profiles = sorted((p for p in self.profiles.glob("*.me3") if p.is_file()), key=lambda p: p.name.lower())
-        for name in COLLECTIONS:
-            folder = self.root / name
-            out.mods[name] = _folders(folder)
-        if self.builds.is_dir():
-            out.builds = {what: _folders(self.builds / what) for what in _folders(self.builds)}
-        for profile in out.profiles:
-            try:
-                rows = me3_profile.entries(me3_profile.read_text(profile))
-            except OSError, ValueError:
-                continue
-            for row in rows:
-                if not row.get("path"):
-                    continue
-                where = self.place_of(me3_profile.resolve(profile, row["path"]))
-                use = Use(profile, row["kind"], row["name"], row.get("enabled", True))
-                if where is None:
-                    out.outside.append(use)
-                else:
-                    out.users.setdefault(where, []).append(use)
-        return out
-
-    def folder_users(self, folder: Path, *, besides: Path | None = None) -> list[str]:
-        """The names of the profiles here (not `besides`) with an entry pointing at folder or into it, switched on or
-        off. Reads only; an unreadable profile counts as not using it."""
-        return users_of(self.profiles, folder, besides=besides)
-
-    def place_of(self, path: Path) -> tuple[str, str] | None:
-        """(collection, id) of the library folder a path points into: ("packages", "hair"), ("natives", "x") for
-        natives/x/x.dll, ("builds", "<what>") for an overhaul's build; None outside the library's mod folders."""
-        try:
-            rel = Path(os.path.abspath(path)).relative_to(os.path.abspath(self.root))
-        except ValueError:
-            return None
-        parts = rel.parts
-        if len(parts) >= 2 and parts[0] in (*COLLECTIONS, "builds"):
-            return parts[0], parts[1]
-        return None
-
-
-@dataclass(frozen=True)
-class Use:
-    """One profile entry pointing at something."""
-
-    profile: Path
-    kind: str  # package or native
-    name: str  # its id, else its file or folder name
-    enabled: bool
-
-
-@dataclass
-class Contents:
-    """What scan() found: profiles, the mods in each collection, builds per overhaul (what -> profiles), which
-    profiles' entries point at each mod, and the entries that point outside the library."""
-
-    library: ModLibrary
-    profiles: list[Path] = field(default_factory=list)
-    mods: dict[str, list[str]] = field(default_factory=dict)  # packages / natives / overhauls -> ids
-    builds: dict[str, list[str]] = field(default_factory=dict)  # what -> profile names with a build
-    users: dict[tuple[str, str], list[Use]] = field(default_factory=dict)  # (collection, id) -> entries using it
-    outside: list[Use] = field(default_factory=list)
-
-    def used_by(self, collection: str, mod_id: str) -> list[Path]:
-        """The profiles with an entry pointing at this mod, each once, in profile order."""
-        seen: list[Path] = []
-        for use in self.users.get((collection, mod_id), []):
-            if use.profile not in seen:
-                seen.append(use.profile)
-        return seen
-
-    def unused(self, collection: str) -> list[str]:
-        """The mods in a collection no profile points at."""
-        return [m for m in self.mods.get(collection, []) if (collection, m) not in self.users]
-
 
 def _state_folders(root: Path) -> StateFolders:
     return StateFolders(root, root / SETTINGS, root / BACKUPS, root / PREVIOUS_COPIES, root / OPS, root / OPS_LOCK)
 
 
 def state_of(profile: Path) -> StateFolders:
-    """The launcher's own folder for a profile: the library's .roundtable for a profile in rs-<game>/profiles, else
-    .roundtable beside the profile (existing setups keep everything where they are)."""
-    lib = library_of(profile)
-    return lib.state if lib is not None else _state_folders(Path(profile).parent / STATE)
-
-
-def library_of(profile: Path) -> ModLibrary | None:
-    """The library a profile in rs-<game>/profiles belongs to, else None (a profile kept elsewhere)."""
-    folder = Path(profile).parent
-    if folder.name == "profiles" and folder.parent.name.startswith(PREFIX):
-        return ModLibrary(folder.parent, folder.parent.name[len(PREFIX) :])
-    return None
+    """The launcher's own folder for a profile: .roundtable beside it (in its own folder, or shared by the loose
+    profiles of a folder)."""
+    return _state_folders(Path(profile).parent / STATE)
 
 
 def ensure_state(state: StateFolders, *folders: Path) -> None:
@@ -337,10 +192,3 @@ def profile_backup(profile: Path) -> Path:
     state = state_of(profile)
     ensure_state(state, state.backups)
     return state.backups / (Path(profile).name + ".bak")
-
-
-def _folders(folder: Path) -> list[str]:
-    """The names of the folders directly in `folder` (not hidden ones), sorted."""
-    if not folder.is_dir():
-        return []
-    return sorted((p.name for p in folder.iterdir() if p.is_dir() and not p.name.startswith(".")), key=str.lower)

@@ -55,7 +55,7 @@ from roundtable_souls.formats import me3_profile
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import library, operations, records
 from roundtable_souls.mods.checks import same_folder
-from roundtable_souls.mods.library import ModLibrary
+from roundtable_souls.mods.library import ProfileFolder
 from roundtable_souls.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
 from roundtable_souls.mods.profile_edit import ModError, quote
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
@@ -83,9 +83,9 @@ class NotAnOverhaul(OverhaulError):
 # ----------------------------------------------------------------------------- where things are
 @dataclass(frozen=True)
 class Places:
-    """The launcher's own files for one overhaul and one profile, in the game's library (see the module notes)."""
+    """The launcher's own files for one overhaul in one profile, in the profile's own folder (see the module notes)."""
 
-    library: ModLibrary
+    library: ProfileFolder
     overhaul: str
     profile: Path
 
@@ -104,27 +104,12 @@ class Places:
 
     @property
     def effects(self) -> Path:
-        return self.library.build(self.overhaul, self.profile.stem).side_effects
-
-    def other_installs(self) -> list[str]:
-        """The other profiles (by name) the launcher installed this overhaul into: its builds/<id>/ folders with a
-        side-effects record."""
-        root = self.library.builds / self.overhaul
-        if not root.is_dir():
-            return []
-        return sorted(
-            p.name
-            for p in root.iterdir()
-            if p.is_dir() and p.name.lower() != self.profile.stem.lower() and (p / library.RECORD).is_file()
-        )
+        return self.library.build(self.overhaul).side_effects
 
 
 def places(profile: Path, overhaul_id: str, loc: Locations) -> Places | None:
-    """Where the launcher keeps its files for this overhaul and profile; None when me3's profiles folder (where the
-    library is) is not on this PC."""
-    lib = library.ModLibrary.for_game(loc)
-    if lib is None or not lib.root.parent.is_dir():
-        return None
+    """Where the launcher keeps its files for this overhaul in this profile's folder."""
+    lib = library.ProfileFolder.of(profile)
     return Places(lib, overhaul_id, Path(profile))
 
 
@@ -407,11 +392,6 @@ def preview_install(
     out = InstallPreview(profile, found, own, where, plan.update, writer, None, [], [], 0)
     out.refusals += [p.message for p in plan.problems if p.blocks]
     out.notes += [p.message for p in plan.problems if not p.blocks]
-    if library.library_of(profile) is not None:  # its runtime folder would land in profiles/ (S3e moves it)
-        out.refusals.append(
-            f"{config.label} can't be installed into a profile in the library yet: it needs the launcher's own "
-            "build, which is still to come."
-        )
     if installer_setup(profile, config) is not None:
         out.refusals.append(
             f"{config.label} in {profile.parent.name} was installed by its own installer, and the launcher doesn't "
@@ -443,12 +423,6 @@ def preview_install(
     out.files = _needed(found.folder, build, config.recipe(build))
     out.size = sum((found.folder / f).stat().st_size for f in out.files)
     assert where is not None
-    others = where.other_installs()
-    if others and where.record.is_file():
-        out.notes.append(
-            f"{config.label} installed by the launcher in {', '.join(others)} uses the same copy of its download: "
-            "it is rebuilt from this one before its next Play."
-        )
     out.lines = _install_lines(out, plan)
     return out
 
@@ -528,7 +502,7 @@ def _install_lines(p: InstallPreview, plan: install_plan.Plan) -> list[str]:
             f"{cfg.label} already in {p.profile.name} is replaced by {p.label}; the version there now is kept, "
             "so Undo can put it back"
         )
-    where = os.path.join(p.places.library.root.name, p.places.sources.parent.name, p.places.sources.name)
+    where = os.path.join(p.places.library.root.name, "builds", p.places.sources.parent.name, p.places.sources.name)
     out.append(
         f"A copy of the {len(p.files)} files its build needs ({size_text(p.size)}) is kept in the launcher's "
         f"folder ({where}); the folder you picked isn't needed afterwards"
@@ -601,7 +575,7 @@ def install(
         built: Path | None = None
         try:
             lib = where.library
-            lib.ensure(lib.sources_root, where.record.parent, where.effects.parent)
+            lib.ensure(where.sources.parent, where.record.parent, where.effects.parent)
             # the download copy: the files its build reads, at their download paths, with where each came from
             staged = where.sources.with_name(f".{where.sources.name}.staging-{op.id}")
             rows = {}
@@ -809,8 +783,8 @@ def preview_remove(
     out.users = _users(profile, config, own)
     if effects_file is not None and effects_file.is_file():
         out.delete_files.append(effects_file)
-    if where is not None and not legacy and not where.other_installs():
-        # no other profile the launcher installed it into: its download copy and its record go too
+    if where is not None and not legacy:
+        # its download copy and its record go too
         if where.sources.is_dir():
             out.trash.append(where.sources)
         if where.record.is_file():

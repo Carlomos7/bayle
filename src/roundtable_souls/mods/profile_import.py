@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from roundtable_souls.formats import me3_profile
-from roundtable_souls.mods import extract, library, naming, operations
+from roundtable_souls.mods import extract, naming, operations
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods.profile_edit import ModError, resolve, roots
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
@@ -166,8 +166,6 @@ class Clash:
     label_mine: str = ""
     installed: str = ""  # the installed folder's date (ISO)
     recorded: bool = False  # from the launcher's own record rather than the folder's modified time
-    users: list[str] = field(default_factory=list)  # profiles listing the installed folder
-    shared: bool = False  # another profile lists it, so it is never replaced from here
     default: str | None = None
     choice: str | None = None
 
@@ -356,12 +354,6 @@ def _clash(item: Path, mine: Path, source: ZipSource | None) -> Clash:
     return c
 
 
-def _users(folder: Path, profile: Path) -> list[str]:
-    """The profiles listing folder: those of the library, or the ones beside profile."""
-    lib = library.library_of(profile)
-    return library.users_of(lib.profiles if lib is not None else profile.parent, folder)
-
-
 def preview_import(
     unpacked: Path,
     me3: str,
@@ -430,8 +422,6 @@ def preview_import(
         found_rows.append((e, item, path))
     claimed: set[Path] = set()
     for item, (c, root) in pending.items():
-        c.users = _users(c.mine, target)
-        c.shared = bool(c.users) and not out.new and any(u.lower() != target.stem.lower() for u in c.users)
         if len(place) == 1 and not c.label_in:
             c.label_in = _name_version(download)
         c.default = "incoming" if _newer(c.label_in, c.label_mine) else None
@@ -441,7 +431,7 @@ def preview_import(
         out.clashes.append(c)
         if c.choice == "mine":
             out.kept.append((item, c.mine))
-        elif c.choice == "incoming" and not out.new and not c.shared and c.mine not in claimed:
+        elif c.choice == "incoming" and not out.new and c.mine not in claimed:
             claimed.add(c.mine)
             out.copies.append((item, c.mine))  # replaces the folder; the journal keeps the old one for Undo
         else:  # keep both (and, until the player picks, the same plan)
@@ -532,11 +522,6 @@ def preview_import(
             f"{src.name} replaces your installed {dest.name}; the old copy is kept so Undo import brings it back"
             for src, dest in out.copies
             if any(c.incoming == src and c.mine == dest for c in out.clashes)
-        ),
-        *(
-            f"{c.key} is also used by {', '.join(c.users)}, so it is not replaced: this profile gets its own copy"
-            for c in out.clashes
-            if c.shared and c.choice == "incoming"
         ),
         *(f"{old} is called {new}: {target.name} already has a mod with that id" for old, new in out.renamed.items()),
         *(

@@ -368,7 +368,7 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     from roundtable_souls.mods import configs as mod_configs
 
     prof = Path(profile)
-    empty_facts = PageFacts(prof, (), {"package": (), "native": ()}, {}, (), (), {}, (), (), {}, {}, {})
+    empty_facts = PageFacts(prof, (), {"package": (), "native": ()}, {}, (), (), (), {}, {}, {})
     try:
         text = profile_edit.read_text(prof)
         entries = profile_entries(prof)

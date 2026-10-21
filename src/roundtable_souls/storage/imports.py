@@ -10,17 +10,27 @@ from pathlib import Path
 
 from roundtable_souls.storage.activity import ActivityLog
 from roundtable_souls.storage.cache import HashCache
+from roundtable_souls.storage.rebuild_runs import RebuildRuns
 
 
 def run_imports(
-    hashes_file: Path, jobs_file: Path, cache: HashCache, activity: ActivityLog, log: Callable[[str], None]
+    hashes_file: Path,
+    jobs_file: Path,
+    cache: HashCache,
+    activity: ActivityLog,
+    log: Callable[[str], None],
+    runs: RebuildRuns | None = None,
+    merges_file: Path | None = None,
 ) -> dict:
     """{area: active afterwards, "pruned": rows removed by retention}."""
     out: dict = {}
-    for name, step in (
+    steps = [
         ("hash cache", lambda: cache.import_file(hashes_file)),
         ("activity log", lambda: activity.import_file(jobs_file)),
-    ):
+    ]
+    if runs is not None and merges_file is not None:
+        steps.append(("rebuild runs", lambda: runs.import_file(merges_file)))
+    for name, step in steps:
         try:
             out[name] = step()
         except Exception as e:  # a database error, a file that can't be read: the next start tries again

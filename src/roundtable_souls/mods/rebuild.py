@@ -386,16 +386,39 @@ def _runs() -> dict:
         return {}
 
 
+class RunStore(Protocol):
+    """The database's mirror of merges.json (storage.rebuild_runs.RebuildRuns); the file stays authoritative."""
+
+    def record(self, profile: str, entry: dict) -> None: ...
+
+    def sync(self, profile: str, entry: dict | None) -> None: ...
+
+
+_RUN_STORE: RunStore | None = None
+
+
+def use_run_store(store: RunStore | None) -> None:
+    global _RUN_STORE
+    _RUN_STORE = store
+
+
 def last_run(profile: Path) -> dict | None:
-    return _runs().get(os.path.normcase(str(Path(profile).resolve())))
+    key = os.path.normcase(str(Path(profile).resolve()))
+    entry = _runs().get(key)
+    if _RUN_STORE is not None:
+        _RUN_STORE.sync(key, entry)  # the file wins: a row that disagrees is repaired
+    return entry
 
 
 def note_run(profile: Path, ok: bool, message: str) -> None:
     runs = _runs()
-    runs[os.path.normcase(str(Path(profile).resolve()))] = {"when": time.time(), "ok": ok, "message": message}
+    key = os.path.normcase(str(Path(profile).resolve()))
+    runs[key] = {"when": time.time(), "ok": ok, "message": message}
     out = _runs_file()
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(runs, indent=1), encoding="utf-8")
+    out.write_text(json.dumps(runs, indent=1), encoding="utf-8")  # the file first, then the row
+    if _RUN_STORE is not None:
+        _RUN_STORE.record(key, runs[key])
 
 
 # ----------------------------------------------------------------------------- health

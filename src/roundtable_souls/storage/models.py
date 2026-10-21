@@ -91,6 +91,7 @@ class RebuildRun(Base):
     ran_at: Mapped[datetime.datetime] = mapped_column(UtcMillis)
     ok: Mapped[bool] = mapped_column(Boolean)
     message: Mapped[str] = mapped_column(Text, default="")
+    fingerprint: Mapped[str] = mapped_column(String(64), default="")  # SHA-256 of the merges.json entry it came from
 
 
 class ImportState(Base):

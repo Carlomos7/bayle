@@ -159,8 +159,18 @@ def check_storage() -> int:
 
             cache, activity = HashCache(db, say), ActivityLog(db, say)
             jobs = run_logging.log_dir() / run_logging.JOBS_INDEX
-            out = run_imports(root / "cache" / "hashes.json", jobs, cache, activity, lambda line: say(f"  {line}"))
-            ok = ok and bool(out["hash cache"]) and bool(out["activity log"])
+            from roundtable_souls.storage.rebuild_runs import RebuildRuns
+
+            out = run_imports(
+                root / "cache" / "hashes.json",
+                jobs,
+                cache,
+                activity,
+                lambda line: say(f"  {line}"),
+                RebuildRuns(db, say),
+                root / "merges.json",
+            )
+            ok = ok and bool(out["hash cache"]) and bool(out["activity log"]) and bool(out["rebuild runs"])
         finally:
             db.close()
         say("OK" if ok else "FAILED: not at the current schema")

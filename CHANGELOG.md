@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-10-21
+
+Mod READMEs show as formatted text, Mod Configs is quieter and clearer, and Nightreign saves are described honestly.
+
+### Added
+
+- **Mod Configs:** a mod's `README.md` or `readme.txt` is listed with its settings and shown as formatted text, with
+  Edit as text to change it.
+- **Mod Configs:** a mod the profile has switched off shows a **Disabled** tag instead of a line of text.
+
+### Changed
+
+- **Pages:** the profile's name stands out in the Mods, Mod Configs and Export headers.
+- **Mod Configs:** help icons that only repeated the help line under a setting are gone.
+- **Nightreign saves:** the Saves page says the character data is not documented yet, instead of calling the save
+  "encrypted".
+- **Records:** rebuild runs, backup notes and keep flags, the save library index and profile history are also kept in
+  the launcher's database. The files stay the source of truth, so an older version still reads them.
+
+### Removed
+
+- Unused code left from the retired merge paths. Game file names now come from one catalog.
+
 ## [4.0.3] - 2026-10-21
 
 ### Fixed

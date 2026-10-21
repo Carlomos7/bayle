@@ -100,8 +100,8 @@ class Locations:
 
     def regulation_bin(self) -> Path | None:
         game = self.game_dir()
-        if game and (game / "regulation.bin").exists():
-            return game / "regulation.bin"
+        if game and (game / self.game.regulation).exists():
+            return game / self.game.regulation
         return None
 
     # ------------------------------------------------------------------ saves

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from roundtable_souls import formats
+from roundtable_souls.game import catalog
 from roundtable_souls.game import oodle as game_oodle
 
 GOODS = 0x40000000
@@ -68,7 +69,7 @@ def _seamless_folders(game: Path | None, profiles: Path | None) -> list[Path]:
     if game and (Path(game) / "SeamlessCoop").is_dir():
         folders.append(Path(game) / "SeamlessCoop")
     if profiles and profiles.is_dir():
-        folders.extend(dll.parent for dll in profiles.rglob("ersc.dll"))
+        folders.extend(dll.parent for dll in profiles.rglob(catalog.ELDEN_RING.coop_dll))
     return folders
 
 

@@ -205,7 +205,7 @@ def launch_profile_from_installation(path: Path, loc: Locations) -> LaunchProfil
         return None
     ini = None
     if cfg.get("seamless"):
-        cand = Path(cfg["seamless"]).parent / "ersc_settings.ini"
+        cand = Path(cfg["seamless"]).parent / games.ELDEN_RING.coop_ini
         if cand.is_file():
             ini = cand
     return LaunchProfile("manifest", cfg["profile"], cfg.get("me3"), cfg.get("game"), source=path, ini=ini, loc=loc)
@@ -563,7 +563,9 @@ def _disable_objects_matching(text: str, mark) -> str:
     return "".join(out)
 
 
-def offline_profile_text(text: str, strip_overhaul: bool = False, coop_dll: str | None = "ersc.dll") -> str:
+def offline_profile_text(
+    text: str, strip_overhaul: bool = False, coop_dll: str | None = games.ELDEN_RING.coop_dll
+) -> str:
     """A throwaway copy of the me3 profile with Seamless (and optionally the overhaul) and online play turned off.
     Seamless refuses to run without a signed-in, online Steam; without it the game uses the standard save.
     coop_dll: the game's Seamless Co-op dll (ersc.dll for Elden Ring, nrsc.dll for Nightreign)."""
@@ -602,7 +604,9 @@ def offline_profile_text(text: str, strip_overhaul: bool = False, coop_dll: str 
     return f"# OFFLINE COPY written by the launcher: {note} Regenerated on every offline launch.\n" + out
 
 
-def offline_profile_for(profile: str, strip_overhaul: bool = False, coop_dll: str | None = "ersc.dll") -> Path:
+def offline_profile_for(
+    profile: str, strip_overhaul: bool = False, coop_dll: str | None = games.ELDEN_RING.coop_dll
+) -> Path:
     """Write <profile>.offline.me3 next to the profile (relative paths keep working) and return it."""
     src = Path(profile)
     dst = src.with_name(src.stem + ".offline.me3")

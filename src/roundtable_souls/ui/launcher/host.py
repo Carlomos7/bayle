@@ -25,6 +25,7 @@ from roundtable_souls.game.locate import installed_dir
 from roundtable_souls.platform import desktop
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import play as core
+from roundtable_souls.services import run_health
 from roundtable_souls.services.mods import me3_facts
 from roundtable_souls.services.settings import load_settings, save_game_settings, save_settings
 from roundtable_souls.ui.host import Host
@@ -120,6 +121,7 @@ class ShellHost(QObject):
     quitRequested = Signal()
     forwardRequested = Signal()  # a second start asked this window to come forward
     checksChanged = Signal()  # the disk checks behind the pill came back different (or are slow)
+    _noticed = Signal(str)  # a job's notice (from a worker thread): shown as a toast
     _line = Signal(str, str)  # a job's log line (from a worker thread) and its level
 
     def __init__(self, ctx: Context, parent: QObject | None = None):
@@ -161,6 +163,7 @@ class ShellHost(QObject):
         self.instance.showRequested.connect(self.forwardRequested)
         self.instance.playRequested.connect(self._play_requested)
         self._line.connect(self._on_line)
+        self._noticed.connect(self._on_notice)
         core.NOTIFY = lambda title, msg: self.notifier.toast(f"{title}: {msg}", True)
 
     # ---------------------------------------------------------------- the host contract: state
@@ -215,6 +218,7 @@ class ShellHost(QObject):
             return False
         st.busy, st.job_label, st.job_kind, self.job_detail, self.step = True, status, kind, "", ""
         run_logging.attach_sink(lambda msg, level="": self._line.emit(str(msg), level or ""))
+        run_logging.attach_notice_sink(self._noticed.emit)
         launch_profile = st.launch_profile
         loc = launch_profile.locations() if launch_profile is not None else st.locations
         self.changed.emit()
@@ -222,6 +226,9 @@ class ShellHost(QObject):
             job, launch_profile, loc, status, lambda outcome: self._done(outcome, status, kind, on_done)
         )
         return True
+
+    def _on_notice(self, text: str) -> None:
+        self.notifier.toast_action(text, tr("Details"), lambda: self.show_page("activity"))
 
     def _on_line(self, msg: str, level: str) -> None:
         shown = str(msg).strip()
@@ -806,6 +813,11 @@ class ShellHost(QObject):
             except Exception as e:
                 return {"status": "failed", "reason": str(e)}
 
+        def found(lines):
+            for line in lines:
+                self._on_notice(line)
+
+        self.jobs.start(lambda _report: run_health.recover_all(), on_result=found, name="run-health")
         self.jobs.start(
             work, on_result=self.updates.migration, on_progress=self.updates.outcome, name="launcher-start-tasks"
         )

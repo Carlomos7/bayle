@@ -60,7 +60,7 @@ def watched(tmp_path, entry=ENTRY):
 
 def test_only_lines_written_since_launch_are_read(tmp_path, monkeypatch):
     lines = []
-    monkeypatch.setattr(run_logging, "log", lines.append)
+    monkeypatch.setattr(run_logging, "log_line", lambda m, *a: lines.append(m))
     log = tmp_path / "Mod.log"
     log.write_text("old initialization failed\n", encoding="utf-8")
     w = watched(tmp_path)
@@ -103,3 +103,47 @@ def test_a_huge_log_is_read_from_its_tail(tmp_path, monkeypatch):
 def test_health_patterns_must_compile():
     with pytest.raises(ValueError, match="regular expression"):
         Health(log="a.log", fail=["("])
+
+
+def test_notice_goes_to_the_sink_and_the_log(monkeypatch):
+    got, lines = [], []
+    monkeypatch.setattr(run_logging, "log_line", lambda m, *a: lines.append(m))
+    run_logging.notice("quiet")  # no sink: only logged
+    run_logging.attach_notice_sink(got.append)
+    try:
+        run_logging.notice("loud")
+    finally:
+        run_logging.attach_notice_sink(None)
+    assert lines == ["warning: quiet", "warning: loud"] and got == ["loud"]
+
+
+def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatch):
+    from roundtable_souls import overhauls
+    from roundtable_souls.config.settings import load_settings
+    from roundtable_souls.overhauls.config import OverhaulConfig
+
+    cfg = OverhaulConfig.model_validate(
+        {
+            "overhaul": 1,
+            "id": "m",
+            "label": "Mod",
+            "short_label": "Mod",
+            "game": "eldenring",
+            "recognise": {"folder": "ModDir", "manifest": "m.json"},
+            "health": [{"log": "Mod.log", "fail": ["initialization failed"]}],
+        }
+    )
+    monkeypatch.setattr(overhauls, "load", lambda game=None: [cfg])
+    monkeypatch.setattr(run_health.paths, "exe_running", lambda name: False)
+    folder = tmp_path / "ModDir"
+    folder.mkdir()
+    (folder / "Mod.log").write_text("old initialization failed\n", encoding="utf-8")
+    profile = tmp_path / "p.me3"
+    run_health.begin(profile, "eldenring", "eldenring.exe")
+    assert load_settings().run_state["eldenring"]["pending"]["logs"][0]["size"] > 0
+    with (folder / "Mod.log").open("a", encoding="utf-8") as f:
+        f.write("initialization failed: Missing engine signature\n")
+    # Bayle was closed during the run: nothing called end()
+    assert run_health.recover_all() == ["Mod: initialization failed: Missing engine signature"]
+    assert "pending" not in load_settings().run_state["eldenring"]
+    assert run_health.recover_all() == []  # reported once

@@ -476,13 +476,13 @@ def _before_play(launch, loc: Locations) -> run_health.Watch:
     """The run's start: say when the game's exe changed since the last Play, and note the declared logs' sizes."""
     notice = run_health.game_update_notice(loc)
     if notice:
-        run_logging.log(f"warning: {notice}")
-    return run_health.watch(launch.profile, loc.game.key)
+        run_logging.notice(notice)
+    return run_health.begin(launch.profile, loc.game.key, loc.game_exe_name())
 
 
 def _after_play(opts, loc: Locations, watched: run_health.Watch = ()):
     _me3_said()
-    run_health.report(watched)
+    run_health.end(loc.game.key, watched)
     if not loc.game.regulation_repair:
         pass  # this game has no regulation block me3 leaves dirty
     elif opts[repair_key(loc.game)]:
@@ -680,7 +680,7 @@ def job_play_vanilla(launch, loc: Locations | None = None, backup: str = BACKUP_
         me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
     notice = run_health.game_update_notice(loc)
     if notice:
-        run_logging.log(f"warning: {notice}")
+        run_logging.notice(notice)
     run_logging.log(f"launching {loc.game.name} through Steam, without me3")
     desktop.open_path(f"steam://rungameid/{loc.game.app_id}")
     if not me3_session.wait_for_game(loc.game_exe_name(), appear_timeout=90):

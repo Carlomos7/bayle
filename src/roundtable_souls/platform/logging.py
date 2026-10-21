@@ -807,6 +807,26 @@ def detach_sink() -> None:
         _sink_handler = None
 
 
+_notice_sink: Callable[[str], None] | None = None
+
+
+def attach_notice_sink(sink: Callable[[str], None] | None) -> None:
+    """Send notices to a callable too (the window shows each as a toast); None detaches it."""
+    global _notice_sink
+    _notice_sink = sink
+
+
+def notice(text: str) -> None:
+    """A warning for Activity that the player should also see at once: logged as 'warning: text' and handed to the
+    notice sink (called on the job's thread; the window passes it on to its own). Without a sink it is only logged."""
+    log_line(f"warning: {text}", sys._getframe(1).f_globals.get("__name__", "") or None)
+    if _notice_sink is not None:
+        try:
+            _notice_sink(text)
+        except Exception:
+            pass  # a notice never stops a job
+
+
 def log_shown(text: object, module: str = "ui") -> None:
     """A line the window has already shown in its pane (a change made in the window itself): kept in the logs
     without being sent back to the pane."""

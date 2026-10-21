@@ -358,6 +358,7 @@ class ModsPresenter:
                 facts.regulation,
                 str(facts.profile),
                 seamless,
+                facts.folder,
             ),
         )
 
@@ -585,6 +586,7 @@ class ModsPresenter:
         regulation: str = catalog.REGULATION,
         profile: str = "",
         seamless: str = "",
+        folder: profile_mods.folder_check.FolderCheck | None = None,
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -600,6 +602,28 @@ class ModsPresenter:
                     ).format(package=online_with, file=regulation),
                     tr("Launch Offline"),
                     True,
+                )
+            )
+        if folder is not None and folder.kind == profile_mods.folder_check.MISNAMED:
+            out.append(
+                Notice(
+                    "folder",
+                    "info",
+                    tr("This profile's folder is named '{folder}'. Rename it to match the profile?").format(
+                        folder=folder.folder
+                    ),
+                    tr("Rename folder"),
+                    False,
+                )
+            )
+        elif folder is not None and folder.kind == profile_mods.folder_check.CROWDED:
+            out.append(
+                Notice(
+                    "folder",
+                    "warning",
+                    tr("This folder holds {n} profiles. Each profile needs its own folder.").format(n=folder.count),
+                    tr("Split into folders"),
+                    False,
                 )
             )
         if (health or {}).get("state") == "stale":
@@ -660,6 +684,18 @@ class ModsPresenter:
         self._closed.add((profile, key))
 
     # ---- confirmations and refusals (the Widgets page uses these words too)
+    @staticmethod
+    def split_confirm(profiles: int, copied: int, moved: int) -> tuple[str, list[str], str, str]:
+        """(title, changes, safety, button) of the Split into folders confirmation."""
+        return (
+            tr("Split this folder into one folder per profile?"),
+            [
+                tr("{n} profiles, {m} mods copied, {k} moved.").format(n=profiles, m=copied, k=moved),
+            ],
+            tr("Undo in Activity."),
+            tr("Split"),
+        )
+
     def removal(self, profile, plan: Removal) -> Confirm:
         prof = Path(profile)
         changes = [

@@ -650,6 +650,42 @@ class ModsAdapter(QObject):
             self.setSetting("start_online", 2)  # Online matchmaking off: a Version, with Undo
         elif key == "seamless":
             self._seamless_action()
+        elif key == "folder":
+            self._folder_action()
+
+    def _folder_action(self) -> None:
+        """Rename the profile's folder to its name, or split a crowded folder (a logged job, Undo in Activity)."""
+        profile, facts = self.host.profile, self._facts
+        if profile is None or facts is None or self.host.busy:
+            return
+        old, kind, loc = Path(profile), facts.folder.kind, self.host.locations
+        if kind == "misnamed":
+            if why := rename_service.rename_folder_refusal(old, loc=loc):
+                self.notifier.toast(why, error=True)
+                return
+            self._folder_job(lambda l: rename_service.rename_folder(old, loc=l), tr("Renaming the folder..."))
+        elif kind == "crowded":
+            plan = rename_service.split_preview(old, loc=loc)
+            if not plan.ok:
+                self.notifier.toast(" ".join(plan.refusals), error=True)
+                return
+
+            def answered(ok: bool) -> None:
+                if ok:
+                    self._folder_job(lambda l: rename_service.split_folder(old, loc=l), tr("Splitting the folder..."))
+
+            self.notifier.confirm(*self.presenter.split_confirm(plan.profiles, plan.copies, plan.moves), answered)
+
+    def _folder_job(self, work, busy_text: str) -> None:
+        def job(_launch, loc):
+            run_logging.start_log("launcher: fix the profile's folder", loc.game.key)
+            try:
+                work(loc)
+            except rename_service.FolderError as e:
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        self.host.run_job(job, busy_text)
 
     def _seamless_action(self) -> None:
         """Move Seamless Co-op from the game folder into this profile, or clean up what it left there (a job; the

@@ -27,6 +27,7 @@ from roundtable_souls.mods import rename as mod_rename
 from roundtable_souls.mods.overhaul_manifest import launcher_installed
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import game_checks
+from roundtable_souls.services import shared_mods as shared_service
 from roundtable_souls.services.mods import (
     install_mod,
     profile_entries,
@@ -242,13 +243,23 @@ def install_and_record(profile, plan: dict, *, loc: Locations) -> dict:
         }
     )
     if choice == "share" and facts.get("identical"):
-        _share_with_twins(Path(profile), plan, facts["identical"], loc=loc)
+        more = _share_with_twins(Path(profile), plan, facts["identical"], loc=loc)
+        if more:  # the install and the sharing are one job: one Undo takes back both
+            first = {
+                "type": "update" if out["update"] else "install",
+                "profile": str(profile),
+                "name": plan["name"],
+                "operation": out["operation"],
+                "rebuild": bool(plan.get("merge")),
+            }
+            run_logging.set_undo(shared_service.chain(plan["name"], first, *more))
     return out
 
 
-def _share_with_twins(profile: Path, plan: dict, others: list[str], *, loc: Locations) -> None:
+def _share_with_twins(profile: Path, plan: dict, others: list[str], *, loc: Locations) -> list[dict]:
     """The mod just installed becomes Shared, and the other profiles' identical Separate copies are switched to it. A
-    failure here leaves the install as it is (Separate), and is logged."""
+    failure here leaves the install as it is (Separate), and is logged. Returns the undo records of what was shared."""
+    undos: list[dict] = []
     try:
         index = next(
             e["index"]
@@ -256,6 +267,7 @@ def _share_with_twins(profile: Path, plan: dict, others: list[str], *, loc: Loca
             if e["kind"] == "package" and e["path"] and Path(e["path"]).name.lower() == Path(plan["dest"]).name.lower()
         )
         done = shared_mods.share(profile, [index], loc=loc)
+        undos.append(shared_service.undo_of("library-share", done))
         name = done["shared"][0].lower()
         twins = {
             c.profile: True
@@ -263,9 +275,12 @@ def _share_with_twins(profile: Path, plan: dict, others: list[str], *, loc: Loca
             if c.profile.stem in others and c.name.lower() == name
         }
         if twins:
-            shared_mods.use_in(name, done["versions"][0], twins, loc=loc)
+            undos.append(
+                shared_service.undo_of("library-use", shared_mods.use_in(name, done["versions"][0], twins, loc=loc))
+            )
     except Exception as e:  # the install itself succeeded
         run_logging.log(f"warning: could not share {plan['name']} with the other profiles: {e}")
+    return undos
 
 
 # ----------------------------------------------------------------------------- rebuild tools

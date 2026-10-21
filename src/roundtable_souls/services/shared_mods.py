@@ -15,8 +15,19 @@ if TYPE_CHECKING:
 Error = shared_mods.LibraryError
 
 
+def undo_of(kind: str, out: dict) -> dict:
+    """The Activity undo record of one Library change (what share, use_in, ... returned)."""
+    return {"type": kind, "profile": out["profile"], "name": out.get("name", ""), "operation": out["operation"]}
+
+
+def chain(name: str, *undos: dict) -> dict:
+    """One Activity undo for several changes a job made, given in the order they were made: Undo takes the last one
+    back first, and is offered only while every one still can be."""
+    return {"type": "multi", "name": name, "profile": undos[0].get("profile", ""), "undos": list(reversed(undos))}
+
+
 def _record(kind: str, out: dict) -> dict:
-    out["undo"] = {"type": kind, "profile": out["profile"], "name": out.get("name", ""), "operation": out["operation"]}
+    out["undo"] = undo_of(kind, out)
     run_logging.set_undo(out["undo"])
     return out
 

@@ -11,6 +11,7 @@ from roundtable_souls.mods import profile_rename as renamer
 from roundtable_souls.mods import undo as mod_undo
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import profile_mods
+from roundtable_souls.services import shared_mods as shared_service
 
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
@@ -45,9 +46,8 @@ def rename(profile: Path, name: str, *, loc: Locations) -> dict:
 def duplicate(profile: Path, *, loc: Locations, share: bool = False) -> dict:
     """Copy the .me3 as "<name> copy" (unique). Returns {operation, profile (the copy), name, undo}. share: the
     original's Separate game-file mods are shared first, so the copy links to them instead of copying their files (the
-    sharing has its own Undo in the Library; the copy's undo takes back the copy only)."""
-    if share:
-        shared_mods.share_everything(profile, loc=loc)
+    sharing and the copy are one job, so its Undo takes back both)."""
+    shared = shared_mods.share_everything(profile, loc=loc) if share else None
     out = renamer.duplicate(profile, loc=loc, log=run_logging.log)
     out["undo"] = {
         "type": "profile-duplicate",
@@ -55,6 +55,8 @@ def duplicate(profile: Path, *, loc: Locations, share: bool = False) -> dict:
         "name": out["name"],
         "operation": out["operation"],
     }
+    if shared is not None:  # one Undo takes back the copy, then the sharing
+        out["undo"] = shared_service.chain(out["name"], shared_service.undo_of("library-share", shared), out["undo"])
     run_logging.set_undo(out["undo"])
     return out
 

@@ -513,3 +513,46 @@ def test_duplicate_can_share_with_the_original_and_an_export_names_shared_mods_b
     assert (copy.parent / "packages").exists() is False or not list((copy.parent / "packages").glob("grass"))
     names = {it.folder for it in profile_transfer.items(copy, full=True)}
     assert {"grass", "sky"} <= names and not any(len(n) == shared_mods.ID_LENGTH for n in names)
+
+
+def recorded(monkeypatch) -> dict:
+    """What a job leaves as its undo record (run_logging.set_undo)."""
+    from roundtable_souls.platform import logging as run_logging
+
+    got: dict = {}
+    monkeypatch.setattr(run_logging, "set_undo", lambda data: got.update(data=data))
+    return got
+
+
+def test_share_through_the_install_prompt_leaves_one_undo_for_everything(world, tmp_path, monkeypatch):
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.services import profile_mods
+
+    loc, home, root, lib, a, b, c = world
+    for p in (a, b):
+        shutil.rmtree(root / p.stem / "packages" / "grass")
+        (root / p.stem / "packages" / "grass" / "parts").mkdir(parents=True)
+        (root / p.stem / "packages" / "grass" / "parts" / "p.dcx").write_bytes(b"same")
+    before = tree(home)
+    got = recorded(monkeypatch)
+    plan = mod_service.plan_mod_install(c, download(tmp_path, "grass", b"same"), loc=loc)
+    profile_mods.install_and_record(c, {**plan, "library_choice": "share"}, loc=loc)
+    rec = got["data"]
+    assert rec["type"] == "multi" and [u["type"] for u in rec["undos"]] == ["library-use", "library-share", "install"]
+    assert undo.available(rec)
+    undo.run(rec, lambda s: None, loc=loc)
+    assert tree(home) == before and not lib.exists()
+    assert not undo.available(rec)
+
+
+def test_duplicate_with_share_leaves_one_undo_for_the_sharing_and_the_copy(world, monkeypatch):
+    from roundtable_souls.services import profile_rename as rename_service
+
+    loc, home, root, lib, a, b, c = world
+    before = tree(home)
+    got = recorded(monkeypatch)
+    rename_service.duplicate(a, loc=loc, share=True)
+    rec = got["data"]
+    assert rec["type"] == "multi" and [u["type"] for u in rec["undos"]] == ["profile-duplicate", "library-share"]
+    undo.run(rec, lambda s: None, loc=loc)
+    assert tree(home) == before and not lib.exists()

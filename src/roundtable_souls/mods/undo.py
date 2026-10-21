@@ -52,6 +52,7 @@ LABEL = {
     "library-separate": "Undo",
     "library-update": "Undo update",
     "library-clean": "Undo",
+    "multi": "Undo",
 }
 LIBRARY = ("library-share", "library-use", "library-separate", "library-update", "library-clean")  # mods.shared_mods
 OPERATIONS = ("install", "update", "rollback")
@@ -99,6 +100,8 @@ def available(undo: dict | None) -> bool:
         return False
     if undo.get("type") in EXTERNAL:
         return EXTERNAL[undo["type"]][0](undo)
+    if undo.get("type") == "multi":  # several changes made by one job: all of them still can be taken back
+        return bool(undo.get("undos")) and all(available(u) for u in undo["undos"])
     if undo.get("type") == "remove":
         profile = Path(undo.get("profile") or "")
         if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
@@ -142,6 +145,10 @@ def run(undo: dict, log, *, loc: Locations) -> str:
     FileExistsError when a folder is back at the old place already (nothing is overwritten)."""
     if undo.get("type") in EXTERNAL:
         return EXTERNAL[undo["type"]][1](undo, log, loc)
+    if undo.get("type") == "multi":
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'This'} can no longer be taken back.")
+        return "; ".join(run(u, log, loc=loc) for u in undo["undos"])  # the last change first
     if undo.get("type") == "remove":
         return _restore_removed(undo, log, loc)
     if undo.get("type") == "rebuild":

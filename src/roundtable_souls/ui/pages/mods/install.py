@@ -90,6 +90,7 @@ class InstallDraft:
     after_last: bool = False
     overhaul: bool = False
     preview: dict | None = None  # {"lines", "notes", "refusals"} of the overhaul install, once worked out
+    texts: list[dict] = field(default_factory=list)  # the setup's texts entries: file, table, tables to choose from
     files: list[dict] = field(default_factory=list)  # the setup's Files table (services.mod_configs.file_rows)
     natives: list[dict] = field(default_factory=list)  # the setup's DLLs as set (Basic natives), shown for review
     busy: bool = False  # a replan or preview is running
@@ -475,12 +476,26 @@ class InstallDraft:
             "overhaul": self._overhaul_preview(mode),
             "natives": self.natives if mode else [],
             "files": [self._file_view(r) for r in self.files] if mode else [],
+            "texts": [self._text_view(t) for t in self.texts] if mode else [],
             "mode": mode,
             "profilesInside": bool(p.get("profiles_inside")),  # the download ships .me3 profiles: Import can take them
             "canInstall": self.can_install(),
             "busy": self.busy,
             "installText": tr("Install as overhaul") if mode else tr("Install"),
             "error": p.get("error") or "",
+        }
+
+    @staticmethod
+    def _text_view(t: dict) -> dict:
+        choices = [{"value": n, "label": n} for n in t["tables"]]
+        if not t["table"]:
+            choices.insert(0, {"value": "", "label": tr("(choose a table)")})
+        return {
+            "file": t["file"],
+            "label": tr("Texts added to {file}").format(file=t["file"]),
+            "table": t["table"],
+            "choices": choices,
+            "chosen": next((c["label"] for c in choices if c["value"] == t["table"]), t["table"]),
         }
 
     @staticmethod

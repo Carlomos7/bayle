@@ -492,6 +492,50 @@ ModalDialog {
                 }
             }
         }
+        Column {  // the texts the setup adds to the game's message binders: the table each is set in
+            spacing: Theme.sp4
+            visible: (dlg.v.texts || []).length > 0
+            width: parent.width
+
+            Repeater {
+                model: dlg.v.texts || []
+
+                Row {
+                    id: textRow
+
+                    required property var modelData
+
+                    spacing: Theme.sp8
+                    width: parent.width
+
+                    Txt {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: textRow.modelData.label
+                        width: parent.width - 220 - Theme.sp8
+                    }
+                    DropButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        fixedWidth: 200
+                        implicitHeight: Theme.controlH
+                        objectName: "installTextTable"
+                        text: textRow.modelData.chosen
+
+                        Repeater {
+                            model: textRow.modelData.choices
+
+                            MenuEntry {
+                                required property var modelData
+
+                                checked: modelData.value === textRow.modelData.table
+                                text: modelData.label
+
+                                onTriggered: dlg.inst.setTable(textRow.modelData.file, modelData.value)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Column {  // the setup's Files table: what is done with each file, changed before installing
             spacing: Theme.sp4
             visible: (dlg.v.files || []).length > 0

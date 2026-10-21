@@ -47,16 +47,7 @@ def _folders(base: Path) -> list[Path]:
 
 def used(base: Path, folder: Path) -> bool:
     """Some profile in base has an entry that points into folder."""
-    top = _norm(folder)
-    for profile in Path(base).glob("*.me3"):
-        try:
-            entries = me3_profile.entries(me3_profile.read_text(profile))
-        except OSError, ValueError:
-            continue
-        for e in entries:
-            if e.get("path") and _norm(me3_profile.resolve(profile, e["path"])).startswith(top + os.sep):
-                return True
-    return False
+    return any(used_by(p, folder) for p in Path(base).glob("*.me3"))
 
 
 def _read(path: Path) -> dict | None:
@@ -87,15 +78,11 @@ def manifest_folders(base: Path, *, named: bool = True) -> list[tuple[Path, dict
     return out
 
 
-def find(base: Path) -> list[Found]:
-    """The installer folders in base no profile there uses, backups last."""
+def setup_folders(base: Path) -> list[Found]:
+    """The installer's setup copies and backups in base, whether or not a setup is live."""
     base, r = Path(base), rules()
     mine: dict[str, Found] = {}
-    setups = manifest_folders(base)
-    if any(used(base, folder) for folder, _ in manifest_folders(base, named=False)):
-        return []  # a setup is still live: its copy and backups stay until it is removed
-    for folder, data in setups:
-        mine[_norm(folder)] = Found(folder, False)
+    for _folder, data in manifest_folders(base):
         setup = data.get(r.get("manifest_setup_key", ""))
         if isinstance(setup, str) and Path(setup).is_dir() and _norm(Path(setup).parent) == _norm(base):
             mine[_norm(setup)] = Found(Path(setup), False)
@@ -104,5 +91,70 @@ def find(base: Path) -> list[Found]:
             mine[_norm(folder)] = Found(folder, False)
         elif any((sub / b).is_file() for sub in _folders(folder) for b in r.get("backup_files", [])):
             mine[_norm(folder)] = Found(folder, True)
+    return list(mine.values())
+
+
+def find(base: Path) -> list[Found]:
+    """The installer folders in base no profile there uses, backups last: unused manifest folders (copies of a
+    setup included) always; setup copies and backups only when no setup is live."""
+    base = Path(base)
+    mine = {_norm(f): Found(f, False) for f, _ in manifest_folders(base)}
+    if not any(
+        used(base, f) for f, _ in manifest_folders(base, named=False)
+    ):  # a live setup keeps its copy and backups
+        mine.update({_norm(f.path): f for f in setup_folders(base)})
     shown = [f for f in mine.values() if not used(base, f.path)]
     return sorted(shown, key=lambda f: (f.backups, f.path.name.lower()))
+
+
+@dataclass(frozen=True)
+class Setup:
+    """An installer's setup a profile uses: its folder and manifest."""
+
+    folder: Path
+    manifest: dict
+    manifest_name: str
+
+
+def setup_of(profile: Path) -> Setup | None:
+    """The setup a profile uses that some installer made (no overhaul config needed): a manifest folder, not the
+    launcher's, that the profile's entries point into."""
+    profile, r = Path(profile), rules()
+    for folder, data in manifest_folders(profile.parent, named=False):
+        if used_by(profile, folder):
+            name = next(n for n in r.get("manifests", []) if (folder / n).is_file())
+            return Setup(folder, data, name)
+    return None
+
+
+def used_by(profile: Path, folder: Path) -> bool:
+    """This profile has an entry that points into folder."""
+    try:
+        entries = me3_profile.entries(me3_profile.read_text(profile))
+    except OSError, ValueError:
+        return False
+    top = _norm(folder)
+    return any(
+        e.get("path") and _norm(me3_profile.resolve(profile, e["path"])).startswith(top + os.sep) for e in entries
+    )
+
+
+def other_users(profile: Path, folder: Path) -> list[Path]:
+    """The other profiles beside this one that point into folder."""
+    return [p for p in sorted(Path(profile).parent.glob("*.me3")) if _norm(p) != _norm(profile) and used_by(p, folder)]
+
+
+def base_profile(setup: Setup, profile: Path) -> dict | None:
+    """The profile as it was before the installer ran, when its manifest keeps it (a key from the data, in the
+    manifest's row for this profile, else at the top)."""
+    r = rules()
+    rows = [
+        row
+        for row in setup.manifest.get(r.get("manifest_profiles_key", ""), []) or []
+        if isinstance(row, dict) and isinstance(row.get("path"), str) and _norm(row["path"]) == _norm(profile)
+    ]
+    for holder in (*rows, setup.manifest):
+        for key in r.get("base_profile_keys", []):
+            if isinstance(holder.get(key), dict):
+                return holder[key]
+    return None

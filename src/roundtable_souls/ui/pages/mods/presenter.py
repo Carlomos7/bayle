@@ -1038,7 +1038,7 @@ class ModsPresenter:
             visible=on,
             install=tr("Install an overhaul with the launcher (preview)..."),
             remove=tr("Remove {label}...").format(label=has["label"]) if has else tr("Remove overhaul..."),
-            can_remove=has is not None,
+            can_remove=has is not None and has.get("removable", True),
             clean=tr("Clean up installer leftovers..."),
             can_clean=leftovers,
             take_over=tr("Take over {label}...").format(label=has["label"]) if has else tr("Take over overhaul..."),

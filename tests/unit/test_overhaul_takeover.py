@@ -3,6 +3,8 @@ a config (mods.installer_leftovers): synthetic folders modelled on a real instal
 
 import json
 import shutil
+import tomllib
+from pathlib import Path
 
 import pytest
 from test_overhaul_install import PROFILE, World, files, legacy
@@ -138,3 +140,104 @@ def test_the_service_flags_take_over_for_an_installer_setup(world):
         if isinstance(c, Leftover)
     ]
     assert text.startswith("Example Backups (")
+
+
+# ----------------------------------------------------------------------------- take over without a config
+def live_stray(world, how="manifest"):
+    """A profile as an installer no config describes left it: its package in its folder, a DLL beside the player's
+    own, a changed setting; the pre-install profile in its manifest (how=manifest), in its oldest backup
+    (backup) or nowhere (none)."""
+    d = stray(world)
+    base = tomllib.loads(PROFILE)
+    manifest = json.loads((d / "installation.json").read_text())
+    if how == "manifest":
+        manifest["profiles"] = [{"path": str(world.profile), "baseProfile": base}]
+    (d / "installation.json").write_text(json.dumps(manifest))
+    if how == "backup":
+        b = world.base / "Stray Backups/20260101-000000-000000"
+        (b / "file-0").write_text(PROFILE)
+        (b / "restore.json").write_text(
+            json.dumps({"files": [{"path": str(world.profile), "original": "file-0"}], "directories": []})
+        )
+    world.profile.write_text(
+        PROFILE.replace("start_online = true", "start_online = false")
+        + "\n[[packages]]\nid = \"stray\"\npath = 'Stray/mod'\n"
+        + "\n[[natives]]\npath = 'natives/StrayDll/stray.dll'\n"
+        + "\n[[packages]]\nid = \"added-later\"\npath = 'mod/body'\n",
+        encoding="utf-8",
+    )
+    return d
+
+
+def test_the_installers_records_show_what_changed_and_only_the_ticked_go(world):
+    from roundtable_souls.services import mods as service
+
+    live_stray(world)
+    assert service.profile_overhaul(world.profile, loc=world.loc) == {
+        "label": "Stray",
+        "short_label": "Stray",
+        "legacy": True,
+        "takeover": True,
+        "removable": False,
+    }
+    chosen = overhaul_takeover.choices(world.profile, loc=world.loc)
+    shown = [service.choice_text(c) for c in chosen]
+    assert any(t.startswith("stray.dll (DLL)") for t in shown) and any(t.startswith("added-later") for t in shown)
+    assert any(t.startswith("start_online") for t in shown) and any(t.startswith("Stray Backups") for t in shown)
+    before = files(world.base)
+    pick = [c for c in chosen if getattr(c, "name", "") == "stray.dll" or getattr(c, "setting", "") == "start_online"]
+    p = overhaul_takeover.preview(world.profile, loc=world.loc, chosen=pick)
+    assert files(world.base) == before and p.removed == ["stray", "stray.dll"]
+    assert [t.name for t in p.trash] == [".stray-setup", "Stray"]
+    out = overhaul_install.remove(p)
+    data = world.data()
+    assert data["start_online"] is True and not (world.base / "Stray").exists()
+    assert [x["id"] for x in data["packages"]] == ["body", "anims", "added-later"]  # the player's later entry stays
+    assert [Path(n["path"]).name for n in data["natives"]] == ["ersc.dll"]
+    overhaul_install.undo_remove(out)
+    assert files(world.base) == before
+
+
+def test_the_oldest_backup_stands_in_when_the_manifest_keeps_no_profile(world):
+    live_stray(world, "backup")
+    chosen = overhaul_takeover.choices(world.profile, loc=world.loc)
+    assert {getattr(c, "name", None) for c in chosen} >= {"stray.dll", "added-later"}
+
+
+def test_with_no_records_only_what_points_into_the_installers_folder_goes(world):
+    live_stray(world, "none")
+    assert [type(c).__name__ for c in overhaul_takeover.choices(world.profile, loc=world.loc)] == ["Leftover"]
+    p = overhaul_takeover.preview(world.profile, loc=world.loc)
+    overhaul_install.remove(p)
+    ids = [x["id"] for x in world.data()["packages"]]
+    assert "stray" not in ids and "added-later" in ids and "natives/StrayDll/stray.dll" in world.text()
+
+
+def test_another_profile_using_the_folder_keeps_it(world):
+    live_stray(world)
+    other = world.base / "second.me3"
+    other.write_text(PROFILE + "\n[[packages]]\nid = \"stray\"\npath = 'Stray/mod'\n")
+    p = overhaul_takeover.preview(world.profile, loc=world.loc)
+    assert p.users == [other] and p.trash == []
+    overhaul_install.remove(p)
+    assert (world.base / "Stray").is_dir() and "stray" in other.read_text()
+
+
+def test_a_copy_of_the_installers_folder_is_a_leftover_while_the_setup_is_live(world):
+    live_stray(world)
+    shutil.copytree(world.base / "Stray", world.base / "Stray-backup")
+    assert names(world) == [("Stray-backup", False)]  # the live setup's own copy and backups stay
+    world.profile.write_text(PROFILE + "\n[[packages]]\nid = \"stray\"\npath = 'Stray-backup/mod'\n")
+    assert ("Stray-backup", False) not in names(world)  # used by a profile
+
+
+def test_the_ui_menu_entry_and_the_reinstall_question(world):
+    from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
+    from roundtable_souls.ui.pages.mods.take_over import reinstall_words
+
+    menu = ModsPresenter().overhaul_menu
+    assert menu(True, {"label": "X", "takeover": True}, False).can_take_over
+    assert not menu(True, {"label": "X", "takeover": False}, False).can_take_over
+    assert not menu(True, None, False).can_take_over
+    assert not menu(True, {"label": "X", "takeover": True, "removable": False}, False).can_remove
+    assert "Install X" in reinstall_words("X").title

@@ -391,8 +391,14 @@ def profile_overhaul(profile, *, loc: Locations) -> dict | None:
     from roundtable_souls.mods import overhaul_install
 
     hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
-    if hit is None:
-        return None
+    if hit is None:  # no config for it: a setup some installer made is still the launcher's to take over
+        from roundtable_souls.mods import installer_leftovers
+
+        setup = installer_leftovers.setup_of(Path(profile))
+        if setup is None:
+            return None
+        name = setup.folder.name
+        return {"label": name, "short_label": name, "legacy": True, "takeover": True, "removable": False}
     config = hit[0]
     return {
         "label": config.label,
@@ -450,7 +456,7 @@ def choice_text(choice) -> str:
     """One Take over choice in words, for its tick list."""
     from roundtable_souls.mods import overhaul_install
 
-    return choice.label if hasattr(choice, "backups") else overhaul_install.choice_text(choice)
+    return choice.label if hasattr(choice, "label") else overhaul_install.choice_text(choice)
 
 
 def preview_take_over(profile, *, loc: Locations, chosen=(), revert_asked: bool = False):

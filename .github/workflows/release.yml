@@ -139,7 +139,18 @@ jobs:
 
     # The setup on a clean runner: the previous release installed first (the Inno install of 3.13.2 and earlier is
     # replaced, settings kept, shortcuts pointed at the new copy), then uninstall keeps the data.
+    # The repository's history was rewritten on 2026-10-20 and every earlier release removed: with no published
+    # release there is nothing to install first or to update from, so the two tests that need one are skipped.
+    - name: Is there a published release to test against?
+      id: prev
+      shell: bash
+      run: |
+        if gh release view --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null 2>&1; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "found=false" >> "$GITHUB_OUTPUT"; echo "no published release yet: the install-from-previous and update tests are skipped"; fi
+      env:
+        GH_TOKEN: ${{ github.token }}
+
     - name: Install, migration and uninstall test
+      if: steps.prev.outputs.found == 'true'
       shell: pwsh
       timeout-minutes: 20  # every program in it is also bounded and reported (scripts/ci/velopack-install-test.ps1)
       run: ./scripts/ci/velopack-install-test.ps1
@@ -147,6 +158,7 @@ jobs:
     # What users do: the installed previous release's Update now (headless --update), against a local feed signed with
     # a throwaway key; this build must start, create its database and report ready, with no rollback.
     - name: Update test (the previous release updates itself to this build)
+      if: steps.prev.outputs.found == 'true'
       timeout-minutes: 20  # every wait in it is also bounded and reported (scripts/ci/velopack-update-test.py)
       run: uv run python scripts/ci/velopack-update-test.py
 

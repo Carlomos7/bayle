@@ -2,6 +2,8 @@
 
 All notable changes to Roundtable Souls. The version is shown in the window title.
 
+## [Unreleased]
+
 ## [4.0.1] - 2026-10-20
 
 - Mods: the notices at the top of the page (adopt into the library, Seamless in the game folder, online with parameters) show their text again; it was empty since a delegate role named like the bar's own property bound to itself.

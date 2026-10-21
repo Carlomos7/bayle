@@ -28,7 +28,7 @@ from roundtable_souls.services import play as core
 from roundtable_souls.services.mods import me3_facts
 from roundtable_souls.services.settings import load_settings, save_game_settings, save_settings
 from roundtable_souls.ui.host import Host
-from roundtable_souls.ui.jobs import Jobs
+from roundtable_souls.ui.jobs import Jobs, run_async
 from roundtable_souls.ui.launcher import launch, topbar
 from roundtable_souls.ui.launcher.instance import InstanceServer
 from roundtable_souls.ui.launcher.state import Context, LauncherState
@@ -360,7 +360,7 @@ class ShellHost(QObject):
         return names
 
     def open_path(self, path: Path) -> None:
-        desktop.open_path(str(path))
+        run_async(lambda: desktop.open_path(str(path)))  # the shell hand-off can wait on a slow disk
 
     # ---------------------------------------------------------------- the profile list
     def profiles(self) -> list[str]:
@@ -815,10 +815,12 @@ class ShellHost(QObject):
         game is left alone) and unsaved edits."""
         return {"job": self.state.busy or self.flow.active, "unsaved": self.unsaved()}
 
-    def shutdown(self) -> None:
+    def shutdown(self) -> bool:
+        """Stop the watch and give the pool 3 s; False when work is still running (the caller exits anyway)."""
         self.watch.stop()
-        self.jobs.shutdown()
+        drained = self.jobs.shutdown()
         self.instance.release()
+        return drained
 
 
 def _declares_host(host: ShellHost) -> Host:  # pyright checks ShellHost against the one host contract

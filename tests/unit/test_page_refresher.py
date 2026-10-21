@@ -113,3 +113,22 @@ def test_io_on_the_ui_thread_is_refused_unless_it_stands_in_for_a_worker():
         assert seen == [None]
     finally:
         threads.disable()
+
+
+def test_shutdown_logs_the_work_still_running_and_returns_false():
+    pytest.importorskip("PySide6.QtCore")
+    from roundtable_souls.platform import logging as run_logging
+    from roundtable_souls.ui import jobs as ui_jobs
+
+    release, started, lines = threading.Event(), threading.Event(), []
+    ui_jobs.run_async(lambda: (started.set(), release.wait(5)), "slow-job")
+    assert started.wait(5)
+    orig = run_logging.log_shown
+    run_logging.log_shown = lambda text, *a, **k: lines.append(text)
+    try:
+        assert ui_jobs.Jobs.shutdown(object.__new__(ui_jobs.Jobs), timeout_ms=100) is False
+    finally:
+        run_logging.log_shown = orig
+        release.set()
+        ui_jobs.POOL.waitForDone(5000)
+    assert any("slow-job" in ln for ln in lines)

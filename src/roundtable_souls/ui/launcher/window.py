@@ -253,5 +253,9 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
     QTimer.singleShot(0, host.after_show)  # marks the version ready, reports the last update, starts the imports
     code = (run or app.exec)()
     stalls.end()
-    host.shutdown()
+    if not host.shutdown():  # a job is still running: it is journaled and recovered at the next start
+        import logging
+
+        logging.shutdown()
+        os._exit(int(code))
     return int(code)

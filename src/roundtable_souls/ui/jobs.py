@@ -3,6 +3,7 @@ callbacks given with each piece of work."""
 
 from __future__ import annotations
 
+import itertools
 import sys
 import threading
 from collections.abc import Callable
@@ -10,6 +11,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
+from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import jobs
 
 # The one pool for background work in the window (reads, jobs, the game watch). A bigger pool than the core count: the
@@ -31,9 +33,23 @@ class _Task(QRunnable):
             threading.excepthook(threading.ExceptHookArgs((kind, value, tb, threading.current_thread())))
 
 
+_running: dict[int, str] = {}  # pool tasks in flight, by id, for the log at shutdown
+_ids = itertools.count(1)
+
+
 def run_async(call: Callable[[], None], name: str | None = None) -> None:
     """Run call on a pool thread (name is only for the log of whoever asks)."""
-    POOL.start(_Task(call))
+    key = next(_ids)
+    label = name or getattr(call, "__name__", "work")
+
+    def tracked() -> None:
+        _running[key] = label
+        try:
+            call()
+        finally:
+            _running.pop(key, None)
+
+    POOL.start(_Task(tracked))
 
 
 class Jobs(QObject):
@@ -75,7 +91,11 @@ class Jobs(QObject):
         if on_result is not None:
             on_result(event.value)
 
-    def shutdown(self) -> None:
+    def shutdown(self, timeout_ms: int = 3000) -> bool:
         """Queued work is dropped and running work is given a moment to end."""
         POOL.clear()
-        POOL.waitForDone(1500)
+        if not POOL.waitForDone(timeout_ms):
+            # a job still runs: it is journaled, the next start recovers it, and the program exits anyway
+            run_logging.log_shown(f"closing with work still running: {', '.join(sorted(_running.values())) or '?'}")
+            return False
+        return True

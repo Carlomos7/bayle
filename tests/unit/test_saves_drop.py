@@ -130,7 +130,7 @@ def test_a_refusal_says_why(source, target, words):
 
 def test_a_nightreign_card_refuses_a_character():
     plan = SavesPresenter().drop(CHAR, SLOT, game="Nightreign", running=False, busy=False, encrypted=True)
-    assert isinstance(plan, Refusal) and "encrypted" in plan.body
+    assert isinstance(plan, Refusal) and "whole files" in plan.body
 
 
 def test_the_drop_rules_read_nothing_from_disk(monkeypatch):

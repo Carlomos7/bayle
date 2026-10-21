@@ -16,6 +16,7 @@ Facts about this machine and the play session.
 | `instance.py` | One window at a time per data folder (the scope is set once at startup): named mutexes (Windows) or lock files (Linux) for the window and a Play from a Steam shortcut, and the local socket a second start uses to bring the window forward or hand it a Play. |
 | `steam_shortcuts.py` | Steam's binary shortcuts.vdf, read and written back byte for byte; points shortcuts that start an old copy at this one (only while Steam is closed, with a backup). |
 | `filelock.py` | An exclusive lock file shared by every launcher process, around read-change-write of the settings file. |
+| `cpu.py` | CPU-bound work in worker processes: `run_cpu(task, args)` returns a Future, inline unless the window installed its QProcess pool (`ui/cpu_pool.py`); the `--worker` loop (one JSON object per line) and the worker command. Tasks are Qt-free functions named `package.module:function`. |
 | `logging.py` | `logging` configuration: a log per job, the jobs index the Activity page reads, a sink the window attaches, and `log` / `fail` for one line. |
 
 Nothing here writes to disk except the run log and lock files (beside the settings file, and in the runtime or temp folder on Linux). A real game instance uses gigabytes; anything under 100 MB with that image name is a leftover shell, not the game.

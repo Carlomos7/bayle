@@ -18,6 +18,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
+from roundtable_souls.platform import cpu
 from roundtable_souls.resources import DATA_DIR, PACKAGE_DIR
 
 THEMES = ("dark", "tarnished", "light")
@@ -63,6 +64,7 @@ def run(data_dir: Path, out: Callable[[str], None] = print) -> int:
         report.check(f"file {spec.get('path') or spec.get('glob')}", lambda spec=spec: _files(spec))
     report.check("SQLite version", _sqlite)
     report.check("database opens at the current schema", lambda: _database(data_dir))
+    report.check("a CPU worker process starts and answers", _worker)
     _qml(report, need["qml_modules"], data_dir)
     out(f"{report.passed} passed, {report.failed} failed")
     out(
@@ -70,6 +72,22 @@ def run(data_dir: Path, out: Callable[[str], None] = print) -> int:
         "integration, the installer or the updater."
     )
     return 1 if report.failed else 0
+
+
+def _worker() -> str:
+    """The build starts itself again with --worker (platform/cpu.py) and gets an answer, without Qt in the worker."""
+    import subprocess
+
+    request = json.dumps({"id": 1, "task": "roundtable_souls.platform.cpu:probe", "args": {"value": 41}}) + "\n"
+    done = subprocess.run(cpu.worker_command(), input=request.encode(), capture_output=True, timeout=120, check=False)
+    if done.returncode != 0:
+        raise RuntimeError(f"the worker exited with {done.returncode}: {done.stderr.decode(errors='replace')[-300:]}")
+    reply = json.loads(done.stdout.decode().splitlines()[-1])
+    if not reply.get("ok") or reply["result"]["value"] != 42:
+        raise RuntimeError(f"unexpected reply {reply}")
+    if reply["result"]["qt"]:
+        raise RuntimeError("the worker loaded Qt")
+    return f"pid {reply['result']['pid']}"
 
 
 def _raise(e: Exception):

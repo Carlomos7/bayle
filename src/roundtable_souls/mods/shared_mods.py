@@ -44,6 +44,7 @@ from roundtable_souls.merging import build
 from roundtable_souls.mods import library, migrate, operations
 from roundtable_souls.mods.profile_edit import ModError
 from roundtable_souls.mods.profile_writer import ProfileWriter
+from roundtable_souls.platform import cpu
 
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
@@ -85,13 +86,20 @@ def _files(folder: Path) -> list[tuple[str, Path]]:
 
 
 def tree_hash(folder: Path) -> tuple[str, int]:
-    """(version id, size in bytes) of a folder's files: the same files give the same id wherever they are."""
+    """(version id, size in bytes) of a folder's files: the same files give the same id wherever they are. Hashed in
+    a worker process when the window has them (the hashing of a big mod would hold the window's GIL)."""
+    version, total = cpu.run_cpu(f"{__name__}:tree_hash_job", {"folder": str(folder)}).result()
+    return version, total
+
+
+def tree_hash_job(folder: str) -> list:
+    """The task behind tree_hash (runs in a worker process): [version id, size in bytes]."""
     h, total = hashlib.sha256(), 0
-    for rel, p in _files(folder):
+    for rel, p in _files(Path(folder)):
         size = p.stat().st_size
         total += size
         h.update(f"{rel}\0{size}\0{_digest(p)}\n".encode())
-    return h.hexdigest()[:ID_LENGTH], total
+    return [h.hexdigest()[:ID_LENGTH], total]
 
 
 def _manifest(folder: Path) -> list[tuple[str, int, int]]:

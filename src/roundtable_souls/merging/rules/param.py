@@ -20,7 +20,9 @@ with negative IDs are reported: the game's lookup by ID never finds them.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from roundtable_souls import formats
 
@@ -221,3 +223,25 @@ def missing_tables(game_names: list[str], built: formats.bnd4.Bnd4) -> list[str]
     built regulation lacks."""
     have = {_short(e.name or "").lower() for e in built.entries}
     return [_short(n).rsplit(".", 1)[0] for n in game_names if _short(n).lower() not in have]
+
+
+def combine_job(base: str, packs: list[dict], game_dir: str | None, out: str) -> dict:
+    """The task behind a build's combine (runs in a worker process, so the files are read here, not sent): the
+    packs ({name, path}) combined onto the game's regulation.bin at `base`, written to `out`. Returns the output's
+    sha256 and what the report says (lines: the short list, lines200 the long one)."""
+    oodle = None
+    try:
+        from roundtable_souls.game.oodle import find_oodle
+
+        oodle = find_oodle(Path(game_dir)) if game_dir else None
+    except Exception:
+        oodle = None
+    data, report = combine(Path(base).read_bytes(), [(p["name"], Path(p["path"]).read_bytes()) for p in packs], oodle)
+    Path(out).write_bytes(data)
+    return {
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "base_version": report.base_version,
+        "conflicts": len(report.conflicts),
+        "lines": report.lines(),
+        "lines200": report.lines(limit=200),
+    }

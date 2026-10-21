@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import shutil
 import time
 from pathlib import Path
 
 from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations
+from roundtable_souls.game.locate import Locations, Overrides
 from roundtable_souls.mods import undo as mod_undo
+from roundtable_souls.platform import cpu
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.saves import analyze as save_analyze
 from roundtable_souls.saves import backups as save_backups
@@ -323,10 +325,29 @@ def _container_info(info: dict, data: bytes, game: games.Game) -> dict:
 
 
 def save_info(path: Path, game: games.Game | None = None, kind: str | None = None, *, loc: Locations) -> dict:
-    """One save file: type, modified time, findings, and its active characters (shape: models.SaveInfo)."""
-    info = _save_info(path, game, kind, loc=loc)
+    """One save file: type, modified time, findings, and its active characters (shape: models.SaveInfo). Parsing a
+    save takes a third of a second of CPU, so it is done in a worker process when the window has them."""
+    args = {
+        "path": str(path),
+        "game": game.key if game else None,
+        "kind": kind,
+        "loc": {
+            "game": loc.game.key,
+            "overrides": dataclasses.asdict(loc.overrides),
+            "names": dict(loc.profile_save_names),
+        },
+    }
+    info = cpu.run_cpu(f"{__name__}:save_info_job", args).result()
+    info["path"] = Path(info["path"])
     models.SaveInfo.model_validate(info)
     return info
+
+
+def save_info_job(path: str, game: str | None, kind: str | None, loc: dict) -> dict:
+    """The task behind save_info (runs in a worker process): save_info's dict with the path as text."""
+    here = Locations(games.get(loc["game"]), Overrides(**loc["overrides"]), loc["names"])
+    info = _save_info(Path(path), games.get(game) if game else None, kind, loc=here)
+    return {**info, "path": str(info["path"])}
 
 
 AREA_NAMES = {

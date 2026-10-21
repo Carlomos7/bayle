@@ -23,6 +23,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from roundtable_souls.platform import instance
 from roundtable_souls.resources import ASSETS_DIR
 from roundtable_souls.services.play import TITLE
+from roundtable_souls.ui import cpu_pool
 from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
 from roundtable_souls.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
@@ -221,6 +222,7 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
     threading.excepthook = lambda a: report_exception(
         a.exc_type, a.exc_value, a.exc_traceback, f"thread {a.thread.name}"
     )
+    cpu_pool.install()  # CPU-bound work runs in worker processes (platform/cpu.py)
     host = ShellHost(ctx)
     window = ShellWindow(host)
     window.adapter.forwardRequested.connect(window.bring_forward)

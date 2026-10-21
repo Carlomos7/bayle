@@ -81,9 +81,13 @@ class StateFolders:
 
 
 def game_root(profiles_dir: Path, game: str) -> Path:
-    """The launcher's own folder for one game: roundtable/<game> in me3's profiles folder. (roundtable/<game>/library
-    is reserved for a shared library; nothing makes it yet.)"""
+    """The launcher's own folder for one game: roundtable/<game> in me3's profiles folder."""
     return Path(profiles_dir) / ROOT / game
+
+
+def library_root(profiles_dir: Path, game: str) -> Path:
+    """Where Shared mods live: roundtable/<game>/library/<mod id>/<version id> (mods.shared_mods)."""
+    return game_root(profiles_dir, game) / "library"
 
 
 def profiles_root(profiles_dir: Path, game: str) -> Path:

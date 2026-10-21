@@ -47,7 +47,13 @@ LABEL = {
     "folder-rename": "Undo rename",
     "folder-split": "Undo split",
     "save-restore": "Undo",
+    "library-share": "Undo share",
+    "library-use": "Undo",
+    "library-separate": "Undo",
+    "library-update": "Undo update",
+    "library-clean": "Undo",
 }
+LIBRARY = ("library-share", "library-use", "library-separate", "library-update", "library-clean")  # mods.shared_mods
 OPERATIONS = ("install", "update", "rollback")
 # An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
 # says what to take back; the removal's folders come back from the Recycle Bin.
@@ -112,6 +118,7 @@ def available(undo: dict | None) -> bool:
         "profile-move-in",
         "folder-rename",
         "folder-split",
+        *LIBRARY,
     ):
         from roundtable_souls.merging import build
 
@@ -168,6 +175,15 @@ def run(undo: dict, log, *, loc: Locations) -> str:
                 return profile_rename.undo_rename(Path(undo["operation"]), log)
             return profile_rename.undo_duplicate(Path(undo["operation"]), log)
         except (profile_rename.ProfileRenameError, ps.Unreadable) as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in LIBRARY:
+        from roundtable_souls.mods import shared_mods
+
+        if not available(undo):
+            raise UndoError("This change to the library can no longer be taken back.")
+        try:
+            return shared_mods.undo(Path(undo["operation"]), log)
+        except (shared_mods.LibraryError, ps.Unreadable) as e:
             raise UndoError(str(e)) from e
     if undo.get("type") == "profile-move-in":
         from roundtable_souls.mods import move_in

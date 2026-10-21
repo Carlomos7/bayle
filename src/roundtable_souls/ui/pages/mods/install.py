@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from roundtable_souls.ui.file_actions import file_action_text
 from roundtable_souls.ui.text import tr
 
 
@@ -89,6 +90,7 @@ class InstallDraft:
     after_last: bool = False
     overhaul: bool = False
     preview: dict | None = None  # {"lines", "notes", "refusals"} of the overhaul install, once worked out
+    files: list[dict] = field(default_factory=list)  # the setup's Files table (services.mod_configs.file_rows)
     natives: list[dict] = field(default_factory=list)  # the setup's DLLs as set (Basic natives), shown for review
     busy: bool = False  # a replan or preview is running
     problem: str = ""  # why the last edit could not be planned (the last good plan stays)
@@ -472,12 +474,22 @@ class InstallDraft:
             "library": {"shown": False} if mode else self._library_view(),
             "overhaul": self._overhaul_preview(mode),
             "natives": self.natives if mode == "setup" else [],
+            "files": [self._file_view(r) for r in self.files] if mode == "setup" else [],
             "mode": mode,
             "profilesInside": bool(p.get("profiles_inside")),  # the download ships .me3 profiles: Import can take them
             "canInstall": self.can_install(),
             "busy": self.busy,
             "installText": tr("Install as overhaul") if mode else tr("Install"),
             "error": p.get("error") or "",
+        }
+
+    @staticmethod
+    def _file_view(r: dict) -> dict:
+        return {
+            "file": r["file"],
+            "action": r["action"],
+            "target": r["target"],
+            "choices": [{"value": c, "label": file_action_text(r["kind"], c)} for c in r["choices"]],
         }
 
     def _overhaul_preview(self, mode: str) -> dict:

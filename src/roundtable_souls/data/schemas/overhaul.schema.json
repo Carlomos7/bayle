@@ -94,6 +94,13 @@
      },
      "title": "Skip",
      "type": "array"
+    },
+    "files": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Files",
+     "type": "object"
     }
    },
    "title": "Basic",

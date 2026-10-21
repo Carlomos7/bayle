@@ -244,6 +244,24 @@ class InstallAdapter(QObject):
         self._previewed = ()
         self._changed(True)
 
+    @Slot(str, str)
+    def setFile(self, file: str, value: str) -> None:
+        """A choice of the Files table (an action, or place:<game path>): the preview is worked out again with it."""
+        d, cfg = self._draft, self._config
+        if d is None or cfg is None or cfg.basic is None:
+            return
+        row = next((r for r in d.files if r["file"] == file), None)
+        if row is None:
+            return
+        row["action"], row["target"] = ("place", value[6:]) if value.startswith("place:") else (value, "")
+        if value == "place":
+            row["action"] = "place"
+        kept = {r["file"]: ("place:" + r["target"] if r["action"] == "place" else r["action"]) for r in d.files}
+        stored = {f: a for f, a in kept.items() if a != next(r for r in d.files if r["file"] == f)["choices"][0]}
+        self._config = cfg.model_copy(update={"basic": cfg.basic.model_copy(update={"files": stored})})
+        self._previewed = ()
+        self._changed(True)
+
     def _refresh(self) -> None:
         """Plan again for the typed name, id and variant, and work out the overhaul preview when that option is on;
         in the background, the newest edit wins."""
@@ -279,7 +297,7 @@ class InstallAdapter(QObject):
                         out["preview"] = mod_service.preview_overhaul_install(profile, cur["unpacked"], loc=loc)
                     else:
                         config = config_in or mod_service.propose_overhaul_setup(cur["root"], key[0], loc=loc)
-                        out["config"] = config
+                        out["config"], out["fresh"] = config, config_in is None
                         out["preview"] = mod_service.preview_overhaul_setup(profile, cur["root"], config, loc=loc)
                 except Exception as e:  # not one the launcher can set up: the dialog says why
                     out["refusal"] = str(e)
@@ -309,6 +327,8 @@ class InstallAdapter(QObject):
             if out.get("config") is not None:
                 self._config, self._config_for = out["config"], (key[0], key[2])
                 d.natives = [n.model_dump() for n in out["config"].basic.natives]
+                if not d.files or out.get("fresh"):
+                    d.files = mod_service.setup_file_rows(out["config"], d.plan["root"])
         self.viewChanged.emit()
 
     # ---- ending

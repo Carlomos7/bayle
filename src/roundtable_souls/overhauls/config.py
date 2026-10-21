@@ -278,6 +278,10 @@ class Basic(_Strict):
     # at (copied there when it is in not_merged or is not a binder).
     place: dict[str, str] = Field(default_factory=dict)
     skip: list[str] = Field(default_factory=list)  # files or folders of the download left out
+    # What the Files table of the form sets for a file where it differs from what the setup does by itself:
+    # merge | whole | keep | copy | leave | place:<game path>. It wins over keep, not_merged, place and skip above,
+    # which the form no longer writes (an older file, or a proposal, may still have them).
+    files: dict[str, str] = Field(default_factory=dict)
 
 
 # ----------------------------------------------------------------------------- the config

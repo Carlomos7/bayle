@@ -529,9 +529,9 @@ class ModConfigsAdapter(QObject):
         choices = mod_configs.overhaul_choices(setup)
         values = {
             "natives": choices["natives"],
-            "keep": {f for f, on in choices["keep"] if on},
-            "off": {f for f, on in choices["merged"] if not on},
-            "place": dict(choices["place"]),
+            "files": {
+                r["file"]: f"place:{r['target']}" if r["action"] == "place" else r["action"] for r in choices["files"]
+            },
         }
         return {
             "setup": setup,
@@ -565,12 +565,15 @@ class ModConfigsAdapter(QObject):
             native["after_others"] = value == "true"
         elif kind == "init" and native is not None:
             native["initializer"] = value.strip() or None
-        elif kind == "keep":
-            values["keep"].add(name) if value == "true" else values["keep"].discard(name)
-        elif kind == "place":
-            values["place"][name] = value.strip()
-        elif kind == "merge":
-            values["off"].discard(name) if value == "true" else values["off"].add(name)
+        elif kind == "file":  # a choice of the Files table; placing keeps the path typed before
+            was = values["files"].get(name, "")
+            values["files"][name] = (
+                f"place:{was[6:]}"
+                if value == "place" and was.startswith("place:")
+                else ("place:" if value == "place" else value)
+            )
+        elif kind == "target":
+            values["files"][name] = f"place:{value.strip()}"
         ov["dirty"] = True
         self.dirtyChanged.emit()
 
@@ -581,9 +584,7 @@ class ModConfigsAdapter(QObject):
         return mod_configs.with_basic(
             ov["setup"]["config"],
             natives=values["natives"],
-            keep=sorted(values["keep"]),
-            not_merged=sorted(values["off"]),
-            place={k: v for k, v in values["place"].items() if v},
+            files=mod_configs.files_to_store(ov["choices"]["files"], values["files"]),
         )
 
     def _saved(self, node_key: str, said: str) -> None:

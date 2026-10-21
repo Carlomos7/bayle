@@ -1185,6 +1185,11 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
         raise OverhaulError("The launcher's data folder is not set.")
     # its own config first: a folder another config also fits is still the one the player set up
     out = preview_install(profile, folder, loc=loc, configs=[made, *(c for c in configs if c.id != made.id)])
+    if made.basic is not None:  # a file left out beside one of its DLLs may be what the DLL reads
+        beside = {PurePosixPath(n.file).parent for n in made.basic.natives}
+        for f, action in sorted(made.basic.files.items()):
+            if action == "leave" and PurePosixPath(f).parent in beside:
+                out.notes.append(f"{f} is left out, and a DLL of the mod is in the same folder: it may need it.")
     if path.is_file():
         out.notes.append(f"Your profile in {path.name} is replaced by this one (Undo puts the old one back).")
     return out

@@ -239,14 +239,17 @@ the same file, so the result is an ordinary config that everything above reads.
 [basic]
 version = "1.2"                  # the label shown; nothing depends on it
 keep = ["MyMod.ini"]             # settings files the player keeps on updates (new keys added)
-not_merged = []                  # binders to use whole instead of merging
+not_merged = []                  # binders to use whole instead of merging (older files; the Files table replaces it)
+files = { "mod/chr/c0000.behbnd.dcx" = "whole", "extras/notes.txt" = "leave" }  # the Files table: only what differs
 natives = [{ file = "MyMod.dll", load_early = false, after_others = true }]  # initializer = "Fn" when needed
 skip = ["settings/vanilla"]      # files or folders of the download left out
 [basic.place]                    # a file outside the game folders meant for a game path (merged there)
 "settings/m00.talkesdbnd.dcx" = "script/talk/m00.talkesdbnd.dcx"
 ```
 
-What each of the mod's files becomes:
+What each of the mod's files becomes (the form's **Files** table shows each file with this choice and lets the player
+change it: `files` stores only the differences, as `merge`, `whole` (copy as it is), `keep`, `copy`, `leave` or
+`place:<game path>`; it wins over `keep`, `not_merged`, `place` and `skip`):
 
 - `regulation.bin`: `params`, combined on top of the packages before it;
 - a binder in a game folder (`*bnd.dcx`: animations, behaviours, parts, text, talk scripts, ...): `merge`, on top of

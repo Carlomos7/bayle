@@ -225,46 +225,60 @@ def reset_value(setting: config_model.Setting) -> tuple[str, str]:
 
 
 # ----------------------------------------------------------------------------- the Overhaul setup form
-def overhaul_choices(setup: dict) -> dict:
-    """What the basic form offers: {natives: the DLLs as set, keep: [(file, ticked)], merged: [(file, ticked)], place:
-    [(file, game path)]}. Empty lists without the mod's folder (the launcher's copy of its download)."""
+def file_rows(basic_config, folder, game: str) -> list[dict]:
+    """The Files table: one row per file the setup takes, {file, kind, action (what happens now), choices (the
+    actions it can have), target (the game path of a placed file)}, in path order. basic_config: an
+    overhauls.config.Basic; folder: the mod's folder (the launcher's copy of its download)."""
+    from roundtable_souls.game import catalog as games
+    from roundtable_souls.game import config as game_config
     from roundtable_souls.overhauls import basic
 
+    folders = set(game_config.load(game).mod_folders)
+    regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
+    files = basic.files_of(folder)
+    root = basic.package_root(files, folders, regulation)
+    rows = []
+    for f in files:
+        kind = basic.file_kind(f, folders, regulation, root)
+        act = basic.action_of(f, kind, basic_config)
+        rows.append(
+            {
+                "file": f,
+                "kind": kind,
+                "action": "place" if act.startswith("place:") else act,
+                "choices": list(basic.KINDS[kind]),
+                "target": act[6:] if act.startswith("place:") else "",
+            }
+        )
+    return rows
+
+
+def overhaul_choices(setup: dict) -> dict:
+    """What the basic form offers: {natives: the DLLs as set, files: file_rows}. Empty lists without the mod's folder
+    (the launcher's copy of its download)."""
     config, folder = setup["config"], setup["folder"]
     b = config.basic
     if b is None or folder is None:
-        return {"natives": [], "keep": [], "merged": [], "place": []}
-    files = [f for f in basic.files_of(folder) if not basic.leaves(f, b.skip)]
-    keep = [f for f in files if Path(f).suffix.lower() in basic.SETTINGS_SUFFIXES]
-    low_keep = {k.lower() for k in b.keep}
-    placed = {k.lower() for k in b.place}
-    binders = sorted(
-        {f for f in files if f.lower().endswith(basic.MERGED_ENDING) and ("/" in f or f.lower() in placed)},
-        key=str.lower,
-    )
-    low_off = {k.lower() for k in b.not_merged}
-    return {
-        "natives": [n.model_dump() for n in b.natives],
-        "keep": [(f, f.lower() in low_keep) for f in keep],
-        "merged": [(f, f.lower() not in low_off) for f in binders],
-        "place": sorted(b.place.items(), key=lambda kv: kv[0].lower()),
-    }
+        return {"natives": [], "files": []}
+    return {"natives": [n.model_dump() for n in b.natives], "files": file_rows(b, folder, config.game)}
 
 
-def with_basic(
-    config, *, natives: list[dict], keep: list[str], not_merged: list[str], place: dict[str, str] | None = None
-):
-    """The config with the form's values (overhauls.config.Basic) in place of its basic part."""
+def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str]:
+    """The Files table's choices that differ from what the setup does by itself: values maps a file to its action,
+    a placed one as place:<game path>."""
+    return {r["file"]: values[r["file"]] for r in rows if values.get(r["file"], r["choices"][0]) != r["choices"][0]}
+
+
+def with_basic(config, *, natives: list[dict], files: dict[str, str]):
+    """The config with the form's values (overhauls.config.Basic) in place of its basic part. The Files table
+    replaces the older keep, not_merged, place and skip lists, which are folded into it."""
     from roundtable_souls.overhauls.config import Basic, BasicNative
 
     old = config.basic
     new = Basic(
         version=old.version if old is not None else None,
         natives=[BasicNative(**n) for n in natives],
-        keep=keep,
-        not_merged=not_merged,
-        place=old.place if old is not None and place is None else place or {},
-        skip=old.skip if old is not None else [],
+        files=files,
     )
     return config.model_copy(update={"basic": new})
 

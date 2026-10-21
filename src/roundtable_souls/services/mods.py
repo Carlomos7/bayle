@@ -471,6 +471,13 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     )
 
 
+def setup_file_rows(config, folder) -> list[dict]:
+    """The Files table of a setup in its starting state (services.mod_configs.file_rows)."""
+    from roundtable_souls.services import mod_configs
+
+    return mod_configs.file_rows(config.basic, Path(folder), config.game) if config.basic is not None else []
+
+
 def preview_overhaul_setup(profile, folder, config, *, loc: Locations):
     """What installing the mod in folder as an overhaul with config (the form's, basic or advanced) would do
     (overhaul_install.InstallPreview: lines, notes, refusals); writes nothing. Raises overhaul_install.OverhaulError

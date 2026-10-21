@@ -492,6 +492,62 @@ ModalDialog {
                 }
             }
         }
+        Column {  // the setup's Files table: what is done with each file, changed before installing
+            spacing: Theme.sp4
+            visible: (dlg.v.files || []).length > 0
+            width: parent.width
+
+            Repeater {
+                model: dlg.v.files || []
+
+                Row {
+                    id: fileRow
+
+                    required property var modelData
+
+                    spacing: Theme.sp8
+                    width: parent.width
+
+                    Txt {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: fileRow.modelData.file
+                        width: parent.width - 220 - Theme.sp8
+                    }
+                    DropButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        fixedWidth: 200
+                        implicitHeight: Theme.controlH
+                        objectName: "installFileAction"
+                        text: {
+                            const c = fileRow.modelData.choices.find(x => x.value === fileRow.modelData.action);
+                            return c ? c.label : fileRow.modelData.action;
+                        }
+
+                        Repeater {
+                            model: fileRow.modelData.choices
+
+                            MenuEntry {
+                                required property var modelData
+
+                                checked: modelData.value === fileRow.modelData.action
+                                text: modelData.label
+
+                                onTriggered: dlg.inst.setFile(fileRow.modelData.file, modelData.value)
+                            }
+                        }
+                    }
+                    TextBox {
+                        anchors.verticalCenter: parent.verticalCenter
+                        objectName: "installFileTarget"
+                        text: fileRow.modelData.target
+                        visible: fileRow.modelData.action === "place"
+                        width: 220
+
+                        onEditingFinished: dlg.inst.setFile(fileRow.modelData.file, "place:" + text)
+                    }
+                }
+            }
+        }
         Txt {  // what will happen
             color: dlg.tone(dlg.v.noteLevel)
             elide: Text.ElideNone

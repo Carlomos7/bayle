@@ -150,27 +150,64 @@ def leaves(f: str, skip: list[str]) -> bool:
     return any(f.lower() == s.lower() or _under(f, s) for s in skip)
 
 
-def _step(f: str, basic: Basic, folders: set[str], regulation: str, root: str) -> Step:
-    """The step for one file of the download; f is its path there, the game's path is f without the package root."""
-    low = f.lower()
+# What the setup does with one file (Basic.files; the Files table of the form): merge (parameters are combined),
+# whole (copied as it is, not merged), keep (a settings file of the player's), copy, place:<game path>, leave.
+KINDS = {  # kind of file -> the actions it can have, the automatic one first
+    "regulation": ("merge", "whole", "leave"),
+    "binder": ("merge", "whole", "leave"),  # a binder in a game folder
+    "game": ("copy", "leave"),  # any other file in a game folder
+    "settings": ("copy", "keep", "place", "leave"),  # outside the game folders
+    "loose": ("copy", "place", "leave"),
+}
+
+
+def file_kind(f: str, folders: set[str], regulation: str, root: str) -> str:
+    """What sort of file this is: regulation | binder | game | settings | loose."""
     g = f[len(root) + 1 :] if root and _under(f, root) else f
     glow = g.lower()
-    top = glow.split("/")[0]
     if glow == regulation:
-        return Params(do="params", file=g, patch=f)
-    if "/" in glow and top in folders:
-        if glow.endswith(MERGED_ENDING) and low not in {n.lower() for n in basic.not_merged}:
-            return Merge(do="merge", file=g, patch=f)
-        return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{g}")
+        return "regulation"
+    if "/" in glow and glow.split("/")[0] in folders:
+        return "binder" if glow.endswith(MERGED_ENDING) else "game"
+    return "settings" if Path(f).suffix.lower() in SETTINGS_SUFFIXES else "loose"
+
+
+def action_of(f: str, kind: str, basic: Basic) -> str:
+    """What the setup does with the file: the Files table's choice, else what the older lists say, else automatic."""
+    low = f.lower()
+    own = {k.lower(): v for k, v in basic.files.items()}.get(low)
+    if own is not None:
+        return own
+    placed = {k.lower(): v for k, v in basic.place.items()}.get(low)
+    if leaves(f, basic.skip):
+        return "leave"
+    if placed is not None:
+        return f"place:{placed}"
+    if low in {n.lower() for n in basic.not_merged}:
+        return "whole" if kind in ("regulation", "binder") else "copy"
     if low in {k.lower() for k in basic.keep}:
+        return "keep"
+    return KINDS[kind][0]
+
+
+def _step(f: str, kind: str, act: str, regulation: str, root: str) -> Step:
+    """The step for one file of the download; f is its path there, the game's path is f without the package root."""
+    g = f[len(root) + 1 :] if root and _under(f, root) else f
+    if kind == "regulation" and act == "merge":
+        return Params(do="params", file=g, patch=f)
+    if kind == "binder" and act == "merge":
+        return Merge(do="merge", file=g, patch=f)
+    if kind in ("regulation", "binder", "game"):
+        return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{g}")
+    if act == "keep":
         return KeepConfig(do="config", **{"from": f}, to=f)
-    if top == PACKAGE and "/" in low:
+    if g.lower().split("/")[0] == PACKAGE and "/" in g:
         raise ValueError(f"{f} is in a folder named {PACKAGE}, which is where the launcher puts the merged files.")
     return Copy(do="copy", **{"from": f}, to=f)
 
 
-def _placed(f: str, to: str, basic: Basic) -> Step:
-    if to.lower().endswith(MERGED_ENDING) and f.lower() not in {n.lower() for n in basic.not_merged}:
+def _placed(f: str, to: str, whole: bool) -> Step:
+    if to.lower().endswith(MERGED_ENDING) and not whole:
         return Merge(do="merge", file=to, patch=f)
     return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{to}")
 
@@ -185,24 +222,41 @@ def make(
     gc = game_config.load(game)
     regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
     folders = set(gc.mod_folders)
-    files = [f for f in files_of(folder) if not leaves(f, basic.skip)]
-    have = {f.lower() for f in files}
-    for named in [*(n.file for n in basic.natives), *basic.place]:
-        if named.lower() not in have:
-            raise ValueError(f"{named} is not in the mod's folder.")
+    everything = files_of(folder)
+    root = package_root(everything, folders, regulation)
+    have = {f.lower() for f in everything}
+    named = [*(n.file for n in basic.natives), *basic.place, *basic.files]
+    for name in named:
+        if name.lower() not in have:
+            raise ValueError(f"{name} is not in the mod's folder.")
+    acts: dict[str, tuple[str, str]] = {}  # file -> (kind, action) for the files that stay
     taken: dict[str, str] = {}
-    for src, to in basic.place.items():
-        if to.lower() != regulation and not ("/" in to and to.lower().split("/")[0] in folders):
-            raise ValueError(f"{src} is placed at {to}, which is not in one of the game's folders.")
-        if to.lower() in taken:
-            raise ValueError(f"{src} and {taken[to.lower()]} are both placed at {to}.")
-        taken[to.lower()] = src
-    placed = {k.lower(): v for k, v in basic.place.items()}
-    root = package_root(files, folders, regulation)
+    for f in everything:
+        kind = file_kind(f, folders, regulation, root)
+        act = action_of(f, kind, basic)
+        if act.startswith("place:"):
+            to = act[6:]
+            if kind not in ("settings", "loose"):
+                raise ValueError(f"{f} is in a game folder already, so it can't be placed at another path.")
+            if to.lower() != regulation and not ("/" in to and to.lower().split("/")[0] in folders):
+                raise ValueError(f"{f} is placed at {to!r}, which is not in one of the game's folders.")
+            if to.lower() in taken:
+                raise ValueError(f"{f} and {taken[to.lower()]} are both placed at {to}.")
+            taken[to.lower()] = f
+        elif act not in KINDS[kind]:
+            raise ValueError(f"{f} can't be set to {act!r}.")
+        if act == "leave":
+            if any(n.file.lower() == f.lower() for n in basic.natives):
+                raise ValueError(f"{f} is one of the DLLs; take it out of the DLL list to leave it out.")
+            continue
+        acts[f] = (kind, act)
     steps = [
-        _placed(f, placed[f.lower()], basic) if f.lower() in placed else _step(f, basic, folders, regulation, root)
-        for f in files
+        _placed(f, act[6:], f.lower() in {n.lower() for n in basic.not_merged})
+        if act.startswith("place:")
+        else _step(f, kind, act, regulation, root)
+        for f, (kind, act) in acts.items()
     ]
+    files = list(acts)
     if not steps:
         raise ValueError("The mod's folder has no files to set up.")
     in_package = any(s.do in ("params", "merge") or (s.do == "copy" and s.to.startswith(f"{PACKAGE}/")) for s in steps)

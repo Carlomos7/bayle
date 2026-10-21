@@ -13,6 +13,7 @@ from typing import Any
 
 from roundtable_souls.formats import config_model
 from roundtable_souls.services import mod_configs
+from roundtable_souls.ui.file_actions import file_action_text
 from roundtable_souls.ui.pages.mods.presenter import Confirm, Pick, Refusal
 from roundtable_souls.ui.text import plural, tr
 
@@ -319,32 +320,12 @@ class ModConfigsPresenter:
                     ),
                 ]
                 sections.append({"title": Path(f).name, "rows": rows})
-            if choices["keep"]:
+            if choices["files"]:
                 sections.append(
                     {
-                        "title": tr("Settings files kept when the mod updates"),
+                        "title": tr("Files"),
                         "rows": [
-                            self._ov_row("keep", "keep:" + f, f, "bool", str(f in values["keep"]).lower())
-                            for f, _on in choices["keep"]
-                        ],
-                    }
-                )
-            if values["place"]:
-                sections.append(
-                    {
-                        "title": tr("Files placed at a game path (empty: not placed)"),
-                        "rows": [
-                            self._ov_row("place", "place:" + f, f, "text", to) for f, to in values["place"].items()
-                        ],
-                    }
-                )
-            if choices["merged"]:
-                sections.append(
-                    {
-                        "title": tr("Merged with the other mods"),
-                        "rows": [
-                            self._ov_row("merge", "merge:" + f, f, "bool", str(f not in values["off"]).lower())
-                            for f, _on in choices["merged"]
+                            row for r in choices["files"] for row in self.file_rows(r, values["files"][r["file"]])
                         ],
                     }
                 )
@@ -369,6 +350,17 @@ class ModConfigsPresenter:
             "isNew": new,
             "editable": not verified,
         }
+
+    def file_rows(self, r: dict, action: str) -> list[dict[str, Any]]:
+        """The Files table's rows for one file: its choice, and for a placed file the game path it goes to."""
+        shown = "place" if action.startswith("place:") else action
+        row = self._ov_row("file", "file:" + r["file"], r["file"], "choice", shown)
+        row["choices"] = [{"value": c, "label": file_action_text(r["kind"], c)} for c in r["choices"]]
+        row["blurb"] = tr("By itself: {what}").format(what=file_action_text(r["kind"], r["choices"][0]).lower())
+        out = [row]
+        if shown == "place":
+            out.append(self._ov_row("file", "target:" + r["file"], tr("Game path"), "text", action[6:]))
+        return out
 
     @staticmethod
     def _ov_row(section: str, key: str, label: str, kind: str, value: str) -> dict[str, Any]:

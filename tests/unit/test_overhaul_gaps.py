@@ -108,18 +108,73 @@ def test_a_placement_to_something_that_is_no_game_folder_or_twice_to_one_path_is
             basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"place": place}), folder=folder)
 
 
-def test_the_form_lists_placed_files_and_saving_it_keeps_them(tmp_path):
+def test_the_files_table_lists_every_file_and_stores_only_what_differs(tmp_path):
     from roundtable_souls.services import mod_configs
 
     folder = placed_folder(tmp_path / "dl")
     b = basic.propose(folder, game="eldenring")
     config = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder)
+    rows = {r["file"]: r for r in mod_configs.overhaul_choices({"config": config, "folder": folder})["files"]}
+    assert (
+        rows["settings/m00.talkesdbnd.dcx"]["action"] == "place"
+        and rows["settings/m00.talkesdbnd.dcx"]["target"] == TALK
+    )
+    assert rows["settings/base/msg/engus/t.msgbnd.dcx"]["action"] == "leave"  # the older skip list is shown as a choice
+    assert rows["mod/chr/a.anibnd.dcx"]["choices"] == ["merge", "whole", "leave"]
+    values = {f: ("place:" + r["target"] if r["action"] == "place" else r["action"]) for f, r in rows.items()}
+    values["mod/chr/a.anibnd.dcx"] = "whole"
+    stored = mod_configs.files_to_store(list(rows.values()), values)
+    assert stored["mod/chr/a.anibnd.dcx"] == "whole" and stored["settings/m00.talkesdbnd.dcx"] == f"place:{TALK}"
+    assert "M.dll" not in stored  # the automatic choice is not stored
+    saved = mod_configs.with_basic(config, natives=[], files=stored)
+    assert not (saved.basic.keep or saved.basic.not_merged or saved.basic.place or saved.basic.skip)
+    again = basic.make(id="m", label="M", game="eldenring", basic=saved.basic, folder=folder)
+    assert {"do": "copy", "from": "mod/chr/a.anibnd.dcx", "to": "mod/chr/a.anibnd.dcx"} in [
+        s.model_dump(by_alias=True, exclude_unset=True) for s in again.builds[0].steps
+    ]
+
+
+def test_a_files_choice_that_the_file_cannot_have_is_refused(tmp_path):
+    folder = placed_folder(tmp_path / "dl")
+    b = basic.propose(folder, game="eldenring")
+    for files, why in (
+        ({"mod/chr/a.anibnd.dcx": "keep"}, "can't be set to"),
+        ({"mod/chr/a.anibnd.dcx": f"place:{TALK}"}, "in a game folder already"),
+        ({"M.dll": "leave"}, "one of the DLLs"),
+    ):
+        with pytest.raises(ValueError, match=why):
+            basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"files": files}), folder=folder)
+
+
+def test_the_files_table_rows_are_choices_with_a_game_path_for_a_placed_file(tmp_path):
+    from roundtable_souls.services import mod_configs
+    from roundtable_souls.ui.pages.mod_configs.presenter import ModConfigsPresenter
+
+    folder = placed_folder(tmp_path / "dl")
+    config = basic.make(
+        id="m", label="M", game="eldenring", basic=basic.propose(folder, game="eldenring"), folder=folder
+    )
     choices = mod_configs.overhaul_choices({"config": config, "folder": folder})
-    assert choices["place"] == [("settings/m00.talkesdbnd.dcx", TALK)]
-    assert ("settings/m00.talkesdbnd.dcx", True) in choices["merged"]
-    assert not any("base" in f for f, _on in choices["merged"] + choices["keep"])
-    saved = mod_configs.with_basic(config, natives=[], keep=[], not_merged=[], place=dict(choices["place"]))
-    assert saved.basic.place == b.place and saved.basic.skip == b.skip
+    values = {"natives": choices["natives"], "files": {r["file"]: r["action"] for r in choices["files"]}}
+    values["files"]["settings/m00.talkesdbnd.dcx"] = f"place:{TALK}"
+    setup = {"config": config, "level": "basic", "verified": False}
+    view = ModConfigsPresenter().overhaul(setup, choices, values, [], False)
+    (files,) = [s for s in view["sections"] if s["title"] == "Files"]
+    keys = [r["key"] for r in files["rows"]]
+    assert "file:settings/m00.talkesdbnd.dcx" in keys and "target:settings/m00.talkesdbnd.dcx" in keys
+    row = next(r for r in files["rows"] if r["key"] == "file:mod/chr/a.anibnd.dcx")
+    assert row["kind"] == "choice" and [c["value"] for c in row["choices"]] == ["merge", "whole", "leave"]
+    assert row["blurb"].startswith("By itself:")
+
+
+def test_leaving_out_a_file_beside_a_dll_is_said_in_the_preview(world):
+    from roundtable_souls.mods import overhaul_install
+
+    folder = revive_shaped(world)
+    b = basic.propose(folder, game="eldenring").model_copy(update={"files": {"RevivePrototype.ini": "leave"}})
+    config = basic.make(id="revive", label="Revive", game="eldenring", basic=b, folder=folder)
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert p.ok and any("RevivePrototype.ini is left out" in n for n in p.notes)
 
 
 # ----------------------------------------------------------------------------- a Revive-shaped download, end to end

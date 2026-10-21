@@ -6,6 +6,7 @@ host runs them with its own checks (the game and jobs stopped, the program's ide
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -16,6 +17,7 @@ from roundtable_souls.config.settings import data_dir, game_setting, load_settin
 from roundtable_souls.game import catalog as games
 from roundtable_souls.game.locate import saves_dir_problem
 from roundtable_souls.platform import data_folder, desktop
+from roundtable_souls.services import layout as layout_service
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import play as play_service
 from roundtable_souls.ui.models import RowsModel
@@ -24,6 +26,13 @@ from roundtable_souls.ui.pages.settings import presenter as sp
 from roundtable_souls.ui.text import tr
 
 KEEP_RANGE = (5, 200)
+# draft field -> (settings key, layout_problems keyword, label)
+LAYOUT = {
+    "pattern": ("game_folder_pattern", "pattern", "Game folder"),
+    "packages": ("packages_folder", "packages", "Game-file mods"),
+    "natives": ("natives_folder", "natives", "DLL mods"),
+    "shared": ("shared_folder", "shared", "Shared mods"),
+}
 
 
 class SettingsHost(Protocol):
@@ -119,7 +128,11 @@ class SettingsAdapter(QObject):
         self._choices = {k: RowsModel(("key", "label"), self) for k in CHOICES}
         for k, rows in CHOICES.items():
             self._choices[k].set_rows([{"key": a, "label": tr(b)} for a, b in rows])
+        self._saved_layout: dict[str, str] = {}
         self._values: dict[str, Any] = {}
+        self._draft: dict[str, str] = {}
+        self._cancel = threading.Event()
+        self._moving = False
         self.refresh()
         try:
             host.watch_updates(self._on_update_state)
@@ -191,6 +204,20 @@ class SettingsAdapter(QObject):
             "notices": tr("Third-party notices"),
             "browse": tr("Browse..."),
             "more": tr("More"),
+            "profilesFolder": tr("Profiles folder"),
+            "profilesFolderHelp": tr("Where Bayle keeps your profiles and mods. Empty uses me3's folder."),
+            "change": tr("Change..."),
+            "moveAll": tr("Move all..."),
+            "otherProfiles": tr("Profiles outside Bayle"),
+            "moveAllTip": tr("Moves every me3 profile of this game into Bayle's folder."),
+            "folderNames": tr("Folder names"),
+            "gameFolder": tr("Game folder"),
+            "gameFiles": tr("Game-file mods"),
+            "dllMods": tr("DLL mods"),
+            "sharedMods": tr("Shared mods"),
+            "apply": tr("Apply"),
+            "cancel": tr("Cancel"),
+            "moving": tr("Moving..."),
             "dismiss": tr("Dismiss"),
         },
         constant=True,
@@ -221,6 +248,15 @@ class SettingsAdapter(QObject):
     backupsLocation = Property(str, lambda self: self._values["backups_location"], notify=changed)
     keepFrom = Property(int, lambda self: KEEP_RANGE[0], constant=True)
     keepTo = Property(int, lambda self: KEEP_RANGE[1], constant=True)
+    profilesRoot = Property(str, lambda self: self._values["profiles_root"], notify=changed)
+    layoutDraft = Property(dict, lambda self: dict(self._draft), notify=changed)
+    layoutErrors = Property(dict, lambda self: self._layout_errors(), notify=changed)
+    gamePreview = Property(
+        str, lambda self: sp.game_preview(self._draft.get("pattern", ""), self._game().key), notify=changed
+    )
+    layoutDirty = Property(bool, lambda self: self._layout_changes() != {}, notify=changed)
+    layoutValid = Property(bool, lambda self: not self._layout_errors(), notify=changed)
+    moving = Property(bool, lambda self: self._moving, notify=changed)
     labels = Property(dict, lambda self: self._values["labels"], notify=changed)
     steamTarget = Property(str, lambda self: self._values["steam_target"], notify=changed)
     steamOptions = Property(str, lambda self: self._values["steam_options"], notify=changed)
@@ -256,6 +292,13 @@ class SettingsAdapter(QObject):
             return tr("detected: {path}").format(path=found) if found else tr("detected")
         except Exception:
             return tr("detected")
+
+    def _me3_profiles(self) -> str:
+        try:
+            found = self.host.locations.me3_profiles_dir() if self.host.locations is not None else None
+        except Exception:
+            found = None
+        return str(found) if found else tr("me3's folder")
 
     def _menu(self, key: str) -> list[dict]:
         """The row's overflow: the folder opener (the page twin of the File menu's) and, for me3, its facts."""
@@ -343,6 +386,7 @@ class SettingsAdapter(QObject):
             "launcher_channel": s.launcher_channel,
             "backups_keep": s.backups_keep if KEEP_RANGE[0] <= s.backups_keep <= KEEP_RANGE[1] else 20,
             "backups_location": str(self._backups_folder()),
+            "profiles_root": s.profiles_root or self._me3_profiles(),
             "steam_target": target,
             "steam_options": options,
             "data_folder": sp.data_location(),
@@ -351,6 +395,10 @@ class SettingsAdapter(QObject):
             },
             "launcher_line": f"{sp.TITLE} {sp.VERSION}  ·  {sp.install_kind()}",
         }
+        edited = self._layout_changes() != {}
+        self._saved_layout = {k: str(getattr(s, v[0])) for k, v in LAYOUT.items()}
+        if not edited:
+            self._draft = dict(self._saved_layout)
         try:
             self._update = self.host.update_state()
         except Exception:
@@ -522,6 +570,106 @@ class SettingsAdapter(QObject):
             return self.host.me3_facts()
         except Exception as e:
             return {"error": str(e)}
+
+    # ---- where profiles live, and what the folders are called
+    def _layout_changes(self) -> dict[str, tuple[str, str]]:
+        return {
+            tr(LAYOUT[k][2]): (self._saved_layout[k], v)
+            for k, v in self._draft.items()
+            if v != self._saved_layout.get(k)
+        }
+
+    def _layout_errors(self) -> dict[str, str]:
+        return sp.name_errors(self._draft)
+
+    @Slot(str, str)
+    def editLayout(self, field: str, value: str) -> None:
+        if field in LAYOUT:
+            self._draft[field] = value
+            self.changed.emit()
+
+    @Slot()
+    def applyLayout(self) -> None:
+        changes = self._layout_changes()
+        if not changes or self._layout_errors() or self._moving:
+            return
+        names = {LAYOUT[k][1]: v for k, v in self._draft.items() if v != self._saved_layout[k]}
+
+        def answered(ok: bool) -> None:
+            if ok:
+                self._run(lambda loc: layout_service.rename_layout(loc, **names), tr("Renaming folders..."))
+
+        self.notifier.confirm(*sp.rename_confirm(changes), answered)
+
+    @Slot()
+    def changeProfilesFolder(self) -> None:
+        picked = self.host.pick_folder(tr("Pick the profiles folder"))
+        if not picked or self.host.locations is None:
+            return
+        loc = self.host.locations
+
+        def facts() -> tuple[int, int, int | None]:
+            n, size = layout_service.profiles_facts(loc)
+            return n, size, layout_service.free_bytes(picked)
+
+        def ask(found: tuple[int, int, int | None]) -> None:
+            def answered(ok: bool) -> None:
+                if ok:
+                    self._moving = True
+                    self._cancel.clear()
+                    self.changed.emit()
+                    self._run(
+                        lambda loc: layout_service.relocate(loc, picked, cancel=self._cancel.is_set),
+                        tr("Moving profiles and mods..."),
+                    )
+
+            self.notifier.confirm(*sp.relocate_confirm(str(picked), *found), answered)
+
+        self.host.run_in_background(facts, ask)
+
+    @Slot()
+    def cancelMove(self) -> None:
+        self._cancel.set()
+
+    @Slot()
+    def moveAll(self) -> None:
+        loc = self.host.locations
+        if loc is None:
+            return
+
+        def ask(found: list[Path]) -> None:
+            if not found:
+                self.notifier.toast(tr("No profiles are outside Bayle's folder."))
+                return
+
+            def answered(ok: bool) -> None:
+                if ok:
+                    self._run(lambda loc: layout_service.move_all(loc, found), tr("Moving profiles..."))
+
+            self.notifier.confirm(*sp.move_all_confirm([p.stem for p in found]), answered)
+
+        self.host.run_in_background(lambda: layout_service.plain_profiles(loc), ask)
+
+    def _run(self, work, status: str) -> None:
+        if self.host.busy:
+            self.notifier.toast(tr("Wait for the current job."), error=True)
+            self._moving = False
+            self.changed.emit()
+            return
+
+        def job(_launch, loc):
+            work(loc)
+
+        def done(ok: bool) -> None:
+            self._moving = False
+            self.host.settings_changed("layout")
+            self.refresh()
+            if ok:
+                self.notifier.toast(tr("Done. Undo in Activity."))
+            else:
+                self.notifier.toast(tr("Nothing was changed. Details are in Activity."), error=True)
+
+        self.host.run_job(job, status, done)
 
     # ---- launch
     def _copy(self, text: str) -> None:

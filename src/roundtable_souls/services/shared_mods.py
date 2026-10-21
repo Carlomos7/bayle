@@ -3,6 +3,7 @@ updates and removing unused versions. Each leaves the Activity undo record (mods
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -92,14 +93,37 @@ def listing(loc: Locations) -> list[shared_mods.ModInfo]:
     return shared_mods.listing(loc)
 
 
+_scanned: dict[str, tuple[tuple, tuple[int, int]]] = {}  # per game: (profile files' stamp, result)
+_scan_lock = threading.Lock()
+
+
+def _stamp(loc: Locations) -> tuple:
+    home = loc.me3_profiles_dir()
+    if home is None:
+        return ()
+    try:
+        found = shared_mods.profiles_in(shared_mods.library.profiles_root(home, loc.game.key))
+        return tuple((str(p), p.stat().st_mtime_ns) for p in found)
+    except OSError:
+        return ()
+
+
 def duplicates(loc: Locations) -> tuple[int, int]:
     """(mods in several profiles as Separate copies, bytes they waste) for the Mods page's hint; (0, 0) when it can't
-    be worked out."""
-    try:
-        twins = shared_mods.duplicates(loc)
-    except OSError:
-        return 0, 0
-    return len({t.name.lower() for t in twins}), shared_mods.duplicate_total(twins)
+    be worked out. Scanned again only when a profile file changed (an install, remove or share rewrites one), so a
+    page refresh costs a few stats."""
+    with _scan_lock:
+        stamp = _stamp(loc)
+        hit = _scanned.get(loc.game.key)
+        if hit and hit[0] == stamp:
+            return hit[1]
+        try:
+            twins = shared_mods.duplicates(loc)
+        except OSError:
+            return 0, 0
+        out = len({t.name.lower() for t in twins}), shared_mods.duplicate_total(twins)
+        _scanned[loc.game.key] = stamp, out
+        return out
 
 
 def separate_copies(profile: Path, *, loc: Locations) -> list[shared_mods.Copy]:

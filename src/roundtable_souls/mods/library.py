@@ -1,7 +1,8 @@
 """A profile's own folder in me3's profiles folder, and the launcher's files in it. Each profile owns its mods:
 
+    <me3 profiles>/roundtable/<game>/profiles/<name>/       (profiles/ below is that folder)
     profiles/<name>/<name>.me3     the profile
-    profiles/<name>/mod/           packages (game-file mods), one folder each
+    profiles/<name>/packages/      packages (game-file mods), one folder each
     profiles/<name>/natives/       DLL mods, one folder each
     profiles/<name>/builds/<what>/ what the launcher makes for this profile: an overhaul's id (its build, merged
                                    package, sources/ by role: merge/ text/ hooks/ base/, overhaul/) or
@@ -11,7 +12,7 @@
 
 A profile that sits loose in a folder with others (an existing setup) keeps its mod folders where they are
 (mods.profile_edit.roots) and gets the same builds/ under .roundtable/profiles/<name>/ so two profiles never share
-one. mods.migrate moves the shared rs-<game> library older versions made into this layout.
+one. mods.migrate moves what older versions made (the shared rs-<game> library, rs-<game>/<name>/) into this layout.
 ProfileFolder answers where each of these is; mods.naming says what things are called. Nothing is created until
 ensure() asks for it.
 """
@@ -24,6 +25,8 @@ from pathlib import Path
 
 from roundtable_souls.platform import files
 
+ROOT = "roundtable"  # the launcher's folder in me3's profiles folder: roundtable/<game key>/profiles/<name>/
+PREFIX = "rs-"  # where 3.21 to 4.0.x kept its shared library: rs-<game key>
 STATE = ".roundtable"  # the launcher's own folder beside the profile
 SETTINGS = "settings.json"  # per-profile launcher choices (was roundtable.json beside the profile)
 BACKUPS = "backups"  # each profile's .bak (was beside the .me3)
@@ -77,10 +80,51 @@ class StateFolders:
     ops_lock: Path
 
 
+def game_root(profiles_dir: Path, game: str) -> Path:
+    """The launcher's own folder for one game: roundtable/<game> in me3's profiles folder. (roundtable/<game>/library
+    is reserved for a shared library; nothing makes it yet.)"""
+    return Path(profiles_dir) / ROOT / game
+
+
+def profiles_root(profiles_dir: Path, game: str) -> Path:
+    """Where the launcher's profiles are: roundtable/<game>/profiles/<name>/<name>.me3."""
+    return game_root(profiles_dir, game) / "profiles"
+
+
+def legacy_root(profiles_dir: Path, game: str) -> Path:
+    """The shared library older versions made: rs-<game> in me3's profiles folder (mods.migrate moves it)."""
+    return Path(profiles_dir) / f"{PREFIX}{game}"
+
+
+def in_game_root(profile: Path, profiles_dir: Path, game: str) -> bool:
+    """Whether the profile is somewhere below roundtable/<game> (case aside)."""
+    root = os.path.normcase(os.path.abspath(game_root(profiles_dir, game)))
+    return os.path.normcase(os.path.abspath(profile)).startswith(root + os.sep)
+
+
+def is_user_profile(path: Path) -> bool:
+    """A .me3 that is a profile, not an offline copy or one me3 generates."""
+    name = Path(path).name.lower()
+    return name.endswith(".me3") and not name.endswith((".offline.me3", "-default.me3"))
+
+
+def named_folder(profile: Path) -> bool:
+    """Whether the profile's folder is named after it (whatever else the folder holds)."""
+    return Path(profile).parent.name.lower() == Path(profile).stem.lower()
+
+
 def own_folder(profile: Path) -> bool:
-    """Whether the profile sits in a folder of its own named after it (profiles/<name>/<name>.me3)."""
+    """Whether the profile sits alone in a folder named after it (<name>/<name>.me3). A folder that holds other
+    profiles too is nobody's own: its mod/ would be wrongly owned by one of them."""
     profile = Path(profile)
-    return profile.parent.name.lower() == profile.stem.lower()
+    if profile.parent.name.lower() != profile.stem.lower():
+        return False
+    try:
+        return not any(
+            p.name.lower() != profile.name.lower() and is_user_profile(p) for p in profile.parent.glob("*.me3")
+        )
+    except OSError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -97,7 +141,7 @@ class ProfileFolder:
 
     @property
     def packages(self) -> Path:
-        return self.root / "mod"
+        return self.root / "packages"
 
     @property
     def natives(self) -> Path:

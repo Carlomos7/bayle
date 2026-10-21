@@ -48,7 +48,7 @@ def _root(profile: Path) -> Path:
 def _bases(profile: Path) -> list[tuple[Path, str]]:
     """Where this profile's operations are: its .roundtable/ops, then .roundtable-ops beside it (before 3.23)."""
     out = [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
-    if library.own_folder(profile):  # a rename or copy of a profile's folder is journaled beside the folder
+    if library.named_folder(profile):  # a rename or copy of a profile's folder is journaled beside the folder
         out.append((_root(profile).parent, build.OPS))
     return out
 

@@ -36,7 +36,7 @@ from roundtable_souls.formats.me3_profile import (  # the one profile reader; re
     resolve,
     to_blocks,
 )
-from roundtable_souls.mods import naming
+from roundtable_souls.mods import library, naming
 
 NATIVE_OPTION_KEYS = ("enabled", "optional", "load_early", "initializer", "finalizer", "load_after", "load_before")
 PACKAGE_OPTION_KEYS = ("enabled", "id", "load_after", "load_before")
@@ -350,7 +350,8 @@ def roots(profile: Path, text: str) -> tuple[Path, Path]:
                 break
         return best or profile.parent / default
 
-    return pick("package", ("mod", "mods", "packages"), "mod"), pick("native", ("natives", "dll", "dlls"), "natives")
+    packages = "packages" if library.own_folder(profile) else "mod"  # the launcher's own folders: packages/, natives/
+    return pick("package", ("mod", "mods", "packages"), packages), pick("native", ("natives", "dll", "dlls"), "natives")
 
 
 def slug(name: str) -> str:
@@ -404,7 +405,7 @@ def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: 
     stem = slug(name)
     if stem.lower().endswith(".me3"):
         stem = stem[:-4]
-    home = Path(folder) / stem
+    home = library.profiles_root(Path(folder), game) / stem
     path = home / f"{stem}.me3"
     if path.exists():
         raise ModError(f"{path.name} already exists")
@@ -417,9 +418,10 @@ def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: 
     from roundtable_souls.mods import profile_writer
 
     profile_writer.ProfileWriter.create(path, text).write("new profile")
-    for sub_name in ("mod", "natives"):
-        if src is not None and (src.parent / sub_name).is_dir() and src.parent.name.lower() == src.stem.lower():
+    for sub_name in ("packages", "mod", "natives"):  # a copy keeps the names its entry paths use
+        if src is not None and (src.parent / sub_name).is_dir() and library.own_folder(src):
             shutil.copytree(src.parent / sub_name, home / sub_name, dirs_exist_ok=True)
+    for sub_name in ("packages", "natives"):
         (home / sub_name).mkdir(exist_ok=True)
     return path
 
@@ -430,7 +432,6 @@ def delete_profile(path: Path) -> Path:
     its offline copy are removed; the offline copy is regenerated when needed."""
     import json
 
-    from roundtable_souls.mods import library
     from roundtable_souls.platform import data_folder
 
     path = Path(path)

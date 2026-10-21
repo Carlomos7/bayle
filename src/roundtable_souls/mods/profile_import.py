@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from roundtable_souls.formats import me3_profile
-from roundtable_souls.mods import extract, naming, operations
+from roundtable_souls.mods import extract, library, naming, operations
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods.profile_edit import ModError, resolve, roots
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
@@ -380,7 +380,13 @@ def preview_import(
     except ValueError as e:
         raise ModError(f"{Path(me3).name} could not be read: {e}") from e
     if new_name:
-        target = current.parent / f"{naming.mod_id(new_name)}.me3"
+        stem = naming.mod_id(new_name)
+        home = loc.me3_profiles_dir()
+        if home is not None and library.in_game_root(current, home, loc.game.key):  # a profile of ours: its own folder
+            target = library.profiles_root(home, loc.game.key) / stem / f"{stem}.me3"
+            target.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            target = current.parent / f"{stem}.me3"
         if target.exists():
             raise ModError(f"There is already a profile named {target.name}.")
         writer = ProfileWriter.create(target, NEW_PROFILE.format(game=loc.game.key), loc=loc)

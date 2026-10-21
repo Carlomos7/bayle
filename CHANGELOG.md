@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.1] - 2026-10-21
+
+### Fixed
+
+- **Speed:** the launcher no longer slows down after every change on the Mods page. The check for mods kept twice
+  now runs once when your profiles change, never re-reads a folder that hasn't changed, and no longer counts one
+  folder that two profiles use as two copies.
+
 ## [4.3.0] - 2026-10-21
 
 Mods can be shared between profiles to save space, DLL mods get folders of their own, and the window has a single

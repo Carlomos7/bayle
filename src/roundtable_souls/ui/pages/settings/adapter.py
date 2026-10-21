@@ -310,7 +310,7 @@ class SettingsAdapter(QObject):
             )
         self._locations.set_rows(rows)
         try:
-            overhaul = mod_service.overhaul_switch_text(game.key) if mod_service.installable_overhauls(game.key) else ""
+            overhaul = mod_service.overhaul_switch_text(game.key)
         except Exception:
             overhaul = ""
         grouped: dict[str, list[dict]] = {g: [] for g in self._switches}

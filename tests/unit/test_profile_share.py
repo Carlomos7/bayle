@@ -80,7 +80,7 @@ def test_untrusted_keys_write_nothing_outside_the_matched_mods(tmp_path):
     pt.apply(pre)
     after = tree(tmp_path)
     changed = {k for k in after if before.get(k) != after[k]} - {
-        k for k in after if ".roundtable" in k or k.endswith(".bak")
+        k for k in after if ".bayle" in k or ".roundtable" in k or k.endswith(".bak")
     }
     assert changed == {"me/mod/flora/flora.ini"}
     assert b"volume = 9" in after["me/mod/flora/flora.ini"]
@@ -276,7 +276,7 @@ def test_undoing_an_import_into_a_new_profile_removes_it_and_its_coop_copy_and_n
         }
         undo.run(rec, lambda s: None, loc=er())
         assert not (tmp_path / "b/imported.me3").exists() and not (tmp_path / "b/natives/seamlesscoop-2").exists()
-        after = {k: v for k, v in tree(tmp_path / "b").items() if not k.startswith(".roundtable")}
+        after = {k: v for k, v in tree(tmp_path / "b").items() if not k.startswith((".bayle", ".roundtable"))}
         assert after == before  # the other profile and the original co-op folder are untouched
     finally:
         pt.discard(inc)
@@ -305,7 +305,7 @@ def test_an_apply_whose_unpacking_fails_partway_leaves_no_staging_folder_and_no_
         before = tree(tmp_path / "b")
         with pytest.raises(ModError):
             pt.apply(pre)
-        assert {k: v for k, v in tree(tmp_path / "b").items() if not k.startswith(".roundtable")} == before
+        assert {k: v for k, v in tree(tmp_path / "b").items() if not k.startswith((".bayle", ".roundtable"))} == before
         assert not any(".staging" in p.name for p in (tmp_path / "b").rglob("*"))
         assert not (tmp_path / "b/imported.me3").exists()
     finally:

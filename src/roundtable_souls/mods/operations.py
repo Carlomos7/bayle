@@ -48,7 +48,7 @@ def _root(profile: Path) -> Path:
 def _bases(profile: Path) -> list[tuple[Path, str]]:
     """Where this profile's operations are: its .roundtable/ops, then .roundtable-ops beside it (before 3.23)."""
     out = [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
-    if library.named_folder(profile) or _root(profile).parent.name == "profiles":
+    if library.named_folder(profile) or library.is_game_folder(_root(profile).parent):
         out.append((_root(profile).parent, build.OPS))  # a rename, copy, split or move of a profile's folder
     return out
 
@@ -77,10 +77,12 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
                 from roundtable_souls.mods import folder_split
 
                 folder_split.clean_stages(root)  # what an interrupted split staged: copies only, emptied by recovery
-                if root.name == "profiles":
+                if library.is_game_folder(root):
                     from roundtable_souls.mods import shared_mods
 
-                    shared_mods.clean_stages(root.parent / "library")  # what an interrupted Library change staged
+                    shared_mods.clean_stages(
+                        root / library.layout().shared
+                    )  # what an interrupted Library change staged
         for o in (o for root, ops in _bases(profile) for o in build.active(root, ops)):
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)

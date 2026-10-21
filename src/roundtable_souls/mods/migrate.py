@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 KIND = "profile-folders"  # the operation's kind in its journal and the Activity undo record's type
 PREFIX = library.PREFIX
 OFFLINE = ".offline.me3"
-OLD_FOLDERS = ("profiles", "packages", "natives", "overhauls", "sources", "builds", library.STATE)
+OLD_FOLDERS = ("profiles", "library", "packages", "natives", "overhauls", "sources", "builds", library.LEGACY_STATE)
 OTHER = "\0other"  # a user of a mod folder that is not moving: the folder is copied, never taken
 
 
@@ -66,6 +66,15 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _same_drive(a: Path, b: Path) -> bool:
+    while not b.exists() and b != b.parent:
+        b = b.parent
+    try:
+        return os.stat(a).st_dev == os.stat(b).st_dev
+    except OSError:
+        return False
+
+
 def legacy_root(home: Path, game: str) -> Path:
     return library.legacy_root(home, game)
 
@@ -82,18 +91,26 @@ def own_profiles(folder: Path) -> list[Path]:
 
 
 def old_profiles(home: Path, game: str) -> list[Path]:
-    """The profiles older versions made: in the shared layout, rs-<game>/profiles, and in rs-<game>/<name>/."""
+    """The profiles older versions made: the shared layout of rs-<game>/profiles, rs-<game>/<name>/, and 4.2.0's
+    roundtable/<game>/profiles/<name>/."""
     root = legacy_root(home, game)
     out = own_profiles(root / "profiles")
-    try:
-        folders = sorted(
-            d for d in root.iterdir() if d.is_dir() and not d.name.startswith(".") and d.name.lower() not in OLD_FOLDERS
-        )
-    except OSError:
-        return out
-    for d in folders:
-        out += [p for p in own_profiles(d) if p.stem.lower() == d.name.lower()]
+    for top, skip in ((root, OLD_FOLDERS), (library.old_game_root(home, game) / "profiles", ())):
+        try:
+            folders = sorted(
+                d for d in top.iterdir() if d.is_dir() and not d.name.startswith(".") and d.name.lower() not in skip
+            )
+        except OSError:
+            continue
+        for d in folders:
+            out += [p for p in own_profiles(d) if p.stem.lower() == d.name.lower()]
     return out
+
+
+def shared_library(home: Path, game: str) -> Path | None:
+    """4.2.0's Shared mods folder, when it is there: roundtable/<game>/library."""
+    folder = library.old_game_root(home, game) / "library"
+    return folder if folder.is_dir() else None
 
 
 # ----------------------------------------------------------------------------- the plan
@@ -116,6 +133,8 @@ class Item:
     units: list[Unit] = field(default_factory=list)
     old_bytes: bytes = b""
     new_bytes: bytes = b""
+    maps: list[tuple[Path, Path]] = field(default_factory=list)  # folders that moved whole (the Shared mods folder)
+    keep_state: bool = False  # its state folder is a unit and moves whole (renamed .bayle)
 
     @property
     def new(self) -> Path:
@@ -126,6 +145,9 @@ class Item:
         for u in self.units:
             if _inside(target, u.src):
                 return self.folder / u.dest_rel / Path(os.path.abspath(target)).relative_to(os.path.abspath(u.src))
+        for src, dst in self.maps:
+            if _inside(target, src):
+                return dst / Path(os.path.abspath(target)).relative_to(os.path.abspath(src))
         return target
 
 
@@ -137,7 +159,8 @@ class Plan:
     items: list[Item] = field(default_factory=list)
     units: dict[str, Unit] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
-    old_root: Path | None = None  # rs-<game> (legacy only)
+    old_roots: list[Path] = field(default_factory=list)  # rs-<game>, roundtable/<game> (legacy only)
+    shared: tuple[Path, Path] | None = None  # 4.2.0's Shared mods folder and where it goes
 
     @property
     def summary(self) -> dict:
@@ -215,19 +238,28 @@ def _build(
 
 
 def plan(home: Path, game: str) -> Plan:
-    """What migrating the old shared layout does, with nothing written."""
+    """What migrating the older layouts does, with nothing written."""
     root = legacy_root(home, game)
+    lay = library.layout()
+    old42 = library.old_game_root(home, game)
+
+    def shared_layout(p: Path) -> bool:
+        return p.parent.name.lower() == "profiles" and library.legacy_root(home, game) in p.parents
 
     def find(p: Path, rows: list[dict], unit: Callable[[Path, str, str], None]) -> None:
-        if p.parent.name.lower() != "profiles":  # rs-<game>/<name>/: its folders come along, mod/ as packages/
+        if not shared_layout(p):  # <old folder>/<name>/: its folders come along, mod/ as packages/
             for sub, rel in (
-                ("mod", "packages"),
-                ("packages", "packages"),
-                ("natives", "natives"),
+                ("mod", lay.packages),
+                ("packages", lay.packages),
+                ("natives", lay.natives),
                 ("builds", "builds"),
             ):
                 if (p.parent / sub).exists():
                     unit(p.parent / sub, rel, p.stem)
+            for sub in (library.STATE, library.LEGACY_STATE):  # its state folder moves whole, renamed
+                if (p.parent / sub).is_dir():
+                    unit(p.parent / sub, library.STATE, p.stem)
+                    break
             return
         for e in rows:
             if not e.get("path"):
@@ -236,7 +268,7 @@ def plan(home: Path, game: str) -> Plan:
             if len(parts) >= 2 and parts[0] in ("packages", "natives"):
                 unit(
                     root / parts[0] / parts[1],
-                    parts[0] + "/" + parts[1],
+                    (lay.packages if parts[0] == "packages" else lay.natives) + "/" + parts[1],
                     p.stem,
                 )
             elif len(parts) >= 3 and parts[0] == "builds" and parts[2].lower() == p.stem.lower():
@@ -257,14 +289,14 @@ def plan(home: Path, game: str) -> Plan:
                 if (root / coll / what.name).is_dir():
                     unit(root / coll / what.name, f"builds/{what.name}/{leaf}", p.stem)
 
-    settings = root / library.STATE / library.SETTINGS
+    settings = root / library.LEGACY_STATE / library.SETTINGS
     try:
         data = ps._read(settings) if settings.is_file() else {}
     except ps.Unreadable:
         data = {}
 
     def entry(p: Path) -> dict | None:
-        return (data.get("profiles") or {}).get(p.name) if p.parent.name.lower() == "profiles" else ps.load(p) or None
+        return (data.get("profiles") or {}).get(p.name) if shared_layout(p) else None
 
     out = _build(
         library.profiles_root(home, game),
@@ -274,9 +306,21 @@ def plan(home: Path, game: str) -> Plan:
         [],
         find,
         entry,
-        lambda p: root / library.STATE if p.parent.name.lower() == "profiles" else p.parent / library.STATE,
+        lambda p: root / library.LEGACY_STATE if shared_layout(p) else library.state_of(p).root,
     )
-    out.old_root = root
+    out.old_roots = [root, old42]
+    shared = shared_library(home, game)
+    target = library.shared_root(home, game)
+    if shared is not None and not target.exists():
+        out.shared = (shared, target)
+    elif shared is not None:
+        out.notes.append(f"{target.name} is already there, so the Shared mods stay in {shared.parent.name}/library")
+    for item in out.items:
+        item.keep_state = not shared_layout(item.old)
+        if out.shared is not None and item.keep_state:
+            item.maps.append(out.shared)
+    for item in out.items:
+        item.new_bytes = _rewrite(item)
     return out
 
 
@@ -389,6 +433,8 @@ def migrate(loc: Locations, log: Callable[[str], None] = lambda s: None) -> dict
     root = library.profiles_root(home, loc.game.key)
     if loc.game_running():
         return None  # tried again at the next start
+    if not _same_drive(old_profiles(home, loc.game.key)[0], root):
+        return None  # Settings put the Profiles folder on another drive: its own relocate copies, a rename cannot
     root.mkdir(parents=True, exist_ok=True)
     with build.ops_lock(root):
         finish_pending(root)
@@ -453,9 +499,10 @@ def _prepare(p: Plan, op: build.Operation, stage: Path) -> None:
         if offline.is_file():
             shutil.copy2(offline, sd / f"{item.name}.offline.me3")
         own_state = sd / library.STATE
-        own_state.mkdir()
-        files.hide(own_state)
-        if isinstance(item.entry, dict):
+        if not item.keep_state:
+            own_state.mkdir()
+            files.hide(own_state)
+        if isinstance(item.entry, dict) and not item.keep_state:
             (own_state / library.SETTINGS).write_text(
                 json.dumps(
                     {"version": 1, "schema": 1, "profiles": {f"{item.name}.me3": _restored(item.entry, item)}},
@@ -466,7 +513,7 @@ def _prepare(p: Plan, op: build.Operation, stage: Path) -> None:
                 encoding="utf-8",
             )
         bak = item.state / library.BACKUPS / (item.old.name + ".bak")
-        if bak.is_file():
+        if bak.is_file() and not item.keep_state:
             (own_state / library.BACKUPS).mkdir()
             shutil.copy2(bak, own_state / library.BACKUPS / f"{item.name}.me3.bak")
         for u in item.units:
@@ -485,13 +532,16 @@ def _prepare(p: Plan, op: build.Operation, stage: Path) -> None:
         if offline.is_file():
             op.write_file(offline, None, expect=_sha(offline.read_bytes()))
         bak = item.state / library.BACKUPS / (item.old.name + ".bak")
-        if bak.is_file():
+        if bak.is_file() and not item.keep_state:
             op.write_file(bak, None, expect=_sha(bak.read_bytes()))
+    if p.shared is not None:  # 4.2.0's Shared mods: one rename; the profiles' links were rewritten to follow
+        op.move_folder(*p.shared)
+        moves.append({"src": str(p.shared[0]), "dest": str(p.shared[1])})
     for state in {
-        i.state for i in p.items
+        i.state for i in p.items if not i.keep_state
     }:  # a settings file left with no other profile's entries goes (kept in the journal)
         settings = state / library.SETTINGS
-        mine = {i.old.name for i in p.items if i.state == state}
+        mine = {i.old.name for i in p.items if i.state == state and not i.keep_state}
         try:
             keys = set(ps._read(settings).get("profiles") or {}) if settings.is_file() else None
         except ps.Unreadable:
@@ -511,7 +561,7 @@ def _prepare(p: Plan, op: build.Operation, stage: Path) -> None:
         home=str(p.root),
         root=str(p.root),
         legacy=p.legacy,
-        old_root=str(p.old_root) if p.old_root else "",
+        old_roots=[str(r) for r in p.old_roots],
         old_folders=sorted({str(i.old.parent) for i in p.items}),
         moves=moves,
         pairs=[[str(s), str(d)] for s, d in pairs],
@@ -565,7 +615,7 @@ def finish_state(op: build.Operation) -> list[str]:
     clear what the old layout left, then say so in its journal. Safe to run again."""
     notes = _apply_state(op.info)
     if op.info.get("legacy"):
-        _tidy(Path(op.info["old_root"]), [Path(f) for f in op.info.get("old_folders") or []])
+        _tidy([Path(r) for r in op.info.get("old_roots") or []], [Path(f) for f in op.info.get("old_folders") or []])
     op.note(state_done=True)
     return notes
 
@@ -589,15 +639,20 @@ def _sweep(top: Path) -> None:
         pass
 
 
-def _tidy(old_root: Path, folders: list[Path]) -> None:
-    """What the old layout left goes when it is empty (its shared folders, the folders profiles had), then rs-<game>
-    itself. Anything with a file in it stays."""
-    for name in OLD_FOLDERS:
-        _sweep(old_root / name)
+def _tidy(old_roots: list[Path], folders: list[Path]) -> None:
+    """What the old layouts left goes when it is empty (their shared folders, the folders profiles had), then the old
+    game folders themselves and roundtable/ when nothing is left. Anything with a file in it stays."""
+    for old_root in old_roots:
+        for name in OLD_FOLDERS:
+            _sweep(old_root / name)
     for folder in folders:
-        if folder != old_root / "profiles":
+        if folder.name.lower() != "profiles":
             _sweep(folder)
-    _sweep(old_root)
+    for old_root in old_roots:
+        _sweep(old_root)
+    for old_root in old_roots:
+        if old_root.parent.name == library.ROOT:
+            _sweep(old_root.parent)
 
 
 def _remap(value: str, pairs: list[tuple[Path, Path]]) -> str:

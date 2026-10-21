@@ -1,4 +1,4 @@
-"""settings.json in .roundtable beside a profile: the launcher's decisions about it, so they travel with the folder."""
+"""settings.json in .bayle beside a profile: the launcher's decisions about it, so they travel with the folder."""
 
 import json
 import shutil
@@ -83,7 +83,7 @@ def test_a_folder_that_cannot_be_written_falls_back_to_the_launchers_setting(tmp
 
 
 def test_the_file_of_launchers_before_3_23_is_copied_never_changed_and_the_newer_one_wins(tmp_path):
-    """Safety (players' files): roundtable.json beside the profile is copied into .roundtable/settings.json, left
+    """Safety (players' files): roundtable.json beside the profile is copied into .bayle/settings.json, left
     byte for byte as it was, and when an older launcher writes it again later, its newer content is what is read."""
     import os
 

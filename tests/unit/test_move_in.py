@@ -73,7 +73,7 @@ def world(tmp_path, monkeypatch):
 
 
 def target(home: Path, name: str = "a") -> Path:
-    return library.game_root(home, "eldenring") / "profiles" / name
+    return library.game_root(home, "eldenring") / name
 
 
 def test_a_shared_mod_is_copied_a_private_one_moved_and_paths_follow(world):
@@ -129,7 +129,7 @@ def test_refusals(world, monkeypatch):
     inside = target(home, "x") / "x.me3"
     inside.parent.mkdir(parents=True)
     inside.write_bytes(text())
-    assert "already in Roundtable" in " ".join(move_in.plan(inside, loc).refusals)
+    assert "already in Bayle" in " ".join(move_in.plan(inside, loc).refusals)
     assert not move_in.outside(inside, loc) and move_in.outside(a, loc)
 
 
@@ -158,7 +158,7 @@ def test_a_crash_half_way_is_undone_by_recovery(world, monkeypatch):
     assert tree(home) != before
     assert move_in.recover(loc)
     assert tree(home) == before
-    assert not list((library.game_root(home, "eldenring") / "profiles").glob(".move-in-*"))
+    assert not list((library.game_root(home, "eldenring")).glob(".move-in-*"))
 
 
 def test_a_copy_that_does_not_match_is_never_committed(world, monkeypatch):

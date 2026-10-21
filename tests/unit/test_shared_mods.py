@@ -1,6 +1,6 @@
 """The Library (mods.shared_mods) moves players' mod files between profiles: the safety tests. Temporary folders only.
 
-Profiles are home/roundtable/eldenring/profiles/<name>/<name>.me3 with packages/<mod>/; the library sits beside profiles/."""
+Profiles are home/b-eldenring/<name>/<name>.me3 with packages/<mod>/; the shared folder (.shared) sits beside them."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ class Bin:
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     home = tmp_path / "profiles"
-    root = home / "roundtable" / "eldenring" / "profiles"
+    root = home / "b-eldenring"
     grass = {"g.dcx": b"grass", "sub/g2.dcx": b"grass2"}
     a = make(root, "a", {"grass": grass, "sky": {"s.dcx": b"sky"}})
     b = make(root, "b", {"grass": grass})
@@ -112,7 +112,7 @@ def test_share_makes_a_read_only_version_and_links_it_relatively(world):
     out = shared_mods.share(a, [index_of(a, "grass")], loc=loc)
     assert out["shared"] == ["grass"] and out["reused"] == []
     path = link(a, "grass")
-    assert path.startswith("../../library/grass/") and len(path.split("/")[-1]) == shared_mods.ID_LENGTH
+    assert path.startswith("../.shared/grass/") and len(path.split("/")[-1]) == shared_mods.ID_LENGTH
     version = version_of(a, "grass")
     assert (version / "sub" / "g2.dcx").read_bytes() == b"grass2"
     assert not (root / "a" / "packages" / "grass").exists()  # the Separate copy went (to the bin)
@@ -280,7 +280,7 @@ def test_remove_unused_never_removes_a_version_a_profile_uses_or_cannot_be_ruled
     found, why = shared_mods.unused(loc)
     assert found == [] and why is None
     (root / "c" / "c.me3").write_bytes(b"\xff\xfe not text")  # a profile nobody can read
-    a.write_text(a.read_text().replace("../../library/grass/", "../../library/grass/ "))  # no longer parsed as a link
+    a.write_text(a.read_text().replace("../.shared/grass/", "../.shared/grass/ "))  # no longer parsed as a link
     found, why = shared_mods.unused(loc)
     assert why and "c.me3" in why
     with pytest.raises(shared_mods.LibraryError):
@@ -292,7 +292,7 @@ def test_a_mention_the_parser_missed_still_counts_as_use(world):
     shared_mods.share(a, [index_of(a, "grass")], loc=loc)
     ver = version_of(a, "grass").name
     other = root / "c" / "c.me3"
-    other.write_text(other.read_text() + f"\n# [[packages]] path = '../../library/grass/{ver}'\n")
+    other.write_text(other.read_text() + f"\n# [[packages]] path = '../.shared/grass/{ver}'\n")
     found, _ = shared_mods.unused(loc)
     assert found == []
 
@@ -311,7 +311,7 @@ def test_a_profile_rename_and_a_copy_keep_the_links_working(world):
 
 
 def link_text(version: Path) -> str:
-    return f"../../library/{version.parent.name}/{version.name}"
+    return f"../.shared/{version.parent.name}/{version.name}"
 
 
 def test_a_package_that_is_not_in_the_profiles_own_folder_cannot_be_shared(world, tmp_path):

@@ -25,7 +25,9 @@ def files(folder):
     return {
         p.relative_to(folder).as_posix(): p.read_bytes()
         for p in Path(folder).rglob("*")
-        if p.is_file() and not p.relative_to(folder).as_posix().startswith(".roundtable") and p.suffix != ".bak"
+        if p.is_file()
+        and not p.relative_to(folder).as_posix().startswith((".bayle", ".roundtable"))
+        and p.suffix != ".bak"
     }
 
 
@@ -127,10 +129,10 @@ def test_an_interrupted_install_is_undone_on_the_next_start(profile, tmp_path, m
     assert files(profile.parent) == before and operations.problem(profile) is None
 
 
-@pytest.mark.parametrize("where", [".roundtable-ops", ".roundtable/ops"])
+@pytest.mark.parametrize("where", [".roundtable-ops", ".bayle/ops"])
 def test_an_interrupted_install_is_undone_wherever_its_journal_is(profile, tmp_path, monkeypatch, where):
     """Safety (players' files): a journal left in .roundtable-ops beside the profile (launchers before 3.23) blocks
-    Play and is undone on the next start, as one in the profile's .roundtable/ops is."""
+    Play and is undone on the next start, as one in the profile's .bayle/ops is."""
 
     def before_3_23(prof, what):
         op = B.Operation(Path(prof).parent, what)
@@ -175,10 +177,10 @@ def test_update_keeps_the_previous_version_and_rolls_back_as_a_set(profile, tmp_
     assert profile.read_bytes() == v1_profile
     [rb] = operations.kept_versions(profile)
     assert rb["kind"] == "rollback"  # the version rolled back is kept aside until kept
-    aside = list((profile.parent / ".roundtable" / "previous").glob("grass-*"))  # in the profile's .roundtable
+    aside = list((profile.parent / ".bayle" / "previous").glob("grass-*"))  # in the profile's .bayle
     assert len(aside) == 1 and files(aside[0])["new.txt"] == b"n"
     operations.keep(Path(rb["dir"]))
-    assert not list((profile.parent / ".roundtable" / "previous").glob("grass-*"))
+    assert not list((profile.parent / ".bayle" / "previous").glob("grass-*"))
     assert not any(p.name.startswith(".grass.") for p in grass.parent.iterdir())
 
 
@@ -419,7 +421,7 @@ def tree(root):
     return {
         p.relative_to(root).as_posix(): p.read_bytes()
         for p in Path(root).rglob("*")
-        if p.is_file() and ".roundtable" not in p.relative_to(root).parts and p.suffix not in (".bak", ".lock")
+        if p.is_file() and ".bayle" not in p.relative_to(root).parts and p.suffix not in (".bak", ".lock")
     }
 
 

@@ -40,7 +40,7 @@ class FolderCheck:
 
 def profiles_root(loc: Locations) -> Path | None:
     home = loc.me3_profiles_dir()
-    return None if home is None else library.game_root(home, loc.game.key) / "profiles"
+    return None if home is None else library.profiles_root(home, loc.game.key)
 
 
 def profiles_in(folder: Path) -> list[Path]:

@@ -269,7 +269,7 @@ def test_a_merger_that_changes_what_loads_keeps_its_version(world, monkeypatch):
     out = merge.rebuild(world.profile, lambda s: None, loc=er())  # still verified against what loads now
     assert "its version is kept" in out["profile_note"]
     assert "packages = [" in world.profile.read_text(encoding="utf-8")
-    assert "# base mods" in (world.base / ".roundtable/backups/p.me3.bak").read_text(encoding="utf-8")
+    assert "# base mods" in (world.base / ".bayle/backups/p.me3.bak").read_text(encoding="utf-8")
 
 
 # ----------------------------------------------------------------------------- install offers

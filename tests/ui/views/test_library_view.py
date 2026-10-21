@@ -37,7 +37,7 @@ class LibraryHost(Host):
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     home = tmp_path / "profiles"
-    root = home / "roundtable" / "eldenring" / "profiles"
+    root = home / "b-eldenring"
     a = make(root, "a", {"grass": b"same", "sky": b"only a"})
     b = make(root, "b", {"grass": b"same"})
     loc = Locations(catalog.ELDEN_RING, Overrides(profiles_dir=str(home)))

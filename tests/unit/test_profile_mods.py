@@ -95,7 +95,7 @@ def test_taking_out_a_holder_is_one_write_with_one_version(profile):
     holder = entry(profile, "bundle")
     pm.remove_holder(profile, holder["index"], holder, ["needs-bundle"], loc=er())
     assert len(pm.versions(profile)) == before + 1
-    assert (profile.parent / ".roundtable/backups" / (profile.name + ".bak")).read_text(encoding="utf-8") == PROFILE
+    assert (profile.parent / ".bayle/backups" / (profile.name + ".bak")).read_text(encoding="utf-8") == PROFILE
 
 
 def test_a_holder_removal_that_fails_leaves_the_profile_as_it_was(profile, monkeypatch):

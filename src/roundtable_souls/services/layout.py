@@ -89,14 +89,17 @@ def plain_profiles(loc) -> list[Path]:
 
 
 def move_all(loc, profiles: list[Path]) -> int:
-    """Move each profile into Bayle's folder (services.mods.move_into_launcher_folder); returns how many moved."""
+    """Move each profile into Bayle's folder (services.mods.move_into_launcher_folder) and leave ONE Undo that
+    takes them all back, the last moved first. Returns how many moved."""
     from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.services.shared_mods import chain
 
-    done = 0
+    undos = []
     for p in profiles:
         try:
-            mod_service.move_into_launcher_folder(loc, p)
-            done += 1
+            undos.append(mod_service.move_into_launcher_folder(loc, p)["undo"])
         except Exception as e:  # one refused profile must not stop the rest
             run_logging.log(f"warning: {p.stem} was not moved: {e}")
-    return done
+    if undos:
+        run_logging.set_undo(chain(f"{len(undos)} profiles", *undos))
+    return len(undos)

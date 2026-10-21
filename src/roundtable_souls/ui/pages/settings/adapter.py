@@ -84,8 +84,8 @@ LOCATIONS = (
     ),
     (
         "me3_profile_dir",
-        "Profile folder",
-        "Leave empty to use the folder me3 uses. This is where your profiles are listed from.",
+        "me3 profiles folder",
+        "Where me3 keeps its own profiles. Leave empty to use the folder me3 uses.",
         True,
         "",
     ),
@@ -205,7 +205,7 @@ class SettingsAdapter(QObject):
             "browse": tr("Browse..."),
             "more": tr("More"),
             "profilesFolder": tr("Profiles folder"),
-            "profilesFolderHelp": tr("Where Bayle keeps your profiles and mods. Empty uses me3's folder."),
+            "profilesFolderHelp": tr("Where Bayle keeps its profiles and mods."),
             "change": tr("Change..."),
             "moveAll": tr("Move all..."),
             "otherProfiles": tr("Profiles outside Bayle"),
@@ -305,7 +305,7 @@ class SettingsAdapter(QObject):
         opener = {
             "me3_path": ("me3", tr("Open me3 folder")),
             "game_exe": ("game", tr("Open game folder")),
-            "me3_profile_dir": ("profiles", tr("Open profile folder")),
+            "me3_profile_dir": ("profiles", tr("Open me3 profiles folder")),
             "saves_dir": ("saves", tr("Open saves folder")),
         }[key]
         out = [{"key": opener[0], "label": opener[1], "enabled": True}]

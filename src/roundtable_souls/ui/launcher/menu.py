@@ -59,7 +59,7 @@ FILE = (
 PROFILE = (
     Entry("profile.rename", "Rename...", MODS, "rename", icon="Edit", rule="profile_idle"),
     Entry("profile.duplicate", "Duplicate...", MODS, "duplicate", icon="Copy", rule="profile_idle"),
-    Entry("profile.move_in", "Move into Roundtable's folder...", MODS, "moveIn", icon="Folder", rule="profile_outside"),
+    Entry("profile.move_in", "Move into Bayle's folder...", MODS, "moveIn", icon="Folder", rule="profile_outside"),
     Entry("profile.delete", "Delete...", MODS, "deleteProfile", icon="Delete", rule="profile_idle"),
     SEP,
     Entry("profile.settings", "Profile settings...", MODS, "profileSettings", icon="Setting", rule="profile"),
@@ -151,7 +151,7 @@ class MenuFacts:
     game_running: bool = False
     game_folder: bool = False  # the game's folder is known
     load_order_broken: bool = False  # the stays-last check fails
-    profile_outside: bool = False  # the profile is not in Roundtable's folder (it can be moved there)
+    profile_outside: bool = False  # the profile is not in Bayle's folder (it can be moved there)
     can_launch: Mapping[str, bool] | None = None  # mode -> the pill would launch in it
     theme: str = "dark"
     rail_collapsed: bool = False

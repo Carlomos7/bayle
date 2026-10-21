@@ -94,7 +94,7 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
                 from roundtable_souls.mods import move_in
 
                 move_in.finish_state(o)  # the launcher's records still name the old profile
-                said.append("an interrupted move into Roundtable's folder was finished")
+                said.append("an interrupted move into Bayle's folder was finished")
             elif o.info.get("kind") in ("folder-rename", "folder-split") and not o.info.get("state_done"):
                 from roundtable_souls.mods import folder_check
 

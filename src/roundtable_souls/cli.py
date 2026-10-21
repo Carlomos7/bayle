@@ -186,13 +186,13 @@ def storage_failed(error: Exception, window: bool) -> int:
     this version does not report itself ready."""
     from roundtable_souls.platform import logging as run_logging
 
-    run_logging.log(f"error: Roundtable Souls could not start: {error}")
-    print(f"Roundtable Souls could not start: {error}", file=sys.stderr)
+    run_logging.log(f"error: Bayle could not start: {error}")
+    print(f"Bayle could not start: {error}", file=sys.stderr)
     if window:
         try:
             from roundtable_souls.ui import message_box
 
-            message_box.ask("Roundtable Souls could not start.", str(error))
+            message_box.ask("Bayle could not start.", str(error))
         except Exception as e:  # no display: the log and the console say it
             run_logging.log(f"the message could not be shown: {e}")
     return 1
@@ -212,7 +212,7 @@ def play_from_shortcut(game, allow_without_backup: bool = False) -> int:
     if instance.held(instance.WINDOW) and instance.send(message):
         updates.mark_ready("play")  # this version started and handed Play to its window
         run_logging.start_log("launcher: play (no window)", game.key)
-        run_logging.log("Roundtable Souls is open: Play was handed to its window")
+        run_logging.log("Bayle is open: Play was handed to its window")
         return 0
     hold = instance.acquire(instance.PLAY)
     if hold is None:
@@ -253,7 +253,7 @@ def not_started_notice(game: Game, why: str, headline: str | None = None) -> Non
                 f"{why}\n\nThe game does not start with merged mods that no longer match your mods, so it cannot "
                 "run with a removed or changed mod still inside them."
             )
-        if message_box.ask(heading, detail, ("Open Roundtable Souls", "Close")) == 0:
+        if message_box.ask(heading, detail, ("Open Bayle", "Close")) == 0:
             command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "roundtable_souls"]
             subprocess.Popen([*command, "--game", game.key], close_fds=True)
     except Exception as e:  # no display (a console, a test): the log says it

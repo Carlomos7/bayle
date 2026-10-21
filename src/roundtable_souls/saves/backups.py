@@ -1,4 +1,4 @@
-"""Where Roundtable Souls keeps its own files: all of it in the launcher's data folder (settings.data_dir(),
+"""Where Bayle keeps its own files: all of it in the launcher's data folder (settings.data_dir(),
 %LOCALAPPDATA%\\RoundtableSouls for an installed copy, beside the exe for a portable one), never in the game's save
 folder or me3's profiles folder, which belong to the game, Steam and me3.
 
@@ -169,7 +169,7 @@ def account_lock(folder: Path, timeout: float | None = None) -> Iterator[None]:
     it: taking one, keep, prune, delete, adopting older folders. A call inside another on the same thread
     (fix.backup pruning) just enters. Raises BackupsBusy when the lock isn't free within timeout (LOCK_TIMEOUT):
     the block never runs without it."""
-    message = f"Another Roundtable Souls window or Play is changing these backups ({folder}). Try again."
+    message = f"Another Bayle window or Play is changing these backups ({folder}). Try again."
     with filelock.exclusive(Path(folder), LOCK_TIMEOUT if timeout is None else timeout, lambda: BackupsBusy(message)):
         _depth.n = getattr(_depth, "n", 0) + 1
         try:

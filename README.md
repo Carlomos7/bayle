@@ -1,6 +1,6 @@
 <div align="center">
 
-# Roundtable Souls
+# Bayle Mod Manager
 
 **A mod launcher and save toolkit for Elden Ring and Nightreign, built on [me3](https://github.com/garyttierney/me3).**
 
@@ -11,8 +11,10 @@
 
 </div>
 
-Roundtable Souls is a desktop app that manages your me3 profiles and mods, edits mod settings, looks after your saves,
+Bayle Mod Manager (Bayle for short) is a desktop app that manages your me3 profiles and mods, edits mod settings, looks after your saves,
 and launches the game. Pick a game and a profile at the top, then press **Launch**.
+
+Bayle Mod Manager is an unofficial fan project and is not affiliated with or endorsed by FromSoftware or Bandai Namco.
 
 ## Features
 
@@ -60,7 +62,7 @@ The full guide is in [docs/How to use.txt](docs/How%20to%20use.txt).
 The launcher isn't code-signed yet, so Defender can wrongly flag it. Setup may say *"Install Partially Succeeded"* or
 show error `-2147024671`.
 
-1. Open **Windows Security â†’ Virus & threat protection â†’ Protection history**, find the Roundtable Souls entry, and
+1. Open **Windows Security â†’ Virus & threat protection â†’ Protection history**, find the Bayle entry, and
    choose **Restore** (or **Allow on device**).
 2. Under **Manage settings â†’ Exclusions**, add the folder `%LOCALAPPDATA%\Carlomos7.RoundtableSouls`.
 3. Run `RoundtableSouls-Setup.exe` again and choose **Repair**. Your settings and data are kept.

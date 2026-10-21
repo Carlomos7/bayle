@@ -314,7 +314,7 @@ def _container_info(info: dict, data: bytes, game: games.Game) -> dict:
             "level": "info",
             "code": "contents",
             "title": "Contents not read",
-            "detail": f"{game.name} encrypts its saves, so Roundtable Souls cannot show what is inside yet. "
+            "detail": f"{game.name} encrypts its saves, so Bayle cannot show what is inside yet. "
             "Backups, restore, and the co-op and standard copies all work.",
         },
     ]
@@ -645,7 +645,7 @@ def restore_available(info: dict) -> bool:
 
 
 def repair_available(info: dict) -> bool:
-    """True when Roundtable Souls itself can fix something in this save (block repair, mod items, checksums, loading).
+    """True when Bayle itself can fix something in this save (block repair, mod items, checksums, loading).
     The Saves nav badge uses this."""
     cs = info.get("checksum_fixes") or {}
     return bool(

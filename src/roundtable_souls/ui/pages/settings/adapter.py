@@ -184,7 +184,9 @@ class SettingsAdapter(QObject):
             "logLevel": tr("Log level"),
             "logLevelHelp": tr("Verbose adds fine detail to launcher.log."),
             "about": tr("About"),
-            "aboutHelp": tr("GPL-3.0. Built on PySide6 and me3."),
+            "aboutHelp": tr(
+                "GPL-3.0. Built on PySide6 and me3. Bayle Mod Manager is an unofficial fan project and is not affiliated with or endorsed by FromSoftware or Bandai Namco."
+            ),
             "licence": tr("Licence"),
             "notices": tr("Third-party notices"),
             "browse": tr("Browse..."),

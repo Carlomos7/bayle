@@ -320,7 +320,7 @@ jobs:
     # Uploaded as a draft first, so nobody (and no update check) sees a half-uploaded release.
     - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:
-        name: Roundtable Souls ${{ github.ref_name }}
+        name: Bayle Mod Manager ${{ github.ref_name }}
         draft: true
         prerelease: true
         body_path: ${{ runner.temp }}/notes.md  # the readable notes players see: this version's CHANGELOG section

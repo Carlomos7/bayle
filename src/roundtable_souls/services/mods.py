@@ -281,7 +281,7 @@ def migrate_profile_folders(loc: Locations) -> dict | None:
     (nothing changed) when it can't be done now. Call it at start, before the game's profiles are listed."""
     from roundtable_souls.mods import migrate, move_in
 
-    move_in.recover(loc)  # a move into Roundtable's folder that was interrupted is undone first
+    move_in.recover(loc)  # a move into Bayle's folder that was interrupted is undone first
     if loc.me3_profiles_dir() is None or not migrate.old_profiles(loc.me3_profiles_dir(), loc.game.key):
         return None
     run_logging.start_log("launcher: move profiles into their own folders", loc.game.key)
@@ -296,21 +296,21 @@ def migrate_profile_folders(loc: Locations) -> dict | None:
 
 
 def profile_outside(loc: Locations, profile) -> bool:
-    """Whether the profile is outside Roundtable's folder (it can be moved in: mods.move_in)."""
+    """Whether the profile is outside Bayle's folder (it can be moved in: mods.move_in)."""
     from roundtable_souls.mods import move_in
 
     return move_in.outside(Path(profile), loc)
 
 
 def move_in_plan(loc: Locations, profile):
-    """What Move into Roundtable's folder does for the profile, nothing written (mods.move_in.MovePlan)."""
+    """What Move into Bayle's folder does for the profile, nothing written (mods.move_in.MovePlan)."""
     from roundtable_souls.mods import move_in
 
     return move_in.plan(Path(profile), loc)
 
 
 def move_into_launcher_folder(loc: Locations, profile) -> dict:
-    """Move a profile outside Roundtable's folder into it (mods.move_in), as a logged job with an undo record (Undo
+    """Move a profile outside Bayle's folder into it (mods.move_in), as a logged job with an undo record (Undo
     move). Raises mods.move_in.MoveInError, nothing changed, when it can't be done now."""
     from roundtable_souls.mods import move_in
 

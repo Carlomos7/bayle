@@ -68,7 +68,7 @@ def report_exception(exc_type, exc, tb, where="launcher"):
             pass
 
 
-TITLE = "Roundtable Souls"
+TITLE = "Bayle Mod Manager"
 VERSION = __version__
 EXE_NAME = "RoundtableSouls"
 NOTIFY = None  # the window sets this to a function (title, message) that shows an error to the user
@@ -723,7 +723,7 @@ def play_headless(
     game = loc.game
     if not game.ready:
         run_logging.start_log("launcher: play (no window)", game.key)
-        run_logging.log(f"error: Roundtable Souls cannot launch {game.name} yet")
+        run_logging.log(f"error: Bayle cannot launch {game.name} yet")
         return 1
     remembered = remembered_profile(settings, game)
     if remembered and Path(remembered).is_file():
@@ -739,7 +739,7 @@ def play_headless(
     if launch is None:
         run_logging.start_log("launcher: play (no window)", game.key)
         run_logging.log(
-            f"error: no working {game.name} profile found; open Roundtable Souls once, pick the {game.name} tab, "
+            f"error: no working {game.name} profile found; open Bayle once, pick the {game.name} tab, "
             "and choose one in the top bar"
         )
         return 1
@@ -789,17 +789,17 @@ def update_merge_headless(launch, automatic: bool = True) -> str | None:
         run_logging.log(f"error: the merged mods are out of date ({reason}); automatic rebuilds are off")
         return (
             f"The merged mods are out of date ({reason}), and rebuilding them automatically before Play is "
-            "turned off. Open Roundtable Souls to rebuild them."
+            "turned off. Open Bayle to rebuild them."
         )
     tool: Any = mod_merge.find_backend(prof, loc=loc)  # a rebuild tool (mods.backends), or None
     if tool is not None and tool.problem():
         run_logging.log(f"error: {tool.label} cannot run: {tool.problem()}")
         return f"The merged mods are out of date and {tool.label} cannot run: {tool.problem()}"
     if tool is not None and not mod_merge.approved(tool):
-        run_logging.log(f"error: {tool.label} has not been allowed to run yet; open Roundtable Souls and allow it")
+        run_logging.log(f"error: {tool.label} has not been allowed to run yet; open Bayle and allow it")
         return (
             f"The merged mods are out of date ({reason}), and {tool.label} has not been allowed to run yet. "
-            "Open Roundtable Souls to allow it."
+            "Open Bayle to allow it."
         )
     try:
         mod_merge.update_before_play(prof, run_logging.log, loc=loc)

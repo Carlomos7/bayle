@@ -154,7 +154,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "check_me3_updates",
             tr("Check for me3 updates"),
             tr("Once a day, from me3's GitHub releases. A notice only; nothing is installed."),
-            tr("Roundtable Souls never replaces me3 itself: a mod that bundles its own copy keeps it."),
+            tr("Bayle never replaces me3 itself: a mod that bundles its own copy keeps it."),
             "me3",
         ),
         SwitchSpec(
@@ -474,9 +474,7 @@ def migration_notice(record: dict | None) -> UpdateNotice | None:
         return None
     status = record.get("status")
     if status == "waiting":
-        return UpdateNotice(
-            "migration", "warning", tr("The old Roundtable Souls is still open"), record.get("reason", "")
-        )
+        return UpdateNotice("migration", "warning", tr("The old Bayle is still open"), record.get("reason", ""))
     if status == "failed":
         return UpdateNotice("migration", "error", tr("The old install could not be removed"), record.get("reason", ""))
     if status in ("done", "steam_pending"):

@@ -131,7 +131,7 @@ class InstallAdapter(QObject):
             self.notifier.toast(tr("Could not read {name}: {why}").format(name=src.name, why=error), error=True)
         elif plan.get("error"):
             self.notifier.toast(
-                tr("{name} is not a mod Roundtable Souls can install: {why}").format(name=src.name, why=plan["error"]),
+                tr("{name} is not a mod Bayle can install: {why}").format(name=src.name, why=plan["error"]),
                 error=True,
             )
             _drop_staging(plan)

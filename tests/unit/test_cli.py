@@ -199,7 +199,7 @@ def test_check_storage_fails_when_the_database_will_not_open(monkeypatch, quiet,
 
 def test_storage_failed_without_a_window_logs_and_prints(monkeypatch, quiet, capsys):
     assert cli.storage_failed(RuntimeError("disk full"), window=False) == 1
-    assert quiet.lines == ["error: Roundtable Souls could not start: disk full"]
+    assert quiet.lines == ["error: Bayle could not start: disk full"]
     assert "could not start: disk full" in capsys.readouterr().err
 
 
@@ -207,7 +207,7 @@ def test_storage_failed_with_a_window_asks_and_survives_a_broken_box(monkeypatch
     asked = []
     fake_module(monkeypatch, "roundtable_souls.ui.message_box", ask=lambda *args: asked.append(args))
     assert cli.storage_failed(RuntimeError("disk full"), window=True) == 1
-    assert asked == [("Roundtable Souls could not start.", "disk full")]
+    assert asked == [("Bayle could not start.", "disk full")]
 
     def broken(*args):
         raise OSError("no display")

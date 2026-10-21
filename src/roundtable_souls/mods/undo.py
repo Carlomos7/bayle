@@ -198,7 +198,7 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         from roundtable_souls.mods import move_in
 
         if not available(undo):
-            raise UndoError("The move into Roundtable's folder can no longer be taken back.")
+            raise UndoError("The move into Bayle's folder can no longer be taken back.")
         try:
             return move_in.undo_move_in(Path(undo["operation"]), log)
         except (move_in.MoveInError, ps.Unreadable) as e:

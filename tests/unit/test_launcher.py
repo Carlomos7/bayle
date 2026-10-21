@@ -92,7 +92,7 @@ def test_logo_follows_theme_unless_locked():
     assert g.logo_kind(True, "light") == "light" and g.logo_kind(False, "dark") == "dark"
     assert g.logo_path(True, "auto").name == "logo-dark.png"
     assert g.logo_path(False, "auto").name == "logo-light.png"
-    assert g.TITLE == "Roundtable Souls" and g.EXE_NAME == "RoundtableSouls"
+    assert g.TITLE == "Bayle Mod Manager" and g.EXE_NAME == "RoundtableSouls"
 
 
 def test_save_findings_on_unreadable(tmp_path):
@@ -108,7 +108,7 @@ def test_save_findings_on_unreadable(tmp_path):
 def test_health_report_and_clean_gate(tmp_path):
     missing = tmp_path / "nope.co2"
     text = saves_service.health_report(missing, loc=er())
-    assert "Roundtable Souls save report" in text and "ERROR" in text
+    assert "Bayle save report" in text and "ERROR" in text
     assert not g.save_analyze.findings_are_clean([{"level": "warn", "code": "x", "title": "t", "detail": ""}])
     assert g.save_analyze.findings_are_clean(
         [

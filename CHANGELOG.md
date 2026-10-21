@@ -5,6 +5,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-10-21
+
+The launcher is now **Bayle**. Each game has its own tidy folder of profiles, you choose where it lives, and the
+window is much faster.
+
+### Highlights
+
+- **New name:** Roundtable Souls is now Bayle. Shortcuts and the Windows app list say Bayle; updates, settings and
+  your files carry over, and Steam shortcuts keep working.
+- **Tidier folders:** profiles live in `b-eldenring\<profile>\` (and `b-nightreign\`), with Shared mods in
+  `b-eldenring\.shared\`. Profiles from earlier versions move there once; undo it in Activity.
+- **Your choice of location:** Settings → Locations sets where profiles live and what the folders are called.
+- **Faster:** pages no longer rebuild when nothing changed, Activity opens about 10 times faster, and scrolling
+  stays smooth.
+
+### Added
+
+- **Settings → Locations:** Profiles folder with Change…, which moves everything with progress, Cancel and Undo,
+  and warns about cloud-synced folders and low space. Folder names for the game folder (`b-{game}`), game-file mods,
+  DLL mods and Shared mods, with a live preview. Move all… moves every plain me3 profile into Bayle's folder in one
+  step.
+
+### Changed
+
+- **Name:** the window, About, shortcuts and uninstall entry say Bayle, and About notes that Bayle is an
+  unofficial fan project, not affiliated with FromSoftware or Bandai Namco.
+- **Folders:** each profile's hidden launcher folder is `.bayle` (older `.roundtable` folders are still read).
+- **Settings:** me3's own folder setting is now called "me3 profiles folder", next to Bayle's "Profiles folder".
+- **Speed:** lists update only the rows that changed, Activity builds a job's log only when you open it, mod menus
+  are built on first use, hidden pages refresh when you open them, and the unlisted-folder check is faster.
+
 ## [4.3.1] - 2026-10-21
 
 ### Fixed

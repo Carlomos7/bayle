@@ -352,7 +352,7 @@ def build(
         for name in _notices(recipe, setup, stage):
             log(f"engine: {name} kept beside the mod's DLLs")
         (stage / out_cfg.get("report", "merge-report.txt")).write_text(
-            f"{recipe['label']} {version}, built by Roundtable Souls {__version__} from {len(inputs)} package(s).\n"
+            f"{' '.join(x for x in (recipe['label'], version) if x)}, built by Roundtable Souls {__version__} from {len(inputs)} package(s).\n"
             + "".join(f"{line}\n" for line in report)
             + ("" if any(line.startswith("clash:") for line in report) else "No clashes.\n"),
             encoding="utf-8",

@@ -77,6 +77,11 @@ class StateFolders:
     ops_lock: Path
 
 
+def game_root(profiles_dir: Path, game: str) -> Path:
+    """The launcher's folder for a game in me3's profiles folder: roundtable/<game>/profiles/<name>/<name>.me3."""
+    return Path(profiles_dir) / "roundtable" / game
+
+
 def own_folder(profile: Path) -> bool:
     """Whether the profile sits in a folder of its own named after it (profiles/<name>/<name>.me3)."""
     profile = Path(profile)

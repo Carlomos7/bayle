@@ -280,6 +280,38 @@ def migrate_profile_folders(loc: Locations) -> dict | None:
     return out
 
 
+def profile_outside(loc: Locations, profile) -> bool:
+    """Whether the profile is outside Roundtable's folder (it can be moved in: mods.move_in)."""
+    from roundtable_souls.mods import move_in
+
+    return move_in.outside(Path(profile), loc)
+
+
+def move_in_plan(loc: Locations, profile):
+    """What Move into Roundtable's folder does for the profile, nothing written (mods.move_in.MovePlan)."""
+    from roundtable_souls.mods import move_in
+
+    return move_in.plan(Path(profile), loc)
+
+
+def move_into_launcher_folder(loc: Locations, profile) -> dict:
+    """Move a profile outside Roundtable's folder into it (mods.move_in), as a logged job with an undo record (Undo
+    move). Raises mods.move_in.MoveInError, nothing changed, when it can't be done now."""
+    from roundtable_souls.mods import move_in
+
+    plan = move_in.plan(Path(profile), loc)
+    if not plan.ok:
+        raise move_in.MoveInError(" ".join(plan.refusals))
+    out = move_in.apply(plan, loc=loc, log=run_logging.log)
+    for line in plan.stays:
+        run_logging.log(f"stays where it is: {line}")
+    out["undo"] = {"type": move_in.KIND, "profile": out["profile"], "name": out["name"], "operation": out["operation"]}
+    run_logging.set_undo(out["undo"])
+    for note in out["notes"]:
+        run_logging.log(f"warning: {note}")
+    return out
+
+
 def overhaul_switch_text(game: str) -> str:
     """The line under the Settings switch: what it covers for this game, and where the launcher keeps its files."""
     names = installable_overhauls(game)

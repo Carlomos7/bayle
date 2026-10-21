@@ -82,3 +82,18 @@ def test_binary_and_huge_files_are_not_settings(tmp_path):
     with pytest.raises(C.ConfigError):  # a character the file's code page cannot hold
         C.write(p, "a = 中\n", "cp1252", False)
     assert p.read_bytes() == b"a = \xe9\n"
+
+
+def test_a_readme_in_a_natives_own_folder_is_found_but_not_in_a_shared_one(tmp_path):
+    d = _files(tmp_path / "QuestPath", "QuestPath.dll", "README.md", "readme.txt", "LICENSE.md", "notes.md")
+    assert [p.name for p in C.readmes(d)] == ["README.md", "readme.txt"]
+    shared = _files(tmp_path / "natives", "a.dll", "b.dll", "README.md")
+    assert C.readmes(shared, shared=True) == []
+
+
+def test_the_mod_configs_tree_offers_a_native_mods_readme(tmp_path):
+    from roundtable_souls.services import mod_configs as M
+
+    d = _files(tmp_path / "QuestPath", "QuestPath.dll", "README.md")
+    assert [p.name for p in M._readmes_of("native", d / "QuestPath.dll")] == ["README.md"]
+    assert M._kind(d / "README.md", None) == M.README

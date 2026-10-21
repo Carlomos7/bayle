@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
 SEAMLESS = "seamless"
+README = "readme"  # a mod's README: shown as formatted text, Edit as text opens it in the editor
 OVERHAUL = (
     "overhaul"  # the node of the profile's overhaul setup; its first file is the setup itself (how == "overhaul")
 )
@@ -59,6 +60,8 @@ def _kind(path: Path, seamless_ini: str | None) -> str:
         return SEAMLESS
     if config_model.lang_of(path.name):
         return "form"
+    if configs.README_NAME.match(path.stem) and path.suffix.lower() in configs.README_SUFFIXES:
+        return README
     return "markdown" if path.suffix.lower() == ".md" else "text"
 
 
@@ -92,6 +95,7 @@ def tree(profile, *, loc: Locations, settings: LauncherSettings) -> list[ModNode
             found = configs.files_for(settings, where, skip=skip)
         else:
             found = _package_files(settings, where)
+        found = [*found, *({"path": r, "how": "found", "exists": True} for r in _readmes_of(e["kind"], where))]
         if not found:
             continue
         files = tuple(
@@ -128,6 +132,13 @@ def _overhaul_node(profile: Path, loc: Locations) -> ModNode | None:
             if f.is_file():
                 files.append(ConfigFile(f, "found", True, _kind(f, loc.game.coop_ini)))
     return ModNode(OVERHAUL, config.label, OVERHAUL, True, True, None, tuple(files), setup)
+
+
+def _readmes_of(kind: str, where: Path) -> list[Path]:
+    if kind != "native":
+        return configs.readmes(where)
+    shared = sum(1 for k in where.parent.iterdir() if k.suffix.lower() == ".dll") > 1 if where.parent.is_dir() else True
+    return configs.readmes(where.parent, shared)
 
 
 def _package_files(settings: LauncherSettings, folder: Path) -> list[dict]:

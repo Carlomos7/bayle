@@ -7,7 +7,17 @@ from __future__ import annotations
 import threading
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
-from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextBlock, QTextCharFormat, QTextCursor, QTextDocument
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QSyntaxHighlighter,
+    QTextBlock,
+    QTextBlockFormat,
+    QTextCharFormat,
+    QTextCursor,
+    QTextDocument,
+    QTextFormat,
+)
 from PySide6.QtQml import QmlElement
 from PySide6.QtQuick import QQuickTextDocument
 
@@ -228,3 +238,44 @@ class CodeSupport(QObject):
     def languageFor(self, name: str) -> str:  # noqa: N802
         """The language for a file name (by extension)."""
         return code_syntax.language_for(name)
+
+
+@QmlElement
+class MarkdownSupport(QObject):
+    """For Components/MarkdownView.qml: Qt's Markdown parser knows no theme, so after the text is set the links, inline
+    code and code blocks of the document are coloured here (`restyle`) from the theme's roles."""
+
+    @Slot(QQuickTextDocument, str, str, str, str)
+    def restyle(self, quick_doc: QQuickTextDocument, link: str, code: str, code_bg: str, mono: str) -> None:
+        doc = quick_doc.textDocument()
+        if doc is None:
+            return
+        cursor = QTextCursor(doc)
+        cursor.beginEditBlock()
+        block = doc.begin()
+        while block.isValid():
+            fragments = [it.fragment() for it in block]
+            in_code = block.blockFormat().hasProperty(QTextFormat.Property.BlockCodeLanguage)
+            if in_code:
+                cursor.setPosition(block.position())
+                bf = QTextBlockFormat()
+                bf.setBackground(QColor(code_bg))
+                cursor.mergeBlockFormat(bf)
+            for frag in fragments:
+                fmt = frag.charFormat()
+                new = QTextCharFormat()
+                if fmt.isAnchor():
+                    new.setForeground(QColor(link))
+                    new.setFontUnderline(True)
+                elif in_code or fmt.fontFixedPitch():
+                    new.setForeground(QColor(code))
+                    new.setFontFamilies(mono.split(","))
+                    if not in_code:
+                        new.setBackground(QColor(code_bg))
+                else:
+                    continue
+                cursor.setPosition(frag.position())
+                cursor.setPosition(frag.position() + frag.length(), QTextCursor.MoveMode.KeepAnchor)
+                cursor.mergeCharFormat(new)
+            block = block.next()
+        cursor.endEditBlock()

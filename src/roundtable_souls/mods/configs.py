@@ -25,6 +25,8 @@ NOT_SETTINGS = re.compile(
     r"instructions|faq|version)([ ._-].*)?$",
     re.I,
 )
+README_SUFFIXES = {".md", ".markdown", ".txt"}
+README_NAME = re.compile(r"^(readme|read_me)([ ._-].*)?$", re.I)
 MAX_BYTES = 2 * 1024 * 1024  # a settings file, not data
 
 
@@ -82,6 +84,21 @@ def found(dll: Path) -> list[Path]:
         )
     ]
     return sorted(out, key=lambda k: (k.stem.lower() != stem, k.name.lower()))
+
+
+def readmes(folder: Path, shared: bool = False) -> list[Path]:
+    """A mod's README (README.md, readme.txt, ...) at the top of its folder. shared: the folder holds other mods'
+    DLLs too (the top of natives/), where a README belongs to nobody in particular."""
+    if shared or not Path(folder).is_dir():
+        return []
+    try:
+        kids = list(Path(folder).iterdir())
+    except OSError:
+        return []
+    return sorted(
+        (k for k in kids if k.is_file() and k.suffix.lower() in README_SUFFIXES and README_NAME.match(k.stem)),
+        key=lambda k: (k.suffix.lower() != ".md", k.name.lower()),
+    )
 
 
 def tied(settings: LauncherSettings, dll: Path) -> list[Path]:

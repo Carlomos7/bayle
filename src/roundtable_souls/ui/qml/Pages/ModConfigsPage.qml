@@ -383,6 +383,13 @@ Item {
                     width: parent.width
                     wrapMode: Text.WordWrap
                 }
+                MarkdownView {  // a README: formatted, read-only; Edit as text opens it in the editor
+                    markdown: /\.(md|markdown)$/i.test(page.adapter.selectedFile)
+                    objectName: "readmeView"
+                    text: page.adapter.fileKind === "readme" ? page.adapter.text : ""
+                    visible: page.adapter.fileKind === "readme"
+                    width: parent.width
+                }
                 CodeEditor {
                     fileName: page.adapter.selectedFile
                     height: Math.max(320, body.height - Theme.sp16)

@@ -168,7 +168,8 @@ def recover(live: Path) -> str | None:
 
 
 # ----------------------------------------------------------------------------- operations
-OPS = ".roundtable-ops"  # before 3.23, beside the profile: one folder per operation, its journal and what it restores
+OPS = ".bayle/ops"  # beside a folder's profiles (a game's profiles folder): one folder per operation, journal included
+LEGACY_OPS = ".roundtable-ops"  # before 4.6 (its lock was .roundtable-ops.lock): still read, adopt_legacy_ops moves it
 # Every function below takes the folder holding the operations (root) and their folder's name in it (ops), so the
 # caller decides where they live (mods.operations: the profile's .roundtable/ops, and this legacy folder).
 OP_JOURNAL = "journal.json"
@@ -237,7 +238,8 @@ class Operation:
 
         self.id = op_id or time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
         self.dir = Path(root) / ops / self.id
-        self.dir.mkdir(parents=True, exist_ok=False)
+        self.dir.parent.mkdir(parents=True, exist_ok=True)
+        self.dir.mkdir(exist_ok=False)
         self.aside: Path | None = None  # where replace_folder keeps a live folder's previous copy (same drive only)
         self.what = what
         self.steps: list[dict] = []
@@ -433,6 +435,36 @@ def recover_operations(root: Path, timeout: float = 30.0, ops: str = OPS) -> lis
         return out
     with ops_lock(root, timeout, ops):
         _recover_all(base, out)
+    return out
+
+
+def adopt_legacy_ops(root: Path, timeout: float = 0.0) -> list[str]:
+    """Retire the old-name operations folder and lock under root: finish or undo what an interrupted operation left
+    there, move the finished ones (kept for a rollback) into OPS, then remove the empty folder and its lock. Nothing
+    is touched while another process holds the old lock (it is looked at again on the next start)."""
+    legacy = Path(root) / LEGACY_OPS
+    out: list[str] = []
+    if not legacy.is_dir() and not legacy.with_name(LEGACY_OPS + ".lock").exists():
+        return out
+    if legacy.is_dir():
+        try:
+            out = recover_operations(root, timeout, LEGACY_OPS)
+        except BuildError, OSError:
+            return out
+        for d in sorted(p for p in legacy.iterdir() if p.is_dir()):
+            if _state(d) == ACTIVE and not (Path(root) / OPS / d.name).exists():  # an unfinished one is left as it is
+                try:
+                    _move(d, Path(root) / OPS / d.name)
+                except OSError:
+                    pass
+        try:
+            legacy.rmdir()
+        except OSError:
+            return out
+    with filelock.locked(legacy, 0) as got:  # only a lock nobody holds is taken away
+        pass
+    if got:
+        legacy.with_name(LEGACY_OPS + ".lock").unlink(missing_ok=True)
     return out
 
 

@@ -14,6 +14,7 @@ mods.profile_edit.slug, which keeps the name's case; a mod's own files and folde
 
 from __future__ import annotations
 
+import os
 import re
 import unicodedata
 from collections.abc import Iterable
@@ -92,7 +93,7 @@ def unique(ident: str, taken: Iterable[str]) -> str:
 def deepest(folder: str | Path, inside: int | None = None) -> int:
     """How long the deepest file path below `folder` is: the folder, a separator and the longest path inside it (ROOM
     when that is not known)."""
-    return len(str(folder)) + 1 + (inside or ROOM)
+    return len(os.path.normpath(folder)) + 1 + (inside or ROOM)  # "a\..\b" is as long as "b" to Windows
 
 
 def path_problem(folder: str | Path, inside: int | None = None) -> str | None:

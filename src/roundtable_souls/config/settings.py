@@ -21,7 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from roundtable_souls.config import identity
 from roundtable_souls.platform import filelock
@@ -149,6 +149,79 @@ def data_dir() -> Path:
     return new
 
 
+# ----------------------------------------------------------------------------- where the launcher's profiles live
+# The folder layout (mods.library): <profiles_root>/<game_folder_pattern>/<name>/<name>.me3 with packages/, natives/,
+# builds/ and .bayle/; Shared mods in <profiles_root>/<game folder>/<shared_folder>/. Every name is the player's to
+# change in Settings; layout_problems() says in plain words why one cannot be used.
+DEFAULT_GAME_PATTERN = "b-{game}"
+DEFAULT_PACKAGES = "packages"
+DEFAULT_NATIVES = "natives"
+DEFAULT_SHARED = ".shared"
+# Names the launcher keeps for itself inside a game's folder or a profile's folder.
+_OWN_NAMES = frozenset({"builds", ".bayle", ".roundtable", ".roundtable-ops", "profiles", "library"})
+_FOLDER_ILLEGAL = re.compile(r'[<>:"/\|?*\x00-\x1f]')
+_FOLDER_DEVICES = {"con", "prn", "aux", "nul", "conin$", "conout$"} | {
+    f"{p}{d}" for p in ("com", "lpt") for d in "123456789"
+}
+
+
+def folder_name_problem(name: object) -> str | None:
+    """Why `name` can't be a folder name of the launcher's layout, or None when it is fine."""
+    if not isinstance(name, str) or not name.strip():
+        return "A folder name can't be empty."
+    if name != name.strip() or name in (".", "..") or name.startswith(".."):
+        return "A folder name can't have spaces around it or be made of dots."
+    if (bad := _FOLDER_ILLEGAL.search(name)) is not None:
+        return f"A folder name can't contain {bad.group()!r}."
+    if name[-1] in ". ":
+        return "A folder name can't end with a dot or a space."
+    if name.split(".")[0].rstrip(" ").lower() in _FOLDER_DEVICES:
+        return f"{name} is a name Windows keeps for a device."
+    if name.lower() in _OWN_NAMES or name.lower().endswith(".me3"):
+        return f"{name} is a name the launcher or me3 uses itself."
+    return None
+
+
+def game_folder_problem(pattern: object) -> str | None:
+    """Why `pattern` can't name a game's folder ("b-{game}"), or None: it needs {game}, once, and is a safe name once
+    a game's key is put in."""
+    if not isinstance(pattern, str) or pattern.count("{game}") != 1:
+        return "The game folder's name needs {game} in it, once."
+    if "{" in (rest := pattern.replace("{game}", "")) or "}" in rest:
+        return "The game folder's name can't have other braces."
+    return folder_name_problem(pattern.replace("{game}", "eldenring"))
+
+
+def layout_problems(
+    *,
+    profiles_root: object = None,
+    pattern: object = DEFAULT_GAME_PATTERN,
+    packages: object = DEFAULT_PACKAGES,
+    natives: object = DEFAULT_NATIVES,
+    shared: object = DEFAULT_SHARED,
+) -> dict[str, str]:
+    """What is wrong with these layout settings: field name -> a plain sentence. Empty when all of them can be used."""
+    out: dict[str, str] = {}
+    if profiles_root is not None and (
+        not isinstance(profiles_root, str) or not profiles_root.strip() or not Path(profiles_root).is_absolute()
+    ):
+        out["profiles_root"] = "The Profiles folder has to be a full path."
+    if (why := game_folder_problem(pattern)) is not None:
+        out["game_folder_pattern"] = why
+    for field, value in (("packages_folder", packages), ("natives_folder", natives), ("shared_folder", shared)):
+        if (why := folder_name_problem(value)) is not None:
+            out[field] = why
+    names = {"packages_folder": packages, "natives_folder": natives, "shared_folder": shared}
+    seen: dict[str, str] = {}
+    for field, value in names.items():
+        if field in out or not isinstance(value, str):
+            continue
+        if value.lower() in seen:
+            out[field] = f"{value} is already the name of the {seen[value.lower()].split('_')[0]} folder."
+        seen[value.lower()] = field
+    return out
+
+
 class LauncherSettings(BaseModel):
     """Everything the window remembers between runs. Unknown keys are kept so older builds' values survive."""
 
@@ -181,6 +254,13 @@ class LauncherSettings(BaseModel):
     overhaul_install: bool = False  # the Mods page's Overhaul button: install and remove overhauls itself (preview)
     # Co-op page notices about Seamless Co-op left in the game folder, turned off for good: "<game>|<profile>|<kind>"
     coop_relocate_dismissed: list[str] = Field(default_factory=list)
+    # Where profiles live (mods.library): <profiles_root>/<game_folder_pattern>/<name>/ with the folder names below.
+    # An unusable value is replaced by its default when the file is read (layout_problems says why to the Settings page).
+    profiles_root: str | None = None  # None: me3's profiles folder
+    game_folder_pattern: str = DEFAULT_GAME_PATTERN
+    packages_folder: str = DEFAULT_PACKAGES
+    natives_folder: str = DEFAULT_NATIVES
+    shared_folder: str = DEFAULT_SHARED
     # Setups the Mods page stopped offering to adopt into the library (S7d): the setup folder's path
     adopt_dismissed: list[str] = Field(default_factory=list)
     play_backup_before: bool = False
@@ -235,6 +315,24 @@ class LauncherSettings(BaseModel):
         except ValidationError as e:
             bad = {err["loc"][0] for err in e.errors() if err["loc"]}
             return cls.model_validate({k: v for k, v in raw.items() if k not in bad})
+
+    @field_validator("profiles_root", mode="before")
+    @classmethod
+    def _root_ok(cls, v: Any) -> Any:
+        return v if "profiles_root" not in layout_problems(profiles_root=v) else None
+
+    @field_validator("game_folder_pattern", mode="before")
+    @classmethod
+    def _pattern_ok(cls, v: Any) -> Any:
+        return v if game_folder_problem(v) is None else DEFAULT_GAME_PATTERN
+
+    @field_validator("packages_folder", "natives_folder", "shared_folder", mode="before")
+    @classmethod
+    def _folder_ok(cls, v: Any, info: Any) -> Any:
+        default = {"packages_folder": DEFAULT_PACKAGES, "natives_folder": DEFAULT_NATIVES}.get(
+            info.field_name, DEFAULT_SHARED
+        )
+        return v if folder_name_problem(v) is None else default
 
     def to_file(self) -> dict[str, Any]:
         """What the file holds: every key, unknown ones (an older or newer build's) included, except the keys in

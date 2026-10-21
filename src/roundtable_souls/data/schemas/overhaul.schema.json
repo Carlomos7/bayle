@@ -108,6 +108,13 @@
      },
      "title": "Files",
      "type": "object"
+    },
+    "health": {
+     "items": {
+      "$ref": "#/$defs/Health"
+     },
+     "title": "Health",
+     "type": "array"
     }
    },
    "title": "Basic",
@@ -366,6 +373,42 @@
     }
    },
    "title": "Each",
+   "type": "object"
+  },
+  "Health": {
+   "additionalProperties": false,
+   "description": "A log the mod writes, read after a run (services.run_health): only the lines written since the launch, and\nonly for what this entry names. A line matching a `fail` pattern is shown in Activity as a warning naming the mod.",
+   "properties": {
+    "log": {
+     "title": "Log",
+     "type": "string"
+    },
+    "fail": {
+     "items": {
+      "type": "string"
+     },
+     "minItems": 1,
+     "title": "Fail",
+     "type": "array"
+    },
+    "ok": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Ok"
+    }
+   },
+   "required": [
+    "log",
+    "fail"
+   ],
+   "title": "Health",
    "type": "object"
   },
   "Hook": {
@@ -1011,6 +1054,13 @@
     }
    ],
    "default": null
+  },
+  "health": {
+   "items": {
+    "$ref": "#/$defs/Health"
+   },
+   "title": "Health",
+   "type": "array"
   }
  },
  "required": [

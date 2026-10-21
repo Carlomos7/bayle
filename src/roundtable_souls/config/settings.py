@@ -263,6 +263,8 @@ class LauncherSettings(BaseModel):
     shared_folder: str = DEFAULT_SHARED
     # Setups the Mods page stopped offering to adopt into the library (S7d): the setup folder's path
     adopt_dismissed: list[str] = Field(default_factory=list)
+    # What the last Play of each game saw (services.run_health): game key -> {"exe_build": the exe's build stamp}
+    run_state: dict[str, dict[str, Any]] = Field(default_factory=dict)
     play_backup_before: bool = False
     play_repair_after: bool = True  # Nightreign: re-sign the save's sections me3 can leave unsigned
     # Elden Ring: restore the save's regulation copy after me3. The game never reads it back (game model,

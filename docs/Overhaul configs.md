@@ -229,6 +229,24 @@ installer left. Nothing in it knows a particular overhaul; everything comes from
   offered as choices, none ticked. Its leftovers (`installer_folders`, its folder when no profile uses it) are then
   offered with their sizes, its backups last and one at a time.
 
+## Health: logs read after a run
+
+A config can name the logs its mod writes and what a failure looks like. After a run of the game the launcher reads only
+the lines written since the launch (at most the last megabyte) and shows each line that matches a `fail` pattern in
+Activity as a warning naming the mod. A mod that declares nothing is never read. `[[health]]` works at the top of a
+config and as `[[basic.health]]` (written by hand; the setup form does not show it).
+
+```toml
+[[health]]
+log = "RevivePrototype.log"       # relative to the mod's own folder (recognise.folder, beside the profile)
+fail = ["initialization failed"]  # regular expressions; a matching line is a failure
+ok = "initialized"                # optional: failures before its last line are ignored; if it never shows
+                                  # although the log was written, that is reported as well
+```
+
+A log the mod starts over at each launch is read whole when it ends up shorter than at launch; one that is rewritten
+to a longer size than before loses its first lines to the check.
+
 ## Basic: a config made with the Overhaul setup form
 
 Any mod can be set up as an overhaul (loaded last, merged with the mods before it) without writing build steps. The

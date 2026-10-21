@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
@@ -256,6 +257,27 @@ class Build(_Strict):
         return self
 
 
+# ----------------------------------------------------------------------------- health checks
+class Health(_Strict):
+    """A log the mod writes, read after a run (services.run_health): only the lines written since the launch, and
+    only for what this entry names. A line matching a `fail` pattern is shown in Activity as a warning naming the mod."""
+
+    log: str  # the log file, relative to the mod's own folder
+    fail: list[str] = Field(min_length=1)  # regular expressions; a line matching one is a failure
+    # A regular expression for the line that says it started well. Failures before the last such line are ignored;
+    # when it never shows although the log was written, that is reported too.
+    ok: str | None = None
+
+    @model_validator(mode="after")
+    def _patterns(self) -> Health:
+        for pattern in (*self.fail, *([self.ok] if self.ok else [])):
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"{pattern!r} is not a regular expression: {e}") from None
+        return self
+
+
 # ----------------------------------------------------------------------------- the basic level
 class BasicNative(_Strict):
     """One of the mod's DLLs, as the Overhaul setup form sets it."""
@@ -292,6 +314,7 @@ class Basic(_Strict):
     # merge | whole | keep | copy | leave | place:<game path>. It wins over keep, not_merged, place and skip above,
     # which the form no longer writes (an older file, or a proposal, may still have them).
     files: dict[str, str] = Field(default_factory=dict)
+    health: list[Health] = Field(default_factory=list)  # logs read after a run (the same as the config's own)
 
 
 # ----------------------------------------------------------------------------- the config
@@ -307,6 +330,8 @@ class OverhaulConfig(_Strict):
     install_unsupported: dict[str, str] = Field(default_factory=dict)
     # The Overhaul setup form's values, for a config made with it (None: written by hand, or a shipped one).
     basic: Basic | None = None
+    # Logs the mod writes in its folder that say it failed to start, read after each run (also under [basic]).
+    health: list[Health] = Field(default_factory=list)
 
     def recipe(self, build: Build) -> dict:
         """One build in the shape mods.engine reads (the former data/recipes JSON). Only what the file sets is

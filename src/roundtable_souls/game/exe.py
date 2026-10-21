@@ -8,6 +8,7 @@ import struct
 from functools import cache
 from pathlib import Path
 
+PE_SIGNATURE = bytes([80, 69, 0, 0])  # "PE" and two zero bytes
 _FIXED_FILE_INFO = b"\xbd\x04\xef\xfe"  # VS_FIXEDFILEINFO's signature, 0xFEEF04BD little-endian
 
 
@@ -43,6 +44,25 @@ def _version(rsrc: bytes) -> str | None:
         return None
     ms, ls = struct.unpack_from("<II", rsrc, at + 8)
     return f"{ms >> 16}.{ms & 0xFFFF}.{ls >> 16}.{ls & 0xFFFF}"
+
+
+def build_stamp(exe: Path | str) -> str | None:
+    """The exe's build identity, "<link time>:<image size>" from its PE header, or None when unreadable. A game
+    update changes it; a Steam verify or a copy does not (unlike the file's modification time)."""
+    try:
+        with Path(exe).open("rb") as f:
+            head = f.read(0x1000)
+            if head[:2] != b"MZ":
+                return None
+            pe = struct.unpack_from("<I", head, 0x3C)[0]
+            f.seek(pe)
+            hdr = f.read(24 + 60)
+            if hdr[:4] != PE_SIGNATURE or len(hdr) < 84:
+                return None
+            # TimeDateStamp is at 8 in the COFF header; SizeOfImage is at 56 of the optional header (PE32 and PE32+)
+            return f"{struct.unpack_from('<I', hdr, 8)[0]}:{struct.unpack_from('<I', hdr, 24 + 56)[0]}"
+    except OSError, struct.error:
+        return None
 
 
 @cache

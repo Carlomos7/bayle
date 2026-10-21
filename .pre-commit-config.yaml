@@ -1,4 +1,5 @@
-# Install once with:  uv run pre-commit install
+# Install once with:  uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -20,3 +21,10 @@ repos:
     rev: 0.12.19
     hooks:
       - id: uv-lock
+  # Commit messages follow Conventional Commits (CONTRIBUTING.md); release-please reads them to version and write the changelog.
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, refactor, perf, test, build, ci, chore, revert]

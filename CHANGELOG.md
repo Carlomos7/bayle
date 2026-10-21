@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Overhauls:** "Set up as an overhaul" (Install dialog, Mods menu) and the Settings switch were hidden when no overhaul config shipped. They now show whenever the switch is on, and the help text no longer lists overhaul names when there are none.
+- **Overhauls:** "Set up as an overhaul" and the Settings switch were hidden when no overhaul config shipped. They now show whenever the switch is on.
 
 ## [4.0.2] - 2026-10-21
 
@@ -23,9 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Mods:** Remove no longer asks when Undo brings everything back. The mod leaves the profile (its folder goes to the Recycle Bin) and a toast offers Undo, which restores the entry where it was, with any later profile edit kept. Remove still asks when another entry or profile uses the folder, or the profile has an overhaul.
+- **Mods:** Remove no longer asks when Undo brings everything back. The folder goes to the Recycle Bin and a toast offers Undo. Remove still asks when another entry or profile uses the folder.
 - **Mods:** the pencil beside the profile name is always visible and works with the keyboard ("Rename profile").
-- **Mod Configs:** "Set up as an overhaul..." and "Turn off overhaul setup..." now live in one More menu on the open mod (and in the row's right-click menu) instead of a button on every mod. "Edit as text" shows only for files that have a form.
+- **Mod Configs:** the overhaul setup buttons now live in one More menu on the open mod (and its right-click menu). "Edit as text" shows only for files that have a form.
 - **Wording:** a pass over the helper text so each fact appears once, tooltips only add what is not visible, and errors say what happened and what to do.
 - **Launch:** the reasons it is blocked now follow the window language.
 - **Overhauls:** no overhaul config ships with the launcher. Make one with "Set up as an overhaul" on the Mods page; the launcher then builds what it installs itself.
@@ -37,89 +37,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- The launcher no longer runs other installers or rebuild tools from a mod's download. A setup made by another installer is still detected, listed and started, but you update it with that installer. A rebuild tool described by a `rebuild.json` still runs after you allow it.
+- The launcher no longer runs other installers or rebuild tools from a mod's download. A setup made by another installer is still listed and started, but you update it with that installer.
 - **Settings:** the "Build ... in the launcher (preview)" switch is gone; the launcher builds only what it installed.
 
 ## [4.0.0] - 2026-10-20
 
-A new interface. Roundtable Souls now opens in a single redesigned window with a top bar, a navigation rail (Mods, Mod Configs, Saves, Activity, Settings) and drag and drop for saves and mods. Profiles can be renamed, duplicated, exported and imported, and the old window is gone.
+A new interface. Roundtable Souls now opens in a single redesigned window with a top bar and a navigation rail (Mods, Mod Configs, Saves, Activity, Settings). Saves and mods can be dragged and dropped, profiles can be renamed, duplicated, exported and imported, and the old window is gone.
+
+### Highlights
+
+- **New window:** one window for everything, with a Launch pill in the top bar and a status line that says why Launch is blocked and how to fix it.
+- **Drag and drop:** move characters, save copies and backups between saves, and drop mods onto the Mods page to install them.
+- **Mod Configs:** mods' settings files open as forms, with a full code editor for the rest.
+- **Saves:** a new page with live saves, a Library of save copies and Backups, all with Undo.
+- **Profiles:** rename, duplicate, export and import them, and adopt an existing setup into the library.
+- **Safer launching:** Launch checks for failed backups, out-of-date merged mods and risky online play before the game starts.
 
 ### Added
 
-- **New window:** one window with a menu bar (File, Profile, Game, Saves, View, Help), a top bar and a navigation rail. Ctrl+1 to 5 open the pages, Ctrl+Tab changes game, Esc backs out of a sub-page.
-- **Launch:** the top-bar Launch pill picks Profile, Offline or Vanilla (remembered per game). Ctrl+L launches. Launch Vanilla starts the game through Steam with no profile and no me3.
-- **Top bar:** one status line says Ready, the running job, why Launch is blocked (with a link that fixes it), a leftover game process with Clear, or Steam not signed in. Under 820 px it gets its own line.
-- **Launch:** asks before starting when it must: a failed backup (Retry, Launch without backup, Cancel), out-of-date merged mods (Rebuild now, Play anyway this once, Cancel), or a profile that would go online with changed game data (Launch Offline instead, Launch online anyway, Cancel).
-- **Launch:** warns when a mod's folder is missing, with a link to Mods; Launch still works.
-- **Mods:** click the profile's name to rename it in place, or use Profile > Rename. Profile > Duplicate makes "<name> copy". A rename keeps the profile's settings, backups, version history and records together, and Undo (Activity) puts everything back.
-- **Mods:** rename a mod's folder (and a package's id) from its right-click menu. Other entries that point at it follow, as one step with Undo. It is refused, with the reason, while the game runs or when something else uses the folder.
-- **Mods:** the Install mod dialog (From archive or DLL, From folder, or files dropped on the page) shows what it will do. Cancelling leaves nothing behind. Several drops open one dialog after another.
-- **Mods:** Adopt into the library moves a setup you already have into the launcher's own folder in one step. Nothing is copied or deleted, and Undo adoption in Activity puts everything back.
-- **Mods:** a bar offers to move Seamless Co-op out of the game folder into your profile, or to clean up the game folder.
-- **Mods:** a warning when the profile goes online with a mod's parameters, with Launch Offline to turn matchmaking off. The Parameters card shows a fingerprint co-op partners can compare.
-- **Mods:** the profile picker lives in the top bar; the Mods and Mod Configs pages follow it.
-- **Mods:** load order tags (Clash, Loads early) keep their names and explain themselves on hover. Profile settings gain "Disable code protection (Arxan)" and "Game memory pool (MB)".
-- **Mods:** dragging a row says why a drop is refused, scrolls at the page edges, and Esc cancels.
-- **Mod Configs:** a form for settings files (`.ini`, `.cfg`, `.toml`) with a switch, list or number per setting, the file's own comment as help and Reset to default. Saving changes only the values you edit; comments and spacing stay. Any file can be edited as text.
-- **Mod Configs:** TOML files are read fully (nested tables, lists, arrays of tables), with a save bar counting waiting changes, a "Changed" marker, and a search box for big files. A warning offers Reload when the file changed on disk.
-- **Mod Configs:** Seamless Co-op has its own panel: password (can be shown), difficulty, language, and Share with a friend (Copy, Paste, Load and Save settings).
-- **Mod Configs:** an Overhaul setup entry lets you set any mod up as an overhaul, turn it off again, and see what it does before it does it.
-- **Saves:** a new page with the two live saves (Standard first) and their characters, the Library of save copies, and Backups grouped by day, in fixed-height scrolling lists.
-- **Saves:** drag and drop. Drag a character onto a slot or save, a save copy or backup onto a live save to restore it, a live save onto the Library (save a copy) or Backups (back up now). Ctrl+C and Ctrl+V on a character do the same copy. Every drop asks, backs up first and offers Undo, and a refusal says why. Explorer files still import.
-- **Saves:** Save a copy and Import work while the game runs; Back up now waits for it to close. Dropping several files imports each and names any that are not save files.
-- **Saves:** a whole save from another Steam account is signed for the account it goes into and read back before anything is written.
-- **Saves:** Check & repair shows findings in cards, and a character's sheet opens on a click.
-- **Saves:** the repair notes for a stale checksum now say what the game does with it (it refuses the save as corrupted).
-- **Activity:** a page listing every job by day, with the last Launch, install and failure at the top, each job's log one click away, and Undo, which asks before it changes anything. A failed job says what went wrong in plain words.
-- **Settings:** Locations (with a saves folder override per game), Launch, Backups, Appearance, Updates, Logs and About. New options: how many backups are kept per save (5 to 200, default 20), the theme (Dark, Tarnished, Light or System), Effects, Grain and Log level.
-- **Settings:** Check for updates answers at once and says whether you are up to date, could not check, or an update is available.
-- **Export / Import profile:** Share list writes one small file with your mods, order, options, profile settings and your mods' settings files. Full export also zips the mods with a README and changelog, with a progress bar, a Cancel button and a size warning for big exports.
-- **Export / Import profile:** Import shows what each file would change, with a tick per file, and writes the ticked ones as one change you can Undo from Activity. It never turns online play on.
-- **Export / Import profile:** when an incoming mod has the same name as an installed one but other files, a card shows what differs and you pick Use the incoming copy, Keep mine or Keep both.
-- **Install mod:** a download that ships its own installer, an me3 profile, or a regulation.bin with DLLs offers "Set up as an overhaul". A download that is only a profile offers "Import it instead...".
-- **Editor:** one code editor everywhere (profile text, mod config text, README, changelog, job logs) with syntax colours, line numbers, find and replace (Ctrl+F, F3), go to line (Ctrl+G), indent, a Wrap switch, and the first TOML, JSON or INI error marked on its line.
-- **Accessibility:** icon-only buttons have names a screen reader reads, Tab shows their tooltip, the mouse pointer is a hand over everything clickable, and no text is below 12 px.
-- **Mods:** with no profile at all, the page explains what a profile is and offers "Create a profile". New profile can start empty or copy any of the game's profiles.
-- **Combine:** merged animation events from several mods now apply together, and animations and effects from mods that rename inner files are matched the way the game finds them.
-- **Combine:** reports now warn when a mod's copy of a merged archive lacks files the current game has, when a mod uses talk commands or functions the game does not have, and when parameters exceed what the game accepts.
-- **Combine:** a character script written in the game's own script syntax is no longer refused as an error.
-- **Launch:** after a launch, a plain-words line says when me3's fast DLC loading failed.
-- **Linux and Steam Deck:** any merged file can be written in a format the game also reads when the game's compression library is missing.
-- **Overhauls:** the launcher can install an overhaul into a profile itself, from the folder you unpacked its download into, and show everything it will change first. It is one step with Undo in Activity.
-- **Overhauls:** Remove overhaul takes it out and puts back the settings its install changed, but only where they are still what the install set. Clean up installer leftovers lists leftover folders with sizes.
-- **Overhauls:** a Get started card creates a first profile in one click and offers to bring in Seamless Co-op.
-- **Overhauls:** the build now notes which game version and config it was made for, and rebuilds when either changes. Configs gain a `requires` list and script hooks (for mod authors).
+- **Launch:** the Launch pill picks Profile, Offline or Vanilla (remembered per game). It asks before starting when a backup failed, merged mods are out of date, or the profile would go online with changed game data, and warns about a missing mod folder.
+- **Profiles:** rename and duplicate a profile, and rename a mod's folder, each with Undo in Activity. Export / Import shares a profile as a small list or a full zip, previews what an import changes, and lets you choose when mod names clash.
+- **Mods:** the Install mod dialog shows what it will do first, Adopt into the library moves an existing setup into the launcher's folder, and a bar offers to move Seamless Co-op out of the game folder.
+- **Mods:** warnings when a profile goes online with a mod's parameters, and clear reasons when a drag is refused.
+- **Mod Configs:** `.ini`, `.cfg` and `.toml` files open as forms with the file's comments as help. Saving changes only the values you edit. Seamless Co-op has its own panel with Share with a friend.
+- **Editor:** one code editor everywhere (profile text, mod configs, README, logs) with syntax colours, find and replace, line numbers and the first error marked on its line.
+- **Saves:** drag characters, save copies and backups to copy, restore, save or back up. Every drop backs up first and offers Undo. Save a copy and Import work while the game runs.
+- **Activity:** a page listing every job by day, with its log and Undo, and plain-words reasons when a job fails.
+- **Settings:** Locations, Launch, Backups, Appearance, Updates, Logs and About, with a backup count per save, themes (Dark, Tarnished, Light, System) and a Check for updates that answers at once.
+- **Overhauls:** the launcher can install and remove an overhaul in a profile itself, showing every change first, and Mod Configs can set up any mod as an overhaul.
+- **Accessibility:** icon buttons have names for screen readers, tooltips show on Tab, and no text is smaller than 12 px.
 
 ### Changed
 
-- **Wording:** "Play" is now "Launch", "setup" is now "profile", Tools became Settings, Co-op became Mod Configs, Maintenance became Saves, a Library copy is a "save copy", and the second mod list is "DLL mods".
-- **Launch:** blocked reasons are in plain words, each with a link that fixes it. The pill shows an amber mark when a mod folder is missing.
-- **Look:** Dark is now a near-neutral charcoal with gold as its only colour, Light keeps its Carian blue, and secondary buttons have no fill until you point at them.
-- **Saves:** a backup is now "removed", not "deleted". Both live-save cards are the same size and list all ten character slots.
-- **Mods:** the conflict list names what each file is in plain words. Removing an entry that only points at a folder of mods is now one change to the profile.
-- **Import:** importing no longer copies a mod you already have when a folder is byte-identical, and never adds a second entry for a folder the profile already lists. Full-export zips unpack each mod once, with a free-space check.
-- **Import:** Undo import of a profile the import created removes the whole profile and every folder it copied, Seamless Co-op's copy included.
-- **Mod Configs:** shows nested sections as readable titles, reads files in the background, and shows the file list and the file side by side down to 640 px.
-- **Check & repair:** every box says in plain words what it does and what happens if you leave it unticked.
-- **Settings:** plainer help for locations, theme and stuck-process switches; long paths keep the drive and file name. A leftover "dead copy" of the game is now a "leftover game process".
-- **Combine:** merged archives compress faster (the large effects archive takes about 5 seconds instead of nearly 2 minutes) for about 3% more disk. Combining parameter packs that add many rows is much faster (66,000 added rows went from about 5 minutes to under a second).
-- **Files:** the launcher's own files beside a profile now live in one hidden `.roundtable` folder. Older files stay where they are and are still read, so an older launcher keeps working.
-- The game counts as running while it is still starting, so saves and mods are not touched while it comes up.
-- The download is smaller now that the old window and its UI library are gone.
+- **Wording:** "Play" is now "Launch", "setup" is now "profile", Tools is Settings, Co-op is Mod Configs, Maintenance is Saves, and the second mod list is "DLL mods".
+- **Look:** Dark is a near-neutral charcoal with gold as its only colour, and Light keeps its Carian blue.
+- **Import:** a mod you already have is reused instead of copied again, and Undo import removes everything the import created.
+- **Combine:** merging is faster (the large effects archive takes about 5 seconds instead of nearly 2 minutes), and warnings in the report are plainer.
+- **Files:** the launcher's own files beside a profile now live in one hidden `.roundtable` folder; older files are still read.
+- The download is smaller now that the old window is gone.
 
 ### Fixed
 
-- **Launch Offline** always turns online play off in its temporary copy of the profile. Before, a profile set to go online went online during an offline launch.
-- **Install mod:** a mod that ships game files and DLLs together now gets both kinds of entries. Before, its DLLs were never loaded.
-- **Install mod:** a folder name Windows refuses (such as CON), or one that makes a path too long, is refused in the dialog before anything is copied. A name that differs only in case updates the existing folder.
-- **Delete profile:** a profile an overhaul's own installer set up is refused whichever way it was picked.
-- **Remove overhaul** no longer leaves empty folders behind in the library.
-- A rebuild of an engine mod interrupted as the new build replaces the old one no longer leaves the mod folder missing.
-- A character script number too large for the game to hold exactly now gets a warning instead of being silently rounded.
+- **Launch Offline** always turns online play off. Before, a profile set to go online went online during an offline launch.
+- **Install mod:** a mod that ships game files and DLLs together now loads its DLLs, and unusable folder names are refused before anything is copied.
+- A rebuild interrupted as the new build replaces the old one no longer leaves the mod folder missing.
+- The game counts as running while it is still starting, so saves and mods are not touched while it comes up.
 
 ### Removed
 
-- The old window and its `--widgets` switch. The new interface is the only window.
+- The old window and its `--widgets` switch.
 
 ## [3.22.0] - 2026-10-15
 
@@ -129,7 +95,7 @@ A new interface. Roundtable Souls now opens in a single redesigned window with a
 - **Mods:** a first look at the redesigned Mods page, in its own window (Open new Mods window): load order, drag to reorder, Mod options, Profile settings, Versions and the Parameters card.
 - **Mod Configs:** a first look at the redesigned page, opened from the Co-op page, with forms for settings files and a Seamless Co-op panel.
 - **Activity:** a first look at the redesigned page, opened from the Activity page.
-- **Co-op:** when Seamless Co-op sits in the game folder, the page offers to move it into your profile (settings and password included) or clean up the old copy. Seamless Co-op's own launcher is removed either way, with a warning.
+- **Co-op:** when Seamless Co-op sits in the game folder, the page offers to move it into your profile or clean up the old copy.
 - **Play:** with no profile for a game yet, a Get started card creates one in one click.
 - **Combine:** merged builds match inner files the way the game finds them, warn about inner files a mod's copy leaves out, and check parameters and talk scripts the way the game reads them.
 - **Play:** going online with a mod's parameters is warned about before the game starts.
@@ -156,13 +122,13 @@ A new interface. Roundtable Souls now opens in a single redesigned window with a
 
 - **Appearance:** new colours, the first step of the new look. Dark is a near-neutral charcoal with gold as its only colour, and Light keeps its Carian blue with softer lines.
 - **Mods:** the conflict list names what each file is in plain words.
-- **Overhauls (preview):** the build no longer refuses to start without Seamless Co-op; what a mod needs is for its author to declare. The character script is checked before use, and a script the game could not load is refused with the line named.
+- **Overhauls (preview):** the build no longer refuses to start without Seamless Co-op. The character script is checked before use, and one the game could not load is refused with the line named.
 
 ## [3.19.0] - 2026-10-08
 
 ### Added
 
-- **Mods:** a profile edited outside the launcher after it was read is never overwritten. Changes that would repeat a package id, loop the load order or switch on two DLLs with the same name are refused, with the names shown.
+- **Mods:** a profile edited outside the launcher is never overwritten. Changes that would repeat a package id, loop the load order or switch on two DLLs with the same name are refused.
 
 ### Fixed
 
@@ -221,7 +187,7 @@ This version also carries the changes from 3.15.0, which was never published.
 
 ### Added
 
-- **Updates:** installing and updating now use a new installer. The program is a folder instead of a single exe, so it starts faster. Windows installs for your account only, with no administrator prompt; a portable zip and a Linux AppImage are also published. The move from the old installer happens by itself at the first start.
+- **Updates:** installing and updating use a new installer. The program is a folder, so it starts faster. Windows installs per account with no administrator prompt; a portable zip and a Linux AppImage are also published.
 - **Updates:** updates are signed and checked before they install, and undo themselves if the new version does not start within 90 seconds.
 - **Updates:** Settings has an update channel, Stable or Beta, and the update notice shows the start of the release notes with a Notes button.
 - **Updates:** `RoundtableSouls --update` updates without the window, for a terminal or a Steam shortcut in Gaming Mode.
@@ -477,7 +443,7 @@ The 2.x versions were published before this changelog kept dates, so they are gr
 - **Mods:** install a mod from a `.zip`, `.7z`, `.rar` or folder with package and DLL detection and per-mod options. A package conflict scan, on and off switches for every entry, and profile settings as menus.
 - **Window:** a Windows 11 look with pages (Play, Co-op, Saves, Tools), your character on the Play page, light and dark themes, and a Roundtable icon.
 - **Co-op:** every Seamless Co-op setting editable in groups, a Share settings box, and difficulty presets by party size.
-- **Saves:** Review & fix, a page per save with characters and every fix as a tick box, with one Apply and Undo. Restore vanilla, Fix quest flags and Fix loading open a checklist, and nothing is removed that you did not tick.
+- **Saves:** Review & fix, a page per save with characters and every fix as a tick box, with one Apply and Undo. Restore vanilla and Fix quest flags open a checklist.
 - **Saves:** findings for duplicate inventory, unknown item IDs, quest soft-locks and stale checksums, with a backups list and Restore.
 - **Tarnished Edition:** its gear counts as official content when the pack flag is on the save.
 - **Play:** offline play when Steam's login is down, with options to skip Steam or the overhaul, and a warning when dead game processes are left behind.

@@ -65,7 +65,7 @@ class ModsHost(Protocol):
     def locations(self) -> Any: ...
     @property
     def profile(self) -> Path | None:
-        """The profile the page shows (the current setup's), or None."""
+        """The profile the page shows (the current profile's), or None."""
 
     @property
     def settings(self) -> Any: ...
@@ -93,7 +93,7 @@ class ModsHost(Protocol):
 
     @property
     def launch_profile(self) -> Any:
-        """The current setup (its profile and kind), for the rules about deleting it."""
+        """The current profile (its file and kind), for the rules about deleting it."""
 
     def open_path(self, path: Path) -> None: ...
 
@@ -104,7 +104,7 @@ class ModsHost(Protocol):
         """Ask for a file (a mod archive or DLL to install); None when cancelled."""
 
     def profiles(self) -> list[str]:
-        """The setups the player can pick (the Play list's labels)."""
+        """The profiles the player can pick (the top bar's profile labels)."""
         ...
 
     def request_new_profile(self) -> None:
@@ -1303,7 +1303,7 @@ class ModsAdapter(QObject):
         self.host.run_job(job, tr("Copying {name}...").format(name=old.stem))
 
     def _launch_profile_like(self):
-        """The host's current setup as delete_refusal reads it (profile and kind)."""
+        """The host's current profile as delete_refusal reads it (profile and kind)."""
         return getattr(self.host, "launch_profile", None)
 
     # ---- Edit as text

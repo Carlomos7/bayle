@@ -74,7 +74,7 @@ Play
   Your character, the profile that Play will start, and the Play button. Leave
   the window open while you play; it can be minimised. After you quit it
   repairs your saves (see "Save repairs" below) and closes any leftover game
-  processes. Setup lets you switch profiles or pick a .me3 file.
+  processes. The top bar's profile drop-down lets you switch profiles or pick a .me3 file.
 
 Co-op
   The Seamless Co-op session password, difficulty presets, and every other

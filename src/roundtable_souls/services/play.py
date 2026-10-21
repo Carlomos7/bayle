@@ -127,7 +127,7 @@ class LaunchProfile:
         return self.loc.game
 
     def locations(self) -> Locations:
-        """The game's locations with the save files this setup uses (me3's savefile, Seamless Co-op's extension)."""
+        """The game's locations with the save files this profile uses (me3's savefile, Seamless Co-op's extension)."""
         names = profile_saves(self)
         return self.loc.with_profile_save_names({k: names[k] for k in ("standard", "coop")})
 
@@ -422,7 +422,7 @@ def _backup_before_play(opts: dict, loc: Locations, backup: str) -> None:
 
 
 def places(launch, loc: Locations) -> dict:
-    """Folders worth a button: me3, game, saves, this setup's profile and its mod folder. Missing ones are None."""
+    """Folders worth a button: me3, game, saves, this profile's file and its mod folder. Missing ones are None."""
     out: dict[str, Path | None] = {"me3": None, "game": None, "saves": None, "profile": None, "mods": None}
     try:
         me3 = launch.me3_path() if launch else loc.me3_exe()

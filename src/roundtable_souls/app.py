@@ -91,7 +91,7 @@ class AppContext:
             self.storage = None
 
     def note_profile_saves(self, names: Mapping[str, str]) -> Locations:
-        """The setup in use names its own save files (role -> file name): they are listed and repaired too."""
+        """The profile in use names its own save files (role -> file name): they are listed and repaired too."""
         return self._located(self.locations.with_profile_save_names(names))
 
 

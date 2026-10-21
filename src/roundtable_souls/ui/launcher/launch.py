@@ -516,6 +516,6 @@ class LaunchFlow:
 
     # ---------------------------------------------------------------- helpers
     def _locations(self):
-        """The game's locations with the save files the setup in use names."""
+        """The game's locations with the save files the profile in use names."""
         launch_profile = self.state.launch_profile
         return launch_profile.locations() if launch_profile is not None else self.state.locations

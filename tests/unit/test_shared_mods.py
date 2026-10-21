@@ -434,3 +434,20 @@ def test_a_mixed_case_folder_is_one_lower_case_mod_in_the_library(world):
     assert rec and rec.name == "Fog"
     shared_mods.separate(c, [index_of(c, "fog")], loc=loc)
     assert (root / "c" / "packages" / "Fog" / "f.dcx").read_bytes() == b"fog"
+
+
+def test_listings_find_identical_copies_and_say_who_uses_what(world, tmp_path):
+    loc, home, root, lib, a, b, c = world
+    twins = shared_mods.duplicates(loc)
+    assert [(t.name, len(t.copies), t.wasted) for t in twins] == [("grass", 2, len(b"grass") + len(b"grass2"))]
+    assert shared_mods.duplicate_total(twins) == twins[0].wasted
+    found = shared_mods.identical_elsewhere(loc, root / "a" / "packages" / "grass", c)
+    assert sorted(x.profile.stem for x in found) == ["a", "b"]
+    assert shared_mods.identical_elsewhere(loc, root / "a" / "packages" / "sky", a) == []
+    shared_mods.share(a, [index_of(a, "grass")], loc=loc)
+    shared_mods.share(b, [index_of(b, "grass")], loc=loc)
+    assert shared_mods.duplicates(loc) == []
+    info = shared_mods.listing(loc)
+    assert [(m.mod.id, m.versions[0].used_by, m.versions[0].unused) for m in info] == [("grass", ["a", "b"], False)]
+    assert shared_mods.shared_count(loc, a, index_of(a, "grass")) == 2
+    assert shared_mods.shared_count(loc, a, index_of(a, "sky")) == 0

@@ -767,3 +767,143 @@ def _bring_back_asides(op: build.Operation, container: Path | None, root: Path) 
             dst.parent.mkdir(parents=True, exist_ok=True)
             _copy_verified(version_path(root, a["mod"], a["version"]), dst, a["version"])
             _chmod(dst, write=True)
+
+
+# ----------------------------------------------------------------------------- listings (nothing is written)
+HINT_BYTES = 1024**3  # the Mods page suggests sharing only when duplicated packages total more than this
+
+
+@dataclass(frozen=True)
+class Copy:
+    """A Separate package of a profile."""
+
+    profile: Path
+    index: int
+    name: str
+    folder: Path
+
+
+@dataclass
+class Twins:
+    """The same files in several profiles as Separate copies."""
+
+    name: str
+    version: str
+    size: int
+    copies: list[Copy]
+
+    @property
+    def wasted(self) -> int:
+        return self.size * (len(self.copies) - 1)
+
+
+def _shape(folder: Path) -> tuple[int, int]:
+    files = _files(folder)
+    return len(files), sum(p.stat().st_size for _r, p in files)
+
+
+def separate_copies(loc: Locations, only: Path | None = None) -> list[Copy]:
+    """Every Separate package (in its profile's own packages/ folder) of the launcher's profiles, or of `only`."""
+    home = loc.me3_profiles_dir()
+    if home is None:
+        return []
+    out: list[Copy] = []
+    for profile in [Path(only)] if only else profiles_in(library.profiles_root(home, loc.game.key)):
+        packages = _canon(library.ProfileFolder.of(profile).packages)
+        try:
+            found = me3_profile.entries(profile.read_bytes().decode("utf-8"))
+        except OSError, ValueError:
+            continue
+        for e in found:
+            if e["kind"] != "package" or not e["path"]:
+                continue
+            folder = me3_profile.resolve(profile, e["path"])
+            if _canon(folder.parent) == packages and folder.is_dir():
+                out.append(Copy(profile, e["index"], folder.name, folder))
+    return out
+
+
+def duplicates(loc: Locations) -> list[Twins]:
+    """Groups of identical Separate packages in two or more profiles, biggest saving first. Files are compared by
+    name, file count and size first and hashed only when those agree."""
+    by_shape: dict[tuple[str, int, int], list[Copy]] = {}
+    for c in separate_copies(loc):
+        by_shape.setdefault((c.name.lower(), *_shape(c.folder)), []).append(c)
+    out: list[Twins] = []
+    for (_name, _n, size), copies in by_shape.items():
+        if len({_canon(c.profile) for c in copies}) < 2:
+            continue
+        by_hash: dict[str, list[Copy]] = {}
+        for c in copies:
+            by_hash.setdefault(tree_hash(c.folder)[0], []).append(c)
+        out += [Twins(g[0].name, h, size, g) for h, g in by_hash.items() if len({_canon(c.profile) for c in g}) > 1]
+    return sorted(out, key=lambda t: -t.wasted)
+
+
+def duplicate_total(twins: list[Twins]) -> int:
+    return sum(t.wasted for t in twins)
+
+
+def identical_elsewhere(loc: Locations, folder: Path, profile: Path) -> list[Copy]:
+    """Separate packages of OTHER profiles with exactly the files in `folder` (a mod about to be installed in
+    `profile`). Empty when none."""
+    shape = _shape(folder)
+    digest = None
+    out = []
+    for c in separate_copies(loc):
+        if _canon(c.profile) == _canon(profile) or _shape(c.folder) != shape:
+            continue
+        digest = digest or tree_hash(folder)[0]
+        if tree_hash(c.folder)[0] == digest:
+            out.append(c)
+    return out
+
+
+@dataclass
+class VersionInfo:
+    version: Version
+    used_by: list[str]
+    unused: bool
+
+
+@dataclass
+class ModInfo:
+    mod: SharedMod
+    versions: list[VersionInfo]
+
+    @property
+    def size(self) -> int:
+        return sum(v.version.size for v in self.versions)
+
+
+def listing(loc: Locations) -> list[ModInfo]:
+    """The Library page: every Shared mod, its versions, who uses each."""
+    home = loc.me3_profiles_dir()
+    if home is None:
+        return []
+    root = library.library_root(home, loc.game.key)
+    seen = usage(library.profiles_root(home, loc.game.key), root)
+    out = []
+    for m in mods(root):
+        infos = []
+        for v in m.versions:
+            names = sorted({u.profile.stem for u in seen.of(m.id, v.id)}, key=str.lower)
+            infos.append(VersionInfo(v, names, not names and not seen.mentions(m.id, v.id)))
+        out.append(ModInfo(m, infos))
+    return out
+
+
+def shared_count(loc: Locations, profile: Path, index: int) -> int:
+    """For a Shared entry: how many profiles use the mod it links to (0 when it is Separate)."""
+    home = loc.me3_profiles_dir()
+    if home is None:
+        return 0
+    root = library.library_root(home, loc.game.key)
+    try:
+        e = next(e for e in me3_profile.entries(Path(profile).read_bytes().decode("utf-8")) if e["index"] == index)
+    except OSError, ValueError, StopIteration:
+        return 0
+    hit = link_target(Path(profile), root, e["path"]) if e["path"] else None
+    if hit is None:
+        return 0
+    return len({_canon(u.profile) for u in usage(library.profiles_root(home, loc.game.key), root).of(*hit)})

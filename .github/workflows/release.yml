@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     tags: [ "v*" ]
+  # Started by release-please.yml with --ref vX.Y.Z (a tag made with GITHUB_TOKEN does not trigger the push event),
+  # so github.ref is the tag and every tag check below behaves exactly as for a pushed tag.
   workflow_dispatch:
 
 permissions:
@@ -39,12 +41,12 @@ jobs:
         version=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
         [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME does not match version $version" >&2; exit 1; }
 
-    # vX.Y.Z-beta.N is a beta; a plain vX.Y.Z is a stable release and must be newer than the current stable one.
+    # vX.Y.Z-rc.N (formerly -beta.N) is a pre-release; a plain vX.Y.Z is a stable release and must be newer than the current stable one.
     - name: A stable tag is newer than the current stable release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "$GITHUB_REF_NAME is a beta"; exit 0; }
+        [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "$GITHUB_REF_NAME is a pre-release"; exit 0; }
         latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
         [ -n "$latest" ] || exit 0
         newest=$(printf '%s\n%s\n' "${latest#v}" "${GITHUB_REF_NAME#v}" | sort -V | tail -n1)
@@ -69,8 +71,8 @@ jobs:
       run: uv sync --locked
 
     - name: Lint and type check
-      # owner 2026-10-20: betas skip this too (the Tests workflow already ran it on the commit); stable keeps it
-      if: ${{ !contains(github.ref_name, '-beta.') }}
+      # owner 2026-10-20: pre-releases (-rc.N, formerly -beta.N) skip this too (the Tests workflow already ran it on the commit); stable keeps it
+      if: ${{ !contains(github.ref_name, '-rc.') && !contains(github.ref_name, '-beta.') }}
       run: |
         uv run ruff check .
         uv run ruff format --check .
@@ -80,8 +82,8 @@ jobs:
         uv run pytest -q tests/unit/test_theme_contrast.py
 
     - name: Run tests
-      # owner 2026-10-20: betas skip this (the commit already passed the Tests workflow); the packaged self-test still runs
-      if: ${{ !contains(github.ref_name, '-beta.') }}
+      # owner 2026-10-20: pre-releases (-rc.N, formerly -beta.N) skip this (the commit already passed the Tests workflow); the packaged self-test still runs
+      if: ${{ !contains(github.ref_name, '-rc.') && !contains(github.ref_name, '-beta.') }}
       run: uv run pytest
 
     - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -192,8 +194,8 @@ jobs:
       run: uv sync --locked
 
     - name: Run tests
-      # owner 2026-10-20: betas skip this (the commit already passed the Tests workflow); the packaged self-test still runs
-      if: ${{ !contains(github.ref_name, '-beta.') }}
+      # owner 2026-10-20: pre-releases (-rc.N, formerly -beta.N) skip this (the commit already passed the Tests workflow); the packaged self-test still runs
+      if: ${{ !contains(github.ref_name, '-rc.') && !contains(github.ref_name, '-beta.') }}
       run: uv run pytest
 
     - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -312,7 +314,8 @@ jobs:
         name: Roundtable Souls ${{ github.ref_name }}
         draft: true
         prerelease: true
-        generate_release_notes: true
+        # the notes come from release-please's draft (its changelog section); a manual tag gets GitHub's generated ones
+        generate_release_notes: ${{ github.event_name == 'push' }}
         files: assets/*
 
     - name: Download the draft back and check every file against its checksum and every signature
@@ -322,10 +325,9 @@ jobs:
         sha256sum --check SHA256SUMS.txt
         for f in releases.win.json releases.linux.json SHA256SUMS.txt; do minisign -V -p "../$PUBLIC_KEY" -m "$f"; done
 
-    # A tag with a suffix (v3.18.0-beta.1) is a beta: published as a pre-release, which only the Beta channel offers.
-    # A plain vX.Y.Z is the stable release, built from the commit its last beta was tested on (only the version
-    # changes): published as the latest release, which both channels offer.
-    - name: Publish the verified release (beta, or stable for vX.Y.Z)
+    # A tag with a suffix (v4.1.0-rc.1, formerly v3.18.0-beta.1) is a pre-release: published as a pre-release, which only the Beta channel offers.
+    # A plain vX.Y.Z is the stable release: published as the latest release, which both channels offer.
+    - name: Publish the verified release (pre-release, or stable for vX.Y.Z)
       run: |
         if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest

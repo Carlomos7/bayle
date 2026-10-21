@@ -1,0 +1,36 @@
+name: Release Please
+
+# On every push to main: open or update the release pull request (version bump + changelog from the Conventional
+# Commits). Merging it makes release-please tag vX.Y.Z and create a DRAFT release holding the changelog section; then
+# this workflow starts release.yml on that tag, which builds, signs, uploads into the draft and publishes it.
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      id: rp
+      with:
+        config-file: release-please-config.json
+        manifest-file: .release-please-manifest.json
+
+    # A tag made with GITHUB_TOKEN does not trigger release.yml's push event; a workflow_dispatch does trigger
+    # (the documented exception), and --ref makes github.ref the tag, so release.yml's checks work unchanged.
+    - name: Start the build and publish workflow on the new tag
+      if: ${{ steps.rp.outputs.release_created }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.rp.outputs.tag_name }}
+      run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"

@@ -159,6 +159,7 @@ class ShellAdapter(QObject):
             game_running=st.game_running,
             game_folder=bool(st.locations.game_dir()),
             load_order_broken=self._load_order_broken(),
+            profile_outside=self._profile_outside(),
             can_launch=can,
             theme=st.settings.theme,
             rail_collapsed=bool(st.settings.rail_collapsed),
@@ -166,6 +167,11 @@ class ShellAdapter(QObject):
         )
 
         return menu.resolve(mf)
+
+    def _profile_outside(self) -> bool:
+        page: Any = self._adapters.get("mods")
+        outside = getattr(page, "profile_outside", None)
+        return bool(outside()) if outside is not None else False
 
     def _load_order_broken(self) -> bool:
         page: Any = self._adapters.get("mods")

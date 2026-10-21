@@ -82,6 +82,11 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
 
                 migrate.finish_state(o)  # the launcher's records still name the old profiles
                 said.append("an interrupted move of the profiles into their folders was finished")
+            elif o.info.get("kind") == "profile-move-in" and not o.info.get("state_done"):
+                from roundtable_souls.mods import move_in
+
+                move_in.finish_state(o)  # the launcher's records still name the old profile
+                said.append("an interrupted move into Roundtable's folder was finished")
             elif o.info.get("kind") == "profile-rename" and not o.info.get("state_done"):
                 from roundtable_souls.mods import profile_rename
 

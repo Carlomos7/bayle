@@ -70,6 +70,7 @@ QML_PAGES: tuple[QmlPage, ...] = (
             "deleteProfile",
             "rename",
             "duplicate",
+            "moveIn",
             "profileSettings",
             "editText",
             "fixOrder",

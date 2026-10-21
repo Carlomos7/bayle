@@ -540,9 +540,12 @@ def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[s
             else:
                 staged = own[1].with_name(f".{name}.copy-{op.id}")
                 staged.mkdir()
-                for sub_name in ("packages", "mod", "natives"):
+                for sub_name in library.copied_folders(profile):  # incl. an overhaul's own folder
                     if (own[0] / sub_name).is_dir():
                         shutil.copytree(own[0] / sub_name, staged / sub_name)
+                item = migrate.Item(profile, name, own[1], own[1], units=[migrate.Unit(own[0], ".", [profile.stem])])
+                item.old_bytes = data
+                data = migrate._rewrite(item)  # an absolute entry path into the folder follows the copy
                 (staged / (name + ".me3")).write_bytes(data)
                 op.replace_folder(own[1], staged)
             op.note(

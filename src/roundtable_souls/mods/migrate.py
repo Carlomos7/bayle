@@ -260,6 +260,9 @@ def plan(home: Path, game: str) -> Plan:
                 if (p.parent / sub).is_dir():
                     unit(p.parent / sub, library.STATE, p.stem)
                     break
+            targets = [me3_profile.resolve(p, e["path"]) for e in rows if e.get("path")]
+            for own in library.root_folders(p, targets):  # an overhaul's own folder is part of the layout
+                unit(own, own.name, p.stem)
             return
         for e in rows:
             if not e.get("path"):
@@ -273,6 +276,8 @@ def plan(home: Path, game: str) -> Plan:
                 )
             elif len(parts) >= 3 and parts[0] == "builds" and parts[2].lower() == p.stem.lower():
                 unit(root / "builds" / parts[1] / parts[2], f"builds/{parts[1]}", p.stem)
+            elif len(parts) >= 3 and parts[0] == "profiles" and parts[1].lower() not in OLD_FOLDERS:
+                unit(root / "profiles" / parts[1], parts[1], p.stem)  # an overhaul's folder beside the profiles
             elif len(parts) >= 2 and parts[0] in ("sources", "overhauls"):
                 unit(
                     root / parts[0] / parts[1],

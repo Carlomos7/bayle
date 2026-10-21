@@ -101,8 +101,20 @@ class InstallDraft:
     def _library(self) -> dict:
         return self.plan.get("library") or {}
 
+    def _blocked(self) -> str:
+        """Why a new version of a Shared mod can't be installed here ("" when it can)."""
+        found = self._library()
+        if not found.get("blocked"):
+            return ""
+        return tr(
+            "{name} is Shared and this version has its own parameters (regulation.bin), which need a rebuild that "
+            "updating a Shared mod does not run. Use a separate copy of it first, then install."
+        ).format(name=found["shared"]["name"])
+
     def _library_view(self) -> dict:
         found = self._library()
+        if found.get("blocked"):
+            return {"shown": False}
         if found.get("shared"):
             info = found["shared"]
             text = (
@@ -363,6 +375,8 @@ class InstallDraft:
             return self.problem, "error"
         if p.get("name_problem") and not mode:
             return p["name_problem"], "error"
+        if self._blocked() and not mode:
+            return self._blocked(), "error"
         if mode:
             return tr("Set up as an overhaul: it loads last, and Undo takes it back."), "muted"
         lines = []
@@ -391,7 +405,7 @@ class InstallDraft:
             return bool(self.preview) and not self.preview.get("refusals")
         if self.option == "refused" and self.overhaul_on:
             return False
-        if p.get("name_problem"):
+        if p.get("name_problem") or self._blocked():
             return False
         if p["kind"] == "package" and (not self.id_text.strip() or p.get("id_taken")):
             return False

@@ -214,6 +214,8 @@ def install_and_record(profile, plan: dict, *, loc: Locations) -> dict:
     other profiles."""
     facts = plan.get("library") or {}
     choice = plan.get("library_choice") or ""
+    if facts.get("shared") and facts.get("blocked"):
+        raise shared_service.Error(f"{facts['shared']['name']} is Shared; use a separate copy before installing this.")
     if facts.get("shared"):
         try:
             out = shared_mods.update(

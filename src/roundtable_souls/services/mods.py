@@ -149,10 +149,14 @@ def profile_entries(profile) -> list:
 def _with_library(plan: dict, profile, loc: Locations, before: dict | None = None) -> dict:
     """The Library's part of a plan: a new version of a mod the profile has Shared (installing updates it, so its id
     is not "taken"), or identical Separate copies in other profiles (the dialog offers to share)."""
-    plan["library"] = facts = shared_mods.install_facts(loc, Path(profile), plan, known=before)
+    plan["library"] = facts = dict(shared_mods.install_facts(loc, Path(profile), plan, known=before))
     if facts.get("shared"):
         plan["id_taken"] = False
         plan["exists"] = False
+        if (Path(plan["root"]) / loc.game.regulation).is_file():
+            # A Shared update does not run the rebuild (combined parameters) a regulation.bin may need, so it is
+            # refused, here and everywhere, until it does: a separate copy installs the normal way.
+            facts["blocked"] = True
     return plan
 
 

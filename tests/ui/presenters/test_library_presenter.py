@@ -88,3 +88,11 @@ def test_the_install_choices_and_their_defaults():
     assert [o["key"] for o in one["library"]["options"]] == ["here"]
     plain = InstallDraft(install_plan(), Path("p/a.me3"))
     assert plain.view()["library"] == {"shown": False}
+
+
+def test_a_shared_update_with_parameters_is_refused_with_a_reason():
+    plan = install_plan(shared={"index": 0, "name": "Grass", "profiles": 2}, blocked=True)
+    d = InstallDraft(plan, Path("p/a.me3"))
+    view = d.view()
+    assert not d.can_install() and view["noteLevel"] == "error" and "separate copy" in view["note"]
+    assert view["library"] == {"shown": False}

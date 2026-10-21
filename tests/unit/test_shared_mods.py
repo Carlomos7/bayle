@@ -556,3 +556,16 @@ def test_duplicate_with_share_leaves_one_undo_for_the_sharing_and_the_copy(world
     assert rec["type"] == "multi" and [u["type"] for u in rec["undos"]] == ["profile-duplicate", "library-share"]
     undo.run(rec, lambda s: None, loc=loc)
     assert tree(home) == before and not lib.exists()
+
+
+def test_a_shared_update_that_ships_regulation_is_marked_blocked(world, tmp_path):
+    from roundtable_souls.services import mods as mod_service
+
+    loc, home, root, lib, a, b, c = world
+    (root / "a" / "packages" / "grass" / "parts").mkdir(parents=True)
+    (root / "a" / "packages" / "grass" / "parts" / "p.dcx").write_bytes(b"v1")
+    shared_mods.share(a, [index_of(a, "grass")], loc=loc)
+    src = download(tmp_path, "grass", b"v2")
+    assert "blocked" not in mod_service.plan_mod_install(a, src, loc=loc)["library"]
+    (src / loc.game.regulation).write_bytes(b"reg")
+    assert mod_service.plan_mod_install(a, src, loc=loc)["library"]["blocked"] is True

@@ -86,7 +86,7 @@ def _worker() -> str:
     if not reply.get("ok") or reply["result"]["value"] != 42:
         raise RuntimeError(f"unexpected reply {reply}")
     if reply["result"]["qt"]:
-        raise RuntimeError("the worker loaded Qt")
+        raise RuntimeError("the worker started a Qt application")
     return f"pid {reply['result']['pid']}"
 
 

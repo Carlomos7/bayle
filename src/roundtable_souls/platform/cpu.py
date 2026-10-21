@@ -146,6 +146,9 @@ def worker_main() -> int:
 
 # ----------------------------------------------------------------------------- tasks of its own
 def probe(value: int = 0) -> dict:
-    """A tiny task for the self-test and the tests: echoes, and says whether Qt was loaded (it must not be)."""
-    qt = any(m.split(".")[0] in ("PySide6", "shiboken6") for m in sys.modules)
+    """A tiny task for the self-test and the tests: echoes, and says whether Qt is running in the worker (it must not
+    be). A frozen build's start-up hooks may load the Qt library itself; what matters is that no Qt application or
+    event loop exists here."""
+    core = sys.modules.get("PySide6.QtCore")
+    qt = core is not None and core.QCoreApplication.instance() is not None
     return {"value": value + 1, "pid": os.getpid(), "qt": qt}

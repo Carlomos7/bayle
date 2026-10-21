@@ -10,7 +10,9 @@ Nothing here is bundled: every name comes from files the player already has.
 
 from __future__ import annotations
 
+import fnmatch
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -64,18 +66,31 @@ class ItemNames:
         return None
 
 
-def _seamless_folders(game: Path | None, profiles: Path | None) -> list[Path]:
+def _walk(profiles: Path | None) -> tuple[list[Path], list[Path]]:
+    """One walk of me3's profiles folder: the folders holding Seamless Co-op's dll, and the item text tables. Four
+    separate rglob walks of it were most of the time the Saves page took to read a save."""
+    dlls: list[Path] = []
+    tables: list[Path] = []
+    if profiles and profiles.is_dir():
+        for folder, _dirs, files in os.walk(profiles):
+            for name in files:
+                if fnmatch.fnmatch(name, catalog.ELDEN_RING.coop_dll):
+                    dlls.append(Path(folder))
+                elif fnmatch.fnmatch(name, "item*.msgbnd.dcx"):
+                    tables.append(Path(folder) / name)
+    return sorted(dlls), tables
+
+
+def _seamless_folders(game: Path | None, dlls: list[Path]) -> list[Path]:
     folders = []
     if game and (Path(game) / "SeamlessCoop").is_dir():
         folders.append(Path(game) / "SeamlessCoop")
-    if profiles and profiles.is_dir():
-        folders.extend(dll.parent for dll in profiles.rglob(catalog.ELDEN_RING.coop_dll))
-    return folders
+    return folders + dlls
 
 
-def seamless_names(game: Path | None, profiles: Path | None) -> dict[int, tuple[str, str]]:
+def seamless_names(game: Path | None, dlls: list[Path]) -> dict[int, tuple[str, str]]:
     out: dict[int, tuple[str, str]] = {}
-    for folder in _seamless_folders(game, profiles):
+    for folder in _seamless_folders(game, dlls):
         locale = folder / "locale"
         files = [locale / f"{lang}.json" for lang in LANGUAGES] + sorted(locale.glob("*.json"))
         for path in files:
@@ -101,28 +116,27 @@ def _package_name(msgbnd: Path) -> str:
     return msgbnd.parent.name
 
 
-def mod_text_names(roots: list[Path], oodle) -> dict[int, tuple[str, str]]:
+def mod_text_names(tables: list[Path], oodle) -> dict[int, tuple[str, str]]:
     out: dict[int, tuple[str, str]] = {}
-    for root in roots:
-        for msgbnd in sorted(root.rglob("item*.msgbnd.dcx")):
-            if msgbnd.parent.name.lower() != "engus":
+    for msgbnd in sorted(tables):
+        if msgbnd.parent.name.lower() != "engus":
+            continue
+        try:
+            files = formats.bnd4.bnd4_files(formats.dcx.dcx_decompress(msgbnd.read_bytes(), oodle))
+        except OSError, formats.FormatError, ValueError, IndexError:
+            continue
+        source = _package_name(msgbnd)
+        for name, blob in files:
+            table = name.split(".", 1)[0].split("_dlc", 1)[0]
+            bits = NAME_TABLES.get(table)
+            if bits is None:
                 continue
             try:
-                files = formats.bnd4.bnd4_files(formats.dcx.dcx_decompress(msgbnd.read_bytes(), oodle))
-            except OSError, formats.FormatError, ValueError, IndexError:
+                entries = formats.fmg.fmg_entries(blob)
+            except ValueError, IndexError:
                 continue
-            source = _package_name(msgbnd)
-            for name, blob in files:
-                table = name.split(".", 1)[0].split("_dlc", 1)[0]
-                bits = NAME_TABLES.get(table)
-                if bits is None:
-                    continue
-                try:
-                    entries = formats.fmg.fmg_entries(blob)
-                except ValueError, IndexError:
-                    continue
-                for text_id, text in entries.items():
-                    out.setdefault(bits | text_id, (text, source))
+            for text_id, text in entries.items():
+                out.setdefault(bits | text_id, (text, source))
     return out
 
 
@@ -151,14 +165,14 @@ def item_names(game: Path | None, profiles: Path | None, refresh: bool = False) 
     if _CACHE and _CACHE[0][0] == where and not refresh and now - _CHECKED_AT < RECHECK_SECONDS:
         return _CACHE[1]
     _CHECKED_AT = now
-    roots = [profiles] if profiles and profiles.is_dir() else []
-    watched = _seamless_folders(game, profiles) + [m for r in roots for m in r.rglob("item*.msgbnd.dcx")]
+    dlls, tables = _walk(profiles)
+    watched = _seamless_folders(game, dlls) + tables
     key = (where, _fingerprint(watched))
     if _CACHE and _CACHE[0] == key:
         return _CACHE[1]
     names: dict[int, tuple[str, str]] = {}
-    names.update(mod_text_names(roots, game_oodle.find_oodle(game)))
-    names.update(seamless_names(game, profiles))
+    names.update(mod_text_names(tables, game_oodle.find_oodle(game)))
+    names.update(seamless_names(game, dlls))
     result = ItemNames(names)
     _CACHE = (key, result)
     return result

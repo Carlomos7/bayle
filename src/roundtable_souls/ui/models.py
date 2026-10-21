@@ -31,8 +31,26 @@ class RowsModel(QAbstractListModel):
         self._rows: list[dict] = []
 
     def set_rows(self, rows) -> None:
+        """Nothing changed: nothing is told (every page reads again after each job, and a reset rebuilds every
+        delegate). Same count: only the rows that differ are told, so the delegates stay and rebind. Otherwise a reset."""
+        new = [plain(r) for r in rows]
+        if new == self._rows:
+            return
+        if len(new) == len(self._rows):
+            old, self._rows = self._rows, new
+            i = 0
+            while i < len(new):
+                if new[i] == old[i]:
+                    i += 1
+                    continue
+                j = i
+                while j + 1 < len(new) and new[j + 1] != old[j + 1]:
+                    j += 1
+                self.dataChanged.emit(self.index(i), self.index(j))
+                i = j + 1
+            return
         self.beginResetModel()
-        self._rows = [plain(r) for r in rows]
+        self._rows = new
         self.endResetModel()
         self.countChanged.emit()
 

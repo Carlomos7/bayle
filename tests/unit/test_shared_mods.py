@@ -425,7 +425,7 @@ def test_the_activity_undo_is_offered_until_it_is_used(world):
 
 def test_a_mixed_case_folder_is_one_lower_case_mod_in_the_library(world):
     loc, home, root, lib, a, b, c = world
-    (root / "c" / "packages" / "Fog").rename(root / "c" / "packages" / "Fog2")
+    (root / "c" / "packages" / "fog").rename(root / "c" / "packages" / "Fog2")
     (root / "c" / "packages" / "Fog2").rename(root / "c" / "packages" / "Fog")
     c.write_text(c.read_text().replace("packages/fog", "packages/Fog"))
     shared_mods.share(c, [index_of(c, "fog")], loc=loc)
@@ -433,7 +433,8 @@ def test_a_mixed_case_folder_is_one_lower_case_mod_in_the_library(world):
     rec = shared_mods.read_mod(lib, "fog")
     assert rec and rec.name == "Fog"
     shared_mods.separate(c, [index_of(c, "fog")], loc=loc)
-    assert (root / "c" / "packages" / "Fog" / "f.dcx").read_bytes() == b"fog"
+    back = [d for d in (root / "c" / "packages").iterdir() if d.name.lower() == "fog"]
+    assert len(back) == 1 and (back[0] / "f.dcx").read_bytes() == b"fog"
 
 
 def test_listings_find_identical_copies_and_say_who_uses_what(world, tmp_path):

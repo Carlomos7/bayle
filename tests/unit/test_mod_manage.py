@@ -240,7 +240,7 @@ def test_install_package_from_zip_and_native_from_folder(tmp_path):
 
 def test_install_into_array_form_profile_converts_it(tmp_path):
     text = 'profileVersion = "v1"\nstart_online = false\nnatives = [{ path = "SeamlessCoop/ersc.dll", load_early = true }]\npackages = [{ id = "example-overhaul", path = "ExampleOverhaul/mod", load_after = [] }]\n'
-    p = tmp_path / "overhaul.me3"
+    p = tmp_path / "example.me3"
     p.write_text(text, encoding="utf-8")
     (tmp_path / "SeamlessCoop").mkdir()
     (tmp_path / "SeamlessCoop" / "ersc.dll").write_bytes(b"x")
@@ -255,7 +255,7 @@ def test_install_into_array_form_profile_converts_it(tmp_path):
     )
     assert [x["id"] for x in data["packages"]] == ["example-overhaul", "tex"] and data["packages"][1][
         "path"
-    ] == "mod/tex"  # never inside the overhaul's own folder
+    ] == "mod/tex"  # never inside Example's own folder
     assert "[[packages]]" in p.read_text(encoding="utf-8")
 
 
@@ -549,19 +549,19 @@ def _goblins(root, langs=("English", "Italian")):
     (root / "Readme.txt").write_text("r")
 
 
-OVERHAUL_LAST = (
+EXAMPLE_LAST = (
     'profileVersion = "v1"\n\n[[packages]]\nid = "solo"\npath = \'mod/solo\'\n\n'
-    "# the overhaul: must stay last\n# (its regulation.bin)\n[[packages]]\nid = \"example-overhaul\"\npath = 'overhaul/mod'\n"
+    "# Example: must stay last\n# (its regulation.bin)\n[[packages]]\nid = \"example-overhaul\"\npath = 'example/mod'\n"
 )
 
 
-def _overhaul_profile(tmp_path):
+def _example_profile(tmp_path):
     base = tmp_path / "prof"
     (base / "mod" / "solo" / "parts").mkdir(parents=True)
-    (base / "overhaul" / "mod").mkdir(parents=True)
-    (base / "overhaul" / "mod" / "regulation.bin").write_bytes(b"V")
+    (base / "example" / "mod").mkdir(parents=True)
+    (base / "example" / "mod" / "regulation.bin").write_bytes(b"V")
     p = base / "p.me3"
-    p.write_text(OVERHAUL_LAST, encoding="utf-8")
+    p.write_text(EXAMPLE_LAST, encoding="utf-8")
     return p
 
 
@@ -609,7 +609,7 @@ def test_plan_offers_variants_and_replans_without_unpacking_again(tmp_path):
     a = tmp_path / "Map for Goblins Expanded-1234-1-0.7z"
     with py7zr.SevenZipFile(a, "w") as z:
         z.writeall(src, arcname=src.name)
-    p = _overhaul_profile(tmp_path)
+    p = _example_profile(tmp_path)
     plan = install.plan_install(p, a, loc=er())
     assert (
         plan["kind"] == "package"
@@ -634,12 +634,12 @@ def test_plan_offers_variants_and_replans_without_unpacking_again(tmp_path):
     assert (out["dest"] / "msg" / "engus" / "item_dlc02.msgbnd.dcx").read_bytes() == b"Italian"
     text = p.read_text(encoding="utf-8")
     assert [x["id"] for x in tomllib.loads(text)["packages"]] == ["solo", "goblins", "example-overhaul"]
-    assert text.index("goblins") < text.index("# the overhaul: must stay last")  # the note stays with its entry
+    assert text.index("goblins") < text.index("# Example: must stay last")  # the note stays with its entry
     assert not Path(plan["unpacked"]).exists()
 
 
 def test_regulation_order_follows_load_order_and_skips_disabled(tmp_path):
-    p = _overhaul_profile(tmp_path)
+    p = _example_profile(tmp_path)
     (p.parent / "mod" / "solo" / "regulation.bin").write_bytes(b"S")
     assert [x["name"] for x in install.regulation_order(p)["regulation_packages"]] == ["solo", "example-overhaul"]
     p.write_text(
@@ -650,17 +650,17 @@ def test_regulation_order_follows_load_order_and_skips_disabled(tmp_path):
     )
     assert install.regulation_order(p)["regulation_winner"] == "solo"
     p.write_text(
-        p.read_text(encoding="utf-8").replace("path = 'overhaul/mod'", "path = 'overhaul/mod'\nenabled = false"),
+        p.read_text(encoding="utf-8").replace("path = 'example/mod'", "path = 'example/mod'\nenabled = false"),
         encoding="utf-8",
     )
     assert [x["name"] for x in install.regulation_order(p)["regulation_packages"]] == ["solo"]
 
 
 def test_insert_entry_goes_above_the_note_but_not_above_commented_out_entries():
-    text = OVERHAUL_LAST
+    text = EXAMPLE_LAST
     blk = next(b for b in M.blocks(text) if "example-overhaul" in text.splitlines()[b["start"] + 1])
     out = M.insert_entry(text, "package", {"id": "new", "path": "mod/new"}, blk["index"])
-    assert out.index('id = "new"') < out.index("# the overhaul: must stay last") and tomllib.loads(out)
+    assert out.index('id = "new"') < out.index("# Example: must stay last") and tomllib.loads(out)
     commented = text.replace("# (its regulation.bin)", '# [[packages]]\n# id = "old"')
     out = M.insert_entry(commented, "package", {"id": "new", "path": "mod/new"}, blk["index"])
     assert out.index('# id = "old"') < out.index('id = "new"') < out.index('id = "example-overhaul"')
@@ -731,16 +731,18 @@ def test_a_dll_folder_name_windows_or_the_launcher_refuses_writes_nothing(tmp_pa
 
 
 def test_regulation_placement_follows_the_package_if_the_profile_changed_meanwhile(tmp_path):
-    p = _overhaul_profile(tmp_path)
+    p = _example_profile(tmp_path)
     src = tmp_path / "dl" / "Params"
     src.mkdir(parents=True)
     (src / "regulation.bin").write_bytes(b"R")
     plan = install.plan_install(p, src, loc=er())
     assert [x["name"] for x in plan["regulation_packages"]] == ["example-overhaul"]
     plan["insert_before"] = "example-overhaul"
-    # edited outside the launcher before Install: a new entry above the overhaul moves it down one block
+    # edited outside the launcher before Install: a new entry above Example moves it down one block
     p.write_text(
-        p.read_text(encoding="utf-8").replace("# the overhaul", "[[packages]]\nid = \"late\"\npath = 'mod/late'\n\n# the overhaul"),
+        p.read_text(encoding="utf-8").replace(
+            "# Example", "[[packages]]\nid = \"late\"\npath = 'mod/late'\n\n# Example"
+        ),
         encoding="utf-8",
     )
     install.install(p, plan, loc=er())

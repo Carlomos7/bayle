@@ -1,4 +1,4 @@
-"""Overhaul configs (data/overhauls/*.toml): the shipped the overhaul config builds without anything of the
+"""Overhaul configs (data/overhauls/*.toml): the shipped Example Overhaul config builds without anything of the
 mod's (since S3b), a local file replaces or adds one, a bad one is left out and said why, and the Play page's detection and the offline
 launch's strip read the configs and still do what they did."""
 
@@ -34,9 +34,9 @@ def local(name: str, text: str) -> Path:
 
 
 def test_the_shipped_config_runs_nothing_of_the_mods():
-    (overhaul,) = overhauls.load()
-    assert (overhaul.id, overhaul.game, overhaul.short_label) == ("example-overhaul", "eldenring", "the overhaul")
-    (lite,) = [overhaul.recipe(b) for b in overhaul.builds]
+    (example,) = overhauls.load()
+    assert (example.id, example.game, example.short_label) == ("example-overhaul", "eldenring", "Example")
+    (lite,) = [example.recipe(b) for b in example.builds]
     assert lite["id"] == "example-overhaul-lite" and lite["recipe"] == overhauls.RECIPE_VERSION and "tool" not in lite
     grace = [s for s in lite["steps"] if s.get("file") == "script/talk/m00_00_00_00.talkesdbnd.dcx"]
     assert [s["do"] for s in grace] == ["merge"]  # the ESD rule, not the mod's tool
@@ -55,7 +55,7 @@ def test_configs_are_per_game():
 
 def test_a_local_config_replaces_the_shipped_one_with_its_id_and_adds_new_ones():
     shipped = (overhaul_config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
-    local("mine.toml", shipped.replace('short_label = "the overhaul"', 'short_label = "ovh"'))
+    local("mine.toml", shipped.replace('short_label = "Example"', 'short_label = "ovh"'))
     local("toy.toml", TOY)
     by_id = {o.id: o for o in overhauls.load()}
     assert sorted(by_id) == ["example-overhaul", "toy"]
@@ -89,8 +89,8 @@ def install(folder: Path, manifest: str, profile: Path) -> Path:
 
 def test_play_finds_each_overhauls_installations_beside_the_profiles_and_in_the_game_folder(tmp_path):
     loc, profiles, game = er_world(tmp_path)
-    beside = install(profiles / "ExampleOverhaul", "installation.json", profiles / "overhaul.me3")
-    standalone = install(game / "ExampleOverhaul", "installation.json", game / "overhaul.me3")
+    beside = install(profiles / "ExampleOverhaul", "installation.json", profiles / "example.me3")
+    standalone = install(game / "ExampleOverhaul", "installation.json", game / "example.me3")
     toy = install(profiles / "ToyOverhaul", "toy-install.json", profiles / "toy.me3")
     found = play.discover(None, loc)
     assert [(s.kind, Path(s.source)) for s in found] == [
@@ -110,21 +110,23 @@ def test_the_play_summary_names_the_overhauls_a_profile_includes(tmp_path):
     plain = play.LaunchProfile("me3", profiles / "er.me3", loc=loc)
     assert play.overhauls_in(plain) == []
     launched = install(tmp_path / "elsewhere" / "ExampleOverhaul", "installation.json", tmp_path / "x.me3")
-    assert play.overhauls_in(play.launch_profile_from_path(launched, loc)) == ["the overhaul"]
+    assert play.overhauls_in(play.launch_profile_from_path(launched, loc)) == ["Example"]
     for entry in (
         '[[packages]]\nid = "example-overhaul"\npath = "x"\n',
-        "[[natives]]\npath = 'a/OverhaulPrototype.dll'\n",
+        "[[natives]]\npath = 'a/ExamplePrototype.dll'\n",
     ):
         (profiles / "with.me3").write_text('profileVersion = "v1"\n' + entry, encoding="utf-8")
-        assert play.overhauls_in(play.LaunchProfile("me3", profiles / "with.me3", loc=loc)) == ["the overhaul"]
+        assert play.overhauls_in(play.LaunchProfile("me3", profiles / "with.me3", loc=loc)) == ["Example"]
     (profiles / "ExampleOverhaul").mkdir()
-    assert play.overhauls_in(plain) == ["the overhaul"]
+    assert play.overhauls_in(plain) == ["Example"]
 
 
 def test_the_offline_strip_uses_each_configs_profile_marks():
-    overhaul = "profileVersion = \"v1\"\n\n[[natives]]\npath = 'ExampleOverhaul/OverhaulHudBootstrap.dll'\n"
+    example = "profileVersion = \"v1\"\n\n[[natives]]\npath = 'ExampleOverhaul/ExampleHudBootstrap.dll'\n"
     toy = 'profileVersion = "v1"\n\n[[packages]]\nid = "toy-overhaul"\npath = \'ToyOverhaul/mod\'\n'
-    assert "# path = 'ExampleOverhaul/OverhaulHudBootstrap.dll'" in play.offline_profile_text(overhaul, strip_overhaul=True)
+    assert "# path = 'ExampleOverhaul/ExampleHudBootstrap.dll'" in play.offline_profile_text(
+        example, strip_overhaul=True
+    )
     assert '\nid = "toy-overhaul"' in play.offline_profile_text(toy, strip_overhaul=True)
     local("toy.toml", TOY)
     assert '# id = "toy-overhaul"' in play.offline_profile_text(toy, strip_overhaul=True)
@@ -134,8 +136,8 @@ def test_the_offline_strip_uses_each_configs_profile_marks():
 def test_a_config_with_the_old_seamless_key_is_left_out_and_says_where_it_went():
     shipped = (overhaul_config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
     old = shipped.replace("[builds.install]\n", '[builds.install]\nseamless = { dll = "ersc.dll" }\n')
-    bad = local("old.toml", old.replace('id = "example-overhaul"', 'id = "old-overhaul"', 1))
-    assert "old-overhaul" not in [o.id for o in overhauls.load()]
+    bad = local("old.toml", old.replace('id = "example-overhaul"', 'id = "old-example"', 1))
+    assert "old-example" not in [o.id for o in overhauls.load()]
     (said,) = overhauls.problems()
     assert said.startswith(f"{bad}: builds.0.install.seamless: Extra inputs are not permitted")
     assert said.endswith("(seamless: since 3.20 a required mod is listed in the build's requires)")
@@ -159,9 +161,9 @@ def test_the_writer_reads_back_and_never_overwrites_a_file_changed_since_it_was_
 
     from roundtable_souls.overhauls import basic, writer
 
-    (overhaul,) = overhauls.load()
-    back = overhaul_config.OverhaulConfig.model_validate(tomllib.loads(writer.render(overhaul)))
-    assert back.recipe(back.builds[0]) == overhaul.recipe(overhaul.builds[0])  # same build: nothing goes out of date
+    (example,) = overhauls.load()
+    back = overhaul_config.OverhaulConfig.model_validate(tomllib.loads(writer.render(example)))
+    assert back.recipe(back.builds[0]) == example.recipe(example.builds[0])  # same build: nothing goes out of date
     mod = tmp_path / "My Mod"
     (mod / "chr").mkdir(parents=True)
     (mod / "chr" / "c0000.anibnd.dcx").write_bytes(b"a")

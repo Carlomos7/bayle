@@ -71,11 +71,8 @@ def load(file: Path) -> dict | None:
     return data
 
 
-def recipe(
-    profile: Path, layer: dict, relaxed: bool = False, file: Path | None = None, *, loc: Locations
-) -> Recipe | None:
-    """relaxed changes nothing here: rebuild.json is the same wherever it is found. loc: the game's locations, for
-    the {game_dir}, {game_exe} and {me3} placeholders."""
+def recipe(profile: Path, layer: dict, file: Path | None = None, *, loc: Locations) -> Recipe | None:
+    """loc: the game's locations, for the {game_dir}, {game_exe} and {me3} placeholders."""
     folder = Path(layer["folder"])
     candidates = [Path(file)] if file is not None else [folder / FILE, folder.parent / FILE]
     for f in candidates:

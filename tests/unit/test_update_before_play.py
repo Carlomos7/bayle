@@ -49,10 +49,8 @@ def test_a_failed_update_raises_and_leaves_the_previous_result(world, monkeypatc
 
 
 def test_a_missing_setup_is_not_rebuilt_play_only_warns(world):
-    import shutil
-
     world.pack("params")
-    shutil.rmtree(world.setup)
+    world.rebuild_json.unlink()
     assert merge.needs_update(world.profile, loc=er()) is None
 
 

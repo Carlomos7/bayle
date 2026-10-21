@@ -45,17 +45,27 @@ class World:
         (self.winner / "regulation.bin").write_bytes(b"MERGED")
         (self.winner / TALK).write_bytes(b"MERGED-TALK")
         self.setup = self.base / ".merger-setup"
-        for f in ("installer/installer.py", "tools/python/python.exe", "payload/mod/regulation.bin"):
-            (self.setup / f).parent.mkdir(parents=True, exist_ok=True)
-            (self.setup / f).write_bytes(b"s")
         (self.setup / "payload/settings/vanilla" / TALK).parent.mkdir(parents=True)
         (self.setup / "payload/settings/vanilla" / TALK).write_bytes(b"VANILLA-TALK")
-        (self.setup / "merger-maintenance.json").write_text('{"protocol": 1}')
+        self.record = self.base / "Merger" / "merge-record.json"
+        self.rebuild_json = self.base / "Merger" / "rebuild.json"
+        self.rebuild_json.write_text(
+            json.dumps(
+                {
+                    "rebuild": 1,
+                    "command": ["merger-tool", "{profile}", "{package}"],
+                    "merges": ["regulation.bin"],
+                    "merges_from": [str(self.setup / "payload/settings/vanilla")],
+                    "sources": str(self.record),
+                }
+            ),
+            encoding="utf-8",
+        )
         self.profile = self.base / "p.me3"
         self.profile.write_text(PROFILE, encoding="utf-8")
         self.runs = 0
         monkeypatch.setattr(backends.Tool, "run", lambda b, log: self.fake_run(b))
-        self.fake_run(None)  # a first merge, as the tool's own installer leaves it
+        self.fake_run(None)  # a first merge, as the tool leaves it
         merge.approve(merge.find_backend(self.profile, loc=er()))
 
     def pack(self, name, files=("regulation.bin",), before="last", listed=True):
@@ -93,13 +103,7 @@ class World:
                 src = base
             sources.append({"path": str(src), "sha256": _sha(src)})
         sources.append({"path": str(self.profile), "sha256": _sha(self.profile)})
-        data = {
-            "refreshProtocol": 1,
-            "maintenance": str(self.setup),
-            "game": str(self.game / "eldenring.exe"),
-            "sources": sources,
-        }
-        (self.base / "Merger" / "installation.json").write_text(json.dumps(data), encoding="utf-8")
+        self.record.write_text(json.dumps({"sources": sources}), encoding="utf-8")
         if rewrite and backend is not None:  # comments gone, array form, its own load_after refreshed
             doc = tomllib.loads(self.profile.read_text(encoding="utf-8"))
             ids = [p["id"] for p in doc["packages"] if p["id"] != "last"]
@@ -181,7 +185,7 @@ def test_a_game_update_makes_it_stale(world):
 
 
 def test_a_merger_without_a_source_list_is_never_current(world):
-    m = world.base / "Merger" / "installation.json"
+    m = world.record
     data = json.loads(m.read_text())
     data["sources"] = []
     m.write_text(json.dumps(data))
@@ -190,7 +194,7 @@ def test_a_merger_without_a_source_list_is_never_current(world):
 
 
 def test_sources_written_on_another_pc_are_found_here(world):
-    m = world.base / "Merger" / "installation.json"
+    m = world.record
     data = json.loads(m.read_text())
     for s in data["sources"]:
         s["path"] = s["path"].replace(
@@ -268,19 +272,6 @@ def test_a_merger_that_changes_what_loads_keeps_its_version(world, monkeypatch):
     assert "# base mods" in (world.base / ".roundtable/backups/p.me3.bak").read_text(encoding="utf-8")
 
 
-def test_the_command_uses_refresh_here_and_install_for_a_foreign_manifest(world):
-    b = merge.find_backend(world.profile, loc=er())
-    assert b.recipe.command[4] == "refresh"
-    m = world.base / "Merger" / "installation.json"
-    data = json.loads(m.read_text())
-    data["maintenance"] = r"C:\Users\someone\profiles\er\.merger-setup"
-    m.write_text(json.dumps(data))
-    b = merge.find_backend(world.profile, loc=er())
-    cmd = b.recipe.command
-    assert b.recipe.cwd == world.setup and cmd[4] == "install" and cmd[cmd.index("--package") + 1] == str(world.setup)
-    assert cmd[cmd.index("--target") + 1] == str(world.base)
-
-
 # ----------------------------------------------------------------------------- install offers
 def _pack_source(root: Path, wrapper=True):
     top = root / "Big Params" if wrapper else root
@@ -306,7 +297,7 @@ def test_install_offers_a_rebuild_before_the_merger(world):
 
 
 def test_without_a_tool_the_offer_is_to_combine(tmp_path, world):
-    (world.base / "Merger" / "installation.json").unlink()
+    world.rebuild_json.unlink()
     world.pack("a")
     plan = install.plan_install(world.profile, _pack_source(tmp_path / "dl"), loc=er())
     assert [x["name"] for x in plan["regulation_packages"]] == ["a", "last"]
@@ -336,21 +327,20 @@ def test_a_leftover_regulation_bin_does_not_hide_the_real_mod_folder(tmp_path):
 
 # ----------------------------------------------------------------------------- overlay set by hand
 def _as_fork(world):
-    """The merger's record under another name and without a refresh protocol: not found on its own."""
-    m = world.base / "Merger" / "installation.json"
-    data = json.loads(m.read_text())
-    data.pop("refreshProtocol")
-    (world.base / "Merger" / "merge-record.json").write_text(json.dumps(data))
-    m.unlink()
+    """The merger's rebuild.json under another name, away from its package: not found on its own."""
+    mine = world.base / "my-rebuild.json"
+    world.rebuild_json.rename(mine)
+    return mine
 
 
 def test_a_fork_is_found_only_once_set_as_the_overlay(world):
-    _as_fork(world)
+    mine = _as_fork(world)
     world.pack("params")
     assert merge.health(world.profile, loc=er())["state"] == "stacked"
-    merge.set_overlay_override(world.profile, world.winner)
+    merge.set_overlay_override(world.profile, world.winner, mine)
     h = merge.health(world.profile, loc=er())
     assert h["overlay"] == "last" and h["overlay_set"] and h["state"] == "stale" and h["backend"]
+    merge.approve(merge.find_backend(world.profile, loc=er()))
     merge.rebuild(world.profile, lambda s: None, loc=er())
     assert merge.health(world.profile, loc=er())["state"] == "current"
     merge.set_overlay_override(world.profile, None)
@@ -358,10 +348,10 @@ def test_a_fork_is_found_only_once_set_as_the_overlay(world):
 
 
 def test_an_overlay_without_a_tool_still_says_what_must_stay_last(world, tmp_path):
-    (world.base / "Merger" / "installation.json").unlink()
+    world.rebuild_json.unlink()
     merge.set_overlay_override(world.profile, world.winner)
     h = merge.health(world.profile, loc=er())
-    assert h["backend"] is None and "setup files are missing: installation.json" in h["reasons"][0]
+    assert h["backend"] is None and "no rebuild tool was found" in h["reasons"][0]
     plan = install.plan_install(world.profile, _pack_source(tmp_path / "dl"), loc=er())
     assert plan["merge_target"] == "last" and not plan["merge_offered"]
     late = world.base / "mod" / "late"

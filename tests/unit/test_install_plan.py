@@ -1,5 +1,5 @@
 """overhauls.install_plan: what installing an overhaul does to a me3 profile, worked out without writing anything.
-The expected results are the overhaul's installer's (LITE 0.1.33-rc3, installer/installer.py), worked out by hand from the
+The expected results are Example's installer's (LITE 0.1.33-rc3, installer/installer.py), worked out by hand from the
 lines cited; tools outside the repository compare the plan with that installer itself on more profiles."""
 
 import tomllib
@@ -17,7 +17,7 @@ SEAMLESS = Path("C:/Games/ELDEN RING/Game/SeamlessCoop/ersc.dll")
 ANY_DIR = lambda _p: True  # noqa: E731  (every package folder is there)
 
 
-def overhaul():
+def example():
     config = next(c for c in overhauls.load() if c.id == "example-overhaul")
     build, problem = install_plan.install_of(config, "LITE")
     assert problem is None and build is not None and build.install is not None
@@ -25,7 +25,7 @@ def overhaul():
 
 
 def planned(text: str, **kw) -> tuple[install_plan.Plan, dict]:
-    _, build = overhaul()
+    _, build = example()
     kw.setdefault("is_dir", ANY_DIR)
     p = plan(text, PROFILE, build, OWN, **kw)
     return p, apply(tomllib.loads(text), p.changes)
@@ -63,21 +63,21 @@ enabled = false
 """
 
 
-def test_an_ordinary_profile_gets_overhauls_dlls_and_package_last():
+def test_an_ordinary_profile_gets_examples_dlls_and_package_last():
     p, result = planned(ORDINARY, provided={"ersc.dll": SEAMLESS})
     assert p.ok and p.problems == []
-    # patched_profile: the HUD bootstrap loads early with its initializer; OverhaulPrototype loads after every enabled
+    # patched_profile: the HUD bootstrap loads early with its initializer; ExamplePrototype loads after every enabled
     # DLL (deps: native id, else the file name), each optional; the package after every enabled package
     assert [c.action for c in p.changes] == ["add", "add", "add"]
     assert result["natives"][-2:] == [
         {
-            "path": f"{OWN.as_posix()}/OverhaulHudBootstrap.dll",
+            "path": f"{OWN.as_posix()}/ExampleHudBootstrap.dll",
             "load_early": True,
-            "initializer": {"function": "ovhHudBootstrapInitialize"},
+            "initializer": {"function": "ExHudBootstrapInitialize"},
         },
         {
-            "path": f"{OWN.as_posix()}/OverhaulPrototype.dll",
-            "initializer": {"function": "ovhInitialize"},
+            "path": f"{OWN.as_posix()}/ExamplePrototype.dll",
+            "initializer": {"function": "ExInitialize"},
             "load_after": [{"id": "ersc.dll", "optional": True}, {"id": "bettercamera.dll", "optional": True}],
         },
     ]
@@ -114,7 +114,7 @@ path = 'addons/zz_ExampleOverhaul'
 [[natives]]
 path = 'natives/SeamlessCoop/ersc.dll'
 [[natives]]
-path = 'ExampleOverhaul/OverhaulPrototype.dll'
+path = 'ExampleOverhaul/ExamplePrototype.dll'
 [[natives]]
 path = 'dll/offline/ExampleOverhaul.dll'
 """
@@ -124,20 +124,20 @@ path = 'dll/offline/ExampleOverhaul.dll'
     assert removed == [
         ("package", "example-overhaul"),
         ("package", "zz_ExampleOverhaul"),
-        ("native", "ExampleOverhaul/OverhaulPrototype.dll"),
+        ("native", "ExampleOverhaul/ExamplePrototype.dll"),
         ("native", "dll/offline/ExampleOverhaul.dll"),
     ]
     assert [r["id"] for r in result["packages"]] == ["a", "example-overhaul"]  # the new one, after "a" only
     assert result["packages"][-1]["load_after"] == [{"id": "a", "optional": True}]
     assert [Path(n["path"]).name for n in result["natives"]] == [
         "ersc.dll",
-        "OverhaulHudBootstrap.dll",
-        "OverhaulPrototype.dll",
+        "ExampleHudBootstrap.dll",
+        "ExamplePrototype.dll",
     ]
 
 
-def test_overhauls_install_leaves_seamless_as_the_player_has_it():
-    """the overhaul's config declares no requirement (its author has not; the launcher writes none for it), so its plan
+def test_examples_install_leaves_seamless_as_the_player_has_it():
+    """Example's config declares no requirement (its author has not; the launcher writes none for it), so its plan
     neither switches Seamless on nor adds it, and does not stop without it."""
     off = "profileVersion = \"v1\"\nstart_online = false\n[[natives]]\npath = 'old/ersc.dll'\nenabled = false\n"
     p, result = planned(off, is_file=lambda _q: True)
@@ -145,8 +145,8 @@ def test_overhauls_install_leaves_seamless_as_the_player_has_it():
     assert result["natives"][0] == {"path": "old/ersc.dll", "enabled": False}
     p, result = planned('profileVersion = "v1"\nstart_online = false\n', is_file=lambda _q: True)
     assert p.ok and [Path(n["path"]).name for n in result["natives"]] == [
-        "OverhaulHudBootstrap.dll",
-        "OverhaulPrototype.dll",
+        "ExampleHudBootstrap.dll",
+        "ExamplePrototype.dll",
     ]
 
 
@@ -191,7 +191,7 @@ def test_both_spellings_of_the_lists_are_read():
     ],
 )
 def test_profiles_the_install_cannot_use_are_refused(text, code):
-    p = plan(text, PROFILE, overhaul()[1], OWN, provided={"ersc.dll": SEAMLESS}, is_dir=ANY_DIR)
+    p = plan(text, PROFILE, example()[1], OWN, provided={"ersc.dll": SEAMLESS}, is_dir=ANY_DIR)
     assert code in [x.code for x in p.problems] and not p.ok
 
 
@@ -203,7 +203,7 @@ def test_a_missing_package_folder_stops_the_install():
 
 
 def test_other_editions_are_recorded_as_not_installed():
-    config, _ = overhaul()
+    config, _ = example()
     for edition in ("STANDALONE", "CONVERGENCE", "REFORGED"):
         build, problem = install_plan.install_of(config, edition)
         assert build is None and problem is not None and problem.code == "edition-unsupported"
@@ -213,12 +213,12 @@ def test_planning_writes_nothing(tmp_path):
     profile = tmp_path / "my.me3"
     profile.write_text(ORDINARY, encoding="utf-8")
     before = {p: p.read_bytes() for p in tmp_path.rglob("*")}
-    plan(ORDINARY, profile, overhaul()[1], tmp_path / "ExampleOverhaul", provided={"ersc.dll": SEAMLESS}, is_dir=ANY_DIR)
+    plan(ORDINARY, profile, example()[1], tmp_path / "ExampleOverhaul", provided={"ersc.dll": SEAMLESS}, is_dir=ANY_DIR)
     assert {p: p.read_bytes() for p in tmp_path.rglob("*")} == before
 
 
 def test_the_check_after_an_install():
-    _, build = overhaul()
+    _, build = example()
     install = build.install
     assert install is not None
     _, result = planned(ORDINARY, provided={"ersc.dll": SEAMLESS})
@@ -362,7 +362,7 @@ def test_installing_again_is_an_update_never_a_second_set_of_entries():
     assert second.ok and second.update
     assert [r["id"] for r in twice["packages"]].count("example-overhaul") == 1
     names = [Path(n["path"]).name for n in twice["natives"]]
-    assert names.count("OverhaulPrototype.dll") == 1 and names.count("OverhaulHudBootstrap.dll") == 1
+    assert names.count("ExamplePrototype.dll") == 1 and names.count("ExampleHudBootstrap.dll") == 1
     assert twice == once  # the same profile as one install
 
 
@@ -376,15 +376,15 @@ def test_a_fake_overhauls_owned_entries_are_replaced_by_its_reinstall():
 
 
 def test_a_second_overhaul_in_one_profile_is_refused():
-    overhaul_config, _ = overhaul()
+    example_config, _ = example()
     fake_config, _ = fake()
-    _, with_overhaul = planned(ORDINARY, provided={"ersc.dll": SEAMLESS})
-    p = fake_plan(_toml(with_overhaul) + FRAMEWORK + HELPER, others=[overhaul_config, fake_config])
+    _, with_example = planned(ORDINARY, provided={"ersc.dll": SEAMLESS})
+    p = fake_plan(_toml(with_example) + FRAMEWORK + HELPER, others=[example_config, fake_config])
     assert [(x.code, x.message) for x in p.problems] == [
         (
             "another-overhaul",
-            "This profile already has the overhaul. A profile can have one overhaul for now: remove "
-            "the overhaul from it first, or install into another profile.",
+            "This profile already has Example Overhaul. A profile can have one overhaul for now: remove "
+            "Example Overhaul from it first, or install into another profile.",
         )
     ]
     # its own earlier install is no reason to refuse
@@ -394,19 +394,19 @@ def test_a_second_overhaul_in_one_profile_is_refused():
 def test_one_place_says_which_overhaul_owns_an_entry():
     from roundtable_souls.overhauls import requirements
 
-    overhaul_config, _ = overhaul()
+    example_config, _ = example()
     fake_config, _ = fake()
-    configs = [overhaul_config, fake_config]
+    configs = [example_config, fake_config]
     entries = [
         {"kind": "native", "path": "x/ersc.dll"},
-        {"kind": "native", "path": "ExampleOverhaul/OverhaulPrototype.dll"},
+        {"kind": "native", "path": "ExampleOverhaul/ExamplePrototype.dll"},
         {"kind": "package", "id": "fake", "path": "Fake/mod"},
         {"kind": "package", "id": "body", "path": "mod/body"},
     ]
     assert {k: [e["path"] for e in v] for k, v in requirements.owned_by(configs, entries).items()} == {
-        "example-overhaul": ["ExampleOverhaul/OverhaulPrototype.dll"],
+        "example-overhaul": ["ExampleOverhaul/ExamplePrototype.dll"],
         "fake": ["Fake/mod"],
     }
-    assert requirements.needed_by(configs, "native", entries[1]) == []  # the overhaul declares nothing
+    assert requirements.needed_by(configs, "native", entries[1]) == []  # Example declares nothing
     assert [r.name for r in requirements.needed_by(configs, "package", entries[2])] == ["framework", "helper.dll"]
     assert requirements.needed_by(configs, "package", entries[3]) == []

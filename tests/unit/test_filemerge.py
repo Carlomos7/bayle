@@ -72,9 +72,9 @@ def test_added_files_with_an_id_already_used_keep_the_appended_order():
 def test_changes_additions_and_removals_of_different_mods_all_apply():
     game = dcx(bnd(GAME))
     a = dcx(bnd({"a.hkx": b"sekiro walk", "c.hkx": b"roll"}))  # changes a, removes b
-    b = dcx(bnd({**GAME, "new.hkx": b"overhaul"}))  # adds one
-    r = merger.merge(game, [("anims", a), ("overhaul", b)])
-    assert files_of(r.data) == {"a.hkx": b"sekiro walk", "c.hkx": b"roll", "new.hkx": b"overhaul"}
+    b = dcx(bnd({**GAME, "new.hkx": b"example"}))  # adds one
+    r = merger.merge(game, [("anims", a), ("example", b)])
+    assert files_of(r.data) == {"a.hkx": b"sekiro walk", "c.hkx": b"roll", "new.hkx": b"example"}
     assert not r.clashes and r.merged
 
 

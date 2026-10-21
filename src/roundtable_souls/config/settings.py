@@ -21,7 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
 from roundtable_souls.config import identity
 from roundtable_souls.platform import filelock
@@ -172,12 +172,15 @@ class LauncherSettings(BaseModel):
     rail_collapsed: bool = False  # the shell's navigation rail folded to icons (the top bar's menu button)
     launch_mode: str | None = None  # Elden Ring's Launch mode ("profile" | "offline" | "vanilla"); others under `games`
 
-    offline_strip_overhaul: bool = False
+    # Leave an overhaul the launcher has a config for off in an offline launch. Files before 4.1 call it
+    # offline_strip_overhaul: still read.
+    offline_strip_overhaul: bool = Field(
+        default=False, validation_alias=AliasChoices("offline_strip_overhaul", "offline_strip_overhaul")
+    )
     offline_start_steam: bool = True
     offline_skip_confirm: bool = False
 
     play_update_merge: bool = True  # rebuild out-of-date merged mods before Play by itself; off: ask first
-    build_merges: bool = False
     overhaul_install: bool = False  # the Mods page's Overhaul button: install and remove overhauls itself (preview)
     # Co-op page notices about Seamless Co-op left in the game folder, turned off for good: "<game>|<profile>|<kind>"
     coop_relocate_dismissed: list[str] = Field(default_factory=list)
@@ -229,6 +232,7 @@ class LauncherSettings(BaseModel):
         type (a null, a typo) gives that key's default while every other key is kept."""
         if not isinstance(raw, dict):
             raw = {}
+        raw = {k: v for k, v in raw.items() if k not in RETIRED_KEYS}
         try:
             return cls.model_validate(raw)
         except ValidationError as e:
@@ -246,6 +250,7 @@ class LauncherSettings(BaseModel):
 
 
 WRITTEN_WHEN_SET = ("update_blocked", "inno_migration")
+RETIRED_KEYS = ("build_merges",)  # settings an older build wrote that nothing reads now: dropped on the next save
 
 
 def settings_path() -> Path:

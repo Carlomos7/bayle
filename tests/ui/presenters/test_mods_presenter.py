@@ -36,7 +36,7 @@ ENTRIES = (
     entry(0, "flora"),
     entry(1, "bundle"),
     entry(2, "birds", enabled=False, optional=True),
-    entry(3, "overhaul", load_after=[{"id": n} for n in ("a", "b", "c", "d")]),
+    entry(3, "example", load_after=[{"id": n} for n in ("a", "b", "c", "d")]),
     entry(4, "ersc.dll", "native", load_early=True, initializer={"function": "ERRInit"}),
     entry(5, "gone.dll", "native"),
 )
@@ -63,19 +63,19 @@ def facts(**over) -> PageFacts:
 def scan(**over):
     base = {
         "profile": str(PROFILE),
-        "health": {"state": "current", "packs": ["overhaul"], "backend": "rebuild.json", "reasons": []},
+        "health": {"state": "current", "packs": ["example"], "backend": "rebuild.json", "reasons": []},
         "overlaps": {
             "conflicts": [
                 {
                     "path": "parts/a.partsbnd.dcx",
-                    "winner": "overhaul",
+                    "winner": "example",
                     "losers": [{"id": "flora", "outcome": "replaced"}],
                 },
-                {"path": "msg/b.msgbnd.dcx", "winner": "overhaul", "losers": [{"id": "flora", "outcome": "combined"}]},
+                {"path": "msg/b.msgbnd.dcx", "winner": "example", "losers": [{"id": "flora", "outcome": "combined"}]},
             ]
         },
         "problems": [{"name": "gone.dll", "kind": "native", "problems": ["DLL missing"]}],
-        "stay_last": {"name": "overhaul", "late": ["flora", "birds"], "can_fix": True, "problem": ""},
+        "stay_last": {"name": "example", "late": ["flora", "birds"], "can_fix": True, "problem": ""},
     }
     return {**base, **over}
 
@@ -96,7 +96,7 @@ def test_importing_the_presenter_pulls_in_no_qt():
 def test_rows_follow_the_shown_order_and_a_folder_of_mods_is_a_line_not_a_row():
     state = ModsPresenter().page(facts(), scan())
     packages = rows(state)
-    assert [(r.position, r.name) for r in packages] == [(1, "flora"), (2, "birds"), (3, "overhaul")]
+    assert [(r.position, r.name) for r in packages] == [(1, "flora"), (2, "birds"), (3, "example")]
     group = state.groups[0]
     assert group.title == "Packages" and group.count == "2 loaded, 1 off"
     assert [(line.text, line.action, line.index) for line in group.lines] == [
@@ -111,8 +111,8 @@ def test_tags_come_from_the_closed_list_two_at_most_the_rest_in_the_tooltip():
     flora = packages[0]
     assert [t.text for t in flora.tags] == ["Clash · 1 file", "Outside the library"]
     assert flora.more.splitlines() == ["Shared · 3 profiles", "mod/flora"]
-    overhaul = packages[2]
-    assert [t.text for t in overhaul.tags] == ["Stays last"] and overhaul.locked
+    example = packages[2]
+    assert [t.text for t in example.tags] == ["Stays last"] and example.locked
     birds = packages[1]
     assert not birds.enabled and [t.text for t in birds.tags] == ["Optional"]
     natives = rows(ModsPresenter().page(facts(), scan()), "native")
@@ -125,8 +125,8 @@ def test_the_status_line_names_dependencies_and_an_initializer_and_a_problem_win
     natives = rows(ModsPresenter().page(facts(), scan()), "native")
     assert natives[0].status == "calls ERRInit" and not natives[0].status_error
     assert natives[1].status == "DLL missing" and natives[1].status_error
-    overhaul = rows(ModsPresenter().page(facts(), scan()))[2]
-    assert overhaul.status == "after 4 others"
+    example = rows(ModsPresenter().page(facts(), scan()))[2]
+    assert example.status == "after 4 others"
     empty = rows(ModsPresenter().page(facts(empty={0: "empty"}, outside=(), shared={}), None))[0]
     assert empty.status.startswith("Empty for now")
 
@@ -135,7 +135,7 @@ def test_the_health_pill():
     p = ModsPresenter()
     assert p.page(facts(), None).health is None  # until the first scan
     assert p.page(facts(), scan()).health.__dict__ == {"text": "1 file clashes", "level": "danger"}
-    calm = scan(overlaps={"conflicts": []}, health={"state": "stale", "packs": ["overhaul"]})
+    calm = scan(overlaps={"conflicts": []}, health={"state": "stale", "packs": ["example"]})
     calm_health = p.page(facts(), calm).health
     assert calm_health is not None and calm_health.text == "Rebuild needed"
     fine = scan(overlaps={"conflicts": []})
@@ -168,7 +168,7 @@ def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
 
     p = ModsPresenter()
     stale = {"state": "stale", "packs": ["a"], "backend": "t", "reasons": []}
-    tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"})
+    tool = SimpleNamespace(label="rebuild.json", package={"name": "Example"})
     state = p.page(facts(online_with="flora", fingerprint=Fingerprint("1A2B3C4D", 9, "flora")), scan(health=stale))
     online = state.notices[0]
     assert (online.key, online.severity, online.action, online.closable) == (
@@ -210,14 +210,14 @@ def test_the_overhaul_words():
     assert p.overhaul_remove(PROFILE, "Toy", SimpleNamespace(**{**removal.__dict__, "asked": []})).option == ""
     assert p.overhaul_put_back("Toy").none == "Leave them"
     assert p.leftovers(True).none == "Next" and p.leftovers(False).none == ""
-    backups = p.leftover_backups(SimpleNamespace(path=Path("C:/x/the overhaul Backups"), label="the overhaul Backups (2 MB)"))
-    assert backups.title == "Also remove the overhaul Backups?"
-    assert backups.changes == ("the overhaul Backups (2 MB) goes to the Recycle Bin",)
+    backups = p.leftover_backups(SimpleNamespace(path=Path("C:/x/Example Backups"), label="Example Backups (2 MB)"))
+    assert backups.title == "Also remove Example Backups?"
+    assert backups.changes == ("Example Backups (2 MB) goes to the Recycle Bin",)
 
 
 def test_infobars_two_at_once_and_a_closed_one_stays_closed():
     p = ModsPresenter()
-    tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"})
+    tool = SimpleNamespace(label="rebuild.json", package={"name": "Example"})
     stale = {"state": "stale", "packs": ["a"], "reasons": ["a new pack loads before it"]}
     notices = p.notices(stale, tool, ("the install of X was taken back",))
     assert [n.key for n in notices] == ["stale", "allow-tool"]
@@ -230,14 +230,16 @@ def test_infobars_two_at_once_and_a_closed_one_stays_closed():
 def test_the_load_order_panel():
     panel = load_order.panel(scan())
     assert panel.stays_last is not None
-    assert panel.stays_last.text == "flora, birds load after overhaul, which must stay last: they replace overhaul's files."
+    assert (
+        panel.stays_last.text == "flora, birds load after example, which must stay last: they replace example's files."
+    )
     assert panel.stays_last.can_fix
     assert [c.path for c in panel.clashes] == ["parts/a.partsbnd.dcx", "msg/b.msgbnd.dcx"]  # lost first
     assert panel.clashes[0].losers == "flora (replaced)" and panel.clashes[0].lost
     assert panel.clash_note == "2 files are shipped by two packages; 1 of them reach the game from one package only."
     assert [(r.name, r.why) for r in panel.refused] == [("gone.dll", "DLL missing")]
-    calm = load_order.panel(scan(stay_last={"name": "overhaul", "late": [], "can_fix": False}, overlaps={}))
-    assert calm.stays_last is not None and calm.stays_last.text == "overhaul loads last, as it must."
+    calm = load_order.panel(scan(stay_last={"name": "example", "late": [], "can_fix": False}, overlaps={}))
+    assert calm.stays_last is not None and calm.stays_last.text == "example loads last, as it must."
     assert calm.clash_note == "No two packages ship the same file."
 
 
@@ -252,18 +254,18 @@ def test_the_confirmations_words():
     assert alone.option == "Also move the folder x to the Recycle Bin"
     trim = p.trim([{"folder": Path("b4"), "size": 2 * 1048576}])
     assert trim.title == "Move 1 older rebuild backup to the Recycle Bin" and "The newest 3 stay" in trim.safety
-    tool = SimpleNamespace(label="rebuild.json", package={"name": "the overhaul"}, describe=lambda: "python refresh.py")
-    assert p.tool(tool).detail == "It comes with the overhaul and runs:\n\npython refresh.py"
-    managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "the overhaul")
-    assert managed is not None and managed.body == "the overhaul is managed by its installer; delete it there."
+    tool = SimpleNamespace(label="rebuild.json", package={"name": "Example"}, describe=lambda: "python refresh.py")
+    assert p.tool(tool).detail == "It comes with Example and runs:\n\npython refresh.py"
+    managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "Example Overhaul")
+    assert managed is not None and managed.body == "Example Overhaul is managed by its installer; delete it there."
     assert p.delete_refusal(None) is None
     assert len(p.delete_profile(PROFILE).changes) == 2
-    assert p.delete_profile(PROFILE, "the overhaul").changes[-1] == (
-        "the overhaul's shared files stay; Remove overhaul first to take them out too."
+    assert p.delete_profile(PROFILE, "Example Overhaul").changes[-1] == (
+        "Example Overhaul's shared files stay; Remove overhaul first to take them out too."
     )
     assert (
-        p.holder(PROFILE, "bundle", ["overhaul"]).changes[-1]
-        == "overhaul must load after it: that setting is taken out too"
+        p.holder(PROFILE, "bundle", ["example"]).changes[-1]
+        == "example must load after it: that setting is taken out too"
     )
 
 

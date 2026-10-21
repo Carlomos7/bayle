@@ -204,8 +204,7 @@ def launch_profile_from_path(p: str | Path, loc: Locations) -> LaunchProfile | N
 
 def discover(remembered: str | None, loc: Locations):
     """loc's game's me3 profiles (+ the remembered one), and every installation of an overhaul with a config for the
-    game (data/overhauls) in its folder next to them or in the game folder (the overhaul is an Elden Ring mod
-    despite its name)."""
+    game (data/overhauls) in its folder next to them or in the game folder."""
     found, seen = [], set()
     places = [(o.recognise.folder, o.recognise.manifest) for o in overhauls.load(loc.game.key)]
 
@@ -227,7 +226,7 @@ def discover(remembered: str | None, loc: Locations):
                 add(launch_profile_from_installation(inst, loc))
     if not places:
         return found
-    # an edition may install into the game folder itself (the overhaul's Standalone: Launch.cmd next to eldenring.exe)
+    # an edition may install into the game folder itself (a Launch.cmd next to eldenring.exe)
     try:
         gd = loc.game_dir()
     except Exception:
@@ -307,7 +306,6 @@ def profile_saves(launch: LaunchProfile | None, game: games.Game | None = None) 
 
 PLAY_KEYS = (
     "play_update_merge",
-    "build_merges",
     "play_backup_before",
     "play_repair_after",
     "play_repair_after_eldenring",
@@ -326,7 +324,7 @@ FLAGS_SINCE = (0, 13, 0)  # --no-boot-boost / --show-logos / --diagnostics as us
 
 
 def launch_extra_args(opts: dict, version: str | None = None) -> list:
-    """me3 launch flags from the Play session options. A me3 older than 0.13 (a the overhaul bundle, say) gets none,
+    """me3 launch flags from the Play session options. A me3 older than 0.13 (one a mod bundles, say) gets none,
     so an unknown flag can never stop the launch; an unknown version is treated as current."""
     args = []
     if not opts.get("play_boot_boost", True):
@@ -561,19 +559,19 @@ def offline_profile_text(text: str, strip_overhaul: bool = False, coop_dll: str 
     mark = overhaul_mark() if strip_overhaul else None
     if mark:
 
-        def strip_rev(m):
+        def strip_marked(m):
             block = m.group(1)
             if not mark.search(block):
                 return block
             return _comment_block(block)
 
-        out = NATIVE_BLOCK_RE.sub(strip_rev, out)
-        out = PACKAGE_BLOCK_RE.sub(strip_rev, out)
+        out = NATIVE_BLOCK_RE.sub(strip_marked, out)
+        out = PACKAGE_BLOCK_RE.sub(strip_marked, out)
         out = _disable_objects_matching(out, mark)
     out = profile_tools.set_setting(out, "start_online", False)  # "Offline" must never go online
     note = "Seamless Co-op disabled."
     if strip_overhaul:
-        note += " the overhaul disabled."
+        note += " Overhaul disabled."
     return f"# OFFLINE COPY written by the launcher: {note} Regenerated on every offline launch.\n" + out
 
 

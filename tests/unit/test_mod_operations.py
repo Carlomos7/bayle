@@ -674,7 +674,7 @@ def test_renaming_makes_the_merged_build_stale_without_touching_its_record_and_n
     w.pack("params")
     merge.update_before_play(w.profile, lambda s: None, loc=er())
     assert merge.needs_update(w.profile, loc=er()) is None
-    record = w.base / "Merger" / "installation.json"
+    record = w.record
     kept = record.read_bytes()
     last = entry_index(w.profile, "last")
     pre = rename.preview(w.profile, last, "newest", loc=er())

@@ -19,7 +19,7 @@ from roundtable_souls.platform import trash
 
 ME3 = (
     'profileVersion = "v1"\r\n\r\n[[supports]]\r\ngame = "eldenring"\r\n\r\n'
-    "[[packages]]\r\nid = \"flora\"\r\npath = 'mod/flora'\r\n\r\n"
+    "[[packages]]\r\nid = \"flora\"\r\npath = 'packages/flora'\r\n\r\n"
     "[[packages]]\r\npath = 'builds/combined-parameters'\r\n"
 )
 OTHER = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
@@ -49,7 +49,8 @@ def records(*profiles: Path) -> dict:
 
 @pytest.fixture
 def world(tmp_path):
-    root = tmp_path / "profiles"
+    home = tmp_path / "profiles"
+    root = home / "roundtable" / "eldenring" / "profiles"
     a, b = root / "a" / "a.me3", root / "b" / "b.me3"
     lib = library.ProfileFolder.of(a)
     (lib.packages / "flora" / "parts").mkdir(parents=True)
@@ -61,12 +62,12 @@ def world(tmp_path):
     b.write_bytes(OTHER.encode())
     a.with_name("a.offline.me3").write_bytes(b"offline copy")
     library.ensure_state(library.state_of(a))
-    ps.update(a, overlay={"package": "mod/flora", "rebuild": None}, after_overlay=["flora"])
+    ps.update(a, overlay={"package": "packages/flora", "rebuild": None}, after_overlay=["flora"])
     ps.update(b, after_overlay=["x"])
     library.profile_backup(a).write_bytes(b"a bak")
     history.snapshot(a, "first")
     save_settings(setup=str(a), parameter_overlays={_key(a): {"package": "p"}, _key(b): {"package": "q"}})
-    loc = Locations(catalog.ELDEN_RING, Overrides(profiles_dir=str(root)))
+    loc = Locations(catalog.ELDEN_RING, Overrides(profiles_dir=str(home)))
     return loc, root, lib, a, b
 
 
@@ -80,7 +81,7 @@ def test_rename_then_undo_is_byte_exact(world):
     assert new.with_name("My Run.offline.me3").read_bytes() == b"offline copy"
     assert library.profile_backup(new).read_bytes() == b"a bak" and not library.profile_backup(a).exists()
     assert (new.parent / "builds" / "combined-parameters" / "build.json").is_file()  # the folder moved whole
-    assert (new.parent / "mod" / "flora" / "parts" / "f.dcx").read_bytes() == b"flora"
+    assert (new.parent / "packages" / "flora" / "parts" / "f.dcx").read_bytes() == b"flora"
     assert "builds/combined-parameters" in new.read_text()  # the relative entry still points inside it
     assert ps.load(new)["after_overlay"] == ["flora"] and ps.load(a) == {} and ps.load(b)["after_overlay"] == ["x"]
     s = load_settings()

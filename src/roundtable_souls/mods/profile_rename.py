@@ -115,7 +115,11 @@ def folder_move(profile: Path, new_name: str, loc: Locations) -> tuple[Path, Pat
     (a profile loose in a folder keeps its folder)."""
     profile = Path(profile)
     home = loc.me3_profiles_dir()
-    if home is None or not library.own_folder(profile) or _canon(profile.parent.parent) != _canon(home):
+    if (
+        home is None
+        or not library.own_folder(profile)
+        or _canon(profile.parent.parent) != _canon(library.profiles_root(home, loc.game.key))
+    ):
         return None
     return profile.parent, profile.parent.with_name(new_name)
 
@@ -499,7 +503,7 @@ def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[s
             else:
                 staged = own[1].with_name(f".{name}.copy-{op.id}")
                 staged.mkdir()
-                for sub_name in ("mod", "natives"):
+                for sub_name in ("packages", "mod", "natives"):
                     if (own[0] / sub_name).is_dir():
                         shutil.copytree(own[0] / sub_name, staged / sub_name)
                 (staged / (name + ".me3")).write_bytes(data)

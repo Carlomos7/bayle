@@ -142,10 +142,11 @@ def find_profiles(root: Path | None, game_key: str, unnamed_key: str) -> list[Pa
     profile that names no game in [[supports]] counts for unnamed_key."""
     if not root or not root.exists():
         return []
+    ours = root.glob(f"roundtable/{game_key}/profiles/*/*.me3")  # the launcher's own folders, deeper than the scan goes
     return sorted(
         (
             p
-            for p in _iter_me3_files(root)
+            for p in {*_iter_me3_files(root), *ours}
             if not p.name.endswith("-default.me3") and game_key in (profile_games(p) or (unnamed_key,))
         ),
         key=lambda p: (p.name.lower(), str(p).lower()),  # the Play list shows file names, so order by those

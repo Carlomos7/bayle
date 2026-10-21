@@ -65,6 +65,9 @@ def words() -> dict[str, str]:
         "working": tr("Working..."),
         "importInstead": tr("Import its profile instead..."),
         "overhaulOption": tr("Set up as an overhaul (loads last, merged with the mods before it)"),
+        "dllEarly": tr("Start before the game sets itself up"),
+        "dllAfter": tr("Load after the other DLLs"),
+        "dllInit": tr("Run a function when it loads"),
     }
 
 
@@ -86,6 +89,7 @@ class InstallDraft:
     after_last: bool = False
     overhaul: bool = False
     preview: dict | None = None  # {"lines", "notes", "refusals"} of the overhaul install, once worked out
+    natives: list[dict] = field(default_factory=list)  # the setup's DLLs as set (Basic natives), shown for review
     busy: bool = False  # a replan or preview is running
     problem: str = ""  # why the last edit could not be planned (the last good plan stays)
     library_choice: str = ""  # here | everywhere (a new version of a Shared mod); separate | share (identical copies)
@@ -467,6 +471,7 @@ class InstallDraft:
             "option": self._option_view(),
             "library": {"shown": False} if mode else self._library_view(),
             "overhaul": self._overhaul_preview(mode),
+            "natives": self.natives if mode == "setup" else [],
             "mode": mode,
             "profilesInside": bool(p.get("profiles_inside")),  # the download ships .me3 profiles: Import can take them
             "canInstall": self.can_install(),

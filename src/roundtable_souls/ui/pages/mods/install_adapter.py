@@ -42,6 +42,8 @@ class InstallAdapter(QObject):
         self._planned: tuple = ()  # (name, id, variant) the plan is for
         self._previewed: tuple = ()  # (mode, name, variant) the preview is for
         self._preview: Any = None  # the overhaul_install.InstallPreview the dialog shows
+        self._config: Any = None  # the setup's config as the player has set its DLLs; (name, variant) it is for:
+        self._config_for: tuple = ()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(200)
@@ -146,6 +148,7 @@ class InstallAdapter(QObject):
             _drop_staging(plan)
         else:
             self._draft = InstallDraft(plan, Path(profile), overhaul_on=overhaul_on)
+            self._config, self._config_for = None, ()
             self._planned = self._key()
             self._previewed = ()
             self._preview = None
@@ -224,6 +227,23 @@ class InstallAdapter(QObject):
             self._draft.overhaul = on
             self._changed(True)
 
+    @Slot(str, str, str)
+    def setNative(self, file: str, kind: str, value: str) -> None:
+        """A DLL option of the setup (kind early | after | init): the preview is worked out again with it."""
+        d, cfg = self._draft, self._config
+        if d is None or cfg is None or cfg.basic is None:
+            return
+        for n in d.natives:
+            if n["file"] == file:
+                n.update({"early": {"load_early": value == "true"}, "after": {"after_others": value == "true"},
+                          "init": {"initializer": value.strip() or None}}[kind])  # fmt: skip
+        from roundtable_souls.overhauls.config import BasicNative
+
+        basic = cfg.basic.model_copy(update={"natives": [BasicNative(**n) for n in d.natives]})
+        self._config = cfg.model_copy(update={"basic": basic})
+        self._previewed = ()
+        self._changed(True)
+
     def _refresh(self) -> None:
         """Plan again for the typed name, id and variant, and work out the overhaul preview when that option is on;
         in the background, the newest edit wins."""
@@ -233,6 +253,7 @@ class InstallAdapter(QObject):
         self._generation += 1
         gen, profile, loc, plan = self._generation, self.host.profile, self.host.locations, d.plan
         key, mode = self._key(), d.overhaul_mode
+        config_in = self._config if self._config_for == (key[0], key[2]) else None
         replan, preview = key != self._planned, bool(mode) and (mode, key[0], key[2]) != self._previewed
         if not (replan or preview):
             d.busy = False
@@ -257,7 +278,8 @@ class InstallAdapter(QObject):
                     if mode == "matched":
                         out["preview"] = mod_service.preview_overhaul_install(profile, cur["unpacked"], loc=loc)
                     else:
-                        config = mod_service.propose_overhaul_setup(cur["root"], key[0], loc=loc)
+                        config = config_in or mod_service.propose_overhaul_setup(cur["root"], key[0], loc=loc)
+                        out["config"] = config
                         out["preview"] = mod_service.preview_overhaul_setup(profile, cur["root"], config, loc=loc)
                 except Exception as e:  # not one the launcher can set up: the dialog says why
                     out["refusal"] = str(e)
@@ -284,6 +306,9 @@ class InstallAdapter(QObject):
                 else {"lines": [], "notes": [], "refusals": [out["refusal"]]}
             )
             self._previewed = (mode, key[0], key[2])
+            if out.get("config") is not None:
+                self._config, self._config_for = out["config"], (key[0], key[2])
+                d.natives = [n.model_dump() for n in out["config"].basic.natives]
         self.viewChanged.emit()
 
     # ---- ending

@@ -444,6 +444,54 @@ ModalDialog {
                 }
             }
         }
+        Column {  // the setup's DLLs: how each loads, set before installing
+            spacing: Theme.sp4
+            visible: (dlg.v.natives || []).length > 0
+            width: parent.width
+
+            Repeater {
+                model: dlg.v.natives || []
+
+                Column {
+                    id: dllCol
+
+                    required property var modelData
+
+                    spacing: Theme.sp4
+                    width: parent.width
+
+                    Txt {
+                        text: dllCol.modelData.file
+                        width: parent.width
+                    }
+                    CheckRow {
+                        checked: !!dllCol.modelData.load_early
+                        objectName: "installDllEarly"
+                        text: dlg.w.dllEarly
+
+                        onToggled: dlg.inst.setNative(dllCol.modelData.file, "early", checked ? "true" : "false")
+                    }
+                    CheckRow {
+                        checked: !!dllCol.modelData.after_others
+                        objectName: "installDllAfter"
+                        text: dlg.w.dllAfter
+
+                        onToggled: dlg.inst.setNative(dllCol.modelData.file, "after", checked ? "true" : "false")
+                    }
+                    Txt {
+                        kind: "hint"
+                        text: dlg.w.dllInit
+                    }
+                    TextBox {
+                        objectName: "installDllInit"
+                        text: dllCol.modelData.initializer || ""
+                        width: parent.width
+
+                        onEditingFinished: dlg.inst.setNative(dllCol.modelData.file, "init", text)
+                    }
+                }
+            }
+        }
         Txt {  // what will happen
             color: dlg.tone(dlg.v.noteLevel)
             elide: Text.ElideNone

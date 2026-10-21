@@ -26,6 +26,8 @@ equal what make() gives (its steps edited by hand) is at the advanced level.
 
 from __future__ import annotations
 
+import json
+import struct
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -145,9 +147,85 @@ def _mirrors(files: list[str], folders: set[str], root: str) -> tuple[dict[str, 
     return place, sorted(skip, key=str.lower)
 
 
-def propose(folder: Path, version: str | None = None, game: str = "eldenring") -> Basic:
+def _tables(blob: bytes, oodle) -> dict[str, set[int]]:
+    """Table file name -> its text ids, for a message binder (.msgbnd.dcx)."""
+    from roundtable_souls import formats
+
+    body, _ = formats.dcx.unpack(blob, oodle)
+    out = {}
+    for e in formats.bnd4.read_bnd4(body).entries:
+        try:
+            out[(e.name or "").replace("\\", "/").rsplit("/", 1)[-1]] = set(formats.fmg.read_fmg(e.data).entries)
+        except formats.FormatError, struct.error, IndexError:
+            continue  # not a text table
+    return out
+
+
+def _copies(files: list[str], folders: set[str], langs: set[str] | None = None) -> dict[str, dict[str, str]]:
+    """The game's copies of message binders a download carries outside the game folders (<anything>/msg/<language>/
+    X.msgbnd.dcx): binder name (lower case) -> language -> file. langs: only these languages."""
+    out: dict[str, dict[str, str]] = {}
+    for f in files:
+        parts = f.split("/")
+        low = [p.lower() for p in parts]
+        if not low[-1].endswith(MERGED_ENDING) or len(parts) < 4 or low[0] in folders or low[-3] != "msg":
+            continue
+        if langs is None or low[-2] in langs:
+            out.setdefault(low[-1], {})[low[-2]] = f
+    return out
+
+
+def text_tables(folder: Path, text: BasicText, folders: set[str], game_dir: Path | None = None) -> list[str]:
+    """The tables of the download's copy of the binder a texts entry sets strings in, sorted; empty when the download
+    has no copy or it can't be opened (the choice list of the form)."""
+    from roundtable_souls.game.oodle import find_oodle
+
+    langs = _copies(files_of(folder), folders).get(text.file.rsplit("/", 1)[-1].lower(), {})
+    if not langs:
+        return []
+    lang = "engus" if "engus" in langs else sorted(langs)[0]
+    try:
+        return sorted(_tables((folder / langs[lang]).read_bytes(), find_oodle(game_dir)), key=str.lower)
+    except Exception:  # noqa: BLE001  # shortcut: an unreadable copy means no choices, not an error
+        return []
+
+
+def propose_texts(folder: Path, files: list[str], folders: set[str], game_dir: Path | None = None) -> list[BasicText]:
+    """[[basic.texts]] for a download that ships the game's copies of a message binder (<anything>/msg/<language>/
+    X.msgbnd.dcx, outside the game folders) and <language>.json files of text ids to strings. The table is the one
+    of the copy holding most of the ids (more than half, and no other table as many); when none is that clear (new
+    ids, as a mod's own, are in none) it is left unset ("") for the player to choose. "*" is the engus.json (the
+    default for a language with no file of its own). Nothing when a file does not read or the copy can't be opened
+    (a compressed one needs the game's own Oodle library: game_dir)."""
+    from roundtable_souls.game.oodle import find_oodle
+
+    jsons = {Path(f).stem.lower(): f for f in files if f.lower().endswith(".json")}
+    out = []
+    for name, langs in sorted(_copies(files, folders, set(jsons)).items()):
+        lang = "engus" if "engus" in langs else sorted(langs)[0]
+        try:
+            raw = json.loads((folder / jsons[lang]).read_text(encoding="utf-8-sig"))
+            ids = {int(k) for k, v in raw.items() if isinstance(v, str)}
+            if not ids or len(ids) != len(raw):
+                continue
+            held = {
+                t: len(ids & have)
+                for t, have in _tables((folder / langs[lang]).read_bytes(), find_oodle(game_dir)).items()
+            }
+        except Exception:  # noqa: BLE001  # shortcut: any unreadable copy or JSON means no proposal, not an error
+            continue
+        ranked = sorted(held.items(), key=lambda kv: -kv[1])
+        clear = bool(ranked) and ranked[0][1] * 2 > len(ids) and (len(ranked) == 1 or ranked[1][1] < ranked[0][1])
+        texts = {k: jsons[k] for k in sorted(langs) if k in jsons and k != "engus"}
+        if "engus" in jsons:
+            texts["*"] = jsons["engus"]
+        out.append(BasicText(file=f"msg/{{each}}/{name}", table=ranked[0][0] if clear else "", texts=texts))
+    return out
+
+
+def propose(folder: Path, version: str | None = None, game: str = "eldenring", game_dir: Path | None = None) -> Basic:
     """The form's starting values for a mod folder: its top-level DLLs with no special options, loading after the
-    other DLLs; the settings files beside them kept on updates; a binder meant for a game path placed there (and the
+    other DLLs; the settings files beside them kept on updates; message texts (propose_texts); a binder meant for a game path placed there (and the
     folder of game copies it was matched in left out)."""
     folder = Path(folder)
     gc = game_config.load(game)
@@ -161,7 +239,15 @@ def propose(folder: Path, version: str | None = None, game: str = "eldenring") -
     regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
     folders = set(gc.mod_folders)
     place, skip = _mirrors(files, folders, package_root(files, folders, regulation))
-    return Basic(version=version, natives=[BasicNative(file=p.name) for p in dlls], keep=keep, place=place, skip=skip)
+    texts = propose_texts(folder, files, folders, game_dir)
+    return Basic(
+        version=version,
+        natives=[BasicNative(file=p.name) for p in dlls],
+        keep=keep,
+        place=place,
+        skip=skip,
+        texts=texts,
+    )
 
 
 def leaves(f: str, skip: list[str]) -> bool:
@@ -260,12 +346,14 @@ def make(
     reserved: Iterable[str] = (),
     notes: list[str] | None = None,
     root: str | None = None,
+    unset_tables: bool = False,
 ) -> OverhaulConfig:
     """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up or a
     file the form names is not in the folder. reserved: more folder names the launcher uses (the player's own names for
     the packages and natives folders, from the caller). Files and place entries naming a file a newer download dropped
     are left out of the result and said in notes (when given); DLLs and texts files that are gone raise. root: the
-    package root to use instead of the one found (level() tries the one older versions found)."""
+    package root to use instead of the one found (level() tries the one older versions found). A texts entry with no
+    table chosen raises, unless unset_tables (the form that asks for it: it is left out of the steps)."""
     if id.lower() in LAUNCHER_FOLDERS | {r.lower() for r in reserved} or id.startswith("."):
         raise ValueError(f"{id} is a name the launcher uses for its own folders; choose another.")
     gc = game_config.load(game)
@@ -275,6 +363,9 @@ def make(
     if root is None:
         root = package_root(everything, folders, regulation)
     have = {f.lower() for f in everything}
+    for t in basic.texts:
+        if not t.table and not unset_tables:
+            raise ValueError(f"Choose the table of {t.file} that the texts are set in.")
     stale = [n for n in (*basic.place, *basic.files) if n.lower() not in have]
     if stale:
         for n in stale:
@@ -318,7 +409,7 @@ def make(
         else _step(f, kind, act, regulation, root)
         for f, (kind, act) in acts.items()
         if f.lower() not in texts_from
-    ] + [_text(t) for t in basic.texts]
+    ] + [_text(t) for t in basic.texts if t.table]
     files = [f for f in acts if f.lower() not in texts_from]
     if not steps:
         raise ValueError("The mod's folder has no files to set up.")
@@ -373,6 +464,7 @@ def level(config: OverhaulConfig, folder: Path) -> str:
                 folder=folder,
                 short_label=config.short_label,
                 root=root,
+                unset_tables=True,
             )
         except ValueError:
             continue

@@ -440,6 +440,9 @@ def _codecs(game_dir: Path):
     return _oodle[key]
 
 
+MAX_TEXTS_BYTES = 16 << 20  # a texts JSON file larger than this is refused
+
+
 def _in(base: Path, rel) -> Path:
     """base / rel, which must stay inside base (a recipe comes from a config or a download: not trusted)."""
     path = base / str(rel)
@@ -490,8 +493,11 @@ def _launcher_step(
             report.append(line)
             log(f"  {line}")
             return None
+        path = _in(setup, named)
+        if path.stat().st_size > MAX_TEXTS_BYTES:
+            raise EngineError(f"{named} is larger than {MAX_TEXTS_BYTES >> 20} MB; it is not a list of texts.")
         try:
-            texts = {int(k): str(v) for k, v in json.loads(_in(setup, named).read_text(encoding="utf-8-sig")).items()}
+            texts = {int(k): str(v) for k, v in json.loads(path.read_text(encoding="utf-8-sig")).items()}
         except (ValueError, AttributeError) as e:
             raise EngineError(f"{named} is not a JSON object of text IDs to texts: {e}") from e
         body, how = formats.dcx.unpack(vanilla, dec)

@@ -319,6 +319,18 @@ def test_malformed_texts_stop_the_install_and_write_nothing(world):
     assert world.profile.read_bytes() == before and not (world.base / "revive").exists()
 
 
+def test_a_texts_file_that_is_too_big_stops_the_install(world, monkeypatch):
+    from roundtable_souls.mods import engine, overhaul_install
+
+    folder, config = texts_setup(world, {"*": "settings/en.json"})
+    before = world.profile.read_bytes()
+    monkeypatch.setattr(engine, "MAX_TEXTS_BYTES", 5)
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    with pytest.raises(Exception, match="larger than"):
+        overhaul_install.install_setup(p, loc=world.loc)
+    assert world.profile.read_bytes() == before
+
+
 def test_a_texts_file_the_mod_does_not_have_is_refused_and_the_form_keeps_the_texts(world):
     from roundtable_souls.overhauls.config import BasicText
     from roundtable_souls.services import mod_configs

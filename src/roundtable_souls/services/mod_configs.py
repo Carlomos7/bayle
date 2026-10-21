@@ -238,7 +238,10 @@ def file_rows(basic_config, folder, game: str) -> list[dict]:
     files = basic.files_of(folder)
     root = basic.package_root(files, folders, regulation)
     rows = []
+    texts_from = {v.lower() for t in basic_config.texts for v in t.texts.values()}  # used for texts, not a step
     for f in files:
+        if f.lower() in texts_from:
+            continue
         kind = basic.file_kind(f, folders, regulation, root)
         act = basic.action_of(f, kind, basic_config)
         rows.append(
@@ -253,14 +256,26 @@ def file_rows(basic_config, folder, game: str) -> list[dict]:
     return rows
 
 
-def overhaul_choices(setup: dict) -> dict:
-    """What the basic form offers: {natives: the DLLs as set, files: file_rows}. Empty lists without the mod's folder
-    (the launcher's copy of its download)."""
+def overhaul_choices(setup: dict, game_dir=None) -> dict:
+    """What the basic form offers: {natives: the DLLs as set, files: file_rows, texts: for each texts entry its
+    file, table as set and the tables of the download's copy of the binder}. Empty lists without the mod's folder
+    (the launcher's copy of its download). game_dir: the game's folder (a compressed copy is opened with its Oodle)."""
+    from roundtable_souls.game import config as game_config
+    from roundtable_souls.overhauls import basic
+
     config, folder = setup["config"], setup["folder"]
     b = config.basic
     if b is None or folder is None:
-        return {"natives": [], "files": []}
-    return {"natives": [n.model_dump() for n in b.natives], "files": file_rows(b, folder, config.game)}
+        return {"natives": [], "files": [], "texts": []}
+    folders = set(game_config.load(config.game).mod_folders)
+    texts = [
+        {"file": t.file, "table": t.table, "tables": basic.text_tables(folder, t, folders, game_dir)} for t in b.texts
+    ]
+    return {
+        "natives": [n.model_dump() for n in b.natives],
+        "files": file_rows(b, folder, config.game),
+        "texts": texts,
+    }
 
 
 def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str] | None:
@@ -272,22 +287,26 @@ def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str] |
     return {r["file"]: values[r["file"]] for r in rows if values.get(r["file"], r["choices"][0]) != r["choices"][0]}
 
 
-def with_basic(config, *, natives: list[dict], files: dict[str, str] | None):
+def with_basic(config, *, natives: list[dict], files: dict[str, str] | None, tables: dict[str, str] | None = None):
     """The config with the form's values (overhauls.config.Basic) in place of its basic part. The Files table
     replaces the older keep, not_merged, place and skip lists, which are folded into it; files None (no table was
     shown) keeps them and the saved files as they are."""
     from roundtable_souls.overhauls.config import Basic, BasicNative
 
     old = config.basic
+    texts = [t.model_copy(update={"table": (tables or {}).get(t.file) or t.table}) for t in old.texts] if old else []
+    for t in texts:
+        if not t.table:
+            raise ValueError(f"Choose the table of {t.file} that the texts are set in.")
     if files is None and old is not None:
         return config.model_copy(
-            update={"basic": old.model_copy(update={"natives": [BasicNative(**n) for n in natives]})}
+            update={"basic": old.model_copy(update={"natives": [BasicNative(**n) for n in natives], "texts": texts})}
         )
     new = Basic(
         version=old.version if old is not None else None,
         natives=[BasicNative(**n) for n in natives],
         files=files or {},
-        texts=old.texts if old is not None else [],
+        texts=texts,
     )
     return config.model_copy(update={"basic": new})
 

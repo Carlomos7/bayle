@@ -503,8 +503,9 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
         id=ident,
         label=name,
         game=game,
-        basic=basic.propose(Path(folder), game=game),
+        basic=basic.propose(Path(folder), game=game, game_dir=loc.game_dir()),
         folder=Path(folder),
+        unset_tables=True,
     )
 
 

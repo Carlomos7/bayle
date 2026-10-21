@@ -473,8 +473,8 @@ class InstallDraft:
             "option": self._option_view(),
             "library": {"shown": False} if mode else self._library_view(),
             "overhaul": self._overhaul_preview(mode),
-            "natives": self.natives if mode == "setup" else [],
-            "files": [self._file_view(r) for r in self.files] if mode == "setup" else [],
+            "natives": self.natives if mode else [],
+            "files": [self._file_view(r) for r in self.files] if mode else [],
             "mode": mode,
             "profilesInside": bool(p.get("profiles_inside")),  # the download ships .me3 profiles: Import can take them
             "canInstall": self.can_install(),

@@ -471,6 +471,14 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     )
 
 
+def setup_is_editable(config) -> bool:
+    """Whether a config is a setup made with the form (the DLL options and the Files table are the player's to
+    change), not a verified one that comes with the launcher."""
+    from roundtable_souls import overhauls
+
+    return config.basic is not None and not overhauls.verified(config.id)
+
+
 def setup_file_rows(config, folder) -> list[dict]:
     """The Files table of a setup in its starting state (services.mod_configs.file_rows)."""
     from roundtable_souls.services import mod_configs

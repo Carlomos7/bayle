@@ -388,3 +388,45 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
     package = next(p for p in after["packages"] if p.get("id") == "mixed-mod")
     native = next(n for n in after["natives"] if "MixedMod" in n["path"])
     assert package.get("enabled") is False and native.get("enabled") is False
+
+
+# ----------------------------------------------------------------------------- gap 4: a matched setup is pre-filled
+def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world):
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QCoreApplication
+    from test_overhaul_install import set_up
+
+    from roundtable_souls import overhauls
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.ui.pages.mods.install import InstallDraft
+    from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    folder, toml, _out = set_up(world)
+    config = overhauls.read(toml)
+    natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
+    config = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
+    toml.write_text(__import__("roundtable_souls.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")
+    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
+    assert plan.get("overhaul")
+    host = SimpleNamespace(
+        profile=world.profile,
+        locations=world.loc,
+        run_in_background=lambda work, done: done(work()),
+        run_job=lambda *a, **k: None,
+    )
+    adapter = InstallAdapter(host, SimpleNamespace())
+    draft = adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
+    assert draft.overhaul_mode == "matched"
+    adapter._planned = adapter._key()
+    adapter._refresh()
+    view = draft.view()
+    assert view["natives"][0]["initializer"] == "Boot"  # pre-filled from the saved setup
+    assert {"MixedMod.ini"} <= {r["file"] for r in view["files"]}
+    assert not adapter._via_setup
+    adapter.setNative("MixedMod.dll", "early", "true")
+    adapter._timer.stop()
+    adapter._refresh()
+    assert adapter._via_setup and adapter._preview.found.config.basic.natives[0].load_early is True
+    del app

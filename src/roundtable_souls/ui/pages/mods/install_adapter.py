@@ -44,6 +44,8 @@ class InstallAdapter(QObject):
         self._preview: Any = None  # the overhaul_install.InstallPreview the dialog shows
         self._config: Any = None  # the setup's config as the player has set its DLLs; (name, variant) it is for:
         self._config_for: tuple = ()
+        self._edited = False  # the player changed the DLL options or the Files table of a matched setup
+        self._via_setup = False  # so it is installed as a setup of its own (its config saved with the changes)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(200)
@@ -148,7 +150,7 @@ class InstallAdapter(QObject):
             _drop_staging(plan)
         else:
             self._draft = InstallDraft(plan, Path(profile), overhaul_on=overhaul_on)
-            self._config, self._config_for = None, ()
+            self._config, self._config_for, self._edited, self._via_setup = None, (), False, False
             self._planned = self._key()
             self._previewed = ()
             self._preview = None
@@ -241,7 +243,7 @@ class InstallAdapter(QObject):
 
         basic = cfg.basic.model_copy(update={"natives": [BasicNative(**n) for n in d.natives]})
         self._config = cfg.model_copy(update={"basic": basic})
-        self._previewed = ()
+        self._previewed, self._edited = (), True
         self._changed(True)
 
     @Slot(str, str)
@@ -259,7 +261,7 @@ class InstallAdapter(QObject):
         kept = {r["file"]: ("place:" + r["target"] if r["action"] == "place" else r["action"]) for r in d.files}
         stored = {f: a for f, a in kept.items() if a != next(r for r in d.files if r["file"] == f)["choices"][0]}
         self._config = cfg.model_copy(update={"basic": cfg.basic.model_copy(update={"files": stored})})
-        self._previewed = ()
+        self._previewed, self._edited = (), True
         self._changed(True)
 
     def _refresh(self) -> None:
@@ -272,6 +274,7 @@ class InstallAdapter(QObject):
         gen, profile, loc, plan = self._generation, self.host.profile, self.host.locations, d.plan
         key, mode = self._key(), d.overhaul_mode
         config_in = self._config if self._config_for == (key[0], key[2]) else None
+        edited = self._edited and config_in is not None
         replan, preview = key != self._planned, bool(mode) and (mode, key[0], key[2]) != self._previewed
         if not (replan or preview):
             d.busy = False
@@ -294,10 +297,19 @@ class InstallAdapter(QObject):
             if preview:
                 try:
                     if mode == "matched":
-                        out["preview"] = mod_service.preview_overhaul_install(profile, cur["unpacked"], loc=loc)
+                        pv = mod_service.preview_overhaul_install(profile, cur["unpacked"], loc=loc)
+                        saved = pv.found.config if mod_service.setup_is_editable(pv.found.config) else None
+                        out["preview"], out["folder"] = pv, pv.found.folder
+                        if saved is not None and edited:  # changed in the dialog: installed as a setup, config saved
+                            out["config"], out["fresh"], out["edited"] = config_in, False, True
+                            out["preview"] = mod_service.preview_overhaul_setup(
+                                profile, pv.found.folder, config_in, loc=loc
+                            )
+                        elif saved is not None:  # a saved setup: its options, ready to change
+                            out["config"], out["fresh"] = saved, True
                     else:
                         config = config_in or mod_service.propose_overhaul_setup(cur["root"], key[0], loc=loc)
-                        out["config"], out["fresh"] = config, config_in is None
+                        out["config"], out["fresh"], out["folder"] = config, config_in is None, cur["root"]
                         out["preview"] = mod_service.preview_overhaul_setup(profile, cur["root"], config, loc=loc)
                 except Exception as e:  # not one the launcher can set up: the dialog says why
                     out["refusal"] = str(e)
@@ -324,11 +336,12 @@ class InstallAdapter(QObject):
                 else {"lines": [], "notes": [], "refusals": [out["refusal"]]}
             )
             self._previewed = (mode, key[0], key[2])
+            self._via_setup = bool(out.get("edited"))
             if out.get("config") is not None:
                 self._config, self._config_for = out["config"], (key[0], key[2])
                 d.natives = [n.model_dump() for n in out["config"].basic.natives]
                 if not d.files or out.get("fresh"):
-                    d.files = mod_service.setup_file_rows(out["config"], d.plan["root"])
+                    d.files = mod_service.setup_file_rows(out["config"], out["folder"])
         self.viewChanged.emit()
 
     # ---- ending
@@ -343,6 +356,8 @@ class InstallAdapter(QObject):
             return False
         loc, mode, preview = self.host.locations, d.overhaul_mode, self._preview
         plan = d.finish()
+        if mode == "matched" and self._via_setup:
+            mode = "setup"
         self._draft, self._preview = None, None
         self.viewChanged.emit()
         if mode:

@@ -41,7 +41,7 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "tests/unit"]
 markers = ["integration: needs a real Elden Ring save on this PC (skipped otherwise)"]
 
 [tool.coverage.run]
@@ -77,9 +77,9 @@ reportAttributeAccessIssue = "warning"
 reportArgumentType = "warning"
 reportOptionalMemberAccess = "warning"
 reportOptionalSubscript = "warning"
-reportOptionalIterable = "warning"
+reportOptionalIterable = "error"
 reportGeneralTypeIssues = "warning"
-reportIndexIssue = "warning"
+reportIndexIssue = "error"
 reportCallIssue = "warning"
 reportOperatorIssue = "warning"
 

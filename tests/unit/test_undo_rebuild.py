@@ -98,7 +98,7 @@ def test_the_combine_keeps_its_earlier_outputs_and_undo_puts_one_back(tmp_path, 
         (base / "mod" / "a" / "regulation.bin").write_bytes(pack({"EquipParamWeapon": set_word(1000, 0, value)}))
         (base / "mod" / "b" / "regulation.bin").write_bytes(pack({"EquipParamWeapon": set_word(2000, 1, value)}))
         res = merge.rebuild(prof, lambda s: None, combine=True, loc=er())
-        outputs.append((base / "mod" / "combined-parameters" / "regulation.bin").read_bytes())
+        outputs.append((base / "builds" / "combined-parameters" / "regulation.bin").read_bytes())
         undos.append(res["undo"])
         time.sleep(1.1)  # kept copies are named by the second
     assert undos[0]["combined_before"] is None  # the first combine replaced nothing
@@ -106,7 +106,7 @@ def test_the_combine_keeps_its_earlier_outputs_and_undo_puts_one_back(tmp_path, 
     assert len(kept) == 2  # the newest HISTORY_KEEP
     said = undo.run(undos[-1], lambda s: None, loc=er())
     assert "the combined files" in said
-    assert (base / "mod" / "combined-parameters" / "regulation.bin").read_bytes() == outputs[-2]
+    assert (base / "builds" / "combined-parameters" / "regulation.bin").read_bytes() == outputs[-2]
 
 
 def test_old_tool_backups_go_to_the_recycle_bin_keeping_the_newest(tmp_path, monkeypatch):

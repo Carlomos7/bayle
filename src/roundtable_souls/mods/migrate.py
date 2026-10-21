@@ -330,20 +330,26 @@ def _rel(path: Path, root: Path) -> tuple[str, ...]:
         return ()
 
 
-def _rewrite(item: Item) -> bytes:
+def _rewrite(item: Item, src: Path | None = None, raw: bytes | None = None) -> bytes:
     """The profile text with every entry path as the new place needs it: a relative one stays relative, to the new
-    folder; one inside a moved folder follows it; others point where they did."""
-    w = ProfileWriter(item.old)
+    folder; one inside a moved folder follows it (an absolute one into the new folder turns relative); others point
+    where they did. src, raw: another file beside the profile (its offline copy) instead of the profile."""
+    src = item.old if src is None else src
+    raw = item.old_bytes if raw is None else raw
+    w = ProfileWriter(src)
     for e in w.entries():
         if not e["path"]:
             continue
-        target = Path(os.path.abspath(me3_profile.resolve(item.old, e["path"])))
+        target = Path(os.path.abspath(me3_profile.resolve(src, e["path"])))
         now = item.where(target)
-        new = str(now).replace("\\", "/") if Path(e["path"]).is_absolute() else _relpath(now, item.folder)
+        inside = _inside(now, item.folder)  # an absolute path into the profile's own folder becomes relative
+        new = (
+            str(now).replace("\\", "/") if Path(e["path"]).is_absolute() and not inside else _relpath(now, item.folder)
+        )
         if new != e["path"]:
             w.set_path(e["index"], new)
-    plan_ = w.plan(f"before moving {item.old.name}")
-    return plan_.bytes_to_write if w.text != item.old_bytes.decode("utf-8") else item.old_bytes
+    plan_ = w.plan(f"before moving {src.name}")
+    return plan_.bytes_to_write if w.text != raw.decode("utf-8") else raw
 
 
 def _relpath(target: Path, folder: Path) -> str:

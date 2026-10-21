@@ -629,13 +629,19 @@ def ensure_combined(profile: Path, target: dict | None, *, loc: Locations):
     writer = ProfileWriter(profile, loc)
     text = writer.as_blocks()
     if combine is None:
-        pk_root, _nt = mod_manage.roots(profile, text)
-        folder = pk_root / builtin.FOLDER
+        # A profile with its own folder keeps what the launcher builds in builds/; a loose one has no such place and
+        # keeps it among its packages. One already made in packages/ is left there: its entry still finds it.
+        mine = library.ProfileFolder.of(profile)
+        home = mine.builds if library.own_folder(profile) else mod_manage.roots(profile, text)[0]
+        folder = home / builtin.FOLDER
         n = 2
         while folder.exists() and not builtin.is_combined(folder):
-            folder = pk_root / f"{builtin.FOLDER}-{n}"
+            folder = home / f"{builtin.FOLDER}-{n}"
             n += 1
-        folder.mkdir(parents=True, exist_ok=True)
+        if library.own_folder(profile):
+            mine.ensure(folder)
+        else:
+            folder.mkdir(parents=True, exist_ok=True)
         if not (folder / builtin.RECORD).is_file():
             (folder / builtin.RECORD).write_text(json.dumps({"combined": 1, "packs": []}), encoding="utf-8")
         taken = {(e.get("id") or "").lower() for e in writer.entries() if e["kind"] == "package"}

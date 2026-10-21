@@ -49,7 +49,7 @@ def prof(tmp_path, monkeypatch):
 
 
 def _merged(prof) -> dict:
-    return files_of((prof.parent / "mod" / "combined-parameters" / REL).read_bytes())
+    return files_of((prof.parent / "builds" / "combined-parameters" / REL).read_bytes())
 
 
 def test_two_mods_shipping_one_file_are_offered_a_combine(prof):
@@ -67,7 +67,7 @@ def test_a_rebuild_merges_both_mods_changes_after_them(prof):
     }
     order = [l["name"] for l in merge.layers(prof)]
     assert order.index("combined-parameters") > order.index("marker")  # after the mods it merges
-    assert not (prof.parent / "mod" / "combined-parameters" / "regulation.bin").exists()  # no packs: no parameters
+    assert not (prof.parent / "builds" / "combined-parameters" / "regulation.bin").exists()  # no packs: no parameters
     assert (
         merge.health(prof, loc=er())["state"] in ("current", "single") and not merge.health(prof, loc=er())["reasons"]
     )
@@ -102,7 +102,7 @@ def test_a_file_no_longer_shared_is_dropped_from_the_combined_package(prof):
     os.remove(prof.parent / "mod/marker" / REL)
     assert any("no longer needs merging" in r for r in merge.health(prof, loc=er())["reasons"])
     merge.rebuild(prof, lambda s: None, loc=er())
-    assert not (prof.parent / "mod" / "combined-parameters" / REL).exists()
+    assert not (prof.parent / "builds" / "combined-parameters" / REL).exists()
 
 
 def test_undo_rebuild_puts_the_previous_merge_back(prof):
@@ -123,7 +123,7 @@ def test_a_file_the_launcher_cannot_merge_is_left_to_the_later_mod(prof, monkeyp
     merge.rebuild(prof, lambda s: None, combine=True, loc=er())
     rec = builtin.find(prof, merge.layers(prof), loc=er()).record()
     assert "nothing to compare" in rec["files"][REL.lower()]["skipped"]
-    assert not (prof.parent / "mod" / "combined-parameters" / REL).exists()
+    assert not (prof.parent / "builds" / "combined-parameters" / REL).exists()
     assert not merge.health(prof, loc=er())["reasons"]  # known and unchanged: not out of date
 
 
@@ -193,21 +193,21 @@ def test_removing_a_mod_and_rebuilding_equals_building_without_it(prof, tmp_path
     idx = next(e["index"] for e in manage.entries(prof) if e["name"] == "marker")
     remove.uninstall(prof, idx, loc=er())
     merge.rebuild(prof, lambda s: None, loc=er())
-    after_removal = (prof.parent / "mod" / "combined-parameters" / REL).read_bytes()
+    after_removal = (prof.parent / "builds" / "combined-parameters" / REL).read_bytes()
     assert files_of(after_removal) == {**GAME, "SB_KG.layout": b"ps5 buttons", "SB_Map.layout": b"big map"}
     # the same mods built from scratch in another profile: byte for byte the same file
-    fresh = tmp_path / "fresh"
+    fresh = tmp_path / "q"
     (fresh / "mod").mkdir(parents=True)
     for name in ("buttons", "map"):
         os.replace(prof.parent / "mod" / name, fresh / "mod" / name)
     (fresh / "mod" / "other").mkdir()
-    (fresh / "p.me3").write_text(
+    (fresh / "q.me3").write_text(
         "[[packages]]\nid = \"buttons\"\npath = 'mod/buttons'\n\n[[packages]]\nid = \"map\"\npath = 'mod/map'\n\n"
         "[[packages]]\nid = \"other\"\npath = 'mod/other'\n",
         encoding="utf-8",
     )
-    merge.rebuild(fresh / "p.me3", lambda s: None, loc=er())
-    assert (fresh / "mod" / "combined-parameters" / REL).read_bytes() == after_removal
+    merge.rebuild(fresh / "q.me3", lambda s: None, loc=er())
+    assert (fresh / "builds" / "combined-parameters" / REL).read_bytes() == after_removal
 
 
 def test_a_rebuild_without_room_on_the_drive_is_not_started(prof, monkeypatch):
@@ -232,3 +232,27 @@ def test_a_mod_lacking_the_games_inner_files_is_noted_in_the_log_and_the_record(
     assert any(line.strip() == f"notice: {REL}: {said}" for line in lines)
     rec = builtin.find(prof, merge.layers(prof), loc=er()).record()
     assert rec["files"][REL.lower()]["omissions"] == [{"path": REL, "notice": said}]
+
+
+def test_the_combined_package_goes_to_builds_and_one_already_in_packages_stays(prof):
+    merge.rebuild(prof, lambda s: None, loc=er())
+    assert "path = 'builds/combined-parameters'" in prof.read_text(encoding="utf-8")
+    assert not (prof.parent / "mod" / "combined-parameters").exists()
+    os.replace(prof.parent / "builds" / "combined-parameters", prof.parent / "mod" / "combined-parameters")
+    prof.write_text(
+        prof.read_text(encoding="utf-8").replace("builds/combined-parameters", "mod/combined-parameters"),
+        encoding="utf-8",
+    )
+    (prof.parent / "mod" / "marker" / REL).write_bytes(dcx(bnd({**GAME, "SB_Marker.layout": b"red marker"})))
+    merge.rebuild(prof, lambda s: None, loc=er())
+    assert (
+        files_of((prof.parent / "mod" / "combined-parameters" / REL).read_bytes())["SB_Marker.layout"] == b"red marker"
+    )
+    assert not (prof.parent / "builds" / "combined-parameters").exists()  # left where its entry points
+
+
+def test_a_loose_profile_keeps_the_combined_package_among_its_packages(prof):
+    loose = prof.parent / "loose.me3"
+    loose.write_bytes(prof.read_bytes())
+    merge.rebuild(loose, lambda s: None, loc=er())
+    assert (prof.parent / "mod" / "combined-parameters" / REL).is_file()

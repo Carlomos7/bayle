@@ -229,9 +229,10 @@ def recover(loc: Locations) -> list[str]:
     if home is None:
         return []
     profiles = library.profiles_root(home, loc.game.key)
+    said = build.adopt_legacy_ops(profiles)
     if not (profiles / build.OPS).is_dir():
-        return []
-    said = build.recover_operations(profiles, 30.0, build.OPS)
+        return said
+    said += build.recover_operations(profiles, 30.0, build.OPS)
     for op in build.active(profiles, build.OPS):
         if op.info.get("kind") == KIND and not op.info.get("state_done"):
             finish_state(op)

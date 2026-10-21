@@ -597,7 +597,7 @@ def _restored(entry: dict, item: Item) -> dict:
 def finish_pending(root: Path) -> list[str]:
     """Undo a migration that was interrupted, and finish the launcher's records of one that was done (see
     finish_state). Safe to run again."""
-    said = build.recover_operations(root, 30.0, build.OPS)
+    said = build.adopt_legacy_ops(Path(root)) + build.recover_operations(root, 30.0, build.OPS)
     for op in build.active(root, build.OPS):
         if op.info.get("kind") == KIND and not op.info.get("state_done"):
             finish_state(op)

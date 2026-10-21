@@ -135,11 +135,13 @@ def _inventory(folders: list[Path]) -> dict[str, int]:
 
 
 def _unfinished(root: Path, folders: list[Path]) -> str | None:
+    build.adopt_legacy_ops(ops_root())
     if build.pending(ops_root()):
         return "a move of the profiles folders is not finished"
     from roundtable_souls.mods import library
 
     for g in folders:
+        build.adopt_legacy_ops(g)
         if build.pending(g, build.OPS):  # a move, rename, split or Shared change journaled in the game folder
             return f"a change to the profiles in {g.name} is not finished"
         for p in profile_dirs(g):
@@ -402,13 +404,14 @@ def finish_pending() -> list[str]:
     """Undo an operation that was interrupted before its commit (and clean up what it staged), finish one that was
     committed but not finished. Safe to run again."""
     root = ops_root()
+    adopted = build.adopt_legacy_ops(root)
     base = root / build.OPS
     staged = []
     if base.is_dir():
         for d in base.iterdir():
             if d.is_dir() and build._state(d) in (build.PREPARED, build.ACTIVATING):
                 staged.append(build.Operation.load(d).info)
-    said = build.recover_operations(root)
+    said = adopted + build.recover_operations(root)
     for info in staged:
         _drop(
             Path(info["stage"]) if info.get("stage") else None,

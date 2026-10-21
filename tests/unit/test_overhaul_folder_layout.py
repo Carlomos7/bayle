@@ -131,3 +131,65 @@ def test_move_in_copies_what_a_sibling_profile_also_uses(home):
     assert plan.ok and any(u.src.name == "mod" and u.src.parent.name == "Revive" for u in plan.copied)
     move_in.apply(plan, loc=loc_of(home))
     assert (plain / "Revive" / "mod" / "m.dcx").is_file()  # b still has it
+
+
+def launcher_installed(profile: Path) -> None:
+    """The records a launcher install leaves: the overhaul's manifest and builds/<id>/ naming the original by path."""
+    import json
+
+    root = profile.parent
+    sha = "0" * 64
+    manifest = {
+        "installedBy": "x",
+        "profile": str(profile),
+        "maintenance": str(root / "builds" / "ex" / "sources"),
+        "sources": [{"path": str(profile), "sha256": sha}, {"path": "D:/elsewhere/file", "sha256": sha}],
+    }
+    (root / "Revive" / "overhaul.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (root / "builds" / "ex" / "sources" / "merge").mkdir(parents=True)
+    (root / "builds" / "ex" / "sources" / "merge" / "f.dcx").write_bytes(b"f")
+    (root / "builds" / "ex" / "overhaul").mkdir(parents=True)
+    (root / "builds" / "ex" / "overhaul" / "roundtable.json").write_text(
+        json.dumps({"profile": str(profile), "n": 1}), encoding="utf-8"
+    )
+
+
+def test_duplicate_of_a_launcher_installed_overhaul_copies_builds_and_remaps_records(home):
+    import json
+
+    p = make(home / "b-eldenring" / "p")
+    launcher_installed(p)
+    out = profile_rename.duplicate(p, loc=loc_of(home), name="q")
+    copy = Path(out["profile"])
+    root = copy.parent
+    assert (root / "builds" / "ex" / "sources" / "merge" / "f.dcx").is_file()
+    manifest = json.loads((root / "Revive" / "overhaul.json").read_text(encoding="utf-8"))
+    assert manifest["profile"] == str(copy) and manifest["maintenance"].startswith(str(root))
+    assert manifest["sources"][0]["path"] == str(copy) and manifest["sources"][0]["sha256"] != "0" * 64
+    assert manifest["sources"][1]["path"] == "D:/elsewhere/file"
+    rec = json.loads((root / "builds" / "ex" / "overhaul" / "roundtable.json").read_text(encoding="utf-8"))
+    assert rec["profile"] == str(copy)
+    original = json.loads((p.parent / "Revive" / "overhaul.json").read_text(encoding="utf-8"))
+    assert original["profile"] == str(p)  # the original is untouched
+
+
+def test_duplicate_refuses_a_record_it_cannot_read_and_leaves_nothing(home):
+    p = make(home / "b-eldenring" / "p")
+    launcher_installed(p)
+    (p.parent / "builds" / "ex" / "overhaul" / "roundtable.json").write_text("{nope", encoding="utf-8")
+    with pytest.raises(profile_rename.ProfileRenameError, match="roundtable.json"):
+        profile_rename.duplicate(p, loc=loc_of(home), name="q")
+    assert not (p.parent.parent / "q").exists() and not list(p.parent.parent.glob(".q.copy-*"))
+
+
+def test_custom_names_are_reserved_and_split_by_the_settings_names(home, monkeypatch):
+    from roundtable_souls.mods import folder_split, naming
+
+    monkeypatch.setattr(
+        settings,
+        "load_settings",
+        lambda: settings.LauncherSettings(packages_folder="Mods", natives_folder="Dlls"),
+    )
+    assert {"mods", "dlls", "packages"} <= naming.reserved()
+    assert naming.unique("mods", []) == "mods-2"
+    assert folder_split.mods_folders() == ("mod", "Mods", "Dlls") and folder_split.renamed("mod") == "Mods"

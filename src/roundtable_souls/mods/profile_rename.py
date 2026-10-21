@@ -96,7 +96,7 @@ def name_problem(profile: Path, name: str) -> str | None:
         return "That is already its name."
     if (why := naming.unsafe(name)) is not None:
         return f"{name} can't be used: {why}."
-    if name.lower() in naming.RESERVED or name.lower().endswith(GENERATED):
+    if name.lower() in naming.reserved() or name.lower().endswith(GENERATED):
         return f"{name} is a name the launcher or me3 uses itself."
     target = profile.with_name(name + ".me3")
     if library.own_folder(profile) and name.lower() != profile.stem.lower():
@@ -521,9 +521,7 @@ def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[s
         raise ProfileRenameError(why)
     own = folder_move(profile, name, loc)
     mine = library.ProfileFolder.of(profile)
-    if mine.builds.is_dir() and any(
-        mine.builds.iterdir()
-    ):  # shortcut: a copy would share them; copying them comes later
+    if own is None and mine.builds.is_dir() and any(mine.builds.iterdir()):  # a loose profile's builds stay shared
         raise ProfileRenameError(
             f"{profile.stem} has build folders of its own (Combine, an overhaul), so it can't be duplicated yet."
         )
@@ -540,13 +538,18 @@ def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[s
             else:
                 staged = own[1].with_name(f".{name}.copy-{op.id}")
                 staged.mkdir()
-                for sub_name in library.copied_folders(profile):  # incl. an overhaul's own folder
+                for sub_name in [*library.copied_folders(profile), "builds"]:  # incl. an overhaul's own folder
                     if (own[0] / sub_name).is_dir():
                         shutil.copytree(own[0] / sub_name, staged / sub_name)
                 item = migrate.Item(profile, name, own[1], own[1], units=[migrate.Unit(own[0], ".", [profile.stem])])
                 item.old_bytes = data
                 data = migrate._rewrite(item)  # an absolute entry path into the folder follows the copy
                 (staged / (name + ".me3")).write_bytes(data)
+                try:
+                    _remap_records(staged, own[0], own[1], profile, own[1] / (name + ".me3"), data)
+                except ProfileRenameError:
+                    shutil.rmtree(staged, ignore_errors=True)
+                    raise
                 op.replace_folder(own[1], staged)
             op.note(
                 kind="profile-duplicate",
@@ -565,6 +568,48 @@ def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[s
             raise ProfileRenameError(str(e)) from e
     log(f"duplicated profile {profile.stem} as {name}")
     return {"operation": str(op.dir), "profile": str(new), "name": name}
+
+
+def _remap_records(staged: Path, old: Path, new: Path, old_profile: Path, new_profile: Path, data: bytes) -> None:
+    """The copied folders' JSON records (an overhaul's manifest, builds/<id>/ records) name the original's files by
+    absolute path: those inside the original profile folder now name the copy, and the profile's own hash row follows
+    the copy's text. A record that can't be read is refused by name, as nothing says what it holds."""
+    base = os.path.normcase(os.path.abspath(old))
+    sha = _sha(data)
+
+    def fix(s: str) -> str:
+        norm = os.path.normcase(os.path.abspath(s)) if s and os.path.isabs(s) else ""
+        if norm != base and not norm.startswith(base + os.sep):
+            return s
+        out = new / os.path.relpath(os.path.abspath(s), os.path.abspath(old))
+        if os.path.normcase(os.path.abspath(s)) == os.path.normcase(os.path.abspath(old_profile)):
+            out = new_profile  # the profile file itself is called after the copy now
+        return out.as_posix() if "\\" not in s else str(out)
+
+    def walk(v):
+        if isinstance(v, str):
+            return fix(v)
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, dict):
+            out = {k: walk(x) for k, x in v.items()}
+            if isinstance(out.get("path"), str) and os.path.normcase(os.path.abspath(out["path"])) == os.path.normcase(
+                os.path.abspath(new_profile)
+            ):
+                out["sha256"] = sha
+            return out
+        return v
+
+    for f in sorted(staged.rglob("*.json")):
+        try:
+            record = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            raise ProfileRenameError(
+                f"{f.relative_to(staged).as_posix()} could not be read ({e}), so the profile can't be copied with it."
+            ) from e
+        fixed = walk(record)
+        if fixed != record:
+            f.write_text(json.dumps(fixed, indent=2), encoding="utf-8", newline="\n")
 
 
 def undo_duplicate(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> str:

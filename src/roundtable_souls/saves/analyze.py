@@ -426,7 +426,7 @@ def findings_are_clean(findings: list[dict], *, allow_warn: bool = False) -> boo
 def format_health_report(info: dict) -> str:
     """Plain-text report for the clipboard."""
     lines = [
-        "Roundtable Souls save report",
+        "Bayle save report",
         f"File: {info.get('name', '?')}  ({info.get('kind', '?')})",
         f"Path: {info.get('path', '?')}",
         f"Modified: {info.get('modified', '?')}",

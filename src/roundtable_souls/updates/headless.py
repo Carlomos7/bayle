@@ -22,7 +22,7 @@ def update_headless(restart_args: list[str], log=None, start_log=None) -> int:
     else:
         run_logging.start_log("launcher: update (no window)", catalog.DEFAULT.key)
     if instance.held(instance.WINDOW):
-        log("error: Roundtable Souls is open; use Update now there, or close it first")
+        log("error: Bayle is open; use Update now there, or close it first")
         return 1
     why = apply.busy_reason()
     if why:
@@ -36,7 +36,7 @@ def update_headless(restart_args: list[str], log=None, start_log=None) -> int:
         log(f"{check.blocked} failed to start here and was undone; it is not installed again")
         return 3
     if not check.offer:
-        log(f"Roundtable Souls {__version__} is the latest release")
+        log(f"Bayle {__version__} is the latest release")
         return 0
     if not apply.can_self_update(check.offer):
         log(f"error: {check.offer['version']} cannot be installed by this copy; get it from {feed.RELEASES_URL}")

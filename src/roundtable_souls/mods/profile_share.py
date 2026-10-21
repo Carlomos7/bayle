@@ -143,7 +143,7 @@ def parse(raw: bytes | str, game_key: str) -> Share:
     except (ValueError, UnicodeDecodeError) as e:
         raise ShareError("That file is not a profile file (it is not valid JSON).") from e
     if not isinstance(doc, dict) or doc.get("format") != FORMAT:
-        raise ShareError("That file is not a Roundtable Souls profile.")
+        raise ShareError("That file is not a Bayle profile.")
     version = doc.get("version")
     if isinstance(version, bool) or version != VERSION:
         raise ShareError(f"That profile file is version {version!r}; this launcher reads version {VERSION}.")

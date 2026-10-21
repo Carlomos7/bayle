@@ -47,7 +47,7 @@ def test_refuses_while_the_window_is_open(steps, monkeypatch):
     monkeypatch.setattr(instance, "held", lambda name: True)
     assert run(steps) == 1
     assert steps.applied == []
-    assert "Roundtable Souls is open" in steps.lines[0]
+    assert "Bayle is open" in steps.lines[0]
 
 
 def test_stops_when_another_update_is_busy(steps, monkeypatch):

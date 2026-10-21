@@ -181,7 +181,7 @@ def migrate_from_inno(
         return None
     if inno is not None:
         if running(inno.exe):
-            record.update(status="waiting", reason="The old Roundtable Souls is still open; close it.")
+            record.update(status="waiting", reason="The old Bayle is still open; close it.")
             save_settings(inno_migration=record)
             return record
         links = shortcuts()
@@ -233,7 +233,7 @@ def finish_steam_step(target: Path | None = None) -> list[steam_shortcuts.Shortc
 def point_play_shortcuts_here(
     target: Path | None = None, running: bool | None = None
 ) -> list[steam_shortcuts.Shortcut]:
-    """Settings > Steam shortcut: every Steam shortcut that runs a Roundtable Souls program with --play, wherever
+    """Settings > Steam shortcut: every Steam shortcut that runs a Bayle program with --play, wherever
     that program was, now starts this copy."""
     target = target or launch_target()
     name = identity.get().exe_name
@@ -248,7 +248,7 @@ def point_play_shortcuts_here(
 
 
 def play_shortcuts_elsewhere(target: Path | None = None) -> list[steam_shortcuts.Shortcut]:
-    """Steam shortcuts with --play that start a Roundtable Souls program other than this copy."""
+    """Steam shortcuts with --play that start a Bayle program other than this copy."""
     target = target or launch_target()
     name = identity.get().exe_name
     names = (f"{name}.exe", name, identity.get().stub_name, target.name)

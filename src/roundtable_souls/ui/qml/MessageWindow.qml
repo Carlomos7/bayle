@@ -32,7 +32,7 @@ ApplicationWindow {
     maximumWidth: width
     minimumHeight: height
     minimumWidth: width
-    title: "Roundtable Souls"
+    title: "Bayle Mod Manager"
     width: 460
 
     Component.onCompleted: AppState.setThemeMode("dark")

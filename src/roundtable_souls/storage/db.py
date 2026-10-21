@@ -166,7 +166,7 @@ def read_revision(path: Path) -> str | None:
             ) from e
         raise StorageUnavailable(
             f"{path} is not a readable database ({e}). It was left as it is and storage is off; moving it aside "
-            "lets Roundtable Souls start a new one",
+            "lets Bayle start a new one",
             "damaged",
         ) from e
 
@@ -317,7 +317,7 @@ def open_database(data_dir: Path, wait: float = LOCK_WAIT, log: Callable[[str], 
     def refuse_newer(rev: str | None) -> None:
         if rev is not None and rev not in known:
             raise StorageUnavailable(
-                f"The database is at schema {rev}, newer than this version of Roundtable Souls knows; it was left "
+                f"The database is at schema {rev}, newer than this version of Bayle knows; it was left "
                 "as it is and storage is off for this run",
                 "newer-schema",
             )
@@ -333,7 +333,7 @@ def open_database(data_dir: Path, wait: float = LOCK_WAIT, log: Callable[[str], 
     if current != head:
         if not take(True):
             raise StorageUnavailable(
-                "Other Roundtable Souls windows or Plays have the database open, so its update for this version "
+                "Other Bayle windows or Plays have the database open, so its update for this version "
                 "waits until they close; storage is off for this run",
                 "busy",
             )
@@ -345,9 +345,7 @@ def open_database(data_dir: Path, wait: float = LOCK_WAIT, log: Callable[[str], 
         finally:
             lock.release()
     if not take(False):
-        raise StorageUnavailable(
-            "Another Roundtable Souls is updating the database; storage is off for this run", "busy"
-        )
+        raise StorageUnavailable("Another Bayle is updating the database; storage is off for this run", "busy")
     try:
         current = read_revision(path)
         refuse_newer(current)

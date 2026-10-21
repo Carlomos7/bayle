@@ -196,7 +196,7 @@ def library_lock(save_dir: Path) -> Iterator[None]:
     if save_backups.holding_account_lock():
         raise LockOrderError("The save library's lock is taken before a backups lock, never inside one.")
     folder = folder_for(save_dir)
-    message = f"Another Roundtable Souls window or Play is changing the save library ({folder}). Try again."
+    message = f"Another Bayle window or Play is changing the save library ({folder}). Try again."
     with filelock.exclusive(folder, save_backups.LOCK_TIMEOUT, lambda: LibraryBusy(message)):
         yield
 

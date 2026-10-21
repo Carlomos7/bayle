@@ -1,4 +1,4 @@
-"""Move into Roundtable's folder (mods.move_in) moves players' files: the safety tests. Temporary folders only."""
+"""Move into Bayle's folder (mods.move_in) moves players' files: the safety tests. Temporary folders only."""
 
 from __future__ import annotations
 
@@ -196,7 +196,7 @@ def test_undo_is_byte_identical_and_refuses_after_edits(world):
 
 def test_the_confirm_words():
     title, changes, safety, apply = ModsPresenter().move_in_confirm("a", "eldenring-mods", 2, 1)
-    assert title == "Move a into Roundtable's folder?"
+    assert title == "Move a into Bayle's folder?"
     assert changes == ("2 mods move, 1 are copied because other profiles in eldenring-mods use them.",)
     assert (safety, apply) == ("Undo in Activity.", "Move")
     assert ModsPresenter().move_in_confirm("a", "f", 3, 0)[1] == ("3 mods move.",)

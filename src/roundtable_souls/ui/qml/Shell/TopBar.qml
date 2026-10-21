@@ -122,7 +122,7 @@ Item {
             color: Theme.textSecondary
             horizontalAlignment: Text.AlignHCenter
             kind: "caption"
-            text: qsTr("Roundtable Souls %1").arg(root.shell.version)
+            text: qsTr("Bayle Mod Manager %1").arg(root.shell.version)
             width: Math.min(implicitWidth, Math.max(0, room))
             x: Math.max(menus.x + menus.width + Theme.sp12, Math.min((parent.width - width) / 2, captionButtons.x - Theme.sp12 - width))
         }

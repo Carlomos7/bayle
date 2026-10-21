@@ -77,7 +77,7 @@ def _read(file: Path) -> dict:
     except ValueError as e:
         raise Unreadable(f"{file.name} is not valid JSON ({e}); it is left as it is") from e
     if not isinstance(data, dict) or not isinstance(data.get("profiles", {}), dict):
-        raise Unreadable(f"{file.name} is not a Roundtable Souls settings file; it is left as it is")
+        raise Unreadable(f"{file.name} is not a Bayle settings file; it is left as it is")
     return data
 
 

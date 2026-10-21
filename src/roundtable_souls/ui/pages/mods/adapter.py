@@ -1457,7 +1457,7 @@ class ModsAdapter(QObject):
             copy(False)
 
     def profile_outside(self) -> bool:
-        """The profile is not in Roundtable's folder, so the menu offers Move into Roundtable's folder."""
+        """The profile is not in Bayle's folder, so the menu offers Move into Bayle's folder."""
         profile = self.host.profile
         return (
             profile is not None
@@ -1467,7 +1467,7 @@ class ModsAdapter(QObject):
 
     @Slot()
     def moveIntoLauncherFolder(self) -> None:
-        """Ask, then move the profile into Roundtable's folder as a logged job (its Undo is in Activity)."""
+        """Ask, then move the profile into Bayle's folder as a logged job (its Undo is in Activity)."""
         profile = self.host.profile
         block = self.profileRenameBlock()
         if block or profile is None:
@@ -1484,7 +1484,7 @@ class ModsAdapter(QObject):
             if ok:
 
                 def job(_launch, loc):
-                    run_logging.start_log(f"launcher: move profile {old.stem} into Roundtable's folder", loc.game.key)
+                    run_logging.start_log(f"launcher: move profile {old.stem} into Bayle's folder", loc.game.key)
                     mod_service.move_into_launcher_folder(loc, old)
 
                 self.host.run_job(job, tr("Moving {name}...").format(name=old.stem))

@@ -154,7 +154,7 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "check_me3_updates",
             tr("Check for me3 updates"),
             tr("Once a day, from me3's GitHub releases. A notice only; nothing is installed."),
-            tr("Roundtable Souls never replaces me3 itself: a mod that bundles its own copy keeps it."),
+            tr("Bayle never replaces me3 itself: a mod that bundles its own copy keeps it."),
             "me3",
         ),
         SwitchSpec(
@@ -474,9 +474,7 @@ def migration_notice(record: dict | None) -> UpdateNotice | None:
         return None
     status = record.get("status")
     if status == "waiting":
-        return UpdateNotice(
-            "migration", "warning", tr("The old Roundtable Souls is still open"), record.get("reason", "")
-        )
+        return UpdateNotice("migration", "warning", tr("The old Bayle is still open"), record.get("reason", ""))
     if status == "failed":
         return UpdateNotice("migration", "error", tr("The old install could not be removed"), record.get("reason", ""))
     if status in ("done", "steam_pending"):
@@ -510,3 +508,89 @@ def data_location() -> str:
 def licence_url(file: str) -> str:
     """A licence file on GitHub at the tag of the running version (D8)."""
     return f"{GITHUB_BLOB}/v{VERSION}/{file}"
+
+
+# ----------------------------------------------------------------------------- where profiles live, and what folders are called
+_SYNC = ("onedrive", "dropbox", "google drive", "googledrive", "icloud", "box sync")
+LONG_PATH = 200  # a profile's files add roughly 60 more; Windows stops at 260
+
+
+_FIELD_KEY = {
+    "pattern": "game_folder_pattern",
+    "packages": "packages_folder",
+    "natives": "natives_folder",
+    "shared": "shared_folder",
+}
+
+
+def name_errors(draft: dict[str, str]) -> dict[str, str]:
+    """Folder names fields (pattern, packages, natives, shared) -> the sentence under each unusable one."""
+    from roundtable_souls.config import settings as cs
+
+    found = cs.layout_problems(**{k: draft[k] for k in _FIELD_KEY if k in draft})
+    return {f: tr(found[k]) for f, k in _FIELD_KEY.items() if k in found}
+
+
+def game_preview(pattern: str, game_key: str = "eldenring") -> str:
+    """The live preview under the Game folder field: the folder a game would get ("b-eldenring")."""
+    return pattern.replace("{game}", game_key) if pattern.count("{game}") == 1 else ""
+
+
+def path_warnings(path: str, size: int, free: int | None) -> list[str]:
+    """Cautions for a new profiles folder: a cloud-synced folder, too little free space, a path that is too long."""
+    out = []
+    low = path.lower().replace("\\", "/")
+    if any(s in low for s in _SYNC):
+        out.append(
+            tr("This folder looks synced by OneDrive, Dropbox or Google Drive. Syncing can lock or damage mods.")
+        )
+    if free is not None and free < size * 1.1:
+        out.append(
+            tr("There is not enough free space: {need} needed, {have} free.").format(
+                need=size_text(size), have=size_text(free)
+            )
+        )
+    if len(path) > LONG_PATH:
+        out.append(tr("This path is very long. Some mod files may not fit."))
+    return out
+
+
+def size_text(size: int) -> str:
+    n = float(size)
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return ""
+
+
+def relocate_confirm(path: str, profiles: int, size: int, free: int | None) -> tuple[str, tuple[str, ...], str, str]:
+    """(title, changes, safety, apply) of the Profiles folder > Change confirm."""
+    count = tr("1 profile, {size}.") if profiles == 1 else tr("{n} profiles, {size}.")
+    return (
+        tr("Move your profiles and mods to {path}?").format(path=path),
+        (count.format(n=profiles, size=size_text(size)), *path_warnings(path, size, free)),
+        tr("Undo in Activity."),
+        tr("Move"),
+    )
+
+
+def rename_confirm(changes: dict[str, tuple[str, str]]) -> tuple[str, tuple[str, ...], str, str]:
+    """changes: label -> (old, new). The confirm of Folder names > Apply."""
+    return (
+        tr("Rename folders?"),
+        tuple(tr("{label}: {old} becomes {new}.").format(label=k, old=o, new=n) for k, (o, n) in changes.items()),
+        tr("Undo in Activity."),
+        tr("Rename"),
+    )
+
+
+def move_all_confirm(names: list[str]) -> tuple[str, tuple[str, ...], str, str]:
+    shown = ", ".join(names[:8]) + (tr(" and {n} more").format(n=len(names) - 8) if len(names) > 8 else "")
+    count = tr("1 profile moves: {names}.") if len(names) == 1 else tr("{n} profiles move: {names}.")
+    return (
+        tr("Move all profiles into Bayle's folder?"),
+        (count.format(n=len(names), names=shown),),
+        tr("Undo in Activity."),
+        tr("Move all"),
+    )

@@ -140,8 +140,10 @@ def _unfinished(root: Path, folders: list[Path]) -> str | None:
     from roundtable_souls.mods import library
 
     for g in folders:
+        if build.pending(g, build.OPS):  # a move, rename, split or Shared change journaled in the game folder
+            return f"a change to the profiles in {g.name} is not finished"
         for p in profile_dirs(g):
-            for state in (library.STATE, ".bayle"):
+            for state in (library.STATE, library.LEGACY_STATE):
                 if build.pending(p, f"{state}/{library.OPS}"):
                     return f"a change to the profile {p.name} is not finished"
     return None

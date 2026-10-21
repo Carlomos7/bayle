@@ -115,6 +115,10 @@ PageScroll {
         }
     }
     SettingsSection {
+        id: locations
+
+        property bool showMore: false
+
         iconName: "Folder"
         title: page.words.locations
 
@@ -133,6 +137,129 @@ PageScroll {
                 rowKey: model.key
                 title: model.title
                 value: model.value
+            }
+        }
+        FormRow {
+            help: page.words.profilesFolderHelp
+            objectName: "profilesFolderRow"
+            title: page.words.profilesFolder
+
+            Row {
+                spacing: Theme.gapInline
+
+                Txt {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.textSecondary
+                    elide: Text.ElideMiddle
+                    kind: "caption"
+                    text: page.adapter.profilesRoot
+                    width: Theme.inputW
+                }
+                GhostButton {
+                    icon_: "Folder"
+                    implicitHeight: Theme.controlH
+                    text: page.words.openFolder
+
+                    onClicked: page.adapter.openFolder("profiles")
+                }
+                GhostButton {
+                    enabled: !page.adapter.moving
+                    implicitHeight: Theme.controlH
+                    objectName: "changeProfilesFolder"
+                    text: page.words.change
+
+                    onClicked: page.adapter.changeProfilesFolder()
+                }
+                GhostButton {
+                    implicitHeight: Theme.controlH
+                    objectName: "cancelMove"
+                    text: page.words.cancel
+                    visible: page.adapter.moving
+
+                    onClicked: page.adapter.cancelMove()
+                }
+            }
+        }
+        FormRow {
+            help: page.words.moveAllTip
+            title: page.words.otherProfiles
+
+            GhostButton {
+                enabled: !page.adapter.moving
+                implicitHeight: Theme.controlH
+                objectName: "moveAll"
+                text: page.words.moveAll
+
+                onClicked: page.adapter.moveAll()
+            }
+        }
+        FormRow {
+            objectName: "moreFolderNames"
+            title: page.words.more
+
+            GhostButton {
+                icon_: locations.showMore ? "ChevronDown" : "ChevronRight"
+                implicitHeight: Theme.controlH
+                objectName: "moreButton"
+                text: page.words.folderNames
+
+                onClicked: {
+                    locations.showMore = !locations.showMore;
+                    locations.relayout();
+                }
+            }
+        }
+        Repeater {
+            model: [
+                {
+                    "field": "pattern",
+                    "title": page.words.gameFolder
+                },
+                {
+                    "field": "packages",
+                    "title": page.words.gameFiles
+                },
+                {
+                    "field": "natives",
+                    "title": page.words.dllMods
+                },
+                {
+                    "field": "shared",
+                    "title": page.words.sharedMods
+                }
+            ]
+
+            FormRow {
+                id: nameRow
+
+                required property var modelData
+                readonly property string err: page.adapter.layoutErrors[modelData.field] || ""
+
+                help: err !== "" ? err : (modelData.field === "pattern" ? page.adapter.gamePreview : "")
+                objectName: "nameRow_" + modelData.field
+                title: modelData.title
+                visible: locations.showMore
+
+                TextBox {
+                    objectName: "nameField_" + nameRow.modelData.field
+                    text: page.adapter.layoutDraft[nameRow.modelData.field] || ""
+                    width: Theme.inputW
+
+                    onTextEdited: page.adapter.editLayout(nameRow.modelData.field, text)
+                }
+            }
+        }
+        FormRow {
+            title: ""
+            visible: locations.showMore
+
+            PrimaryButton {
+                enabled: page.adapter.layoutDirty && page.adapter.layoutValid && !page.adapter.moving
+                implicitHeight: Theme.controlH
+                objectName: "applyLayout"
+                text: page.words.apply
+
+                onClicked: page.adapter.applyLayout()
             }
         }
         FormRow {

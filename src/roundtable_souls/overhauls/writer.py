@@ -19,7 +19,7 @@ from pathlib import Path
 from roundtable_souls.overhauls.config import SHIPPED_DIR, OverhaulConfig, local_dir, read
 
 HEADER = (
-    "# Made with Roundtable Souls' Overhaul setup: your config, not verified.\n"
+    "# Made with Bayle's Overhaul setup: your config, not verified.\n"
     "# Format: docs/Overhaul configs.md; schema: data/schemas/overhaul.schema.json.\n"
 )
 _BARE = re.compile(r"[A-Za-z0-9_-]+")

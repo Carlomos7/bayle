@@ -1,5 +1,5 @@
-Roundtable Souls
-================
+Bayle Mod Manager
+=================
 
 A launcher for modded Elden Ring and Nightreign: it starts the game through
 me3, keeps your Seamless Co-op settings in one place, manages your mods, and
@@ -38,7 +38,7 @@ Windows, portable
 Linux and Steam Deck (Desktop Mode)
   Make RoundtableSouls-linux-x86_64.AppImage executable (chmod +x, or the
   file's Properties) and run it. Settings live in
-  ~/.local/share/RoundtableSouls. Install me3 for Linux first. The game runs through Proton; Roundtable Souls finds
+  ~/.local/share/RoundtableSouls. Install me3 for Linux first. The game runs through Proton; Bayle finds
   your saves inside the game's Proton folder, on the internal drive or an SD
   card.
 
@@ -377,7 +377,7 @@ Settings
 PLAYING FROM STEAM (Big Picture, Steam Deck Gaming Mode)
 --------------------------------------------------------
 
-Roundtable Souls can run Play without its window:
+Bayle can run Play without its window:
 
   1. In Steam, choose Add a Game > Add a Non-Steam Game and pick
      RoundtableSouls (RoundtableSouls.exe on Windows).
@@ -396,7 +396,7 @@ window once in Desktop Mode first so a profile is remembered.
 UPDATES
 -------
 
-Roundtable Souls checks for a new version at most once an hour when it starts
+Bayle checks for a new version at most once an hour when it starts
 (Settings > Launcher can turn that off, or check right away). Settings shows
 when it last checked. If a check could not reach GitHub it says so and why
 (never "up to date"), and the next automatic check waits longer.
@@ -423,7 +423,7 @@ whose launch options are --update) updates and then opens the launcher;
 Update channel (Settings > Launcher): Stable, or Beta, which also offers
 pre-releases. Pre-releases get less testing.
 
-Only one window runs at a time: starting Roundtable Souls again brings it to
+Only one window runs at a time: starting Bayle again brings it to
 the front, and Play from a Steam shortcut while the window is open is run by
 the window. Updates wait while a Play from a Steam shortcut runs.
 
@@ -432,7 +432,7 @@ SAVE REPAIRS
 ------------
 
 Playing through me3 leaves a block at the end of the save that save editors
-cannot read. The game does not mind. After every session, Roundtable Souls
+cannot read. The game does not mind. After every session, Bayle
 puts the game's own data back into that block. Every rewritten save is backed
 up first (see Backups on the Saves page), and nothing else in it is touched.
 
@@ -440,7 +440,7 @@ up first (see Backups on the Saves page), and nothing else in it is touched.
 WHERE FILES LIVE
 ----------------
 
-Everything Roundtable Souls keeps is in one folder, its data folder:
+Everything Bayle keeps is in one folder, its data folder:
   installed on Windows   %LOCALAPPDATA%\RoundtableSouls
   portable (Windows)     RoundtableSouls-data, beside "Roundtable Souls.exe"
   Linux (AppImage)       ~/.local/share/RoundtableSouls
@@ -456,7 +456,7 @@ Inside it:
   profiles\deleted\                      .me3 files deleted on the Mods page
   temp\                                  mods being unpacked while they install
 
-Nothing of Roundtable Souls' goes into the game's save folder or me3's profile
+Nothing of Bayle's goes into the game's save folder or me3's profile
 folders, apart from what must sit beside its file: the .offline.me3 copy
 Play offline uses (me3 reads a profile's paths from its folder), the hidden
 .roundtable folder next to a profile (its settings, its .bak, the copy of a
@@ -492,7 +492,7 @@ more. Nothing is sent anywhere.
 LICENCE
 -------
 
-Roundtable Souls is free software under the GNU General Public License,
+Bayle is free software under the GNU General Public License,
 version 3 or later (LICENSE.txt). See also THIRD_PARTY_NOTICES.md. The source
 code and every version's changes are at
 https://github.com/Carlomos7/roundtable-souls

@@ -296,7 +296,7 @@ class _Job:
             if not p.is_file():
                 raise LibraryError(f"{p.name} is not there any more.")
             if self.strict and not (library.in_game_root(p, self.home, self.loc.game.key) and library.own_folder(p)):
-                raise LibraryError(f"{p.stem} keeps its mods outside Roundtable's folder, so it can't share them.")
+                raise LibraryError(f"{p.stem} keeps its mods outside Bayle's folder, so it can't share them.")
         for p in self.profiles:
             self.stack.enter_context(operations.lock(p))
         self.profiles_root.mkdir(parents=True, exist_ok=True)

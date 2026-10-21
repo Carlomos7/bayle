@@ -135,7 +135,7 @@ class SavesPresenter:
             "damagedHint": tr("Nothing is written to a damaged file. Restore a backup from before the crash."),
             "reading": tr("Reading saves..."),
             "nightreign": tr(
-                "Nightreign saves are encrypted: whole-file operations only (copy, back up, replace); no character list."
+                "Nightreign's character data is not documented, so this page works on whole files: check, back up, copy and restore."
             ),
         }
 
@@ -216,7 +216,7 @@ class SavesPresenter:
             "canCopyCharacters": bool(info.get("characters")) and not running,
             "contents": next(
                 (f["detail"] for f in info.get("findings") or [] if f.get("code") == "contents"),
-                tr("This game's saves are encrypted, so characters are not shown yet.")
+                tr("This game's character data is not documented, so characters are not listed.")
                 if info.get("block") == "n/a" and not info.get("characters")
                 else "",
             ),
@@ -733,7 +733,7 @@ class SavesPresenter:
                 return Refusal(tr("Not here"), tr("A character goes into a slot of a live save."))
             if encrypted:
                 return Refusal(
-                    tr("Characters are not shown yet"), tr("Nightreign saves are encrypted: whole files only.")
+                    tr("Characters are not listed"), tr("Nightreign saves can only be copied as whole files.")
                 )
             slot = target.get("slot")
             if where == "card":

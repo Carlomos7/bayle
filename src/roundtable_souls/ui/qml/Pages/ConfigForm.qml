@@ -6,7 +6,7 @@ import Components
 
 // A settings file as a form (§8.10, Mod Configs): one card per section, one FormRow per setting with the control its
 // kind asks for (a switch, a list of choices, a number, a text field); the comment above the setting is the help line,
-// a stated default is the tooltip and Reset puts it back. A setting only text can change says so. Every edit goes to
+// a stated default is Reset's tooltip, and Reset puts it back. A setting only text can change says so. Every edit goes to
 // the adapter, which keeps it until Save.
 Column {
     id: form
@@ -110,7 +110,7 @@ Column {
                             objectName: "setting_" + modelData.key
                             showHelpIcon: true
                             title: modelData.label
-                            tooltip: modelData.tip !== "" ? modelData.tip : modelData.help
+                            tooltip: modelData.blurb !== "" && modelData.help !== modelData.blurb ? modelData.help : ""   // the Default value is the Reset button's tooltip; the help line is already on the page
                             visible: form.matches(modelData)
 
                             function changed(value) {

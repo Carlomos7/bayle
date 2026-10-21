@@ -311,8 +311,10 @@ jobs:
         for f in releases.win.json releases.linux.json SHA256SUMS.txt; do minisign -V -p "../$PUBLIC_KEY" -m "$f"; done
 
     - name: Release notes from this version's changelog section
+      id: notes
       run: |
         v="${GITHUB_REF_NAME#v}"
+        echo "version=$v" >> "$GITHUB_OUTPUT"
         awk -v h="## [$v]" 'index($0, h) == 1 { f = 1; next } /^## \[/ { if (f) exit } f' repo/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
         grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || echo "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md)." > "$RUNNER_TEMP/notes.md"
         cat "$RUNNER_TEMP/notes.md"
@@ -320,7 +322,7 @@ jobs:
     # Uploaded as a draft first, so nobody (and no update check) sees a half-uploaded release.
     - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:
-        name: Roundtable Souls ${{ github.ref_name }}
+        name: ${{ steps.notes.outputs.version }}  # just the number, e.g. 4.3.0
         draft: true
         prerelease: true
         body_path: ${{ runner.temp }}/notes.md  # the readable notes players see: this version's CHANGELOG section

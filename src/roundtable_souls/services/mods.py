@@ -466,8 +466,15 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
 
     ident = overhaul_id or naming.mod_id(name)
     game = loc.game.key
+    from roundtable_souls.config import layout
+
     return basic.make(
-        id=ident, label=name, game=game, basic=basic.propose(Path(folder), game=game), folder=Path(folder)
+        reserved=layout.reserved_names(),
+        id=ident,
+        label=name,
+        game=game,
+        basic=basic.propose(Path(folder), game=game),
+        folder=Path(folder),
     )
 
 
@@ -592,8 +599,10 @@ def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list
                     "name": out["name"],
                     "operation": out["operation"],
                 }
+                run_logging.set_undo({**first, "others": list(others)})
             else:  # the profiles sharing its folder: the build is the same, only their entries change
                 others.append(overhaul_install.apply_entries(preview))
+                run_logging.set_undo({**first, "others": list(others)})  # a crash further on still leaves an Undo
         except Exception as e:
             skipped.append(f"{p.name}: {e}")
             continue
@@ -601,7 +610,7 @@ def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list
     for line in skipped:
         run_logging.log(f"skipped {line}")
     if first is not None:  # one Undo takes back every profile the job changed
-        run_logging.set_undo({**first, "others": others})
+        run_logging.set_undo({**first, "others": list(others)})
         run_logging.log(f"done: applied the setup of {config.label} to {', '.join(done)}")
     if not done:
         raise overhaul_install.OverhaulError(

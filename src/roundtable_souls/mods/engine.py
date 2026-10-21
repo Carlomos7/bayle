@@ -297,32 +297,32 @@ def build(
         for step in recipe["steps"]:
             kind = step["do"]
             if kind == "copy_tree":
-                src = setup / step["from"]
+                src = _in(setup, step["from"])
                 for p in sorted(src.rglob("*")) if src.is_dir() else []:
                     if p.is_file():
-                        dest = stage / step["to"] / p.relative_to(src)
+                        dest = _in(stage, step["to"]) / p.relative_to(src)
                         dest.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(p, dest)
                         made.append(dest)
             elif kind == "copy":
-                dest = stage / step["to"]
+                dest = _in(stage, step["to"])
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(setup / step["from"], dest)
+                shutil.copy2(_in(setup, step["from"]), dest)
                 made.append(dest)
             elif kind == "config":
-                dest = stage / step["to"]
+                dest = _in(stage, step["to"])
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                mine = own / step["to"]
+                mine = _in(own, step["to"])
                 if mine.is_file():
                     text = mine.read_bytes().decode("utf-8", errors="replace")
-                    merged = merge_ini(text, (setup / step["from"]).read_bytes().decode("utf-8", errors="replace"))
+                    merged = merge_ini(text, _in(setup, step["from"]).read_bytes().decode("utf-8", errors="replace"))
                     if merged == text:
                         shutil.copy2(mine, dest)
                     else:
                         dest.write_bytes(merged.encode("utf-8"))
                         log(f"engine: {step['to']} kept; the new settings of this version were added to it")
                 else:
-                    shutil.copy2(setup / step["from"], dest)
+                    shutil.copy2(_in(setup, step["from"]), dest)
                 made.append(dest)
             elif kind in ("merge", "text", "params"):
                 names = _each(step, setup)
@@ -344,6 +344,7 @@ def build(
                     _hook_step(same, recipe["label"], setup, inputs, mod, sources, report, log, game_dir, loc.game.key)
                     made.append(mod / step["folder"] / step["entry"])
             elif kind == "remove":
+                _in(mod, step["glob"].replace("*", "x"))
                 for p in sorted(mod.glob(step["glob"]), reverse=True):
                     if p.is_dir():
                         shutil.rmtree(p)
@@ -439,6 +440,14 @@ def _codecs(game_dir: Path):
     return _oodle[key]
 
 
+def _in(base: Path, rel) -> Path:
+    """base / rel, which must stay inside base (a recipe comes from a config or a download: not trusted)."""
+    path = base / str(rel)
+    if not path.resolve().is_relative_to(base.resolve()):
+        raise EngineError(f"{rel} is outside {base.name}; a step can only use files inside its own folders.")
+    return path
+
+
 def _launcher_step(
     step, each, setup, inputs, game_dir, mod, sources, report, log, game: str = "eldenring"
 ) -> Path | None:
@@ -449,7 +458,7 @@ def _launcher_step(
 
     values = {"each": each or ""}
     rel = _fill(step["file"], values)
-    out = mod / rel
+    out = _in(mod, rel)
     out.parent.mkdir(parents=True, exist_ok=True)
     source = _effective(inputs, rel)
     dec, comp = _codecs(game_dir)
@@ -461,7 +470,7 @@ def _launcher_step(
         src = source or base
         sources.append({"path": str(src), "sha256": _sha(src)})
         packs = [] if source is None else [(Path(source).parent.name, source.read_bytes())]
-        packs.append(("the mod", (setup / _fill(step["patch"], values)).read_bytes()))
+        packs.append(("the mod", _in(setup, _fill(step["patch"], values)).read_bytes()))
         log(f"  combining {rel}")
         data, combined = param_merge.combine(base.read_bytes(), packs, dec)
         for pack in combined.packs:
@@ -482,14 +491,14 @@ def _launcher_step(
             log(f"  {line}")
             return None
         try:
-            texts = {int(k): str(v) for k, v in json.loads((setup / named).read_text(encoding="utf-8-sig")).items()}
+            texts = {int(k): str(v) for k, v in json.loads(_in(setup, named).read_text(encoding="utf-8-sig")).items()}
         except (ValueError, AttributeError) as e:
             raise EngineError(f"{named} is not a JSON object of text IDs to texts: {e}") from e
         body, how = formats.dcx.unpack(vanilla, dec)
         fallback = game_config.load().dflt_fallback_for(rel)
         patch = formats.dcx.pack(fmg_rule.add_text(body, step["table"], texts), how, comp, fallback)
     else:
-        patch = (setup / _fill(step["patch"], values)).read_bytes()
+        patch = _in(setup, _fill(step["patch"], values)).read_bytes()
         if source is None:  # nothing to merge with: the mod's own copy, as it is
             out.write_bytes(patch)
             return out
@@ -549,13 +558,13 @@ def _hook_step(steps, label, setup, inputs, mod, sources, report, log, game_dir=
         raw = entry.read_bytes()
     else:
         base_from = f"{folder}/{name} from the download"
-        raw = (setup / first["base"]).read_bytes()
+        raw = _in(setup, first["base"]).read_bytes()
     try:
         base = hooks.as_text(raw, base_from)
         if not entry.is_file() and first.get("base_until"):
             base = base.split(first["base_until"])[0]
         fragments = [
-            hooks.Hook(label, (setup / s["fragment"]).read_text(encoding="utf-8-sig"), s.get("markers") or [],
+            hooks.Hook(label, _in(setup, s["fragment"]).read_text(encoding="utf-8-sig"), s.get("markers") or [],
                        s.get("refuse_text"))
             for s in steps
         ]  # fmt: skip

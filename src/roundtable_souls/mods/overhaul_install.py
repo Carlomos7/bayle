@@ -38,6 +38,7 @@ The overhaul's own installer files are never written.
 
 from __future__ import annotations
 
+import base64
 import datetime
 import fnmatch
 import hashlib
@@ -303,10 +304,18 @@ def _find(writer: ProfileWriter, kind: str, key: str) -> dict | None:
     return None
 
 
-def _entry_named(writer: ProfileWriter, name: str) -> dict | None:
-    """An entry by the name a requirement or a side effect uses: a package's id, a DLL's file name (case aside)."""
+def _entry_named(writer: ProfileWriter, name: str, kind: str | None = None) -> dict | None:
+    """An entry by the name a requirement or a side effect uses: a package's id, a DLL's file name (case aside); of
+    the kind given when the caller knows it (a DLL and a package can share a name)."""
     low = name.lower()
-    return next((e for e in writer.entries() if requirements.entry_name(e["kind"], e).lower() == low), None)
+    return next(
+        (
+            e
+            for e in writer.entries()
+            if requirements.entry_name(e["kind"], e).lower() == low and kind in (None, e["kind"])
+        ),
+        None,
+    )
 
 
 def _value(row: dict | None, setting: str) -> tuple[bool, Any]:
@@ -433,7 +442,11 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
     effects: list[records.SideEffect] = []
     removes = [c for c in plan.changes if c.action == "remove"]
     found = [_find(writer, c.kind, c.key) for c in removes]
-    off = {requirements.entry_name(e["kind"], e) for e in found if e is not None and e["row"].get("enabled") is False}
+    off = {
+        (e["kind"], requirements.entry_name(e["kind"], e))
+        for e in found
+        if e is not None and e["row"].get("enabled") is False
+    }
     for e in sorted((e for e in found if e is not None), key=lambda e: e["index"], reverse=True):
         writer.remove_entry(e["index"])
     for c in plan.changes:
@@ -451,7 +464,7 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 value = _relative(writer.profile, str(v)) if k == "path" else v
                 effects.append(records.SideEffect(entry=name, setting=k, before=was, before_set=present, after=value))
                 _set_entry(writer, e["index"], k, value)
-                e = _entry_named(writer, name) or e
+                e = _entry_named(writer, name, e["kind"]) or e
         elif c.action == "add":
             row = dict(c.values)
             writer.add_entry(c.kind, row)
@@ -460,8 +473,8 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 effects.append(
                     records.SideEffect(entry=name, setting="added", before=None, before_set=False, after=True)
                 )
-    for name in sorted(off):  # an entry the player had switched off stays off when it is added again
-        e = _entry_named(writer, name)
+    for kind, name in sorted(off):  # an entry the player had switched off stays off when it is added again
+        e = _entry_named(writer, name, kind)
         if e is not None:
             _set_entry(writer, e["index"], "enabled", False)
     return effects
@@ -694,15 +707,15 @@ def _users(profile: Path, config: OverhaulConfig, own: Path, *, others: bool = T
 
 def apply_entries(preview: InstallPreview) -> dict:
     """Write only the profile part of a preview, for a profile that shares the overhaul's folder with one already
-    installed (the build is the same). Returns what an undo needs: {profile, before (its text), after (sha256)}.
+    installed (the build is the same). Returns what an undo needs: {profile, before_b64 (its bytes), after (sha256)}.
     Raises OverhaulError when the preview was refused."""
     p = preview
     if not p.ok or p.change is None:
         raise OverhaulError("; ".join(p.refusals) or "Nothing to apply.")
     data = p.change.bytes_to_write
-    before = p.change.read.decode("utf-8", errors="replace")
+    before = base64.b64encode(p.change.read).decode("ascii")  # the exact bytes: a profile need not be UTF-8
     p.writer.commit(p.change)
-    return {"profile": str(p.profile), "before": before, "after": hashlib.sha256(data).hexdigest()}
+    return {"profile": str(p.profile), "before_b64": before, "after": hashlib.sha256(data).hexdigest()}
 
 
 def own_folders(profile: Path, entries: list[dict], configs: Sequence[OverhaulConfig]) -> list[Path]:
@@ -1163,7 +1176,10 @@ def setup_config(config: OverhaulConfig, folder: Path) -> OverhaulConfig:
     the steps follow the form), at the advanced level as it is."""
     if config.basic is None:
         return config
+    from roundtable_souls.config import layout
+
     return overhauls.basic.make(
+        reserved=layout.reserved_names(),
         id=config.id,
         label=config.label,
         game=config.game,
@@ -1214,14 +1230,34 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
 
 
 def install_setup(preview: InstallPreview, *, loc: Locations, log=lambda s: None) -> dict:
-    """Install as previewed (preview_setup), its config written in the same operation."""
+    """Install as previewed (preview_setup), its config written in the same operation (unless the file already holds
+    it)."""
     from roundtable_souls.overhauls import writer
 
     config = preview.found.config
     path = config_path(config)
     if path is None:
         raise OverhaulError("The launcher's data folder is not set.")
-    return install(preview, loc=loc, log=log, config_file=(path, writer.render(config).encode("utf-8")))
+    return install(
+        preview,
+        loc=loc,
+        log=log,
+        config_file=None if _saved_as(path, config) else (path, writer.render(config).encode("utf-8")),
+    )
+
+
+def _saved_as(path: Path, config: OverhaulConfig) -> bool:
+    """Whether the file already holds this config: it is then left as it is (a hand-edited file keeps its comments and
+    order)."""
+    import tomllib
+
+    try:
+        return (
+            OverhaulConfig.model_validate(tomllib.loads(path.read_text(encoding="utf-8"))).model_dump()
+            == config.model_dump()
+        )
+    except OSError, ValueError:
+        return False
 
 
 @dataclass

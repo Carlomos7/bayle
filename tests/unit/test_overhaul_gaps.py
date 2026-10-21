@@ -102,7 +102,6 @@ def test_a_placement_to_something_that_is_no_game_folder_or_twice_to_one_path_is
     for place, why in (
         ({"settings/b.dcx": "nowhere/b.dcx"}, "not in one of the game's folders"),
         ({"settings/b.dcx": TALK, "settings/m00.talkesdbnd.dcx": TALK}, "both placed at"),
-        ({"settings/gone.dcx": TALK}, "gone.dcx is not in the mod's folder"),  # the source moved or vanished
     ):
         with pytest.raises(ValueError, match=why):
             basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"place": place}), folder=folder)
@@ -257,6 +256,18 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
     assert entry["initializer"] == {"function": "Boot"} and entry["load_early"] is True
 
 
+def test_applying_a_saved_setup_leaves_a_hand_edited_file_as_it_is(world):
+    from test_overhaul_install import set_up
+
+    from roundtable_souls.services import mods as mod_service
+
+    _folder, toml, _out = set_up(world)
+    toml.write_text("# my own note" + chr(10) + toml.read_text(encoding="utf-8"), encoding="utf-8")
+    before = toml.read_bytes()
+    assert mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc) == ["my.me3"]
+    assert toml.read_bytes() == before
+
+
 # ----------------------------------------------------------------------------- gap 3: texts from a JSON file
 def texts_setup(world, texts: dict[str, str]):
     from roundtable_souls.overhauls.config import BasicText
@@ -363,10 +374,11 @@ def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
     got: list[dict] = []
     monkeypatch.setattr(run_logging, "set_undo", lambda d: got.append(d))
     done = mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc)
-    assert done == ["my.me3", "other.me3"] and len(got) == 1 and got[0]["type"] == "overhaul-reapply"
+    assert done == ["my.me3", "other.me3"] and got[0]["type"] == "overhaul-reapply"
+    assert got[0]["others"] == [] and len(got[-1]["others"]) == 1  # set after each profile: a crash keeps an Undo
     assert all(b"Boot" in p.read_bytes() for p in before)
-    assert undo.available(got[0])
-    undo.run(got[0], lambda s: None, loc=world.loc)
+    assert undo.available(got[-1])
+    undo.run(got[-1], lambda s: None, loc=world.loc)
     assert {p: p.read_bytes() for p in before} == before
 
 

@@ -27,6 +27,12 @@ def layout() -> Layout:
     return Layout(s.profiles_root, s.game_folder_pattern, s.packages_folder, s.natives_folder, s.shared_folder)
 
 
+def reserved_names() -> list[str]:
+    """The folder names the player's layout gives the launcher's own folders (an overhaul can't be named like one)."""
+    lay = layout()
+    return [lay.packages, lay.natives, lay.shared]
+
+
 def game_root(profiles_dir: Path, game: str) -> Path:
     """The launcher's own folder for one game: b-<game> in the Profiles folder (me3's profiles folder unless Settings
     names another)."""

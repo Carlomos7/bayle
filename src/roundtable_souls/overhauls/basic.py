@@ -26,6 +26,7 @@ equal what make() gives (its steps edited by hand) is at the advanced level.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from roundtable_souls.game import catalog as games
@@ -56,7 +57,19 @@ INSTALLER_SUFFIXES = {".exe", ".cmd", ".bat", ".ps1", ".py"}  # a download that 
 SETTINGS_SUFFIXES = {".ini", ".toml", ".json", ".cfg", ".conf", ".yaml", ".yml", ".xml"}
 MERGED_ENDING = "bnd.dcx"  # binders (anibnd, behbnd, partsbnd, msgbnd, talkesdbnd, ...): the merger reads them
 PACKAGE = "mod"  # the package's folder inside the overhaul's own folder (Output.mod)
-LAUNCHER_FOLDERS = {"packages", "natives", "builds", "mods", "mod", "profiles", "overhauls", "sources", "library"}
+LAUNCHER_FOLDERS = {
+    "packages",
+    "natives",
+    "builds",
+    "mods",
+    "mod",
+    "profiles",
+    "overhauls",
+    "sources",
+    "library",
+    ".roundtable",
+    ".previous",
+}
 LAUNCHER_RECORD = (
     "roundtable.json"  # the launcher's own file at the top of its copy of a download (mods.library.RECORD)
 )
@@ -184,14 +197,18 @@ def action_of(f: str, kind: str, basic: Basic) -> str:
     if own is not None:
         return own
     placed = {k.lower(): v for k, v in basic.place.items()}.get(low)
+    legacy = []  # what the older lists say, in order; one the file's kind can't have was ignored by older versions
     if leaves(f, basic.skip):
-        return "leave"
+        legacy.append("leave")
     if placed is not None:
-        return f"place:{placed}"
+        legacy.append(f"place:{placed}")
     if low in {n.lower() for n in basic.not_merged}:
-        return "whole" if kind in ("regulation", "binder") else "copy"
+        legacy.append("whole" if kind in ("regulation", "binder") else "copy")
     if low in {k.lower() for k in basic.keep}:
-        return "keep"
+        legacy.append("keep")
+    for act in legacy:
+        if ("place" if act.startswith("place:") else act) in KINDS[kind]:
+            return act
     return KINDS[kind][0]
 
 
@@ -233,20 +250,44 @@ def _text(t: BasicText) -> Step:
 
 
 def make(
-    *, id: str, label: str, game: str, basic: Basic, folder: Path, short_label: str | None = None
+    *,
+    id: str,
+    label: str,
+    game: str,
+    basic: Basic,
+    folder: Path,
+    short_label: str | None = None,
+    reserved: Iterable[str] = (),
+    notes: list[str] | None = None,
+    root: str | None = None,
 ) -> OverhaulConfig:
     """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up or a
-    file the form names is not in the folder."""
-    if id.lower() in LAUNCHER_FOLDERS or id.startswith("."):
+    file the form names is not in the folder. reserved: more folder names the launcher uses (the player's own names for
+    the packages and natives folders, from the caller). Files and place entries naming a file a newer download dropped
+    are left out of the result and said in notes (when given); DLLs and texts files that are gone raise. root: the
+    package root to use instead of the one found (level() tries the one older versions found)."""
+    if id.lower() in LAUNCHER_FOLDERS | {r.lower() for r in reserved} or id.startswith("."):
         raise ValueError(f"{id} is a name the launcher uses for its own folders; choose another.")
     gc = game_config.load(game)
     regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
     folders = set(gc.mod_folders)
     everything = files_of(folder)
-    root = package_root(everything, folders, regulation)
+    if root is None:
+        root = package_root(everything, folders, regulation)
     have = {f.lower() for f in everything}
+    stale = [n for n in (*basic.place, *basic.files) if n.lower() not in have]
+    if stale:
+        for n in stale:
+            if notes is not None:
+                notes.append(f"{n} is not in the mod's folder any more; its setting was dropped.")
+        basic = basic.model_copy(
+            update={
+                "place": {k: v for k, v in basic.place.items() if k not in stale},
+                "files": {k: v for k, v in basic.files.items() if k not in stale},
+            }
+        )
     texts_from = {v.lower() for t in basic.texts for v in t.texts.values()}
-    named = [*(n.file for n in basic.natives), *basic.place, *basic.files, *texts_from]
+    named = [*(n.file for n in basic.natives), *texts_from]
     for name in named:
         if name.lower() not in have:
             raise ValueError(f"{name} is not in the mod's folder.")
@@ -322,15 +363,20 @@ def level(config: OverhaulConfig, folder: Path) -> str:
     """ "basic" when the config's derived parts are still what make() gives for the mod's folder, else "advanced"."""
     if config.basic is None:
         return "advanced"
-    try:
-        derived = make(
-            id=config.id,
-            label=config.label,
-            game=config.game,
-            basic=config.basic,
-            folder=folder,
-            short_label=config.short_label,
-        )
-    except ValueError:
-        return "advanced"
-    return "basic" if derived.model_dump() == config.model_dump() else "advanced"
+    for root in (None, ""):  # "": a download with a payload folder, as older versions read it (no package root)
+        try:
+            derived = make(
+                id=config.id,
+                label=config.label,
+                game=config.game,
+                basic=config.basic,
+                folder=folder,
+                short_label=config.short_label,
+                root=root,
+            )
+        except ValueError:
+            continue
+        # basic is left out: stale entries are pruned from the derived one, and the saved ones are not hand edits
+        if derived.model_dump(exclude={"basic"}) == config.model_dump(exclude={"basic"}):
+            return "basic"
+    return "advanced"

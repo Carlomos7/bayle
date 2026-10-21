@@ -23,7 +23,7 @@ from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods import rename as mod_rename
-from roundtable_souls.mods.backends.manifest_refresh import launcher_installed
+from roundtable_souls.mods.overhaul_manifest import launcher_installed
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import game_checks
 from roundtable_souls.services.mods import (

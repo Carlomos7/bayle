@@ -245,3 +245,13 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
     common.clear_detection_cache()
     common._PROFILE_GAMES_CACHE.clear()
     shutil.rmtree(locks, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def _no_cpu_workers_left_over():
+    """A test that starts the window's worker pool must not leave it installed for the next test (CI runs the unit
+    and ui tests in one process, so the window's thread would count as the UI thread for every later test)."""
+    yield
+    from roundtable_souls.platform import cpu
+
+    cpu.install(None)

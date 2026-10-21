@@ -1,5 +1,6 @@
 """The UI-stall watch sees a turn of the event loop that runs too long, with the stack that caused it."""
 
+import sys
 import time
 
 import pytest
@@ -13,6 +14,7 @@ def slow_handler():
 
 
 @pytest.mark.ui_stall_ok
+@pytest.mark.skipif(sys.platform != "win32", reason="the offscreen glib dispatcher on Linux does not signal turns")
 def test_a_slow_turn_is_reported_with_its_stack(qt_app):
     found = []
     watch = stall.StallWatch(100, lambda ms, stack: found.append((ms, stack)))

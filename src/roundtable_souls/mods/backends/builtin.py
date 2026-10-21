@@ -9,7 +9,6 @@ never by a name: moving or renaming the folder keeps it working.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import time
@@ -24,6 +23,7 @@ from roundtable_souls.game import oodle as game_oodle
 from roundtable_souls.merging import record as merge_record
 from roundtable_souls.merging.build import Build, BuildError
 from roundtable_souls.mods.backends import BackendError
+from roundtable_souls.platform import cpu
 
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
@@ -267,7 +267,6 @@ class CombineTool:
     # -------------------------------------------------------------- running
     def run(self, log, all_layers: list[dict] | None = None, until: dict | None = None) -> dict:
         from roundtable_souls import __version__
-        from roundtable_souls.merging.rules import param as param_merge
         from roundtable_souls.mods import rebuild as merge
 
         layers = merge.layers(self.profile) if all_layers is None else all_layers
@@ -291,28 +290,23 @@ class CombineTool:
             f"combine: {len(packs)} packs onto the game's {REGULATION}: {', '.join(p['name'] for p in packs) or 'none'}"
         )
         start = time.time()
-        game_dir = self.loc.game_dir()
-        oodle = None
-        try:
-            from roundtable_souls.game.oodle import find_oodle
-
-            oodle = find_oodle(Path(game_dir)) if game_dir else None
-        except Exception:
-            oodle = None
-        try:
-            out, report = param_merge.combine(
-                base.read_bytes(),
-                [(p["name"], (Path(p["folder"]) / REGULATION).read_bytes()) for p in packs],
-                oodle,
-            )
+        try:  # the CPU part runs in a worker process and writes the staged file; the journaled steps stay here
+            done = cpu.run_cpu(
+                "roundtable_souls.merging.rules.param:combine_job",
+                {
+                    "base": str(base),
+                    "packs": [{"name": p["name"], "path": str(Path(p["folder"]) / REGULATION)} for p in packs],
+                    "game_dir": str(self.loc.game_dir() or "") or None,
+                    "out": str(build.path(REGULATION)),
+                },
+            ).result()
         except Exception as e:
             raise BackendError(f"Combining parameters failed: {e}") from e
-        for line in report.lines():
+        for line in done["lines"]:
             log(f"  {line}")
-        build.path(REGULATION).write_bytes(out)
-        record = self._write_record(files, base, packs, report, __version__, out, build=build)
+        record = self._write_record(files, base, packs, done, __version__, build=build)
         self._activate(build)
-        log(f"combine: done in {time.time() - start:.1f}s ({len(report.conflicts)} overlapping rows)")
+        log(f"combine: done in {time.time() - start:.1f}s ({done['conflicts']} overlapping rows)")
         return record
 
     def _estimate(self, layers: list[dict], until: dict | None, packs: list[dict]) -> int:
@@ -331,9 +325,7 @@ class CombineTool:
             total += max([size(base) if base else 0] + [size(Path(p["folder"]) / REGULATION) for p in packs])
         return total
 
-    def _write_record(
-        self, files: dict, base, packs, report, version, out: bytes | None = None, build: Build | None = None
-    ) -> dict:
+    def _write_record(self, files: dict, base, packs, report: dict | None, version, build: Build | None = None) -> dict:
         record = {
             "combined": 1,
             "made_by": f"Roundtable Souls {version}",
@@ -347,7 +339,7 @@ class CombineTool:
         record |= {
             "base": str(base),
             "base_sha256": _sha(base),
-            "base_version": report.base_version,
+            "base_version": report["base_version"],
             "packs": [
                 {
                     "name": p["name"],
@@ -361,8 +353,8 @@ class CombineTool:
                 {"path": str(Path(p["folder"]) / REGULATION), "sha256": _sha(Path(p["folder"]) / REGULATION)}
                 for p in packs
             ],
-            "report": report.lines(limit=200),
-            "output_sha256": hashlib.sha256(out).hexdigest(),
+            "report": report["lines200"],
+            "output_sha256": report["sha256"],
         }
         self._put_record(record, build)
         return record

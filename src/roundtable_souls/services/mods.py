@@ -275,10 +275,14 @@ def overhaul_library_folder(game: str) -> str:
 def overhaul_switch_text(game: str) -> str:
     """The line under the Settings switch: what it covers for this game, and where the launcher keeps its files."""
     names = installable_overhauls(game)
-    covered = ", ".join(names) if names else "none for this game yet"
+    covers = (
+        f"Covers only {', '.join(names)}; use the others' own installers. "
+        if names
+        else "Lets you set up any mod as an overhaul: the launcher merges it on top of the mods before it. "
+    )
     return (
         "Install an overhaul from the folder you unpacked it into, without its installer, and remove it again. "
-        f"Covers only {covered}; use the others' own installers. "
+        f"{covers}"
         f"The launcher keeps its copy of the download in {overhaul_library_folder(game)}, in me3's profiles folder."
     )
 
@@ -286,16 +290,16 @@ def overhaul_switch_text(game: str) -> str:
 def overhaul_button_tip(game: str) -> str:
     """The Overhaul button's tooltip on the Mods page."""
     names = installable_overhauls(game)
+    covers = f" Covers only {', '.join(names)}." if names else ""
     return (
-        "Install or remove an overhaul, or clean up after its own installer. Covers only "
-        f"{', '.join(names) if names else 'none for this game yet'}. Turn it off in Settings > Launch."
+        f"Install or remove an overhaul, or clean up after its own installer.{covers} Turn it off in Settings > Launch."
     )
 
 
 def overhaul_preview_on(loc: Locations) -> bool:
-    """The Settings switch "Install overhauls with the launcher (preview)" is on and the game has an overhaul the
-    launcher can install."""
-    return bool(load_settings().overhaul_install) and bool(installable_overhauls(loc.game.key))
+    """The Settings switch "Install overhauls with the launcher (preview)" is on. The generic setup needs no shipped
+    config; installing a download that matches a config still needs that config (mods.install)."""
+    return bool(load_settings().overhaul_install)
 
 
 def preview_overhaul_install(profile, download, *, loc: Locations):

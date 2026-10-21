@@ -265,9 +265,7 @@ class ActivityPresenter:
         )
     )
     open_window_text = property(lambda self: tr("Open new Activity window"))
-    open_window_tip = property(
-        lambda self: tr("The new Activity page, in a window of its own: a preview of the launcher's new look.")
-    )
+    open_window_tip = property(lambda self: tr("A preview of the new Activity page, in its own window."))
     failed_only_text = property(lambda self: tr("Failed only"))
 
     @property
@@ -298,10 +296,7 @@ class ActivityPresenter:
         if current:
             days.append(Day(label or "", tuple(current)))
         if not recs:
-            empty = tr(
-                "Nothing yet. Play, repairs, installs and rebuilds show up here with how they went, and each keeps "
-                "its full log."
-            )
+            empty = tr("Nothing yet. Launches, repairs, installs and rebuilds show up here.")
         elif not shown:
             empty = tr("Nothing matches these filters.")
         else:
@@ -564,9 +559,7 @@ class ActivityPresenter:
         changes = (
             tr("Its entry goes back into {profile}, where it was").format(profile=prof.name),
             tr("Its folder comes back from the Recycle Bin") if trash.exists(u.get("trash")) else "",
-            tr("Launching rebuilds the merged mods with it before the game starts (or Rebuild on the Mods page)")
-            if u.get("merged")
-            else "",
+            tr("Launch rebuilds the merged mods with it first") if u.get("merged") else "",
         )
         return UndoPlan(
             tr("Restore {name}").format(name=name),

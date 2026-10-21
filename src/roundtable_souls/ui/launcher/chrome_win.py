@@ -14,6 +14,7 @@ import ctypes
 import sys
 from ctypes import wintypes
 
+import shiboken6
 from PySide6.QtCore import QAbstractNativeEventFilter, QCoreApplication, QPointF
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 
@@ -56,6 +57,7 @@ class WindowChrome(QAbstractNativeEventFilter):
         self.win = win
         self.hwnd = 0
         self.down = ""
+        self._items: dict[str, QQuickItem | None] = {}
         u = self.user32 = ctypes.WinDLL("user32", use_last_error=True)
         u.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, *[ctypes.c_int] * 4, wintypes.UINT]
         u.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
@@ -88,7 +90,9 @@ class WindowChrome(QAbstractNativeEventFilter):
 
     # ---- geometry, in physical pixels of the client area
     def _rect(self, name: str) -> ht.Rect | None:
-        item = _item(self.win, name)
+        item = self._items.get(name)
+        if name not in self._items or (item is not None and not shiboken6.isValid(item)):
+            item = self._items[name] = _item(self.win, name)  # found once: Windows asks on every mouse move
         if item is None:
             return None
         p, k = item.mapToScene(QPointF(0, 0)), self.win.devicePixelRatio()

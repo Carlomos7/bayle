@@ -95,11 +95,6 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
                 o.release()
-            elif o.info.get("kind") == "library-adopt" and not o.info.get("state_done"):
-                from roundtable_souls.mods import adopt
-
-                adopt.finish_state(o)  # the launcher's own records were not all moved before the interruption
-                said.append("an interrupted adoption was finished")
             elif o.info.get("kind") == "profile-rename" and not o.info.get("state_done"):
                 from roundtable_souls.mods import profile_rename
 

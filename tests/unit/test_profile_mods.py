@@ -212,7 +212,6 @@ def test_the_page_facts_read_in_one_pass(profile):
     assert by_name["other.dll"] in facts.missing
     assert facts.empty.get(by_name["flora"]) == "empty"  # an empty package folder: "Empty for now"
     assert set(facts.display["native"]) == {by_name["ersc.dll"], by_name["second.dll"], by_name["other.dll"]}
-    assert facts.outside == () and facts.shared == {}  # not a library profile
 
 
 def test_unreadable_page_facts_say_why(tmp_path):

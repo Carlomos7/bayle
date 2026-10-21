@@ -187,24 +187,6 @@ def loads_nothing(profile: Path, items: list[dict], tree: dict[int, dict] | None
     return sorted(i for i, node in tree.items() if node["holder"] or _canon(node["folder"]) == here)
 
 
-def outside_library(profile: Path, items: list[dict], library_root: Path | None) -> list[int]:
-    """The entries of a profile kept in the library (rs-<game>/profiles/) whose folder lies outside it: the "Outside
-    the library" tag (§8.10; tolerated, never moved silently). A profile that is not in the library (an existing
-    setup) gets none: the tag would be on every entry."""
-    if library_root is None:
-        return []
-    root = _canon(Path(library_root))
-
-    def inside(path: Path) -> bool:
-        key = _canon(path)
-        return key == root or _within(key, root)
-
-    profile = Path(profile)
-    if not inside(profile):
-        return []
-    return [e["index"] for e in items if e.get("path") and not inside(resolve(profile, e["path"]))]
-
-
 def folder_overview(profile: Path, items: list[dict], tree: dict[int, dict] | None = None) -> dict:
     """The profile's mod folders as folders, beside the entries:
 

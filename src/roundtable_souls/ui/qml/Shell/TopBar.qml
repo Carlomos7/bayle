@@ -18,12 +18,15 @@ Item {
     property real captionW: 0       // space for the OS caption buttons on the right (native chrome)
     property real chromeTop: 0      // the OS title bar height when the client area extends under it
     property bool compact: false
+    property string chromeDown: ""  // Windows chrome: the caption button held down / under the pointer, from chrome_win
+    property string chromeHot: ""
     property bool nativeChrome: false
     readonly property int menuRowHeight: nativeChrome ? Math.max(Theme.menuRowH, Math.ceil(chromeTop)) : Theme.menuRowH
     required property var shell
     readonly property var st: shell.status
     readonly property color statusColor: st.tone === "danger" ? Theme.statusDanger : st.tone === "warning" ? Theme.statusWarning : st.tone === "accent" ? Theme.accent : Theme.textSecondary
     property Window window
+    property bool winChrome: false  // chrome_win owns the drag, the edges and the caption clicks
 
     function openLaunchMenu() {
         launch.openMenu();
@@ -34,6 +37,8 @@ Item {
     // ---------------------------------------------------------------- row 1: the menu bar
     Rectangle {
         id: menuRow
+
+        objectName: "chromeRow"
 
         anchors.left: parent.left
         anchors.right: parent.right
@@ -47,15 +52,31 @@ Item {
             }
         }
 
-        MouseArea {  // the drag strip; stops short of the OS caption buttons under native chrome, which Qt hit-tests itself
+        Item {  // the drag strip: a drag hands the move to the system (snap included), a double click maximises or restores
             anchors.fill: parent
             anchors.leftMargin: root.captionLeftW
             anchors.rightMargin: root.captionW
+            enabled: !root.winChrome
 
-            onDoubleClicked: root.window.visibility === Window.Maximized ? root.window.showNormal() : root.window.showMaximized()
-            onPressed: root.window.startSystemMove()
+            DragHandler {
+                target: null
+
+                onActiveChanged: {
+                    if (active)
+                        root.window.startSystemMove();
+                }
+            }
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+
+                onDoubleTapped: root.window.visibility === Window.Maximized ? root.window.showNormal() : root.window.showMaximized()
+            }
         }
         Row {
+            id: menus
+
+            objectName: "chromeMenus"
+
             anchors.left: parent.left
             anchors.leftMargin: Theme.sp12 + root.captionLeftW
             anchors.verticalCenter: parent.verticalCenter
@@ -93,12 +114,29 @@ Item {
                 }
             }
         }
+        Txt {  // the title, centred in the row; it gives way to the menus and the caption buttons when the row is narrow
+            objectName: "chromeTitle"
+            readonly property real room: captionButtons.x - Theme.sp12 - (menus.x + menus.width + Theme.sp12)
+
+            anchors.verticalCenter: parent.verticalCenter
+            color: Theme.textSecondary
+            horizontalAlignment: Text.AlignHCenter
+            kind: "caption"
+            text: qsTr("Roundtable Souls %1").arg(root.shell.version)
+            width: Math.min(implicitWidth, Math.max(0, room))
+            x: Math.max(menus.x + menus.width + Theme.sp12, Math.min((parent.width - width) / 2, captionButtons.x - Theme.sp12 - width))
+        }
         Row {  // our own caption buttons, out of the Tab order like a native title bar; hidden under native chrome
+            id: captionButtons
+
             anchors.right: parent.right
             anchors.top: parent.top
             visible: !root.nativeChrome
 
             IconButton {
+                objectName: "chromeMin"
+                forceDown: root.chromeDown === "min"
+                forceHover: root.chromeHot === "min"
                 ToolTip.text: qsTr("Minimise")
                 focusPolicy: Qt.NoFocus
                 hoverColor: Theme.surfaceRow
@@ -110,6 +148,9 @@ Item {
                 onClicked: root.window.showMinimized()
             }
             IconButton {
+                objectName: "chromeMax"
+                forceDown: root.chromeDown === "max"
+                forceHover: root.chromeHot === "max"
                 ToolTip.text: root.window.visibility === Window.Maximized ? qsTr("Restore") : qsTr("Maximise")
                 focusPolicy: Qt.NoFocus
                 hoverColor: Theme.surfaceRow
@@ -121,6 +162,9 @@ Item {
                 onClicked: root.window.visibility === Window.Maximized ? root.window.showNormal() : root.window.showMaximized()
             }
             IconButton {
+                objectName: "chromeClose"
+                forceDown: root.chromeDown === "close"
+                forceHover: root.chromeHot === "close"
                 ToolTip.text: qsTr("Close")
                 focusPolicy: Qt.NoFocus
                 hoverColor: "#C42B1C"   // the caption red of Windows, the one colour that is not a token on purpose

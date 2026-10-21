@@ -83,6 +83,7 @@ class ShellWindow(QObject):
         self.host = host
         self.adapter = ShellAdapter(host, self)
         self.engine: QQmlApplicationEngine | None = None
+        self.chrome = None  # chrome_win.WindowChrome on Windows
         self.warnings: list[str] = []
         host.pickers = QmlPickers(self)
         self.adapter.quitRequested.connect(self._quit)
@@ -103,10 +104,15 @@ class ShellWindow(QObject):
         self.engine = QQmlApplicationEngine(self)
         self.engine.addImportPath(str(QML_DIR))
         self.engine.warnings.connect(self._warned)
-        self.engine.setInitialProperties({"shell": self.adapter, "visible": False})
+        self.engine.setInitialProperties({"shell": self.adapter, "visible": False, "winChrome": self.win_chrome()})
         self.follow_theme()
         self.engine.load(QUrl.fromLocalFile(str(MAIN_QML)))
         return self.window is not None
+
+    @staticmethod
+    def win_chrome() -> bool:
+        """Windows draws its own caption row in the client area (chrome_win); off-screen runs keep the plain window."""
+        return sys.platform == "win32" and QGuiApplication.platformName() != "offscreen"
 
     def _warned(self, errors: list[QQmlError]) -> None:
         self.warnings.extend(e.toString() for e in errors)
@@ -115,6 +121,11 @@ class ShellWindow(QObject):
         win = self.window if self.build() else None
         if win is None:
             return False
+        if self.win_chrome() and self.chrome is None:
+            from roundtable_souls.ui.launcher.chrome_win import WindowChrome
+
+            self.chrome = WindowChrome(win)
+            self.chrome.install()
         win.show()
         win.raise_()
         win.requestActivate()
@@ -165,6 +176,9 @@ class ShellWindow(QObject):
 
     def dispose(self) -> None:
         """Close the window and free it: the QML first, then its engine (the host outlives both)."""
+        if self.chrome is not None:
+            self.chrome.remove()
+            self.chrome = None
         win = self.window
         if win is not None:
             win.close()

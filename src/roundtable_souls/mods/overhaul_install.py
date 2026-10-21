@@ -687,6 +687,11 @@ def _users(profile: Path, config: OverhaulConfig, own: Path, *, others: bool = T
     return out
 
 
+def users_of(profile: Path, config: OverhaulConfig, entries: list[dict]) -> list[Path]:
+    """Every profile whose entries use this overhaul's folder: the profile itself first, then the ones beside it."""
+    return [Path(profile), *_users(profile, config, _own_of(profile, config, entries))]
+
+
 def _own_of(profile: Path, config: OverhaulConfig, entries: list[dict]) -> Path:
     """The overhaul's folder its package entry points into (its package folder's parent), else the usual place."""
     for b in config.builds:

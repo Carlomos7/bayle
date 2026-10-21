@@ -537,6 +537,29 @@ def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -
     return out
 
 
+def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
+    """After the setup is saved: install it again in every profile that uses the overhaul (the profile first), from
+    each one's copy of the download, so their entries (DLL options, package) follow it. One operation each, so Undo
+    takes the last back (run inside a logged job). Returns the profiles' names; raises OverhaulError."""
+    from roundtable_souls import overhauls
+    from roundtable_souls.mods import overhaul_install
+
+    hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
+    if hit is None:
+        return []
+    config, entries = hit
+    done = []
+    for p in overhaul_install.users_of(Path(profile), config, entries):
+        where = overhaul_install.places(p, config.id, loc)
+        if where is None or not where.sources.is_dir():
+            run_logging.log(f"skipped {p.name}: the launcher has no copy of the download there")
+            continue
+        preview = overhaul_install.preview_setup(p, where.sources, config, loc=loc)
+        install_overhaul_setup(preview, loc=loc)
+        done.append(p.name)
+    return done
+
+
 def preview_turn_off_overhaul(profile, *, loc: Locations):
     """What Turn off does to the profile's overhaul setup (overhaul_install.TurnOffPreview: lines, refusals).
     Raises overhaul_install.OverhaulError when the profile has no overhaul."""

@@ -37,6 +37,16 @@ _running: dict[int, str] = {}  # pool tasks in flight, by id, for the log at shu
 _ids = itertools.count(1)
 
 
+def drain(timeout_ms: int = 3000) -> bool:
+    """Queued work is dropped and running work is given timeout_ms; False (and a log line naming it) when some is left."""
+    POOL.clear()
+    if POOL.waitForDone(timeout_ms):
+        return True
+    # a job still runs: it is journaled, the next start recovers it, and the program exits anyway
+    run_logging.log_shown(f"closing with work still running: {', '.join(sorted(_running.values())) or '?'}")
+    return False
+
+
 def run_async(call: Callable[[], None], name: str | None = None) -> None:
     """Run call on a pool thread (name is only for the log of whoever asks)."""
     key = next(_ids)
@@ -92,10 +102,4 @@ class Jobs(QObject):
             on_result(event.value)
 
     def shutdown(self, timeout_ms: int = 3000) -> bool:
-        """Queued work is dropped and running work is given a moment to end."""
-        POOL.clear()
-        if not POOL.waitForDone(timeout_ms):
-            # a job still runs: it is journaled, the next start recovers it, and the program exits anyway
-            run_logging.log_shown(f"closing with work still running: {', '.join(sorted(_running.values())) or '?'}")
-            return False
-        return True
+        return drain(timeout_ms)

@@ -126,7 +126,7 @@ def test_shutdown_logs_the_work_still_running_and_returns_false():
     orig = run_logging.log_shown
     run_logging.log_shown = lambda text, *a, **k: lines.append(text)
     try:
-        assert ui_jobs.Jobs.shutdown(object.__new__(ui_jobs.Jobs), timeout_ms=100) is False
+        assert ui_jobs.drain(100) is False
     finally:
         run_logging.log_shown = orig
         release.set()

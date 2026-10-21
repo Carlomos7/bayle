@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from roundtable_souls.game import catalog
 from roundtable_souls.services import profile_mods
 from roundtable_souls.services.profile_mods import PageFacts, Removal
 from roundtable_souls.ui.pages.mods import load_order
@@ -516,7 +517,7 @@ class ModsPresenter:
 
     # ---- the Parameters card
     def parameters(
-        self, health: dict | None, game_running: bool, fingerprint=None, regulation: str = "regulation.bin"
+        self, health: dict | None, game_running: bool, fingerprint=None, regulation: str = catalog.REGULATION
     ) -> Parameters:
         """Shown only when a package ships parameters (v2.1 A). fingerprint: game_checks.Fingerprint of the
         parameters the game will use (owner, D3 A: on this card, for co-op partners to compare)."""
@@ -572,7 +573,7 @@ class ModsPresenter:
         )
 
     @staticmethod
-    def fingerprint(fingerprint, regulation: str = "regulation.bin") -> str:
+    def fingerprint(fingerprint, regulation: str = catalog.REGULATION) -> str:
         if fingerprint is None:
             return ""
         whose = (
@@ -589,7 +590,7 @@ class ModsPresenter:
         tool_to_allow,
         recovered: tuple[str, ...],
         online_with: str = "",
-        regulation: str = "regulation.bin",
+        regulation: str = catalog.REGULATION,
         profile: str = "",
         adopt: str = "",
         seamless: str = "",

@@ -323,11 +323,6 @@ class Requirements(Protocol):
         ...
 
 
-class NoRequirements:
-    def of(self, entry: dict) -> list[Requirement]:
-        return []
-
-
 class StaticRequirements:
     """Requirements by entry name (a package's id or a DLL's file name, case aside)."""
 

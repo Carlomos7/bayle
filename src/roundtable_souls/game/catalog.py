@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+REGULATION = "regulation.bin"  # the parameter file name every game here uses
+
 
 @dataclass(frozen=True)
 class Game:
@@ -24,7 +26,7 @@ class Game:
     coop_dll: str | None = None  # Seamless Co-op dll for this game, if one exists
     coop_ini: str | None = None
     coop_launcher: str | None = None  # Seamless Co-op's own launcher, which its installer puts in the game folder
-    regulation: str = "regulation.bin"  # the parameter file in the game folder, which a package may replace
+    regulation: str = REGULATION  # the parameter file in the game folder, which a package may replace
     save_reader: str | None = None  # "eldenring": characters; "nightreign": checksums; "container": structure only
     save_sections: int | None = None  # sections the game writes into a save, for the structure check
     regulation_repair: bool = False  # me3 leaves the save's regulation block dirty; repaired after play

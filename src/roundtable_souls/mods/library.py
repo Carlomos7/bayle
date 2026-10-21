@@ -256,10 +256,6 @@ class ModLibrary:
         off. Reads only; an unreadable profile counts as not using it."""
         return users_of(self.profiles, folder, besides=besides)
 
-    def mod_id_free(self, collection: str, mod_id: str) -> bool:
-        """No folder called mod_id (case aside) in packages/ or natives/ (collection)."""
-        return mod_id.lower() not in {m.lower() for m in _folders(self.root / collection)}
-
     def place_of(self, path: Path) -> tuple[str, str] | None:
         """(collection, id) of the library folder a path points into: ("packages", "hair"), ("natives", "x") for
         natives/x/x.dll, ("builds", "<what>") for an overhaul's build; None outside the library's mod folders."""

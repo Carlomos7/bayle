@@ -106,7 +106,7 @@ def make(
     """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up or a
     DLL the form names is not in the folder."""
     gc = game_config.load(game)
-    regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else "regulation.bin"
+    regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
     files = files_of(folder)
     have = {f.lower() for f in files}
     for n in basic.natives:

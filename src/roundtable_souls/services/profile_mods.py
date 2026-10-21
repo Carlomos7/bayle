@@ -365,7 +365,7 @@ class PageFacts:
     error: str = ""  # why the profile could not be read ("" when it was)
     online_with: str = ""  # the package whose parameters the profile goes online with (game_checks.online_risk)
     fingerprint: game_checks.Fingerprint | None = None  # the parameters the game will use (co-op partners compare)
-    regulation: str = "regulation.bin"  # the game's parameters file name
+    regulation: str = games.REGULATION  # the game's parameters file name
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:

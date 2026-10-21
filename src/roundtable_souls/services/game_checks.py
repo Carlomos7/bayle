@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from roundtable_souls.formats import me3_profile
+from roundtable_souls.game import catalog
 from roundtable_souls.game import config as game_config
 from roundtable_souls.game.locate import Locations
 from roundtable_souls.mods import profile as profile_tools
@@ -81,7 +82,7 @@ class Fingerprint:
     size: int
     source: str  # the package whose copy it is, or "" for the game's own
 
-    def text(self, regulation: str = "regulation.bin") -> str:
+    def text(self, regulation: str = catalog.REGULATION) -> str:
         whose = f"{self.source}'s" if self.source else "the game's own"
         return f"Parameters: {self.short}, {self.size:,} bytes ({whose} {regulation}); co-op partners need the same"
 

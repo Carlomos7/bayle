@@ -304,6 +304,13 @@ def test_a_misnamed_or_crowded_folder_gets_one_plain_notice():
     assert changes == ["3 profiles, 2 mods copied, 1 moved."] and safety == "Undo in Activity." and button == "Split"
 
 
+def test_a_profile_outside_bayles_folder_gets_a_move_in_notice():
+    note = next(n for n in ModsPresenter().page(facts(outside=True), scan()).notices if n.key == "outside")
+    assert note.text == "This profile is outside Bayle's folder, so Bayle can't manage its layout."
+    assert note.action == "Move in..."
+    assert not [n for n in ModsPresenter().page(facts(), scan()).notices if n.key == "outside"]
+
+
 def test_loose_dlls_get_one_notice_with_counts_and_a_tag():
     page = ModsPresenter().page(facts(loose_dlls=(4, 5)), scan())
     note = next(n for n in page.notices if n.key == "dll-folders")

@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from roundtable_souls.config.settings import LauncherSettings
 from roundtable_souls.game import catalog
+from roundtable_souls.services import play as core
 from roundtable_souls.ui.launcher import menu, topbar
 from roundtable_souls.ui.launcher.topbar import Facts
 
@@ -27,7 +28,7 @@ def test_the_pill_has_four_states_with_their_reasons():
     )
     assert topbar.pill(Facts(game=ER, installed=False, profile_count=1)).link.action == topbar.LOCATIONS
     assert topbar.pill(Facts(game=catalog.SEKIRO)).reason == "Not supported yet"
-    assert "unfinished" in topbar.pill(facts(problems=("unfinished setup",))).reason
+    assert "unfinished" in topbar.pill(facts(problems=(core.Problem("unfinished", detail="unfinished setup"),))).reason
 
 
 def test_vanilla_needs_no_profile_and_the_modes_are_remembered_per_game():
@@ -62,10 +63,10 @@ def _launch(label, kind="me3", source=None):
 
 
 def test_the_profile_drop_down_lists_the_profiles_the_current_one_checked_and_new_profile_last():
-    launch_profiles = [_launch("a.me3"), _launch("the overhaul  ·  installation.json", "manifest")]
+    launch_profiles = [_launch("a.me3"), _launch("Example  ·  installation.json", "manifest")]
     m = topbar.profile_menu(launch_profiles, 1, busy=False)
-    assert [e.label for e in m.entries] == ["a.me3", "the overhaul"] and m.entries[1].managed and m.entries[1].checked
-    assert m.current == "the overhaul" and m.new_text == "New profile..." and m.enabled
+    assert [e.label for e in m.entries] == ["a.me3", "Example"] and m.entries[1].managed and m.entries[1].checked
+    assert m.current == "Example" and m.new_text == "New profile..." and m.enabled
     assert not topbar.profile_menu(launch_profiles, 0, busy=True).enabled
     assert topbar.profile_menu([], -1, busy=False).current == "No profile"
 
@@ -151,12 +152,12 @@ def test_the_unsaved_rule_asks_before_leaving_and_discard_or_save_goes_on(tmp_pa
 
 def test_every_setup_problem_has_a_plain_short_form_and_a_fix_link():
     for raw in (
-        r"profile missing: C:\x\a.me3",
-        "this profile is for Sekiro, not Elden Ring",
-        r"me3 missing: C:\x\me3.exe",
-        "me3 is not installed on this PC (not on PATH, not in its default folder, not set in Settings)",
-        r"game exe missing: C:\x\eldenring.exe",
-        r"game exe set in Settings is missing: C:\x\eldenring.exe",
+        core.Problem("profile_missing", path=r"C:\x\a.me3"),
+        core.Problem("wrong_game", detail="Sekiro, not Elden Ring"),
+        core.Problem("me3_missing", path=r"C:\x\me3.exe"),
+        core.Problem("me3_not_installed"),
+        core.Problem("game_exe_missing", path=r"C:\x\eldenring.exe"),
+        core.Problem("game_exe_setting_missing", path=r"C:\x\eldenring.exe"),
     ):
         reason = topbar.pill(facts(problems=(raw,))).reason
         assert "C:" not in reason and "Tools" not in reason and reason.startswith("Blocked: "), reason
@@ -164,12 +165,22 @@ def test_every_setup_problem_has_a_plain_short_form_and_a_fix_link():
 
 
 def test_a_missing_mod_folder_warns_but_launch_stays_allowed():
-    f = facts(warnings=("flora folder is missing",))
+    f = facts(warnings=(core.Problem("mod_folder_missing", detail="flora"),))
     assert topbar.pill(f).can_launch and "flora folder is missing" in topbar.pill(f).reason
     st = topbar.status(f)
     assert st.text == "flora folder is missing" and st.tone == "warning" and st.link.action == topbar.MODS
     assert (
-        topbar.status(facts(warnings=("a folder is missing", "b folder is missing"))).text
+        topbar.status(
+            facts(
+                warnings=(
+                    core.Problem("mod_folder_missing", detail="a"),
+                    core.Problem("mod_folder_missing", detail="b"),
+                )
+            )
+        ).text
         == "2 mod folders are missing"
     )
-    assert topbar.status(facts(warnings=("a folder is missing",), mode=topbar.VANILLA)).text == "Ready"
+    assert (
+        topbar.status(facts(warnings=(core.Problem("mod_folder_missing", detail="a"),), mode=topbar.VANILLA)).text
+        == "Ready"
+    )

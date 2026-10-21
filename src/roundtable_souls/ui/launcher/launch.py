@@ -92,7 +92,7 @@ class Services:
     job_play_vanilla: Callable[..., None] = core.job_play_vanilla
 
 
-def gate(state: LauncherState, mode: str, problems: tuple[str, ...] | None = None) -> str:
+def gate(state: LauncherState, mode: str, problems: tuple[core.Problem, ...] | None = None) -> str:
     """Why Launch cannot start now, or "" when it can: a job or the game running, an unsupported or missing game,
     no profile, a profile with problems (an incomplete managed setup, me3 missing). The pill shows the same reasons."""
     if state.busy:
@@ -116,7 +116,7 @@ class _Run:
     backup: str = core.BACKUP_SKIP  # how the job treats a backup (the flow does it first)
     allow_without_backup: bool = False  # --allow-without-backup: a failed backup does not stop it
     rebuild_chosen: bool = False  # "Rebuild now" was picked
-    skip_update: bool = False  # "Play anyway this once"
+    skip_update: bool = False  # "Launch anyway this once"
     cancelled: bool = False  # "Stop after the rebuild"
     profile: Path | None = None
     confirmed: bool = False  # "Launch Offline" was confirmed
@@ -153,7 +153,7 @@ class LaunchFlow:
         self.ports.background(check, lambda problems: self._gated(run, mode, problems))
         return not run.refused
 
-    def _gated(self, run: _Run, mode: str, problems: tuple[str, ...]) -> None:
+    def _gated(self, run: _Run, mode: str, problems: tuple[core.Problem, ...]) -> None:
         """The fresh check is back: the full gate on it, then the flow."""
         why = gate(self.state, mode, problems)
         if why:
@@ -254,7 +254,7 @@ class LaunchFlow:
     # ---------------------------------------------------------------- 3. stale merged mods
     def _stale(self, run: _Run) -> None:
         prof = run.profile
-        if prof is None or run.skip_update:  # Vanilla uses no mods; "Play anyway this once" was picked
+        if prof is None or run.skip_update:  # Vanilla uses no mods; "Launch anyway this once" was picked
             self._online(run)
             return
         loc = self._locations()
@@ -300,19 +300,16 @@ class LaunchFlow:
         self._rebuild(run, prof, key, reason)
 
     def _ask_rebuild(self, run: _Run, reason: str) -> None:
-        """Automatic rebuilds are off: Rebuild now / Play anyway this once / Cancel."""
+        """Automatic rebuilds are off: Rebuild now / Launch anyway this once / Cancel."""
         ask = Ask(
             tr("Your merged mods are out of date"),
             (reason,),
             (
                 Choice(REBUILD, tr("Rebuild now"), "primary"),
-                Choice(PLAY_ANYWAY, tr("Play anyway this once")),
+                Choice(PLAY_ANYWAY, tr("Launch anyway this once")),
                 Choice(CANCEL, tr("Cancel")),
             ),
-            warning=tr(
-                "Playing anyway starts the game with the previous result: a removed or changed mod may still be "
-                "inside it."
-            ),
+            warning=tr("Launching anyway uses the previous result. A removed or changed mod may still be in it."),
         )
 
         def answered(key: str) -> None:
@@ -334,13 +331,13 @@ class LaunchFlow:
             tr("Your merged mods are out of date"),
             (reason, why),
             (
-                Choice(PLAY_ANYWAY, tr("Play anyway this once"), "primary"),
+                Choice(PLAY_ANYWAY, tr("Launch anyway this once"), "primary"),
                 Choice(DETAILS, tr("View details")),
                 Choice(CANCEL, tr("Cancel")),
             ),
             warning=tr(
-                "Playing anyway starts the game with the previous result: a removed or changed mod may still be "
-                "inside it. Rebuild on the Mods page brings it up to date."
+                "Launching anyway uses the previous result. A removed or changed mod may still be in it. "
+                "Rebuild on the Mods page brings it up to date."
             ),
         )
 
@@ -388,7 +385,7 @@ class LaunchFlow:
             tr("The merged mods could not be updated"),
             (failed.get("message") or tr("The rebuild stopped; its log is on Activity."),),
             (
-                Choice(PLAY_ANYWAY, tr("Play anyway this once"), "primary"),
+                Choice(PLAY_ANYWAY, tr("Launch anyway this once"), "primary"),
                 Choice(DETAILS, tr("View details")),
                 Choice(CANCEL, tr("Cancel")),
             ),
@@ -466,7 +463,7 @@ class LaunchFlow:
         if run.mode == topbar.OFFLINE and not settings.offline_skip_confirm and not run.confirmed:
             bits = [tr("Seamless stays off, so the game uses the standard save")]
             if settings.offline_strip_overhaul:
-                bits.append(tr("the overhaul stays off too"))
+                bits.append(tr("The overhaul stays off too"))
             if settings.offline_start_steam:
                 bits.append(tr("Steam is started if it is not running"))
             ask = Ask(
@@ -516,6 +513,6 @@ class LaunchFlow:
 
     # ---------------------------------------------------------------- helpers
     def _locations(self):
-        """The game's locations with the save files the setup in use names."""
+        """The game's locations with the save files the profile in use names."""
         launch_profile = self.state.launch_profile
         return launch_profile.locations() if launch_profile is not None else self.state.locations

@@ -10,6 +10,7 @@ import re
 import sys
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -87,6 +88,30 @@ def logo_path(theme_dark: bool, logo: str = "auto") -> Path:
     return p if p.is_file() else ASSETS_DIR / "icon.ico"
 
 
+@dataclass(frozen=True)
+class Problem:
+    """A reason a profile cannot launch (problems) or launches without a mod (warnings). code is for the UI to
+    translate; str() is the English text the log shows. path or detail carry the variable part."""
+
+    code: str
+    path: str = ""
+    detail: str = ""
+
+    def __str__(self) -> str:
+        return _PROBLEM_TEXT.get(self.code, "{detail}").format(path=self.path, detail=self.detail)
+
+
+_PROBLEM_TEXT = {
+    "profile_missing": "profile missing: {path}",
+    "wrong_game": "this profile is for {detail}",  # detail: "Sekiro, not Elden Ring"
+    "me3_missing": "me3 missing: {path}",
+    "me3_not_installed": "me3 is not installed on this PC (not on PATH, not in its default folder, not set in Settings)",
+    "game_exe_missing": "game exe missing: {path}",
+    "game_exe_setting_missing": "game exe set in Settings is missing: {path}",
+    "mod_folder_missing": "{detail} folder is missing",  # detail: the mod's id
+}
+
+
 class LaunchProfile:
     """What to launch and how. kind: 'me3' (installed me3, --game) or 'manifest' (an overhaul installer's manifest,
     installation.json, --exe).
@@ -102,7 +127,7 @@ class LaunchProfile:
         return self.loc.game
 
     def locations(self) -> Locations:
-        """The game's locations with the save files this setup uses (me3's savefile, Seamless Co-op's extension)."""
+        """The game's locations with the save files this profile uses (me3's savefile, Seamless Co-op's extension)."""
         names = profile_saves(self)
         return self.loc.with_profile_save_names({k: names[k] for k in ("standard", "coop")})
 
@@ -129,31 +154,31 @@ class LaunchProfile:
         game = Path(self.exe).name if self.exe else f"{self.game.name} (Steam)"
         return f"me3: {me3 if me3 else 'not found'}    game: {game}"
 
-    def problems(self):
+    def problems(self) -> list[Problem]:
         out = []
         if not Path(self.profile).is_file():
-            out.append(f"profile missing: {self.profile}")
+            out.append(Problem("profile_missing", path=self.profile))
         elif self.kind == "me3":
             named = paths.profile_games(Path(self.profile))
             if named and self.game.key not in named:
                 other = ", ".join(games.get(k).name if k in games.BY_KEY else k for k in named)
-                out.append(f"this profile is for {other}, not {self.game.name}")
+                out.append(Problem("wrong_game", detail=f"{other}, not {self.game.name}"))
         if Path(self.profile).is_file():
             unfinished = mod_operations.problem(Path(self.profile))  # an incomplete managed setup: no Play anyway
             if unfinished:
-                out.append(unfinished)
+                out.append(Problem("unfinished", detail=unfinished))
         if self.me3 and not Path(self.me3).is_file():
-            out.append(f"me3 missing: {self.me3}")
+            out.append(Problem("me3_missing", path=str(self.me3)))
         if not self.me3 and not self.loc.me3_exe():
-            out.append("me3 is not installed on this PC (not on PATH, not in its default folder, not set in Settings)")
+            out.append(Problem("me3_not_installed"))
         if self.exe and not Path(self.exe).is_file():
-            out.append(f"game exe missing: {self.exe}")
+            out.append(Problem("game_exe_missing", path=str(self.exe)))
         custom = self.loc.overrides.game_exe
         if custom and not Path(custom).is_file():
-            out.append(f"game exe set in Settings is missing: {custom}")
+            out.append(Problem("game_exe_setting_missing", path=str(custom)))
         return out
 
-    def warnings(self):
+    def warnings(self) -> list[Problem]:
         """What will not stop Play but leaves a mod out: a mod folder that is gone (me3 skips it)."""
         p = Path(self.profile)
         if self.kind != "me3" or not p.is_file():
@@ -162,7 +187,9 @@ class LaunchProfile:
             rows = profile_tools.package_rows(p.read_text(encoding="utf-8", errors="replace"))
         except OSError:
             return []
-        return [f"{r['id']} folder is missing" for r in rows if not mod_manage.resolve(p, r["path"]).is_dir()]
+        return [
+            Problem("mod_folder_missing", detail=r["id"]) for r in rows if not mod_manage.resolve(p, r["path"]).is_dir()
+        ]
 
     def launch_exe(self):
         """What me3 launches with --exe: the installation's own exe, else the custom exe from Settings, else Steam (--game)."""
@@ -204,8 +231,7 @@ def launch_profile_from_path(p: str | Path, loc: Locations) -> LaunchProfile | N
 
 def discover(remembered: str | None, loc: Locations):
     """loc's game's me3 profiles (+ the remembered one), and every installation of an overhaul with a config for the
-    game (data/overhauls) in its folder next to them or in the game folder (the overhaul is an Elden Ring mod
-    despite its name)."""
+    game (data/overhauls) in its folder next to them or in the game folder."""
     found, seen = [], set()
     places = [(o.recognise.folder, o.recognise.manifest) for o in overhauls.load(loc.game.key)]
 
@@ -227,7 +253,7 @@ def discover(remembered: str | None, loc: Locations):
                 add(launch_profile_from_installation(inst, loc))
     if not places:
         return found
-    # an edition may install into the game folder itself (the overhaul's Standalone: Launch.cmd next to eldenring.exe)
+    # an edition may install into the game folder itself (a Launch.cmd next to eldenring.exe)
     try:
         gd = loc.game_dir()
     except Exception:
@@ -307,7 +333,6 @@ def profile_saves(launch: LaunchProfile | None, game: games.Game | None = None) 
 
 PLAY_KEYS = (
     "play_update_merge",
-    "build_merges",
     "play_backup_before",
     "play_repair_after",
     "play_repair_after_eldenring",
@@ -326,7 +351,7 @@ FLAGS_SINCE = (0, 13, 0)  # --no-boot-boost / --show-logos / --diagnostics as us
 
 
 def launch_extra_args(opts: dict, version: str | None = None) -> list:
-    """me3 launch flags from the Play session options. A me3 older than 0.13 (a the overhaul bundle, say) gets none,
+    """me3 launch flags from the Play session options. A me3 older than 0.13 (one a mod bundles, say) gets none,
     so an unknown flag can never stop the launch; an unknown version is treated as current."""
     args = []
     if not opts.get("play_boot_boost", True):
@@ -395,7 +420,7 @@ def _backup_before_play(opts: dict, loc: Locations, backup: str) -> None:
 
 
 def places(launch, loc: Locations) -> dict:
-    """Folders worth a button: me3, game, saves, this setup's profile and its mod folder. Missing ones are None."""
+    """Folders worth a button: me3, game, saves, this profile's file and its mod folder. Missing ones are None."""
     out: dict[str, Path | None] = {"me3": None, "game": None, "saves": None, "profile": None, "mods": None}
     try:
         me3 = launch.me3_path() if launch else loc.me3_exe()
@@ -561,19 +586,19 @@ def offline_profile_text(text: str, strip_overhaul: bool = False, coop_dll: str 
     mark = overhaul_mark() if strip_overhaul else None
     if mark:
 
-        def strip_rev(m):
+        def strip_marked(m):
             block = m.group(1)
             if not mark.search(block):
                 return block
             return _comment_block(block)
 
-        out = NATIVE_BLOCK_RE.sub(strip_rev, out)
-        out = PACKAGE_BLOCK_RE.sub(strip_rev, out)
+        out = NATIVE_BLOCK_RE.sub(strip_marked, out)
+        out = PACKAGE_BLOCK_RE.sub(strip_marked, out)
         out = _disable_objects_matching(out, mark)
     out = profile_tools.set_setting(out, "start_online", False)  # "Offline" must never go online
     note = "Seamless Co-op disabled."
     if strip_overhaul:
-        note += " the overhaul disabled."
+        note += " Overhaul disabled."
     return f"# OFFLINE COPY written by the launcher: {note} Regenerated on every offline launch.\n" + out
 
 
@@ -810,7 +835,7 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
         ]
         probs = s.problems()
         if probs:
-            lines.append("      PROBLEMS: " + "; ".join(probs))
+            lines.append("      PROBLEMS: " + "; ".join(str(x) for x in probs))
     lines.append(f"remembered: {remembered}")
     lines.append(f"steam: {steam.steam_exe()}")
     lines.append(f"game folder: {loc.game_dir()}")

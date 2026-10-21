@@ -318,7 +318,7 @@ def target(profile: Path, loc: Locations) -> dict | None:
         parent = folder.parent
         common = (profile.parent, pk_root, nt_root)
         if not any(checks.same_folder(parent, c) for c in common):
-            own = [parent]  # ExampleOverhaul/mod: its DLLs sit in ExampleOverhaul
+            own = [parent]  # Folder/mod: its DLLs sit in Folder
     return {"folder": folder, "own": own, "name": layer["name"]}
 
 

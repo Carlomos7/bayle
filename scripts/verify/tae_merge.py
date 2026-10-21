@@ -6,7 +6,7 @@ or, without --input, the enabled packages of --profile that ship one. They are m
 by the launcher's merger (the archive rule, and the TAE rule for an animation-event file several mods changed).
 Nothing given is changed: the result goes to the output folder.
 
-    uv run python scripts/verify/tae_merge.py --input bbdash=DIR --input overhaul=DIR [--compare FILE] [--package]
+    uv run python scripts/verify/tae_merge.py --input bbdash=DIR --input other=DIR [--compare FILE] [--package]
 
 --compare FILE: an animation archive another tool merged from the same mods. Each TAE is compared with the result
 animation by animation (the file header, and every animation: header, file name, events in stored order with their
@@ -191,14 +191,14 @@ def package(out: Path, rows: list[dict], inputs, result) -> None:
         f"{notes}\n\n"
         "1. Close the game and Roundtable Souls.\n"
         f"2. Double-click launch.cmd. The game uses a separate save, {SAVE}; your characters are not loaded. Online\n"
-        "   play stays off, and DLL mods (Seamless Co-op, the overhaul's DLLs, ...) are not loaded.\n"
+        "   play stays off, and DLL mods (Seamless Co-op, a mod's DLLs, ...) are not loaded.\n"
         "3. Continue a character on this save, or start a throwaway one.\n"
         "4. Dash: the notes above list the animations each mod changed (bb-dash's are animation 0 and the evasion\n"
         "   animations 27000 to 27120). Dodge in every direction and backstep, at light and medium equip load; it\n"
         "   should look and feel as with the dash mod alone. Then walk, run, sprint, attack, use an item, open a door\n"
         "   and rest at a grace.\n"
-        "5. the overhaul's downed and overhaul animations need its DLLs and co-op, which this package does not load; check\n"
-        "   them in your own setup with the merged archive (mods/tae-merge-test) in place of the overhaul's merged copy.\n"
+        "5. Animations that need a mod's DLLs or co-op are not loaded by this package; check them in your own\n"
+        "   setup with the merged archive (mods/tae-merge-test) in place of the mods' merged copy.\n"
         "6. Note anything different: a missing or wrong animation, a stuck pose, sounds or effects at the wrong time,\n"
         "   a freeze or a crash. 'Everything as expected' is the result to note too.\n",
         encoding="utf-8",

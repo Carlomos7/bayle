@@ -68,8 +68,7 @@ runs, and again whenever `rebuild.json` (or the tool it names) changes.
 ## Tools without a rebuild.json
 
 Players can turn on **Parameter overlay** in your package's Options and pick a `rebuild.json` they wrote for your
-tool. Tools that keep an `installation.json` with a `refreshProtocol` and a source list beside their package, and
-their installer in a setup folder of the profile, are recognised without one.
+tool. A tool without a `rebuild.json` is not run: the launcher does not guess how to start a program from a mod.
 
 The player's choice is kept in `.roundtable/settings.json` next to their profile (relative paths; `roundtable.json`
 before 3.23), so it travels with the profile folder. Whatever the tool, the launcher keeps your package's `load_after` naming every other package, and your DLL's
@@ -78,7 +77,8 @@ those lists, never the player's other entries.
 
 ## Overhaul configs: the launcher builds it itself
 
-For a mod whose installer keeps its download in a setup folder, the launcher can do the installer's merge itself from
-the mod's overhaul config (`src/roundtable_souls/data/overhauls/*.toml`), when the player turns on **Build Nightreign
-the overhaul in the launcher** on Settings. The config is data; nothing about a particular mod is in the launcher's code.
+For a mod whose download holds the files to merge, the launcher can do the merge itself from an overhaul config (a
+TOML file in the launcher's `overhauls` folder, made with **Set up as an overhaul** on the Mods page). The config is
+data; nothing about a particular mod is in the launcher's code, and nothing from the download runs. A setup that
+another installer made is left as it is.
 [Overhaul configs](Overhaul%20configs.md) describes the format and its build steps.

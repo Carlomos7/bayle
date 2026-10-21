@@ -94,19 +94,17 @@ Item {
                     ToolTip.text: header.words.profileRenameTip
                     ToolTip.visible: nameHover.hovered && !nameArea.editing
                 }
-                FluentIcon {
+                IconButton {  // always shown, focusable (Tab), named by its tooltip
+                    ToolTip.text: header.words.profileRenameTip
                     anchors.verticalCenter: parent.verticalCenter
-                    name: "Edit"
+                    icon_: "Edit"
+                    iconSize: 14
+                    implicitHeight: 28
+                    implicitWidth: 28
                     objectName: "profileRenameHint"
-                    opacity: nameHover.hovered ? 1 : 0
-                    size: 14
                     visible: !nameArea.editing
 
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.mFast
-                        }
-                    }
+                    onClicked: nameArea.begin()
                 }
                 TextBox {
                     id: edit

@@ -2,6 +2,19 @@
 
 All notable changes to Roundtable Souls. The version is shown in the window title.
 
+## [Unreleased]
+
+- Mods: the notices at the top of the page (adopt into the library, Seamless in the game folder, online with parameters) show their text again; it was empty since a delegate role named like the bar's own property bound to itself.
+- Mods: the pencil beside the profile name is always visible, a real focusable button (Tab, named "Rename profile"); clicking it or the name starts the rename.
+- Mods: Remove no longer asks when Undo brings everything back. The mod goes out of the profile (its folder to the Recycle Bin) and a toast offers Undo, which puts back the entry where it was, with any later edit to the profile kept, and the folder. Undo says why when the folder is no longer in the Recycle Bin or the mod is already back. Remove still asks when another entry or profile loads from the folder, or the profile has an overhaul.
+- Mod Configs: "Set up as an overhaul..." / "Turn off overhaul setup..." now live in one place, a More menu on the open mod (and the row's right-click or Shift+F10 menu), instead of a button on every mod; "Edit as text" shows only for files that have a form, and plain text files open straight in the editor.
+- Wording: a copy pass over the helper text. Each fact now appears once (label, subtext or tooltip, not several), tooltips only add what is not visible, and errors say what happened and what to do.
+- Launch: the blocked reasons are translatable (each problem has a code; the top bar maps the code, so the reasons read in the window language).
+- The launcher no longer runs other installers or rebuild tools from a mod's download. A setup that another installer made is detected, listed and started as before, and left as it is: update it with that installer. A rebuild tool described by a rebuild.json still runs after you allow it.
+- No overhaul config ships with the launcher. Make one with **Set up as an overhaul** on the Mods page; the launcher then builds what it installs itself, and runs nothing from the download.
+- Settings: the "Build ... in the launcher (preview)" switch is gone (the launcher builds only what it installed). "Skip the overhaul too" is now "Skip the overhaul too"; your choice is kept.
+- New overhaul configs keep their manifest in overhaul.json. An installation.json left by another installer is only ever read.
+
 ## [4.0.0] - 2026-10-20
 
 - Settings > Updates > Check for updates answers at once: the line says "Checking for updates..." and the button waits, then a toast says up to date, could not check, or that an update is available.

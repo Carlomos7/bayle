@@ -2,7 +2,7 @@
 recognise it and how the launcher builds it, as a Pydantic model.
 
 An overhaul is a mod that must load after the others and ships merged copies of game files other mods also change
-(the overhaul). Its config has two parts:
+(a mod that rebuilds merged files). Its config has two parts:
 
     recognise   how the launcher knows it is there: its own folder beside the me3 profile (or in the game folder),
                 its installer's manifest in that folder, the profile entries that mean a setup includes it, and the
@@ -75,7 +75,7 @@ class Match(_Strict):
 class Output(_Strict):
     mod: str = "mod"  # the package's folder name inside the output
     report: str = "merge-report.txt"
-    manifest: str = "installation.json"
+    manifest: str = "overhaul.json"
 
 
 # ----------------------------------------------------------------------------- steps
@@ -144,7 +144,7 @@ class Hook(_Strict):
     fragment: str  # the download's file appended
     markers: list[str] = Field(default_factory=list)  # text meaning a script already contains the fragment
     refuse_text: str | None = None  # the refusal then
-    # functions the mod's own DLL gives the script ("OverhaulNative", or a prefix "ovh*"): its calls of them are not
+    # functions the mod's own DLL gives the script ("ExampleNative", or a prefix "Example*"): its calls of them are not
     # reported as undefined (overhauls.hks_check); only a mod's own config names them
     natives: list[str] = Field(default_factory=list)
 

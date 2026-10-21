@@ -23,7 +23,7 @@ from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods import rename as mod_rename
-from roundtable_souls.mods.backends.manifest_refresh import launcher_installed
+from roundtable_souls.mods.overhaul_manifest import launcher_installed
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import game_checks
 from roundtable_souls.services.mods import (
@@ -83,6 +83,27 @@ def removal(profile, entry: dict, *, loc: Locations, scan: dict | None = None) -
     )
 
 
+def removal_undoable(profile, plan: Removal, *, loc: Locations) -> bool:
+    """Whether Remove may skip its confirm because Undo brings everything back: not when another entry or profile
+    keeps the folder, not in a profile with an overhaul (its installer manages entries), and not when the folder
+    would be deleted for good (no Recycle Bin)."""
+    from roundtable_souls.platform import trash
+
+    if plan.users or profile_overhaul(profile, loc=loc) is not None:
+        return False
+    return not plan.can_recycle or trash.available()
+
+
+def undo_removal(undo: dict, *, loc: Locations, log: Callable[[str], None] | None = None) -> str:
+    """Take back exactly one removal (the record remove_entry returned): the entry where it was, with later edits to
+    the profile kept, and the folder from the Recycle Bin. Raises mods.undo.UndoError, touching nothing, when the
+    profile or the bin no longer allow it."""
+    from roundtable_souls.mods import undo as mod_undo
+
+    mod_undo.check_removed(undo)
+    return mod_undo.run(undo, log or (lambda _s: None), loc=loc)
+
+
 def merged_from(profile, entry: dict, *, loc: Locations, scan: dict | None = None) -> list[str]:
     """The files of a package that a combined result was built from ([] for natives, other games, or when the
     combined result cannot be read)."""
@@ -112,18 +133,17 @@ def remove_entry(
     log = log or run_logging.log
     prof = Path(profile)
     out = uninstall_mod(prof, index, delete_folder=delete_folder, loc=loc)
-    run_logging.set_undo(
-        {
-            "type": "remove",
-            "profile": str(prof),
-            "name": plan.name,
-            "path": out["path"],
-            "entry_text": out["entry_text"],
-            "where": out["where"],
-            "trash": out.get("trash"),
-            "merged": bool(plan.merged),
-        }
-    )
+    out["undo"] = {
+        "type": "remove",
+        "profile": str(prof),
+        "name": plan.name,
+        "path": out["path"],
+        "entry_text": out["entry_text"],
+        "where": out["where"],
+        "trash": out.get("trash"),
+        "merged": bool(plan.merged),
+    }
+    run_logging.set_undo(out["undo"])
     gone = out.get("trash") and out["trash"].get("kind") == "gone"
     log(
         f"done: removed {plan.name}"

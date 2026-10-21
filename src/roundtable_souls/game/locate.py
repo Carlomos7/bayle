@@ -2,7 +2,7 @@
 launches it, with the Settings > Locations overrides applied.
 
 A Locations value answers for one game. The app context (app.py) holds the one for the game the window shows and
-makes a new one when the game, the settings or the setup in use change; code that needs a location is handed one
+makes a new one when the game, the settings or the profile in use change; code that needs a location is handed one
 instead of reading a global. On Linux (desktop or Steam Deck) the game runs through Proton, so its saves live inside
 the game's Proton prefix and the game process is a Wine process whose command line names the game's exe.
 """
@@ -66,7 +66,7 @@ class Overrides:
 class Locations:
     game: catalog.Game
     overrides: Overrides = field(default_factory=Overrides)
-    # Save names the setup in use configures beyond the defaults (me3's savefile, Seamless Co-op's
+    # Save names the profile in use configures beyond the defaults (me3's savefile, Seamless Co-op's
     # save_file_extension): role -> file name, so those files are listed and repaired too.
     profile_save_names: Mapping[str, str] = field(default_factory=dict)
 
@@ -114,7 +114,7 @@ class Locations:
         return paths.save_roots_for(game.save_dir, game.app_id)
 
     def save_names(self) -> list[str]:
-        """The default names (ER0000.sl2, ER0000.co2) and any the setup in use configures, without repeats."""
+        """The default names (ER0000.sl2, ER0000.co2) and any the profile in use configures, without repeats."""
         out: list[str] = []
         for n in (*self.game.save_names, *self.profile_save_names.values()):
             if n.lower() not in (x.lower() for x in out):
@@ -122,7 +122,7 @@ class Locations:
         return out
 
     def save_files(self) -> list[Path]:
-        """Every save the game or the setup in use uses in the game's save folders, one folder per Steam account."""
+        """Every save the game or the profile in use uses in the game's save folders, one folder per Steam account."""
         names = self.save_names()
         found: list[Path] = []
         for root in self.save_roots():

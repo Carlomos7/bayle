@@ -241,9 +241,9 @@ def test_an_unfinished_operation_blocks_play(profile, tmp_path):
 
     op = operations.start(profile, "install of grass")  # prepared, never applied: as a crash leaves it
     s = play.LaunchProfile("me3", str(profile), loc=Locations(catalog.ELDEN_RING))
-    assert any("did not finish" in p for p in s.problems())
+    assert any("did not finish" in str(p) for p in s.problems())
     operations.recover(profile)
-    assert not any("did not finish" in p for p in s.problems())
+    assert not any("did not finish" in str(p) for p in s.problems())
     assert not op.dir.exists()
 
 
@@ -674,7 +674,7 @@ def test_renaming_makes_the_merged_build_stale_without_touching_its_record_and_n
     w.pack("params")
     merge.update_before_play(w.profile, lambda s: None, loc=er())
     assert merge.needs_update(w.profile, loc=er()) is None
-    record = w.base / "Merger" / "installation.json"
+    record = w.record
     kept = record.read_bytes()
     last = entry_index(w.profile, "last")
     pre = rename.preview(w.profile, last, "newest", loc=er())

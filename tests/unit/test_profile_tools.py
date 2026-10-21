@@ -32,7 +32,7 @@ def test_settings_roundtrip_keeps_comments_and_crlf():
     t = P.set_setting(t, "mem_patch_heap_size", 0)
     assert "start_online" not in P.read_settings(t) and "mem_patch_heap_size" not in P.read_settings(t)
     assert t.count("[[packages]]") == 4 and t.startswith("# my profile")
-    # the array form the overhaul writes: settings go before packages = [...]
+    # the array form Example writes: settings go before packages = [...]
     arr = 'profileVersion = "v1"\nnatives = [{ path = "x.dll" }]\npackages = [{ id = "p", path = "mod" }]\n'
     t = P.set_setting(arr, "mem_patch", True)
     assert t.splitlines()[1] == "mem_patch = true" and P.read_settings(t) == {"mem_patch": True}

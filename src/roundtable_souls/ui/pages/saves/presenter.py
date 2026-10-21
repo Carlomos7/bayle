@@ -87,8 +87,7 @@ class SavesPresenter:
             "openFolder": tr("Open the folder"),
             "postSession": tr("Run post-session repair"),
             "postSessionTip": tr(
-                "Checks every save of this game and tidies the game-rules section the launcher leaves marked as changed. "
-                "The game does not read it; only save editors need it."
+                "Checks every save of this game and tidies the game-rules section. Only save editors need that part."
             ),
             "dropImport": tr("Drop to import into the Library"),
             "undo": tr("Undo"),
@@ -116,10 +115,10 @@ class SavesPresenter:
             "kept": tr("Kept"),
             "letAgeOut": tr("Let it age out"),
             "saveCopyHint": tr(
-                "A copy of the whole file is kept in the Library under this name. The save itself does not change."
+                "Keeps a copy of the whole file in the Library under this name. The save does not change."
             ),
-            "importHint": tr("The file is copied into the Library under this name. Nothing live changes."),
-            "keepHint": tr("The backup is copied into the Library under this name. The backup stays where it is."),
+            "importHint": tr("Copies the file into the Library under this name. Live saves do not change."),
+            "keepHint": tr("Copies the backup into the Library under this name. The backup stays."),
             "importButton": tr("Import"),
             "save": tr("Save"),
             "level": tr("Level"),
@@ -145,15 +144,10 @@ class SavesPresenter:
         active = names.get("active")
         if not active:
             return ""
-        line = tr("Launch Profile uses {name}.").format(name=active)
-        if names.get("coop") and names.get("standard"):
-            line += " " + tr("Launch Vanilla and Launch Offline use {name}.").format(name=names["standard"])
-        return line
+        return ""  # the cards say which save each launch uses; said twice before
 
     def running_bar(self, game: str) -> str:
-        return tr(
-            "{game} is running. The saves are read-only until it closes; they are checked again after you quit."
-        ).format(game=game)
+        return tr("{game} is running. Saves are read-only until it closes, then checked again.").format(game=game)
 
     # ---- the two live cards
     def health(self, info: dict, running: bool) -> tuple[str, str]:
@@ -310,7 +304,7 @@ class SavesPresenter:
     # ---- the operations' words
     def refusal_busy(self, game: str, running: bool) -> Refusal:
         if running:
-            return Refusal(tr("Close {game} first").format(game=game), tr("Saves are not changed while it runs."))
+            return Refusal(tr("Close {game} first").format(game=game), tr("Saves cannot change while it runs."))
         return Refusal(tr("A job is running"), tr("Wait for it to finish."))
 
     def character_copy(self, plan: dict, source: str, target: str, target_slot: int, same_file: bool) -> Confirm:
@@ -462,9 +456,7 @@ class SavesPresenter:
                     self._item(
                         ("checksum", s),
                         prefix(s) + tr("Character data is out of step"),
-                        tr(
-                            "The game may refuse this character. Ticked: repair makes its integrity data match again. Unticked: it stays as it is."
-                        ),
+                        tr("The game may refuse this character."),
                         True,
                     )
                 )
@@ -473,9 +465,7 @@ class SavesPresenter:
                 self._item(
                     ("checksum", "ud10"),
                     tr("Profile summary is out of step"),
-                    tr(
-                        "The game may refuse the save. Ticked: repair makes its integrity data match again. Unticked: it stays as it is."
-                    ),
+                    tr("The game may refuse the save."),
                     True,
                 )
             )
@@ -485,7 +475,7 @@ class SavesPresenter:
                     "id": "load",
                     "title": tr("May not load"),
                     "hint": tr(
-                        "These can hang the loading screen or make the game refuse the save. Ticked by default; untick one to leave it as it is."
+                        "These can hang the loading screen or make the game refuse the save. Ticked by default; untick one to leave it as it is. Repair makes the integrity data match again."
                     ),
                     "items": items,
                 }
@@ -532,8 +522,8 @@ class SavesPresenter:
                     "id": "items",
                     "title": tr("Remove mod items"),
                     "hint": tr(
-                        "Items that only a mod knows about, named after the mod that added them where possible. "
-                        "Nothing is removed unless you tick it. In co-op the mods give them back; a standard save should not carry them."
+                        "Items only a mod knows about, named after that mod where possible. A standard save should not "
+                        "carry them. Nothing is removed unless you tick it."
                     ),
                     "items": items,
                 }
@@ -561,7 +551,7 @@ class SavesPresenter:
                     "id": "cleanup",
                     "title": tr("Leftover entries"),
                     "hint": tr(
-                        "Old item entries that nothing holds or wears, usually from a co-op partner's gear. You will not notice them in play. Nothing is cleared unless you tick it."
+                        "Old item entries that nothing holds or wears, usually from a co-op partner's gear. Nothing is cleared unless you tick it."
                     ),
                     "items": items,
                 }
@@ -572,15 +562,13 @@ class SavesPresenter:
                 {
                     "id": "editors",
                     "title": tr("Only for save editors"),
-                    "hint": tr(
-                        "The game does not read this part of the save, so leaving it unticked changes nothing in play. Only save editors need it."
-                    ),
+                    "hint": tr("The game does not read this part, so leaving it unticked changes nothing in play."),
                     "items": [
                         self._item(
                             ("regulation",),
                             tr("Tidy the save's game-rules section"),
                             tr(
-                                "The launcher leaves this section marked as changed after each play session. Ticked: it is put back as the game wrote it."
+                                "The launcher marks this section as changed after each session. Ticking puts it back as the game wrote it."
                             ),
                             False,
                         )

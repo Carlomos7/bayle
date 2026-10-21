@@ -122,6 +122,17 @@ def isolated_settings(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def example_overhaul_shipped(monkeypatch):
+    """The launcher ships no overhaul config; the tests ship an invented one (tests/data/overhauls)."""
+    from roundtable_souls.overhauls import config as overhaul_config
+    from roundtable_souls.overhauls import writer as overhaul_writer
+
+    here = Path(__file__).parent / "data" / "overhauls"
+    monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", here)
+    monkeypatch.setattr(overhaul_writer, "SHIPPED_DIR", here)
+
+
+@pytest.fixture(autouse=True)
 def installed_me3_not_asked(monkeypatch):
     """A rebuild records the installed me3's version by running it: tests never run the developer's me3."""
     from roundtable_souls.mods.backends import builtin

@@ -212,7 +212,7 @@ def test_launch_profile_from_installation_json(tmp_path):
     inst.write_text(
         json.dumps(
             {
-                "profile": str(tmp_path / "overhaul.me3"),
+                "profile": str(tmp_path / "example.me3"),
                 "me3": str(tmp_path / "me3.exe"),
                 "game": str(tmp_path / "eldenring.exe"),
             }
@@ -220,7 +220,7 @@ def test_launch_profile_from_installation_json(tmp_path):
     )
     s = g.launch_profile_from_path(str(inst), er())
     assert s and s.kind == "manifest" and s.exe.endswith("eldenring.exe")
-    assert any("missing" in x for x in s.problems())  # nothing exists in tmp, so it must say so
+    assert any("missing" in str(x) for x in s.problems())  # nothing exists in tmp, so it must say so
     assert g.launch_profile_from_path(str(tmp_path / "nothing.txt"), er()) is None
 
 
@@ -285,7 +285,7 @@ def test_offline_profile_disables_only_seamless():
         "\npath = 'natives/bettercamera.dll'" in out and "\npath = 'natives/other.dll'" in out and "path = 'mod'" in out
     )
     assert out.count("[[natives]]") == 3 and out.startswith("# OFFLINE COPY")
-    assert "the overhaul disabled" not in out
+    assert "Overhaul disabled" not in out
     assert "start_online = true" not in g.offline_profile_text(text.replace("= false", "= true", 1))
 
 
@@ -294,11 +294,11 @@ def test_offline_profile_can_strip_overhaul():
     assert "# path = 'natives/SeamlessCoop/ersc.dll'" in out
     assert '# id = "example-overhaul"' in out and "# path = 'ExampleOverhaul/mod'" in out
     assert '\nid = "flora"' in out or '\r\nid = "flora"' in out
-    assert "the overhaul disabled" in out.splitlines()[0]
+    assert "Overhaul disabled" in out.splitlines()[0]
 
 
-def test_overhaul_array_profile_lists_seamless_and_overhaul(tmp_path):
-    """the overhaul's installer writes packages = [ ] and natives = [ ], not [[blocks]]."""
+def test_example_array_profile_lists_seamless_and_example(tmp_path):
+    """Example Overhaul's installer writes packages = [ ] and natives = [ ], not [[blocks]]."""
     seamless = tmp_path / "SeamlessCoop"
     seamless.mkdir()
     (seamless / "ersc_settings.ini").write_text("cooppassword = room\n", encoding="utf-8")
@@ -308,24 +308,24 @@ def test_overhaul_array_profile_lists_seamless_and_overhaul(tmp_path):
         'profileVersion = "v1"\nstart_online = false\n'
         'natives = [{ path = "' + seamless.joinpath("ersc.dll").as_posix() + '" }, '
         '{ path = "'
-        + own.joinpath("OverhaulHudBootstrap.dll").as_posix()
-        + '", load_early = true, initializer = { function = "ovhHudBootstrapInitialize" } }, '
+        + own.joinpath("ExampleHudBootstrap.dll").as_posix()
+        + '", load_early = true, initializer = { function = "ExHudBootstrapInitialize" } }, '
         '{ path = "'
-        + own.joinpath("OverhaulPrototype.dll").as_posix()
-        + '", initializer = { function = "ovhInitialize" }, load_after = [{ id = "ersc.dll", optional = true }] }]\n'
+        + own.joinpath("ExamplePrototype.dll").as_posix()
+        + '", initializer = { function = "ExInitialize" }, load_after = [{ id = "ersc.dll", optional = true }] }]\n'
         'packages = [{ id = "example-overhaul", path = "' + own.joinpath("mod").as_posix() + '", load_after = [] }]\n'
     )
-    p = tmp_path / "overhaul.me3"
+    p = tmp_path / "example.me3"
     p.write_text(text, encoding="utf-8")
     assert [(m["kind"], m["id"]) for m in mods_service.read_profile_mods(p)] == [
         ("native", "ersc.dll"),
-        ("native", "OverhaulHudBootstrap.dll"),
-        ("native", "OverhaulPrototype.dll"),
+        ("native", "ExampleHudBootstrap.dll"),
+        ("native", "ExamplePrototype.dll"),
         ("package", "example-overhaul"),
     ]
     assert coop_service.ersc_ini_for(str(p)) == seamless / "ersc_settings.ini"
     off = g.offline_profile_text(text)
-    assert "enabled = false" in off and "OverhaulPrototype.dll" in off and 'id = "ersc.dll"' in off
+    assert "enabled = false" in off and "ExamplePrototype.dll" in off and 'id = "ersc.dll"' in off
 
 
 def test_profile_warnings_name_a_missing_mod_folder_but_do_not_block(tmp_path):
@@ -336,4 +336,4 @@ def test_profile_warnings_name_a_missing_mod_folder_but_do_not_block(tmp_path):
         encoding="utf-8",
     )
     s = g.launch_profile_from_path(str(prof), er())
-    assert s and s.warnings() == ["flora folder is missing"]
+    assert s and [str(w) for w in s.warnings()] == ["flora folder is missing"]

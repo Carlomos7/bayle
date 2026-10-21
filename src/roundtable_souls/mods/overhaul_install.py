@@ -54,9 +54,9 @@ from roundtable_souls import overhauls
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import library, operations, records
-from roundtable_souls.mods.backends.manifest_refresh import INSTALLED_BY, launcher_installed
 from roundtable_souls.mods.checks import same_folder
 from roundtable_souls.mods.library import ModLibrary
+from roundtable_souls.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
 from roundtable_souls.mods.profile_edit import ModError, quote
 from roundtable_souls.mods.profile_writer import Plan as WriterPlan
 from roundtable_souls.mods.profile_writer import ProfileWriter

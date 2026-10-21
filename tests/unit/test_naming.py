@@ -11,7 +11,7 @@ from roundtable_souls.mods import naming, profile_edit, profile_writer
     ("name", "want"),
     [
         ("Elden Ring Reforged v1.4.6", "elden-ring-reforged"),
-        ("the overhaul 0.1.33-rc3", "example-overhaul"),
+        ("Example Overhaul 0.1.33-rc3", "example-overhaul"),
         ("Clever's Moveset Modpack ver 2.1", "clevers-moveset-modpack"),
         ("Better Hair version 3", "better-hair"),
         ("Map for Goblins 1.2b", "map-for-goblins"),
@@ -21,7 +21,7 @@ from roundtable_souls.mods import naming, profile_edit, profile_writer
         ("Épée Sounds", "epee-sounds"),
         ("  __Weird__  Name!!  ", "weird-name"),
         ("c0000 Edits", "c0000-edits"),  # not a version
-        ("the overhaul", "overhaul"),
+        ("Example", "example"),
         ("v2", "mod"),  # nothing left
         ("日本語", "mod"),
         ("CON", "con-mod"),  # a Windows device name

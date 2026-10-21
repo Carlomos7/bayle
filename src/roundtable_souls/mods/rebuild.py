@@ -338,8 +338,6 @@ def setup_problem(
 ) -> str | None:
     """Why the package that must stay last cannot be rebuilt on this PC (its setup files are missing, or it cannot
     run), or None. A rebuild stops before changing anything when there is one."""
-    from roundtable_souls.mods.backends import manifest_refresh
-
     profile = Path(profile)
     all_layers = layers(profile) if all_layers is None else all_layers
     target, tool, _by_hand = found or overlay(profile, all_layers, loc=loc)
@@ -347,8 +345,31 @@ def setup_problem(
         return None  # nothing to rebuild into, or its parameters do not replace the combined ones
     if tool is not None:
         return tool.problem()
-    gone = manifest_refresh.missing(profile, target)
-    return manifest_refresh.missing_text(target["name"], gone or ["a rebuild tool beside it (a rebuild.json)"])
+    name = target["name"]
+    if installer_made(Path(target["folder"])):
+        return (
+            f"{name} was made by another installer, so it is left as it is. Update it with that installer; "
+            "nothing from its download is run."
+        )
+    return (
+        f"{name} must stay last and rebuilds the combined files itself, but no rebuild tool was found beside it (a "
+        "rebuild.json). Put it back, or update the mod with the tool it came with; until then its merge cannot be "
+        "rebuilt."
+    )
+
+
+def installer_made(folder: Path) -> bool:
+    """The package has a manifest (installation.json) that the launcher did not write: another installer made it."""
+    from roundtable_souls.mods import overhaul_manifest
+
+    for cand in (folder, folder.parent):
+        try:
+            data = json.loads((cand / overhaul_manifest.LEGACY_MANIFEST).read_text(encoding="utf-8"))
+        except OSError, ValueError:
+            continue
+        if isinstance(data, dict):
+            return not overhaul_manifest.launcher_installed(data)
+    return False
 
 
 # ----------------------------------------------------------------------------- last runs
@@ -745,7 +766,7 @@ def rebuild(profile: Path, log, combine: bool | None = None, *, loc: Locations) 
 
 
 # ----------------------------------------------------------------------------- before Play
-AUTO_KEEP = 3  # rebuild tool backups kept after an automatic rebuild (the overhaul's are about 140 MB each)
+AUTO_KEEP = 3  # rebuild tool backups kept after an automatic rebuild (an overhaul's can be about 140 MB each)
 
 
 def play_check(profile: Path, *, loc: Locations) -> dict | None:

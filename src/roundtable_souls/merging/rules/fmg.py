@@ -40,7 +40,7 @@ def merge(base: bytes, bodies: list[tuple[str, bytes]], where: str) -> Result:
 
 def add_text(body: bytes, table: str, texts: dict[int, str]) -> bytes:
     """A text archive (a msgbnd, not compressed) with entries set in one of its tables: how a mod that ships its text
-    as a list (the overhaul's JSON) becomes a layer like any other."""
+    as a list (a JSON file of texts) becomes a layer like any other."""
     b = formats.bnd4.read_bnd4(body)
     want = table.lower()
     for e in b.entries:

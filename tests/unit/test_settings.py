@@ -57,3 +57,14 @@ def test_the_launch_profile_keeps_the_file_key_setup():
     assert written["setup"] == "b.me3" and "profile" not in written and written["future_key"] == [1]
     assert written["games"]["nightreign"] == {"setup": "n2.me3", "game_exe": "x.exe"}
     assert settings.load_settings().profile == "b.me3"
+
+
+def test_settings_an_older_build_wrote_for_overhauls_still_load():
+    """build_merges is retired: an older file with it still loads and the key is dropped on save."""
+    settings.settings_path().write_text(
+        json.dumps({"offline_strip_overhaul": True, "build_merges": True, "theme": "light"}), encoding="utf-8"
+    )
+    assert settings.load_settings().offline_strip_overhaul is True
+    settings.save_settings(theme="dark")
+    written = json.loads(settings.settings_path().read_text(encoding="utf-8"))
+    assert written["offline_strip_overhaul"] is True and "build_merges" not in written

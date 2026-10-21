@@ -140,6 +140,7 @@ class Pick:
     body: str
     apply: str
     none: str = ""
+    ticked: tuple[int, ...] = ()  # rows ticked at first
 
 
 @dataclass(frozen=True)

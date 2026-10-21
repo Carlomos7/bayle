@@ -715,9 +715,9 @@ def test_a_lone_dll_installs_as_a_dll_mod(tmp_path):
     dll.parent.mkdir(parents=True)
     dll.write_bytes(b"u")
     plan = install.plan_install(p, dll, loc=er())
-    assert plan["kind"] == "native" and plan["name"] == "unlockthefps"
+    assert plan["kind"] == "native" and plan["name"] == "UnlockTheFps"
     out = install.install(p, plan, loc=er())
-    assert [e["path"] for e in out["entries"]] == ["natives/unlockthefps/UnlockTheFps.dll"] and dll.is_file()
+    assert [e["path"] for e in out["entries"]] == ["natives/UnlockTheFps/UnlockTheFps.dll"] and dll.is_file()
 
 
 def test_a_dll_folder_name_windows_or_the_launcher_refuses_writes_nothing(tmp_path):

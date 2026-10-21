@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
-from roundtable_souls.mods import folder_check, profile_edit, profile_writer
+from roundtable_souls.mods import dll_folders, folder_check, profile_edit, profile_writer
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
@@ -364,6 +364,7 @@ class PageFacts:
     folder: folder_check.FolderCheck = (
         folder_check.FolderCheck()
     )  # whether the profile's folder is named and used right
+    loose_dlls: tuple[int, ...] = ()  # DLL entries not in a folder of their own (mods.dll_folders)
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
@@ -420,6 +421,7 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         fingerprint=game_checks.regulation_fingerprint(prof, loc),
         regulation=loc.game.regulation,
         folder=_folder_check(prof, loc),
+        loose_dlls=tuple(sorted(i for idx in loose_dlls_of(prof).values() for i in idx)),
     )
 
 
@@ -428,6 +430,30 @@ def _folder_check(profile: Path, loc: Locations) -> folder_check.FolderCheck:
         return folder_check.check(profile, loc)
     except OSError, ValueError:
         return folder_check.FolderCheck()
+
+
+def loose_dlls_of(profile: Path) -> dict[Path, list[int]]:
+    try:
+        return dll_folders.loose(profile)
+    except OSError, ValueError:
+        return {}
+
+
+def dll_folders_preview(profile: Path, *, loc: Locations) -> dll_folders.Plan:
+    return dll_folders.preview(profile, loc)
+
+
+def put_dlls_in_folders(profile: Path, *, loc: Locations) -> dict:
+    """Give every loose DLL mod a folder of its own (mods.dll_folders). Raises dll_folders.DllFolderError."""
+    out = dll_folders.move(profile, loc, run_logging.log)
+    out["undo"] = {
+        "type": dll_folders.KIND,
+        "profile": out["profile"],
+        "name": out["name"],
+        "operation": out["operation"],
+    }
+    run_logging.set_undo(out["undo"])
+    return out
 
 
 # ----------------------------------------------------------------------------- rebuilding the combined parameters

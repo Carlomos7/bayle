@@ -131,6 +131,8 @@ class UndoPlan:
                 if u.get("type") == "profile-move-in"
                 else f"launcher: undo the folder change of {name}"
                 if u.get("type") in ("folder-rename", "folder-split")
+                else f"launcher: undo the DLL folders in {name}"
+                if u.get("type") == "dll-folders"
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -533,6 +535,18 @@ class ActivityPresenter:
                 tr("If a profile changed since, nothing is changed and you are told why."),
                 tr("Undo split") if split else tr("Undo rename"),
                 tr("Undoing the split...") if split else tr("Undoing the rename..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") == "dll-folders":
+            name = u.get("name") or tr("the profile")
+            return UndoPlan(
+                tr("Undo the DLL folders in {name}").format(name=name),
+                (tr("The DLLs and their files go back where they were; the new folders go to the Recycle Bin"),),
+                tr("If a file in a new folder or the profile changed since, nothing is changed and you are told why."),
+                tr("Undo move"),
+                tr("Undoing the move..."),
                 u,
                 job_id,
                 name,

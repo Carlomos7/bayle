@@ -332,6 +332,8 @@ def _plan(profile: Path, folder: Path, temp: bool, default_name: str, name, pkg_
     text = read_text(profile)
     pk_root, nt_root = roots(profile, text)
     base = slug(name) if name else slug(default_name).lower()  # typed names are kept as typed
+    if not name and d["kind"] == "native" and len(d["dlls"]) == 1:
+        base = slug(Path(d["dlls"][0]).stem)  # a DLL mod's folder is named after its DLL, as the DLL spells it
     if not name and not temp and same_folder(Path(d["root"]).parent, pk_root if d["kind"] == "package" else nt_root):
         base = Path(d["root"]).name  # already in place: keep the folder's own name
     plan = {

@@ -251,11 +251,11 @@ def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app
     host = Host(profile)
     w = opened(host)
     try:
-        assert [n.key for n in w.adapter.state().notices] == ["recovered"]
+        assert [n.key for n in w.adapter.state().notices if n.key != "dll-folders"] == ["recovered"]
         host.busy = True  # a job holds the folder: it is not looked at then
         w.adapter.refresh()
         settle()
-        assert len(calls) == 1 and [n.key for n in w.adapter.state().notices] == ["recovered"]
+        assert len(calls) == 1 and [n.key for n in w.adapter.state().notices if n.key != "dll-folders"] == ["recovered"]
     finally:
         closed(w)
 

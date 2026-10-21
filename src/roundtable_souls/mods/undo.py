@@ -46,6 +46,7 @@ LABEL = {
     "profile-move-in": "Undo move",
     "folder-rename": "Undo rename",
     "folder-split": "Undo split",
+    "dll-folders": "Undo move",
     "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
@@ -112,6 +113,7 @@ def available(undo: dict | None) -> bool:
         "profile-move-in",
         "folder-rename",
         "folder-split",
+        "dll-folders",
     ):
         from roundtable_souls.merging import build
 
@@ -188,6 +190,15 @@ def run(undo: dict, log, *, loc: Locations) -> str:
                 return folder_check.undo_rename(Path(undo["operation"]), log)
             return folder_split.undo_split(Path(undo["operation"]), log)
         except folder_check.FolderError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") == "dll-folders":
+        from roundtable_souls.mods import dll_folders
+
+        if not available(undo):
+            raise UndoError("The move of the DLL mods into folders can no longer be taken back.")
+        try:
+            return dll_folders.undo_move(Path(undo["operation"]), log)
+        except dll_folders.DllFolderError as e:
             raise UndoError(str(e)) from e
     if undo.get("type") == "profile-folders":
         from roundtable_souls.mods import migrate

@@ -12,6 +12,9 @@ What each of the mod's files becomes (make):
     anything else                       copied into its own folder at the same path (its DLLs, their data)
     installers, .me3, empty files       left out: nothing of the mod's runs, and a profile is the player's
 
+A download whose game files sit in one top folder (payload/mod/..., whatever the folder is called) is read with that
+folder as the package root: its paths are the game's own paths.
+
 The derived parts ([recognise] and the one [[builds]], whose id is the config's id) are written into the TOML with
 [basic] when the form saves it, so everything else reads it like any config. A config whose derived parts no longer
 equal what make() gives (its steps edited by hand) is at the advanced level.
@@ -67,32 +70,58 @@ def files_of(folder: Path) -> list[str]:
     return sorted(out, key=str.lower)
 
 
+def _under(f: str, folder: str) -> bool:
+    return f.lower().startswith(folder.lower().rstrip("/") + "/")
+
+
+def package_root(files: list[str], folders: set[str], regulation: str) -> str:
+    """The folder the mod's game files sit in, or "" when they sit at the top: up to two folders deep (payload/mod),
+    none of them a game folder, holding game folders or the regulation. The shallowest wins (a folder of copies of the
+    game's files deeper down is not it), then the one with the most files."""
+    found: dict[str, tuple[int, int, str]] = {}  # lower-case folder -> (depth, minus files, as written)
+    for f in files:
+        parts = f.split("/")
+        low = [p.lower() for p in parts]
+        if low[0] == regulation or (len(parts) > 1 and low[0] in folders):
+            return ""  # game files at the top: that is the root
+        for depth in (1, 2):
+            rest = low[depth:]
+            if any(p in folders for p in low[:depth]) or not rest:
+                break
+            if (len(rest) > 1 and rest[0] in folders) or rest == [regulation]:
+                key = "/".join(low[:depth])
+                was = found.get(key, (depth, 0, "/".join(parts[:depth])))
+                found[key] = (depth, was[1] - 1, was[2])
+    return min(found.values())[2] if found else ""
+
+
 def propose(folder: Path, version: str | None = None, game: str = "eldenring") -> Basic:
     """The form's starting values for a mod folder: its top-level DLLs with no special options, loading after the
     other DLLs; the settings files beside them kept on updates."""
     folder = Path(folder)
-    ignored = set(game_config.load(game).ignored_dlls)
+    gc = game_config.load(game)
+    ignored = set(gc.ignored_dlls)
     dlls = sorted(
         (p for p in folder.iterdir() if p.is_file() and p.suffix.lower() == ".dll" and p.name.lower() not in ignored),
         key=lambda p: p.name.lower(),
     )
-    keep = (
-        []
-        if not dlls
-        else [f for f in files_of(folder) if "/" not in f and Path(f).suffix.lower() in SETTINGS_SUFFIXES]
-    )
+    files = files_of(folder)
+    keep = [] if not dlls else [f for f in files if "/" not in f and Path(f).suffix.lower() in SETTINGS_SUFFIXES]
     return Basic(version=version, natives=[BasicNative(file=p.name) for p in dlls], keep=keep)
 
 
-def _step(f: str, basic: Basic, folders: set[str], regulation: str) -> Step:
+def _step(f: str, basic: Basic, folders: set[str], regulation: str, root: str) -> Step:
+    """The step for one file of the download; f is its path there, the game's path is f without the package root."""
     low = f.lower()
-    top = low.split("/")[0]
-    if low == regulation:
-        return Params(do="params", file=f, patch=f)
-    if "/" in low and top in folders:
-        if low.endswith(MERGED_ENDING) and low not in {n.lower() for n in basic.not_merged}:
-            return Merge(do="merge", file=f, patch=f)
-        return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{f}")
+    g = f[len(root) + 1 :] if root and _under(f, root) else f
+    glow = g.lower()
+    top = glow.split("/")[0]
+    if glow == regulation:
+        return Params(do="params", file=g, patch=f)
+    if "/" in glow and top in folders:
+        if glow.endswith(MERGED_ENDING) and low not in {n.lower() for n in basic.not_merged}:
+            return Merge(do="merge", file=g, patch=f)
+        return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{g}")
     if low in {k.lower() for k in basic.keep}:
         return KeepConfig(do="config", **{"from": f}, to=f)
     if top == PACKAGE and "/" in low:
@@ -104,15 +133,19 @@ def make(
     *, id: str, label: str, game: str, basic: Basic, folder: Path, short_label: str | None = None
 ) -> OverhaulConfig:
     """The whole config for a mod folder at the basic level. Raises ValueError when there is nothing to set up or a
-    DLL the form names is not in the folder."""
+    file the form names is not in the folder."""
     gc = game_config.load(game)
     regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
-    files = files_of(folder)
+    folders = set(gc.mod_folders)
+    files = [f for f in files_of(folder)]
     have = {f.lower() for f in files}
-    for n in basic.natives:
-        if n.file.lower() not in have:
-            raise ValueError(f"{n.file} is not in the mod's folder.")
-    steps = [_step(f, basic, set(gc.mod_folders), regulation) for f in files]
+    for named in [
+        *(n.file for n in basic.natives),
+    ]:
+        if named.lower() not in have:
+            raise ValueError(f"{named} is not in the mod's folder.")
+    root = package_root(files, folders, regulation)
+    steps = [_step(f, basic, folders, regulation, root) for f in files]
     if not steps:
         raise ValueError("The mod's folder has no files to set up.")
     in_package = any(s.do in ("params", "merge") or (s.do == "copy" and s.to.startswith(f"{PACKAGE}/")) for s in steps)

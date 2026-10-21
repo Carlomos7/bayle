@@ -250,6 +250,8 @@ What each of the mod's files becomes:
   the last package before it that ships the same file, or used whole when none does (unless listed in `not_merged`:
   then copied whole);
 - any other file in a game folder: copied into its package (`mod/<path>`);
+- a download whose game files all sit in one top folder (`payload/mod/...`, whatever it is called) is read with that
+  folder as the package root, so its paths are the game's own;
 - a settings file listed in `keep`: `config`;
 - anything else (its DLLs and their data): copied into its own folder at the same path;
 - installers (`.exe`, `.cmd`, `.bat`, `.ps1`, `.py`), `.me3` profiles and empty files: left out. Nothing of the mod's

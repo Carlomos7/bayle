@@ -24,6 +24,7 @@ from pathlib import Path
 
 from roundtable_souls.platform import files
 
+PREFIX = "rs-"  # the launcher's folder for a game in me3's profiles folder: rs-<game key>
 STATE = ".roundtable"  # the launcher's own folder beside the profile
 SETTINGS = "settings.json"  # per-profile launcher choices (was roundtable.json beside the profile)
 BACKUPS = "backups"  # each profile's .bak (was beside the .me3)
@@ -77,10 +78,35 @@ class StateFolders:
     ops_lock: Path
 
 
+def game_root(profiles_dir: Path, game: str) -> Path:
+    """The launcher's own folder for one game: rs-<game> in me3's profiles folder."""
+    return Path(profiles_dir) / f"{PREFIX}{game}"
+
+
+def in_game_root(profile: Path, profiles_dir: Path, game: str) -> bool:
+    """Whether the profile is somewhere below rs-<game> (case aside)."""
+    root = os.path.normcase(os.path.abspath(game_root(profiles_dir, game)))
+    return os.path.normcase(os.path.abspath(profile)).startswith(root + os.sep)
+
+
+def is_user_profile(path: Path) -> bool:
+    """A .me3 that is a profile, not an offline copy or one me3 generates."""
+    name = Path(path).name.lower()
+    return name.endswith(".me3") and not name.endswith((".offline.me3", "-default.me3"))
+
+
 def own_folder(profile: Path) -> bool:
-    """Whether the profile sits in a folder of its own named after it (profiles/<name>/<name>.me3)."""
+    """Whether the profile sits alone in a folder named after it (<name>/<name>.me3). A folder that holds other
+    profiles too is nobody's own: its mod/ would be wrongly owned by one of them."""
     profile = Path(profile)
-    return profile.parent.name.lower() == profile.stem.lower()
+    if profile.parent.name.lower() != profile.stem.lower():
+        return False
+    try:
+        return not any(
+            p.name.lower() != profile.name.lower() and is_user_profile(p) for p in profile.parent.glob("*.me3")
+        )
+    except OSError:
+        return False
 
 
 @dataclass(frozen=True)

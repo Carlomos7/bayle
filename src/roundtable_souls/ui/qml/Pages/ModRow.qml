@@ -273,7 +273,7 @@ Item {
                     Pill {
                         required property var modelData
 
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenter: parent ? parent.verticalCenter : undefined   // a delegate has no parent until the Row takes it
                         icon_: modelData.icon
                         level: modelData.level
                         text: modelData.text

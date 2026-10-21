@@ -653,6 +653,8 @@ class ModsAdapter(QObject):
             self._seamless_action()
         elif key == "folder":
             self._folder_action()
+        elif key == "dll-folders":
+            self._dll_folders_action()
 
     def _folder_action(self) -> None:
         """Rename the profile's folder to its name, or split a crowded folder (a logged job, Undo in Activity)."""
@@ -677,12 +679,31 @@ class ModsAdapter(QObject):
 
             self.notifier.confirm(*self.presenter.split_confirm(plan.profiles, plan.copies, plan.moves), answered)
 
+    def _dll_folders_action(self) -> None:
+        """Give each loose DLL mod a folder of its own, after a confirmation (a logged job, Undo in Activity)."""
+        profile = self.host.profile
+        if profile is None or self.host.busy:
+            return
+        old, loc = Path(profile), self.host.locations
+        plan = profile_mods.dll_folders_preview(old, loc=loc)
+        if not plan.ok:
+            self.notifier.toast(" ".join(plan.refusals) or tr("Every DLL is in its own folder."), error=True)
+            return
+
+        def answered(ok: bool) -> None:
+            if ok:
+                self._folder_job(lambda l: profile_mods.put_dlls_in_folders(old, loc=l), tr("Moving the DLLs..."))
+
+        self.notifier.confirm(
+            *self.presenter.dll_folders_confirm(len(plan.moves), plan.files_moved, plan.files_copied), answered
+        )
+
     def _folder_job(self, work, busy_text: str) -> None:
         def job(_launch, loc):
             run_logging.start_log("launcher: fix the profile's folder", loc.game.key)
             try:
                 work(loc)
-            except rename_service.FolderError as e:
+            except (rename_service.FolderError, profile_mods.dll_folders.DllFolderError) as e:
                 run_logging.log(f"error: {e}")
                 raise SystemExit(1) from e
 
@@ -1197,6 +1218,8 @@ class ModsAdapter(QObject):
             f"profile: added {', '.join(names)}",
             tr("Added {names}: they load at the next launch").format(names=", ".join(names)),
         )
+        if kind == "native" and profile_mods.loose_dlls_of(profile):
+            self._dll_folders_action()  # the same move the notice offers, asked right away
 
     @Slot()
     def deleteProfile(self) -> None:

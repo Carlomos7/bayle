@@ -359,6 +359,7 @@ class ModsPresenter:
                 str(facts.profile),
                 seamless,
                 facts.folder,
+                len(facts.loose_dlls),
             ),
         )
 
@@ -461,6 +462,8 @@ class ModsPresenter:
             )
         if e.get("optional"):
             tags.append(Tag(tr("Optional"), "muted", "Help"))
+        if i in facts.loose_dlls:
+            tags.append(Tag(tr("No folder"), "muted", "Info", tr("This DLL isn't in a folder of its own.")))
         problems = facts.problems.get(i, ())
         status_error = bool(problems)
         status = "  ·  ".join(problems) if problems else self._status(e, facts.empty.get(i, ""))
@@ -587,6 +590,7 @@ class ModsPresenter:
         profile: str = "",
         seamless: str = "",
         folder: profile_mods.folder_check.FolderCheck | None = None,
+        loose_dlls: int = 0,
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -623,6 +627,18 @@ class ModsPresenter:
                     "warning",
                     tr("This folder holds {n} profiles. Each profile needs its own folder.").format(n=folder.count),
                     tr("Split into folders"),
+                    False,
+                )
+            )
+        if loose_dlls:
+            out.append(
+                Notice(
+                    "dll-folders",
+                    "info",
+                    plural(
+                        "{n} DLL mod isn't in its own folder.", "{n} DLL mods aren't in their own folders.", loose_dlls
+                    ).format(n=loose_dlls),
+                    tr("Put in folders"),
                     False,
                 )
             )
@@ -695,6 +711,23 @@ class ModsPresenter:
             tr("Undo in Activity."),
             tr("Split"),
         )
+
+    @staticmethod
+    def dll_folders_confirm(folders: int, moved: int, copied: int) -> tuple[str, list[str], str, str]:
+        """(title, changes, safety, button) of the Put in folders confirmation."""
+        changes = [
+            plural("{n} DLL gets a folder in natives.", "{n} DLLs get a folder in natives.", folders).format(n=folders),
+            plural("{n} file moves with it.", "{n} files move with them.", moved).format(n=moved),
+        ]
+        if copied:
+            changes.append(
+                plural(
+                    "{n} settings file is copied, so other DLLs can still read it.",
+                    "{n} settings files are copied, so other DLLs can still read them.",
+                    copied,
+                ).format(n=copied)
+            )
+        return (tr("Put DLL mods in their own folders?"), changes, tr("Undo in Activity."), tr("Put in folders"))
 
     def removal(self, profile, plan: Removal) -> Confirm:
         prof = Path(profile)

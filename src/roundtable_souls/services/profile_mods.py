@@ -10,15 +10,16 @@ services/mods.py keeps install and the plain profile operations; this module onl
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
-from roundtable_souls.mods import dll_folders, folder_check, profile_edit, profile_writer
+from roundtable_souls.mods import dll_folders, folder_check, profile_edit, profile_writer, shared_mods
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
@@ -26,6 +27,7 @@ from roundtable_souls.mods import rename as mod_rename
 from roundtable_souls.mods.overhaul_manifest import launcher_installed
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import game_checks
+from roundtable_souls.services import shared_mods as shared_service
 from roundtable_souls.services.mods import (
     install_mod,
     profile_entries,
@@ -207,7 +209,31 @@ def remove_holder(profile, index: int, entry: dict, needs: list[str], *, loc: Lo
 # ----------------------------------------------------------------------------- install
 def install_and_record(profile, plan: dict, *, loc: Locations) -> dict:
     """Install the planned mod (run inside a logged job) and leave the undo record Activity offers ("install" for a
-    new mod, "update" for one replaced; mods.undo)."""
+    new mod, "update" for one replaced; mods.undo). A new version of a Shared mod goes into the Library instead
+    (plan["library_choice"] "here" or "everywhere"); "share" shares the new package with the identical copies in
+    other profiles."""
+    facts = plan.get("library") or {}
+    choice = plan.get("library_choice") or ""
+    if facts.get("shared") and facts.get("blocked"):
+        raise shared_service.Error(f"{facts['shared']['name']} is Shared; use a separate copy before installing this.")
+    if facts.get("shared"):
+        try:
+            out = shared_mods.update(
+                Path(profile),
+                facts["shared"]["index"],
+                Path(plan["root"]),
+                everywhere=choice == "everywhere",
+                loc=loc,
+            )
+            run_logging.log(f"updated Shared mod {facts['shared']['name']} in {', '.join(out['profiles'])}")
+        finally:
+            if plan.get("staging"):
+                shutil.rmtree(plan["staging"], ignore_errors=True)
+        out = {**out, "update": True}
+        run_logging.set_undo(
+            {"type": "library-update", "profile": str(profile), "name": plan["name"], "operation": out["operation"]}
+        )
+        return out
     out = install_mod(Path(profile), plan, overwrite=bool(plan.get("exists")), rebuild=bool(plan.get("merge")), loc=loc)
     run_logging.set_undo(
         {
@@ -218,7 +244,45 @@ def install_and_record(profile, plan: dict, *, loc: Locations) -> dict:
             "rebuild": bool(plan.get("merge")),
         }
     )
+    if choice == "share" and facts.get("identical"):
+        more = _share_with_twins(Path(profile), plan, facts["identical"], loc=loc)
+        if more:  # the install and the sharing are one job: one Undo takes back both
+            first = {
+                "type": "update" if out["update"] else "install",
+                "profile": str(profile),
+                "name": plan["name"],
+                "operation": out["operation"],
+                "rebuild": bool(plan.get("merge")),
+            }
+            run_logging.set_undo(shared_service.chain(plan["name"], first, *more))
     return out
+
+
+def _share_with_twins(profile: Path, plan: dict, others: list[str], *, loc: Locations) -> list[dict]:
+    """The mod just installed becomes Shared, and the other profiles' identical Separate copies are switched to it. A
+    failure here leaves the install as it is (Separate), and is logged. Returns the undo records of what was shared."""
+    undos: list[dict] = []
+    try:
+        index = next(
+            e["index"]
+            for e in profile_edit.entries(profile)
+            if e["kind"] == "package" and e["path"] and Path(e["path"]).name.lower() == Path(plan["dest"]).name.lower()
+        )
+        done = shared_mods.share(profile, [index], loc=loc)
+        undos.append(shared_service.undo_of("library-share", done))
+        name = done["shared"][0].lower()
+        twins = {
+            c.profile: True
+            for c in shared_mods.separate_copies(loc)
+            if c.profile.stem in others and c.name.lower() == name
+        }
+        if twins:
+            undos.append(
+                shared_service.undo_of("library-use", shared_mods.use_in(name, done["versions"][0], twins, loc=loc))
+            )
+    except Exception as e:  # the install itself succeeded
+        run_logging.log(f"warning: could not share {plan['name']} with the other profiles: {e}")
+    return undos
 
 
 # ----------------------------------------------------------------------------- rebuild tools
@@ -365,6 +429,9 @@ class PageFacts:
         folder_check.FolderCheck()
     )  # whether the profile's folder is named and used right
     loose_dlls: tuple[int, ...] = ()  # DLL entries not in a folder of their own (mods.dll_folders)
+    shared: dict[int, int] = field(default_factory=dict)  # entry -> profiles using that Shared mod (the Library)
+    can_share: tuple[int, ...] = ()  # Separate packages that can be shared
+    library_used: bool = False  # some profile uses a Shared mod: Separate rows say so
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
@@ -406,6 +473,10 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
             if files:
                 configs[e["index"]] = tuple(Path(f["path"]).name for f in files)
     pk, nt = folders.get("packages") or {}, folders.get("natives") or {}
+    try:
+        shared, can_share, library_used = shared_mods.page_info(loc, prof, entries)
+    except OSError:
+        shared, can_share, library_used = {}, (), False
     return PageFacts(
         profile=prof,
         entries=tuple(entries),
@@ -422,6 +493,9 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         regulation=loc.game.regulation,
         folder=_folder_check(prof, loc),
         loose_dlls=tuple(sorted(i for idx in loose_dlls_of(prof).values() for i in idx)),
+        shared=shared,
+        can_share=can_share,
+        library_used=library_used,
     )
 
 

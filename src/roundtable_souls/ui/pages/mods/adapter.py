@@ -20,6 +20,7 @@ from roundtable_souls.services import coop as coop_service
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.services import profile_mods
 from roundtable_souls.services import profile_rename as rename_service
+from roundtable_souls.services import shared_mods as library_service
 from roundtable_souls.ui.models import RowsModel, plain
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter
@@ -43,6 +44,8 @@ ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are bu
     "has_configs",
     "configs_tip",
     "path",
+    "shared",
+    "can_share",
 )
 
 
@@ -128,6 +131,7 @@ class ModsAdapter(QObject):
         self._recovered: tuple[str, ...] = ()  # interrupted changes put right as the page read the profile
         self._overhaul: tuple[bool, dict | None, bool] = (False, None, False)  # switch on, the profile's, leftovers
         self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
+        self._duplicated: tuple[int, int] = (0, 0)  # mods kept as Separate copies in several profiles, and their size
         self._state: ModsState = self.presenter.page(None)
         self._loading = False
         self._again = False
@@ -279,6 +283,7 @@ class ModsAdapter(QObject):
         if not self._edit_text:
             self._read_text()
         self._install.after_job()
+        self._look_for_duplicates()
 
     def _render(self) -> None:
         self._state = self.presenter.page(
@@ -289,12 +294,142 @@ class ModsAdapter(QObject):
             recovered=self._recovered,
             seamless=self._seamless_found.kind if getattr(self, "_seamless_found", None) else "",
             no_profiles=not self.host.profiles(),
+            duplicated=self._duplicated,
         )
         groups = {g.kind: g for g in self._state.groups}
         self._packages.set_rows([_row(r) for r in (groups["package"].rows if "package" in groups else ())])
         self._natives.set_rows([_row(r) for r in (groups["native"].rows if "native" in groups else ())])
         self._notices.set_rows(self._state.notices)
         self.changed.emit()
+
+    def _look_for_duplicates(self) -> None:
+        """The disk hint: mods kept as the same Separate copy in several profiles, worked out after the page shows."""
+        if self._facts is None:
+            return
+        loc = self.host.locations
+
+        def got(found) -> None:
+            if found != self._duplicated:
+                self._duplicated = found
+                self._render()
+
+        self.host.run_in_background(lambda: library_service.duplicates(loc), got)
+
+    # ---- the Library (opt-in sharing of game-file mods between profiles)
+    @Slot(int)
+    def share(self, index: int) -> None:
+        profile, entry = self._ready(), self._entry(index)
+        if profile is None or entry is None:
+            return
+        name = entry["name"]
+
+        def answered(ok: bool, _option: bool) -> None:
+            if ok and not self.host.busy:
+                self._library_job(
+                    tr("Sharing {name}...").format(name=name),
+                    f"share {name}",
+                    lambda loc: library_service.share(profile, [index], loc=loc),
+                )
+
+        self.notifier.ask(self.presenter.share_confirm([name]), answered)
+
+    @Slot(int)
+    def separate(self, index: int) -> None:
+        profile, entry = self._ready(), self._entry(index)
+        if profile is None or entry is None:
+            return
+        loc = self.host.locations
+        ref = library_service.shared_ref(profile, entry, loc=loc)
+        if ref is None:
+            return
+        name = library_service.display_name(ref[0], loc=loc)
+
+        def answered(ok: bool, _option: bool) -> None:
+            if ok and not self.host.busy:
+                self._library_job(
+                    tr("Copying {name}...").format(name=name),
+                    f"separate copy of {name}",
+                    lambda job_loc: library_service.separate(profile, [index], loc=job_loc),
+                )
+
+        size = library_service.version_size(*ref, loc=loc)
+        self.notifier.ask(self.presenter.separate_confirm(name, size), answered)
+
+    @Slot(int)
+    def useInOthers(self, index: int) -> None:
+        profile, entry = self._ready(), self._entry(index)
+        if profile is None or entry is None:
+            return
+        loc = self.host.locations
+        ref = library_service.shared_ref(profile, entry, loc=loc)
+        if ref is None:
+            return
+        found = library_service.candidates(profile, ref[0], loc=loc)
+        if not found:
+            self.notifier.toast(tr("There are no other profiles."), error=True)
+            return
+        name = library_service.display_name(ref[0], loc=loc)
+        rows = [self.presenter.use_row(c.profile.stem, c.has_copy, c.uses) for c in found]
+
+        def chosen(indexes: list[int]) -> None:
+            targets = {found[i].profile: True for i in indexes}
+            if targets and not self.host.busy:
+                self._library_job(
+                    tr("Linking {name}...").format(name=name),
+                    f"use {name} in other profiles",
+                    lambda job_loc: library_service.use_in(ref[0], ref[1], targets, loc=job_loc),
+                )
+
+        self._pick(self.presenter.use_pick(name), rows, chosen)
+
+    def _library_job(self, status: str, what: str, work) -> None:
+        def job(_launch, loc):
+            run_logging.start_log(f"launcher: {what}", loc.game.key)
+            try:
+                work(loc)
+                run_logging.log(f"done: {what}")
+            except Exception as e:  # the Library refuses with its reason and changes nothing
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        self.host.run_job(job, status)
+
+    @Slot(result=list)
+    def libraryList(self) -> list:
+        try:
+            return self.presenter.library(library_service.listing(self.host.locations))
+        except Exception:
+            return []
+
+    @Slot()
+    def removeUnused(self) -> None:
+        if self._ready() is None:
+            return
+        loc = self.host.locations
+
+        def work():
+            return library_service.unused(loc)
+
+        def got(result) -> None:
+            found, why = result
+            if why:
+                self.notifier.toast(why, error=True)
+            elif not found:
+                self.notifier.toast(tr("Every shared version is in use."))
+            else:
+                size = sum(v.size for _m, v in found)
+
+                def answered(ok: bool, _option: bool) -> None:
+                    if ok and not self.host.busy:
+                        self._library_job(
+                            tr("Removing unused versions..."),
+                            "remove unused library versions",
+                            lambda job_loc: library_service.remove_unused(loc=job_loc),
+                        )
+
+                self.notifier.ask(self.presenter.clean_confirm(len(found), size), answered, destructive=True)
+
+        self.host.run_in_background(work, got)
 
     # ---- small helpers for changes
     def _profile(self) -> Path | None:
@@ -655,6 +790,8 @@ class ModsAdapter(QObject):
             self._folder_action()
         elif key == "dll-folders":
             self._dll_folders_action()
+        elif key == "library-hint":
+            self.dialogRequested.emit("library", -1)
 
     def _folder_action(self) -> None:
         """Rename the profile's folder to its name, or split a crowded folder (a logged job, Undo in Activity)."""
@@ -1306,12 +1443,18 @@ class ModsAdapter(QObject):
             return
         old = Path(profile)
 
-        def job(_launch, loc):
-            run_logging.start_log(f"launcher: duplicate profile {old.stem}", loc.game.key)
-            out = rename_service.duplicate(old, loc=loc)
-            run_logging.log(f"done: {out['name']} is a copy of {old.stem}")
+        def copy(share: bool) -> None:
+            def job(_launch, loc):
+                run_logging.start_log(f"launcher: duplicate profile {old.stem}", loc.game.key)
+                out = rename_service.duplicate(old, loc=loc, share=share)
+                run_logging.log(f"done: {out['name']} is a copy of {old.stem}")
 
-        self.host.run_job(job, tr("Copying {name}...").format(name=old.stem))
+            self.host.run_job(job, tr("Copying {name}...").format(name=old.stem))
+
+        if library_service.separate_copies(old, loc=self.host.locations):  # packages can be shared: ask, never force
+            self.notifier.ask(self.presenter.duplicate_confirm(old.stem), lambda ok, share: copy(share) if ok else None)
+        else:
+            copy(False)
 
     def profile_outside(self) -> bool:
         """The profile is not in Roundtable's folder, so the menu offers Move into Roundtable's folder."""

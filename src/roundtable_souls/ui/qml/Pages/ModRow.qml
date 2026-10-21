@@ -23,6 +23,8 @@ Item {
     required property string name
     required property bool on
     required property string path
+    required property int shared
+    required property bool can_share
     required property int position
     required property string status
     required property bool status_error
@@ -178,6 +180,30 @@ Item {
                 text: holder.words.rename
 
                 onTriggered: holder.adapter.openRename(holder.entryIndex)
+            }
+            MenuEntry {
+                icon_: "Share"
+                objectName: "share_" + holder.name
+                text: holder.words.share
+                visible: holder.kind === "package" && holder.can_share
+
+                onTriggered: holder.adapter.share(holder.entryIndex)
+            }
+            MenuEntry {
+                icon_: "Link"
+                objectName: "useIn_" + holder.name
+                text: holder.words.useInOthers
+                visible: holder.kind === "package" && holder.shared > 0
+
+                onTriggered: holder.adapter.useInOthers(holder.entryIndex)
+            }
+            MenuEntry {
+                icon_: "Copy"
+                objectName: "separate_" + holder.name
+                text: holder.words.useSeparate
+                visible: holder.kind === "package" && holder.shared > 0
+
+                onTriggered: holder.adapter.separate(holder.entryIndex)
             }
         }
         Item {  // the grip at x 16

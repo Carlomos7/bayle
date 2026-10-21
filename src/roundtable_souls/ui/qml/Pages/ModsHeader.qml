@@ -342,6 +342,13 @@ Item {
 
                     onTriggered: header.adapter.addExisting("package")
                 }
+                MenuEntry {
+                    icon_: "BookShelf"
+                    objectName: "libraryMenu"
+                    text: header.words.library
+
+                    onTriggered: header.adapter.dialogRequested("library", -1)
+                }
                 MenuSep {  // overhauls installed with the launcher (a preview, shown while its switch is on)
                     height: visible ? implicitHeight : 0
                     visible: header.adapter.overhaul.visible === true

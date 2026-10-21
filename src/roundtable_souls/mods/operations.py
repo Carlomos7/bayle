@@ -77,6 +77,10 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
                 from roundtable_souls.mods import folder_split
 
                 folder_split.clean_stages(root)  # what an interrupted split staged: copies only, emptied by recovery
+                if root.name == "profiles":
+                    from roundtable_souls.mods import shared_mods
+
+                    shared_mods.clean_stages(root.parent / "library")  # what an interrupted Library change staged
         for o in (o for root, ops in _bases(profile) for o in build.active(root, ops)):
             if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)

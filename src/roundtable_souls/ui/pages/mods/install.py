@@ -88,6 +88,7 @@ class InstallDraft:
     preview: dict | None = None  # {"lines", "notes", "refusals"} of the overhaul install, once worked out
     busy: bool = False  # a replan or preview is running
     problem: str = ""  # why the last edit could not be planned (the last good plan stays)
+    library_choice: str = ""  # here | everywhere (a new version of a Shared mod); separate | share (identical copies)
 
     def __post_init__(self) -> None:
         self.name_text = self.plan["name"]
@@ -95,6 +96,47 @@ class InstallDraft:
         self.variant = self.plan.get("variant") or None
         self.reset_ticks()
         self.overhaul = self.option == "suggested" or self.option == "matched"
+        self.library_choice = "here" if self._library().get("shared") else "separate"
+
+    def _library(self) -> dict:
+        return self.plan.get("library") or {}
+
+    def _blocked(self) -> str:
+        """Why a new version of a Shared mod can't be installed here ("" when it can)."""
+        found = self._library()
+        if not found.get("blocked"):
+            return ""
+        return tr(
+            "{name} is Shared and this version has its own parameters (regulation.bin), which need a rebuild that "
+            "updating a Shared mod does not run. Use a separate copy of it first, then install."
+        ).format(name=found["shared"]["name"])
+
+    def _library_view(self) -> dict:
+        found = self._library()
+        if found.get("blocked"):
+            return {"shown": False}
+        if found.get("shared"):
+            info = found["shared"]
+            text = (
+                tr(
+                    "{name} is Shared by {n} profiles. Update here gives this profile the new version and the others keep theirs."
+                )
+                if info["profiles"] > 1
+                else tr("{name} is Shared. The new version is added to its shared files.")
+            ).format(name=info["name"], n=info["profiles"])
+            options = [{"key": "here", "text": tr("Update here")}]
+            if info["profiles"] > 1:
+                options.append({"key": "everywhere", "text": tr("Update everywhere")})
+        elif found.get("identical"):
+            text = tr(
+                "The same files are in {names}. Share keeps one copy for all of them; their copies go to the Recycle Bin."
+            ).format(names=", ".join(found["identical"]))
+            options = [{"key": "separate", "text": tr("Keep separate")}, {"key": "share", "text": tr("Share")}]
+        else:
+            return {"shown": False}
+        if self.library_choice not in {o["key"] for o in options}:
+            self.library_choice = options[0]["key"]
+        return {"shown": True, "text": text, "options": options, "choice": self.library_choice}
 
     # ---- edits
     def reset_ticks(self) -> None:
@@ -333,6 +375,8 @@ class InstallDraft:
             return self.problem, "error"
         if p.get("name_problem") and not mode:
             return p["name_problem"], "error"
+        if self._blocked() and not mode:
+            return self._blocked(), "error"
         if mode:
             return tr("Set up as an overhaul: it loads last, and Undo takes it back."), "muted"
         lines = []
@@ -361,7 +405,7 @@ class InstallDraft:
             return bool(self.preview) and not self.preview.get("refusals")
         if self.option == "refused" and self.overhaul_on:
             return False
-        if p.get("name_problem"):
+        if p.get("name_problem") or self._blocked():
             return False
         if p["kind"] == "package" and (not self.id_text.strip() or p.get("id_taken")):
             return False
@@ -380,7 +424,7 @@ class InstallDraft:
             where = str(p.get("dest") or "")
         groups = group_text()
         items = []
-        for it in [] if (mode or p.get("in_place")) else p.get("contents") or []:
+        for it in [] if (mode or p.get("in_place") or self._library().get("shared")) else p.get("contents") or []:
             what = groups.get(it["group"], it["group"])
             if it.get("extra") and it["group"] == "other":
                 what = tr("beside the mod's folder, not part of it")
@@ -421,6 +465,7 @@ class InstallDraft:
             "note": note,
             "noteLevel": note_level,
             "option": self._option_view(),
+            "library": {"shown": False} if mode else self._library_view(),
             "overhaul": self._overhaul_preview(mode),
             "mode": mode,
             "profilesInside": bool(p.get("profiles_inside")),  # the download ships .me3 profiles: Import can take them
@@ -447,4 +492,5 @@ class InstallDraft:
         placed = self._regulation_on() and not p.get("already_listed")
         p["insert_before"] = self._insert_before() if placed else None  # a package name
         p["after_overlay"] = bool(p.get("stay_last")) and self.after_last
+        p["library_choice"] = self.library_choice if not self.overhaul_mode else ""
         return p

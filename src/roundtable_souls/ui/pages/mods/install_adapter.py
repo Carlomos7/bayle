@@ -212,6 +212,12 @@ class InstallAdapter(QObject):
             self._draft.set_after_last(on)
             self._changed()
 
+    @Slot(str)
+    def setLibraryChoice(self, key: str) -> None:
+        if self._draft:
+            self._draft.library_choice = key
+            self._changed()
+
     @Slot(bool)
     def setOverhaul(self, on: bool) -> None:
         if self._draft:

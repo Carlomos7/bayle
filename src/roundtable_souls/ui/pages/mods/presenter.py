@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from roundtable_souls.game import catalog
+from roundtable_souls.mods import shared_mods
 from roundtable_souls.services import profile_mods
 from roundtable_souls.services.profile_mods import PageFacts, Removal
 from roundtable_souls.ui.pages.mods import load_order
@@ -43,6 +44,8 @@ class Row:
     has_configs: bool
     configs_tip: str
     path: str
+    shared: int = 0  # profiles using this Shared mod (0: Separate)
+    can_share: bool = False  # a Separate package of the profile's own folder: it can be shared
 
 
 @dataclass(frozen=True)
@@ -235,6 +238,22 @@ class ModsPresenter:
             "profileRenameField": tr("Profile name"),
             "profileRenameHelp": tr("Enter renames it. Esc cancels."),
             "rename": tr("Rename..."),
+            "share": tr("Share"),
+            "useInOthers": tr("Use in other profiles..."),
+            "useSeparate": tr("Use a separate copy"),
+            "library": tr("Shared mods..."),
+            "libraryTitle": tr("Shared mods"),
+            "libraryBody": tr(
+                "Mods that several profiles use from one copy. Their files are read-only; use a separate copy to edit "
+                "them."
+            ),
+            "libraryEmpty": tr(
+                "Nothing is shared yet. Share a package from its row to keep one copy for several profiles."
+            ),
+            "removeUnused": tr("Remove unused versions..."),
+            "notUsed": tr("Not used"),
+            "installedOn": tr("Installed {date}"),
+            "usedBy": tr("Used by {names}"),
             "renameTitle": tr("Rename {name}"),
             "renameHint": tr("The folder is renamed too, and a package's id with it."),
             "renameNew": tr("New name"),
@@ -307,6 +326,7 @@ class ModsPresenter:
         recovered: tuple[str, ...] = (),
         seamless: str = "",
         no_profiles: bool = False,
+        duplicated: tuple[int, int] = (0, 0),
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
@@ -360,6 +380,7 @@ class ModsPresenter:
                 seamless,
                 facts.folder,
                 len(facts.loose_dlls),
+                duplicated,
             ),
         )
 
@@ -464,6 +485,19 @@ class ModsPresenter:
             tags.append(Tag(tr("Optional"), "muted", "Help"))
         if i in facts.loose_dlls:
             tags.append(Tag(tr("No folder"), "muted", "Info", tr("This DLL isn't in a folder of its own.")))
+        shared = facts.shared.get(i, 0)
+        if shared:
+            tags.insert(
+                0,
+                Tag(
+                    plural("Shared · {n} profile", "Shared · {n} profiles", shared).format(n=shared),
+                    "accent",
+                    "Link",
+                    tr("Its files are read-only here. Use a separate copy to edit them."),
+                ),
+            )
+        elif facts.library_used and i in facts.can_share:
+            tags.insert(0, Tag(tr("Separate"), "muted", "", tr("This profile has its own copy of the files.")))
         problems = facts.problems.get(i, ())
         status_error = bool(problems)
         status = "  ·  ".join(problems) if problems else self._status(e, facts.empty.get(i, ""))
@@ -484,6 +518,8 @@ class ModsPresenter:
             has_configs=bool(configs),
             configs_tip=", ".join(configs[:3]) + (f" +{len(configs) - 3}" if len(configs) > 3 else ""),
             path=str(e.get("path") or ""),
+            shared=shared,
+            can_share=i in facts.can_share,
         )
 
     @staticmethod
@@ -591,6 +627,7 @@ class ModsPresenter:
         seamless: str = "",
         folder: profile_mods.folder_check.FolderCheck | None = None,
         loose_dlls: int = 0,
+        duplicated: tuple[int, int] = (0, 0),
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -693,11 +730,119 @@ class ModsPresenter:
                     True,
                 )
             )
+        if duplicated[1] > shared_mods.HINT_BYTES:
+            out.append(Notice("library-hint", "info", self.hint_text(*duplicated), tr("Shared mods..."), True))
         return tuple(n for n in out if (profile, n.key) not in self._closed)[: self.notices_shown]
 
     def close_notice(self, key: str, profile: str = "") -> None:
         """A closed InfoBar stays closed for this profile only."""
         self._closed.add((profile, key))
+
+    # ---- the Library
+    @staticmethod
+    def size_text(n: int) -> str:
+        if n >= 1073741824:
+            return f"{n / 1073741824:.1f} GB"
+        return f"{n / 1048576:.1f} MB" if n >= 1048576 else f"{max(1, n // 1024)} KB"
+
+    def library(self, info) -> list[dict]:
+        """The Library dialog's rows (services.shared_mods.listing): each mod with its versions, "Installed <date>" and
+        the label when there is one, the size, and who uses it. The version's id is never shown."""
+        out = []
+        for m in info:
+            versions = []
+            for v in m.versions:
+                when = tr("Installed {date}").format(date=v.version.installed) if v.version.installed else ""
+                versions.append(
+                    {
+                        "title": f"{when}  ·  {v.version.label}"
+                        if v.version.label and when
+                        else when or v.version.label,
+                        "size": self.size_text(v.version.size),
+                        "usedBy": tr("Used by {names}").format(names=", ".join(v.used_by))
+                        if v.used_by
+                        else tr("Not used"),
+                        "unused": v.unused,
+                    }
+                )
+            out.append({"name": m.mod.name, "size": self.size_text(m.size), "versions": versions})
+        return out
+
+    @staticmethod
+    def share_confirm(names: list[str]) -> Confirm:
+        return Confirm(
+            tr("Share {name}").format(name=", ".join(names)),
+            (
+                tr("The files become shared mods, and this profile uses them from there."),
+                tr("Other profiles can then use the same files without a copy of their own."),
+                tr("Shared files are read-only; use a separate copy to edit them."),
+            ),
+            tr("Share"),
+            safety=tr("Undo in Activity puts the copy back."),
+        )
+
+    @staticmethod
+    def separate_confirm(name: str, size: int) -> Confirm:
+        return Confirm(
+            tr("Use a separate copy of {name}").format(name=name),
+            (
+                tr("This profile gets its own editable copy of the files ({size}).").format(
+                    size=ModsPresenter.size_text(size)
+                ),
+            ),
+            tr("Use a separate copy"),
+            safety=tr("The other profiles keep using the shared files. Undo in Activity takes it back."),
+        )
+
+    @staticmethod
+    def use_pick(name: str) -> Pick:
+        return Pick(
+            tr("Use {name} in other profiles").format(name=name),
+            tr(
+                "Tick the profiles that should use it. A profile with its own copy keeps it unless you tick it; "
+                "ticking replaces the copy."
+            ),
+            tr("Use in these profiles"),
+        )
+
+    @staticmethod
+    def use_row(name: str, has_copy: bool, uses: bool) -> str:
+        if uses:
+            return tr("{name} (uses it already; moves to this version)").format(name=name)
+        return tr("{name} (has its own copy; ticking replaces it)").format(name=name) if has_copy else name
+
+    @staticmethod
+    def clean_confirm(count: int, size: int) -> Confirm:
+        return Confirm(
+            tr("Remove unused versions"),
+            (
+                plural(
+                    "{n} version that no profile uses is deleted ({size}).",
+                    "{n} versions that no profile uses are deleted ({size}).",
+                    count,
+                ).format(n=count, size=ModsPresenter.size_text(size)),
+            ),
+            tr("Remove"),
+            safety=tr("They go to the Recycle Bin, and Undo in Activity brings them back."),
+        )
+
+    @staticmethod
+    def duplicate_confirm(name: str) -> Confirm:
+        return Confirm(
+            tr("Copy {name}").format(name=name),
+            (tr("The copy gets its own folder with copies of the mods."),),
+            tr("Copy"),
+            option=tr("Share the game-file mods with the original instead of copying them"),
+            option_checked=False,
+        )
+
+    @staticmethod
+    def hint_text(mods: int, size: int) -> str:
+        return plural(
+            "{n} mod is in several profiles ({size}). Save space by sharing",
+            "{n} mods are in several profiles ({size}). Save space by sharing",
+            mods,
+        ).format(n=mods, size=ModsPresenter.size_text(size))
 
     # ---- confirmations and refusals (the Widgets page uses these words too)
     @staticmethod

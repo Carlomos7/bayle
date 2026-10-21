@@ -27,19 +27,40 @@ PageScroll {
     Component.onCompleted: page.adapter.refresh()
 
     Item {  // the header: the profile's name, and the Export / Import tabs
-        height: Theme.controlH
+        height: Math.max(Theme.controlH, 40)
         visible: page.mode !== "bundled"
         width: parent ? parent.width : 0
 
-        Txt {  // the shell's profile (the top bar's drop-down is the only picker)
+        Row {  // the shell's profile (the top bar's drop-down is the only picker): the phrase, then the name standing out
+            readonly property var parts: (page.mode === "import" ? page.words.importingInto : page.words.exportingProfile).split("{name}")
+
             anchors.left: parent.left
             anchors.right: modeTabs.left
             anchors.rightMargin: Theme.sp8
             anchors.verticalCenter: parent.verticalCenter
-            elide: Text.ElideRight
-            kind: "strong"
-            objectName: "profileName"
-            text: page.s.profileName === "" ? page.words.noProfile : (page.mode === "import" ? page.words.importingInto : page.words.exportingProfile).replace("{name}", page.s.profileName)
+            spacing: Theme.sp8
+
+            Txt {
+                anchors.verticalCenter: parent.verticalCenter
+                kind: "strong"
+                objectName: "profileName"
+                text: page.s.profileName === "" ? page.words.noProfile : parent.parts[0].trim()
+                visible: text !== ""
+            }
+            Txt {
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.accent
+                kind: "page"
+                text: page.s.profileName
+                visible: page.s.profileName !== ""
+                width: Math.min(implicitWidth, Math.max(80, parent.width - x))
+            }
+            Txt {
+                anchors.verticalCenter: parent.verticalCenter
+                kind: "strong"
+                text: parent.parts.length > 1 ? parent.parts[1].trim() : ""
+                visible: text !== "" && page.s.profileName !== ""
+            }
         }
         TabRow {
             id: modeTabs

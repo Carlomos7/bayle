@@ -76,8 +76,9 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     Accessible.name: header.words.profileRenameTip
                     Accessible.role: Accessible.Button
+                    color: Theme.accent   // the profile's name stands out on the page
                     elide: Text.ElideRight
-                    kind: "rowTitle"
+                    kind: "page"
                     objectName: "profileTitle"
                     text: header.adapter.title
                     visible: !nameArea.editing

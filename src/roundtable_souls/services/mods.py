@@ -391,13 +391,20 @@ def profile_overhaul(profile, *, loc: Locations) -> dict | None:
     from roundtable_souls.mods import overhaul_install
 
     hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
-    if hit is None:
-        return None
+    if hit is None:  # no config for it: a setup some installer made is still the launcher's to take over
+        from roundtable_souls.mods import installer_leftovers
+
+        setup = installer_leftovers.setup_of(Path(profile))
+        if setup is None:
+            return None
+        name = setup.folder.name
+        return {"label": name, "short_label": name, "legacy": True, "takeover": True, "removable": False}
     config = hit[0]
     return {
         "label": config.label,
         "short_label": config.short_label,
         "legacy": overhaul_install.installer_setup(Path(profile), config) is not None,
+        "takeover": overhaul_install.installer_made(Path(profile), loc=loc),
     }
 
 
@@ -437,6 +444,29 @@ def remove_overhaul(preview) -> dict:
     return out
 
 
+def take_over_choices(profile, *, loc: Locations) -> list:
+    """For Take over: what the player may also choose (a SideEffect to put back, or the installer's backups folder, a
+    Leftover), to pass to preview_take_over. Nothing is chosen by default."""
+    from roundtable_souls.mods import overhaul_takeover
+
+    return overhaul_takeover.choices(Path(profile), loc=loc)
+
+
+def choice_text(choice) -> str:
+    """One Take over choice in words, for its tick list."""
+    from roundtable_souls.mods import overhaul_install
+
+    return choice.label if hasattr(choice, "label") else overhaul_install.choice_text(choice)
+
+
+def preview_take_over(profile, *, loc: Locations, chosen=(), revert_asked: bool = False):
+    """What Take over does (overhaul_install.RemovePreview: lines, asked, refusals); run it with remove_overhaul, which
+    leaves the same Undo. Raises overhaul_install.OverhaulError when the launcher made the setup or there is none."""
+    from roundtable_souls.mods import overhaul_takeover
+
+    return overhaul_takeover.preview(Path(profile), loc=loc, chosen=list(chosen), revert_asked=revert_asked)
+
+
 def overhaul_leftovers(profile, *, loc: Locations) -> list:
     """What overhauls' own installers left beside the profile that no profile there uses (overhaul_install.Leftover:
     path, size, label, backups), the installers' profile backups last."""
@@ -466,7 +496,10 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
 
     ident = overhaul_id or naming.mod_id(name)
     game = loc.game.key
+    from roundtable_souls.config import layout
+
     return basic.make(
+        reserved=layout.reserved_names(),
         id=ident,
         label=name,
         game=game,
@@ -474,6 +507,14 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
         folder=Path(folder),
         unset_tables=True,
     )
+
+
+def setup_is_editable(config) -> bool:
+    """Whether a config is a setup made with the form (the DLL options and the Files table are the player's to
+    change), not a verified one that comes with the launcher."""
+    from roundtable_souls import overhauls
+
+    return config.basic is not None and not overhauls.verified(config.id)
 
 
 def setup_file_rows(config, folder) -> list[dict]:
@@ -549,25 +590,35 @@ def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -
     return out
 
 
-def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
-    """After the setup is saved: install it again in every profile that uses the overhaul (the profile first), from
-    each one's copy of the download, so their entries (DLL options, package) follow it. One operation per profile and
-    one Undo for the job: it takes back every profile it changed (run inside a logged job). A profile that refuses
-    is skipped and said. Returns the names of the profiles changed; raises OverhaulError."""
+def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list[str]:
+    """After the setup overhaul_id is saved: install it again in every profile that uses that overhaul (the profile
+    first), from each one's copy of the download, so their entries (DLL options, package) follow it. One Undo for
+    the job takes back every profile it changed (run inside a logged job). A profile that refuses, has no copy of
+    the download or has another overhaul is skipped and said. Returns the names of the profiles changed; raises
+    OverhaulError when none was (the job must not look like a success)."""
     from roundtable_souls import overhauls
     from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.overhauls import requirements
 
-    hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
-    if hit is None:
-        return []
-    config, entries = hit
+    config = next((c for c in overhauls.load(loc.game.key) if c.id == overhaul_id), None)
+    if config is None:
+        raise overhaul_install.OverhaulError(f"The setup {overhaul_id} was not found after saving.")
+    try:
+        entries = requirements.owned_by([config], me3_profile.entries(me3_profile.read_text(Path(profile))))
+    except OSError, ValueError:
+        entries = {}
+    if config.id not in entries:
+        raise overhaul_install.OverhaulError(
+            f"{Path(profile).name} doesn't use {config.label}, so nothing was applied."
+        )
     done: list[str] = []
+    skipped: list[str] = []
     first: dict | None = None
     others: list[dict] = []
-    for p in overhaul_install.users_of(Path(profile), config, entries):
+    for p in overhaul_install.users_of(Path(profile), config, entries[config.id]):
         where = overhaul_install.places(p, config.id, loc)
         if where is None or not where.sources.is_dir():
-            run_logging.log(f"skipped {p.name}: the launcher has no copy of the download there")
+            skipped.append(f"{p.name}: the launcher has no copy of the download there")
             continue
         try:  # a profile that is busy, changed meanwhile or refuses: skipped and said, the others still go on
             preview = overhaul_install.preview_setup(p, where.sources, config, loc=loc)
@@ -579,15 +630,23 @@ def reapply_overhaul_setup(profile, *, loc: Locations) -> list[str]:
                     "name": out["name"],
                     "operation": out["operation"],
                 }
+                run_logging.set_undo({**first, "others": list(others)})
             else:  # the profiles sharing its folder: the build is the same, only their entries change
                 others.append(overhaul_install.apply_entries(preview))
+                run_logging.set_undo({**first, "others": list(others)})  # a crash further on still leaves an Undo
         except Exception as e:
-            run_logging.log(f"skipped {p.name}: {e}")
+            skipped.append(f"{p.name}: {e}")
             continue
         done.append(p.name)
+    for line in skipped:
+        run_logging.log(f"skipped {line}")
     if first is not None:  # one Undo takes back every profile the job changed
-        run_logging.set_undo({**first, "others": others})
+        run_logging.set_undo({**first, "others": list(others)})
         run_logging.log(f"done: applied the setup of {config.label} to {', '.join(done)}")
+    if not done:
+        raise overhaul_install.OverhaulError(
+            f"The saved setup of {config.label} was not applied to any profile: " + "; ".join(skipped)
+        )
     return done
 
 

@@ -254,11 +254,13 @@ def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app
     host = Host(profile)
     w = opened(host)
     try:
-        assert [n.key for n in w.adapter.state().notices if n.key != "dll-folders"] == ["recovered"]
+        assert [n.key for n in w.adapter.state().notices if n.key not in ("dll-folders", "outside")] == ["recovered"]
         host.busy = True  # a job holds the folder: it is not looked at then
         w.adapter.refresh()
         settle()
-        assert len(calls) == 1 and [n.key for n in w.adapter.state().notices if n.key != "dll-folders"] == ["recovered"]
+        assert len(calls) == 1 and [
+            n.key for n in w.adapter.state().notices if n.key not in ("dll-folders", "outside")
+        ] == ["recovered"]
     finally:
         closed(w)
 
@@ -271,6 +273,22 @@ def test_every_notice_bar_shows_its_text(qt_app, profile, theme):
     try:
         bar = find(w, "notice_online")
         assert bar.property("text").strip() != ""  # a delegate role named `text` once bound to itself and left it empty
+    finally:
+        closed(w)
+
+
+def test_a_profile_outside_bayles_folder_gets_a_notice_with_a_move_in_button(qt_app, profile, monkeypatch):
+    from roundtable_souls.services import profile_mods
+
+    monkeypatch.setattr(profile_mods, "_outside", lambda prof, loc: True)
+    w = opened(Host(profile))
+    try:
+        bar = find(w, "notice_outside")
+        assert "outside Bayle's folder" in bar.property("text")
+        moved = []
+        monkeypatch.setattr(w.adapter, "moveIntoLauncherFolder", lambda: moved.append(1))
+        w.adapter.noticeAction("outside")
+        assert moved == [1]
     finally:
         closed(w)
 
@@ -581,5 +599,60 @@ def test_the_profile_menu_commands_reach_the_page(qt_app, profile):
         w.adapter.command("rename", [])
         settle()
         assert find(w, "profileNameEdit").property("visible")
+    finally:
+        closed(w)
+
+
+def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_install_again(
+    qt_app, profile, monkeypatch
+):
+    from roundtable_souls.services import jobs as job_service
+    from roundtable_souls.services import mods as mod_service
+
+    overhaul_services(monkeypatch)
+    for takeover, enabled in ((False, False), (True, True)):
+        monkeypatch.setattr(
+            mod_service,
+            "profile_overhaul",
+            lambda p, loc, takeover=takeover: {
+                "label": "Toy",
+                "short_label": "Toy",
+                "legacy": True,
+                "takeover": takeover,
+            },
+        )
+        w = opened(Host(profile))
+        try:
+            menu = w.adapter.property("overhaul")
+            assert (menu["take_over"], menu["can_take_over"]) == ("Take over Toy...", enabled)
+        finally:
+            closed(w)
+    chosen = []
+    monkeypatch.setattr(mod_service, "take_over_choices", lambda p, loc: [])
+
+    def preview(p, *, loc, chosen=(), revert_asked=False):
+        return type(
+            "Preview", (), {"ok": True, "refusals": [], "lines": ["main.me3 loses Toy's entries"], "asked": []}
+        )()
+
+    monkeypatch.setattr(mod_service, "preview_take_over", preview)
+    monkeypatch.setattr(mod_service, "remove_overhaul", lambda p: chosen.append(p))
+    host = Host(profile)
+    w = opened(host)
+    try:
+        asked = []
+        w.notifier.confirmFullRequested.connect(lambda token, words: asked.append((token, words)))
+        w.adapter.takeOverOverhaul()
+        settle()
+        [(token, words)] = asked
+        assert words["title"] == "Take over Toy in main.me3" and words["apply"] == "Take over"
+        w.notifier.answerWith(token, True, False)
+        assert host.jobs == ["Taking over Toy..."]
+        assert host.ran is not None and host.ran[1] is not None
+        host.ran[1](job_service.Outcome(True, "Finished"))  # the job is done: asks about installing again
+        settle()
+        assert asked[-1][1]["title"] == "Install Toy with the launcher now?" and host.installs == []
+        w.notifier.answerWith(asked[-1][0], True, False)
+        assert host.installs == [True]  # opens Install mod; nothing installs by itself
     finally:
         closed(w)

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
+import base64
 import hashlib
 from collections.abc import Callable
 from pathlib import Path
@@ -324,15 +325,23 @@ def _overhaul_back(undo: dict, log) -> str:
     try:
         if undo["type"] in ("overhaul-remove", "overhaul-turn-off"):
             return overhaul_install.undo_remove(undo, log)
-        said = operations.take_back(Path(undo["operation"]), log)
-        for other in undo.get("others") or []:  # profiles that only had their entries changed: their earlier text
+        said = ""
+        for other in undo.get("others") or []:  # profiles that only had their entries changed: their earlier bytes
             path = Path(other["profile"])
-            if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == other["after"]:
-                files.atomic_write(path, other["before"].encode("utf-8"))
-                log(f"undo: {path.name} has its earlier entries back")
-            else:
-                said += f"; {path.name} was changed since and is left as it is"
-        return said
+            try:
+                if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == other["after"]:
+                    before = (
+                        base64.b64decode(other["before_b64"])
+                        if "before_b64" in other
+                        else other["before"].encode("utf-8")  # a record from an older version
+                    )
+                    files.atomic_write(path, before)
+                    log(f"undo: {path.name} has its earlier entries back")
+                else:
+                    said += f"; {path.name} was changed since and is left as it is"
+            except OSError as e:  # the main one is still taken back below
+                said += f"; {path.name} could not be restored ({e})"
+        return operations.take_back(Path(undo["operation"]), log) + said
     except overhaul_install.OverhaulError as e:
         raise UndoError(str(e)) from e
 

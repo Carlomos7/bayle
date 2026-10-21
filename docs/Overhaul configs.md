@@ -253,7 +253,21 @@ texts = { rusru = "settings/rusru.json", "*" = "settings/engus.json" }
 
 What each of the mod's files becomes (the form's **Files** table shows each file with this choice and lets the player
 change it: `files` stores only the differences, as `merge`, `whole` (copy as it is), `keep`, `copy`, `leave` or
-`place:<game path>`; it wins over `keep`, `not_merged`, `place` and `skip`):
+`place:<game path>`; it wins over `keep`, `not_merged`, `place` and `skip`, the older lists):
+
+- The older lists still work in a file that has them. An entry whose action the file's kind cannot have (a `keep` for
+  a file in a game folder) is ignored, as it always was. Saving the form folds the lists into `files` and drops them;
+  when the form cannot show the Files table (the launcher's copy of the download is gone) saving keeps the lists
+  and `files` as they are.
+- A `files` or `place` entry naming a file a newer download no longer has is dropped (and said); a DLL or a texts file
+  that is gone is an error.
+- Paths in `files` (keys and `place:` targets) and in `place` (keys and values) must stay inside their folder: forward
+  slashes, no `..`, not absolute, no drive letter. A config that breaks this does not load, and the build refuses any
+  step path that leaves the download's folder or the build's.
+- An overhaul's `id` can't be a folder name the launcher uses (`packages`, `natives`, `mod`, `.roundtable`, ..., or the
+  names set in Settings > Locations).
+- Applying a saved setup to the profiles leaves the config file as it is when it already holds the setup, so a
+  hand-edited file keeps its comments and order.
 
 - `regulation.bin`: `params`, combined on top of the packages before it;
 - a binder in a game folder (`*bnd.dcx`: animations, behaviours, parts, text, talk scripts, ...): `merge`, on top of

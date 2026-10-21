@@ -350,8 +350,12 @@ def roots(profile: Path, text: str) -> tuple[Path, Path]:
                 break
         return best or profile.parent / default
 
-    packages = "packages" if library.own_folder(profile) else "mod"  # the launcher's own folders: packages/, natives/
-    return pick("package", ("mod", "mods", "packages"), packages), pick("native", ("natives", "dll", "dlls"), "natives")
+    lay = library.layout()  # the launcher's own folders, as Settings names them
+    packages = lay.packages if library.own_folder(profile) else "mod"
+    return (
+        pick("package", ("mod", "mods", "packages", lay.packages.lower()), packages),
+        pick("native", ("natives", "dll", "dlls", lay.natives.lower()), lay.natives),
+    )
 
 
 def slug(name: str) -> str:
@@ -418,8 +422,8 @@ def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: 
     from roundtable_souls.mods import profile_writer
 
     profile_writer.ProfileWriter.create(path, text).write("new profile")
-    for sub_name in ("packages", "mod", "natives"):  # a copy keeps the names its entry paths use
-        if src is not None and (src.parent / sub_name).is_dir() and library.own_folder(src):
+    for sub_name in library.copied_folders(src) if src is not None else ():  # a copy keeps the names its entries use
+        if (src.parent / sub_name).is_dir():
             shutil.copytree(src.parent / sub_name, home / sub_name, dirs_exist_ok=True)
     for sub_name in ("packages", "natives"):
         (home / sub_name).mkdir(exist_ok=True)

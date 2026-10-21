@@ -438,9 +438,6 @@ def test_the_profile_folder_is_never_left_with_a_temp_file(profile):
     w = W.ProfileWriter(profile)
     w.set_setting("start_online", True)
     w.write("x")
-    # the folder's lock file (shared with operations) is expected; nothing else is left beside the profile
-    assert sorted(p.name for p in profile.parent.iterdir() if p.is_file()) == [
-        ".roundtable-ops.lock",
-        "my.me3",
-    ]
+    # the folder's lock file lives in .bayle; nothing is left beside the profile
+    assert sorted(p.name for p in profile.parent.iterdir() if p.is_file()) == ["my.me3"]
     assert not any(p.name.endswith(".tmp") for p in os.scandir(profile.parent))

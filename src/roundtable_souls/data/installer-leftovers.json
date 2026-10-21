@@ -1,0 +1,20 @@
+{
+  "manifests": [
+    "installation.json"
+  ],
+  "manifest_profile_keys": [
+    "profile",
+    "sourceProfile"
+  ],
+  "manifest_profiles_key": "profiles",
+  "manifest_setup_key": "maintenance",
+  "setup_files": [
+    "*-maintenance.json"
+  ],
+  "backup_files": [
+    "restore.json"
+  ],
+  "base_profile_keys": [
+    "baseProfile"
+  ]
+}

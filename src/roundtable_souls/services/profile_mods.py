@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
-from roundtable_souls.mods import dll_folders, folder_check, profile_edit, profile_writer, shared_mods
+from roundtable_souls.mods import dll_folders, folder_check, move_in, profile_edit, profile_writer, shared_mods
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
@@ -434,6 +434,7 @@ class PageFacts:
     shared: dict[int, int] = field(default_factory=dict)  # entry -> profiles using that Shared mod (the Library)
     can_share: tuple[int, ...] = ()  # Separate packages that can be shared
     library_used: bool = False  # some profile uses a Shared mod: Separate rows say so
+    outside: bool = False  # the profile is not in Bayle's folder (it can be moved in)
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
@@ -499,7 +500,15 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         shared=shared,
         can_share=can_share,
         library_used=library_used,
+        outside=_outside(prof, loc),
     )
+
+
+def _outside(profile: Path, loc: Locations) -> bool:
+    try:
+        return move_in.outside(profile, loc)
+    except OSError:
+        return False
 
 
 def _folder_check(profile: Path, loc: Locations) -> folder_check.FolderCheck:

@@ -22,10 +22,12 @@ mods.naming says what things are called. Nothing is created until ensure() asks 
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 from roundtable_souls.config.layout import game_root, layout
+from roundtable_souls.formats import me3_profile
 from roundtable_souls.platform import files
 
 ROOT = "roundtable"  # 4.2.0: roundtable/<game key>/profiles/<name>/ and roundtable/<game key>/library/ (mods.migrate)
@@ -147,6 +149,40 @@ def own_folder(profile: Path) -> bool:
         )
     except OSError:
         return False
+
+
+def root_folders(profile: Path, targets: Iterable[Path]) -> list[Path]:
+    """The folders at the root of a profile's own folder that these paths lie in, apart from the launcher's own
+    (packages, natives, builds, mod, state): an overhaul's own folder is part of the profile's layout. Empty for a
+    profile that is not alone in its folder."""
+    if not own_folder(profile):
+        return []
+    root = Path(os.path.abspath(Path(profile).parent))
+    lay = layout()
+    own = {lay.packages.lower(), lay.natives.lower(), "mod", "builds", STATE, LEGACY_STATE, PREVIOUS}
+    out: dict[str, Path] = {}
+    for t in targets:
+        try:
+            parts = Path(os.path.abspath(t)).relative_to(root).parts
+        except ValueError:
+            continue
+        if len(parts) > 1 and parts[0].lower() not in own:
+            out.setdefault(parts[0].lower(), root / parts[0])
+    return list(out.values())
+
+
+def copied_folders(profile: Path) -> list[str]:
+    """The folders of a profile's own folder a copy of it takes: its mod folders and the overhaul folders its entries
+    point into. [] for a profile that is not alone in its folder (a copy of it is only the .me3)."""
+    if not own_folder(profile):
+        return []
+    lay = layout()
+    try:
+        rows = me3_profile.entries(me3_profile.read_text(Path(profile)))
+    except OSError, ValueError:
+        rows = []
+    targets = [me3_profile.resolve(Path(profile), e["path"]) for e in rows if e.get("path")]
+    return [lay.packages, "mod", lay.natives, *(f.name for f in root_folders(profile, targets))]
 
 
 @dataclass(frozen=True)

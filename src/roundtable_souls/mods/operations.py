@@ -18,9 +18,8 @@ removed or switched off by an undo or a rollback. An operation that did not fini
 
 The records live in the profile's .roundtable folder (ops/<id>/, mods.library.state_of): they protect the files
 beside them (§8.8); an update's previous copy goes to its previous/ when on the same drive. Launchers before 3.23 kept
-them in .roundtable-ops/ beside the profile: those are still read, recovered and taken back where they are, and that
-folder's lock (.roundtable-ops.lock) is still the one held for existing setups, so an older launcher and this one never
-work on one folder at once (until 3.24).
+them in .roundtable-ops/ beside the profile (lock .roundtable-ops.lock): recover() finishes or undoes what is left
+there and moves the rest into .bayle/ops (build.adopt_legacy_ops); until then they are read where they are.
 """
 
 from __future__ import annotations
@@ -47,15 +46,20 @@ def _root(profile: Path) -> Path:
 
 def _bases(profile: Path) -> list[tuple[Path, str]]:
     """Where this profile's operations are: its .roundtable/ops, then .roundtable-ops beside it (before 3.23)."""
-    out = [(library.state_of(profile).root, library.OPS), (_root(profile), build.OPS)]
+    out = [
+        (library.state_of(profile).root, library.OPS),
+        (_root(profile), build.OPS),
+        (_root(profile), build.LEGACY_OPS),
+    ]
     if library.named_folder(profile) or library.is_game_folder(_root(profile).parent):
-        out.append((_root(profile).parent, build.OPS))  # a rename, copy, split or move of a profile's folder
-    return out
+        # a rename, copy, split or move of a profile's folder
+        out += [(_root(profile).parent, build.OPS), (_root(profile).parent, build.LEGACY_OPS)]
+    seen: set[Path] = set()
+    return [b for b in out if not ((p := (b[0] / b[1]).resolve()) in seen or seen.add(p))]
 
 
 def lock(profile: Path, timeout: float = 30.0):
-    """Held around an operation on this profile's folder, by every launcher process: the lock launchers before 3.23
-    hold too (.roundtable-ops.lock beside the profile)."""
+    """Held around an operation on this profile's folder, by every launcher process (.bayle/ops.lock)."""
     return build.ops_lock(_root(profile), timeout)
 
 
@@ -66,10 +70,12 @@ def _active(profile: Path) -> list[build.Operation]:
 def recover(profile: Path, timeout: float = 30.0) -> list[str]:
     """Finish or undo what an interrupted operation in this profile's folder left (see merging.build), wherever its
     journal is. Raises merging.build.BuildError when another launcher process holds the folder past timeout."""
+    said: list[str] = []
+    for root in {b[0] for b in _bases(profile) if b[1] == build.LEGACY_OPS}:
+        said += build.adopt_legacy_ops(root)
     bases = [(root, ops) for root, ops in _bases(profile) if (root / ops).is_dir()]
     if not bases:
-        return []  # nothing ever ran here: not even the lock file is made
-    said: list[str] = []
+        return said  # nothing ever ran here: not even the lock file is made
     with lock(profile, timeout):  # first, so every process takes the locks in one order
         for root, ops in bases:
             said += build.recover_operations(root, timeout, ops)

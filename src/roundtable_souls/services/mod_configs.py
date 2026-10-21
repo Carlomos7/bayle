@@ -278,15 +278,19 @@ def overhaul_choices(setup: dict, game_dir=None) -> dict:
     }
 
 
-def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str]:
+def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str] | None:
     """The Files table's choices that differ from what the setup does by itself: values maps a file to its action,
-    a placed one as place:<game path>."""
+    a placed one as place:<game path>. None when there are no rows (the mod's folder is gone): nothing was shown, so
+    nothing was chosen (with_basic then keeps the saved lists and files)."""
+    if not rows:
+        return None
     return {r["file"]: values[r["file"]] for r in rows if values.get(r["file"], r["choices"][0]) != r["choices"][0]}
 
 
-def with_basic(config, *, natives: list[dict], files: dict[str, str], tables: dict[str, str] | None = None):
+def with_basic(config, *, natives: list[dict], files: dict[str, str] | None, tables: dict[str, str] | None = None):
     """The config with the form's values (overhauls.config.Basic) in place of its basic part. The Files table
-    replaces the older keep, not_merged, place and skip lists, which are folded into it."""
+    replaces the older keep, not_merged, place and skip lists, which are folded into it; files None (no table was
+    shown) keeps them and the saved files as they are."""
     from roundtable_souls.overhauls.config import Basic, BasicNative
 
     old = config.basic
@@ -294,10 +298,14 @@ def with_basic(config, *, natives: list[dict], files: dict[str, str], tables: di
     for t in texts:
         if not t.table:
             raise ValueError(f"Choose the table of {t.file} that the texts are set in.")
+    if files is None and old is not None:
+        return config.model_copy(
+            update={"basic": old.model_copy(update={"natives": [BasicNative(**n) for n in natives], "texts": texts})}
+        )
     new = Basic(
         version=old.version if old is not None else None,
         natives=[BasicNative(**n) for n in natives],
-        files=files,
+        files=files or {},
         texts=texts,
     )
     return config.model_copy(update={"basic": new})

@@ -172,7 +172,7 @@ def preview(profile: Path, index: int, new_name: str, *, loc: Locations) -> Rena
             refuse(f"{old_name} belongs to an overhaul the launcher manages, so it can't be renamed on its own.")
         else:
             refuse(f"{old_name} is outside this profile's mod folders, so the launcher does not move it.")
-    if old_name.lower() in naming.RESERVED:
+    if old_name.lower() in naming.reserved():
         refuse(f"{old_name} is a folder the launcher uses itself.")
     # the new name
     case_only = new_name != old_name and new_name.lower() == old_name.lower()
@@ -182,7 +182,7 @@ def preview(profile: Path, index: int, new_name: str, *, loc: Locations) -> Rena
         refuse("That is already its name.")
     elif (why := naming.unsafe(new_name)) is not None:
         refuse(f"{new_name} can't be used: {why}.")
-    elif new_name.lower() in naming.RESERVED:
+    elif new_name.lower() in naming.reserved():
         refuse(f"{new_name} is a folder the launcher uses itself.")
     else:
         if not case_only and any(p.name.lower() == new_name.lower() for p in folder.parent.iterdir()):

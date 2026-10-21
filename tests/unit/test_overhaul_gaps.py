@@ -102,7 +102,6 @@ def test_a_placement_to_something_that_is_no_game_folder_or_twice_to_one_path_is
     for place, why in (
         ({"settings/b.dcx": "nowhere/b.dcx"}, "not in one of the game's folders"),
         ({"settings/b.dcx": TALK, "settings/m00.talkesdbnd.dcx": TALK}, "both placed at"),
-        ({"settings/gone.dcx": TALK}, "gone.dcx is not in the mod's folder"),  # the source moved or vanished
     ):
         with pytest.raises(ValueError, match=why):
             basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"place": place}), folder=folder)
@@ -252,9 +251,21 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
     other = world.base / "other.me3"
     other.write_bytes(world.profile.read_bytes())
     monkeypatch.setattr(overhaul_install, "users_of", lambda p, c, e: [Path(p), other])  # `other` has no copy of it
-    assert mod_service.reapply_overhaul_setup(world.profile, loc=world.loc) == ["my.me3"]
+    assert mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc) == ["my.me3"]
     entry = world.data()["natives"][-1]
     assert entry["initializer"] == {"function": "Boot"} and entry["load_early"] is True
+
+
+def test_applying_a_saved_setup_leaves_a_hand_edited_file_as_it_is(world):
+    from test_overhaul_install import set_up
+
+    from roundtable_souls.services import mods as mod_service
+
+    _folder, toml, _out = set_up(world)
+    toml.write_text("# my own note" + chr(10) + toml.read_text(encoding="utf-8"), encoding="utf-8")
+    before = toml.read_bytes()
+    assert mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc) == ["my.me3"]
+    assert toml.read_bytes() == before
 
 
 # ----------------------------------------------------------------------------- gap 3: texts from a JSON file
@@ -374,11 +385,12 @@ def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
     before = {p: p.read_bytes() for p in (world.profile, other)}
     got: list[dict] = []
     monkeypatch.setattr(run_logging, "set_undo", lambda d: got.append(d))
-    done = mod_service.reapply_overhaul_setup(world.profile, loc=world.loc)
-    assert done == ["my.me3", "other.me3"] and len(got) == 1 and got[0]["type"] == "overhaul-reapply"
+    done = mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc)
+    assert done == ["my.me3", "other.me3"] and got[0]["type"] == "overhaul-reapply"
+    assert got[0]["others"] == [] and len(got[-1]["others"]) == 1  # set after each profile: a crash keeps an Undo
     assert all(b"Boot" in p.read_bytes() for p in before)
-    assert undo.available(got[0])
-    undo.run(got[0], lambda s: None, loc=world.loc)
+    assert undo.available(got[-1])
+    undo.run(got[-1], lambda s: None, loc=world.loc)
     assert {p: p.read_bytes() for p in before} == before
 
 
@@ -395,8 +407,158 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
     world.profile.write_text(text, encoding="utf-8")
     config = overhauls.read(toml)
     writer.save_local(config, expect=writer.sha256_of(toml), path=toml)
-    mod_service.reapply_overhaul_setup(world.profile, loc=world.loc)
+    mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc)
     after = world.data()
     package = next(p for p in after["packages"] if p.get("id") == "mixed-mod")
     native = next(n for n in after["natives"] if "MixedMod" in n["path"])
     assert package.get("enabled") is False and native.get("enabled") is False
+
+
+# ----------------------------------------------------------------------------- gap 4: a matched setup is pre-filled
+def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world):
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QCoreApplication
+    from test_overhaul_install import set_up
+
+    from roundtable_souls import overhauls
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.ui.pages.mods.install import InstallDraft
+    from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    folder, toml, _out = set_up(world)
+    config = overhauls.read(toml)
+    natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
+    config = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
+    toml.write_text(__import__("roundtable_souls.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")
+    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
+    assert plan.get("overhaul")
+    host = SimpleNamespace(
+        profile=world.profile,
+        locations=world.loc,
+        run_in_background=lambda work, done: done(work()),
+        run_job=lambda *a, **k: None,
+    )
+    adapter = InstallAdapter(host, SimpleNamespace())
+    draft = adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
+    assert draft.overhaul_mode == "matched"
+    adapter._planned = adapter._key()
+    adapter._refresh()
+    view = draft.view()
+    assert view["natives"][0]["initializer"] == "Boot"  # pre-filled from the saved setup
+    assert {"MixedMod.ini"} <= {r["file"] for r in view["files"]}
+    assert not adapter._via_setup
+    adapter.setNative("MixedMod.dll", "early", "true")
+    adapter._timer.stop()
+    adapter._refresh()
+    assert adapter._via_setup and adapter._preview.found.config.basic.natives[0].load_early is True
+    del app
+
+
+def test_a_dll_with_the_name_of_one_already_in_the_profile_is_said_in_the_review(world):
+    from roundtable_souls.mods import overhaul_install
+
+    folder = revive_shaped(world)
+    world.profile.write_text(
+        world.text() + "\n[[natives]]\npath = 'natives/Old/RevivePrototype.dll'\n", encoding="utf-8"
+    )
+    config = basic.make(
+        id="revive", label="Revive", game="eldenring", basic=basic.propose(folder, game="eldenring"), folder=folder
+    )
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert p.ok  # it is replaced by the overhaul's DLL, and the review says so
+    assert any("natives/Old/RevivePrototype.dll" in n and "is replaced" in n for n in p.notes)
+
+
+# ----------------------------------------------------------------------------- review follow-ups
+def test_a_files_choice_encodes_and_decodes_the_same_way_everywhere():
+    assert (
+        basic.encode_action("place", "script/x.bin") == "place:script/x.bin" and basic.encode_action("leave") == "leave"
+    )
+    assert basic.decode_action("place:script/x.bin") == ("place", "script/x.bin")
+    assert basic.decode_action("merge") == ("merge", "")
+    assert basic.decode_action(basic.encode_action("place", "")) == ("place", "")
+
+
+def test_applying_a_saved_setup_that_no_profile_took_is_an_error_not_a_success(world):
+    from test_overhaul_install import set_up
+
+    from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.services import mods as mod_service
+
+    set_up(world)
+    with pytest.raises(overhaul_install.OverhaulError, match="not found after saving"):
+        mod_service.reapply_overhaul_setup(world.profile, "no-such-setup", loc=world.loc)
+    bare = world.base / "bare.me3"
+    bare.write_text('profileVersion = "v1"\n', encoding="utf-8")
+    with pytest.raises(overhaul_install.OverhaulError, match="doesn't use"):
+        mod_service.reapply_overhaul_setup(bare, "mixed-mod", loc=world.loc)
+    import shutil
+
+    shutil.rmtree(overhaul_install.places(world.profile, "mixed-mod", world.loc).sources)  # no copy of the download
+    with pytest.raises(overhaul_install.OverhaulError, match="was not applied to any profile"):
+        mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc)
+
+
+def test_the_left_out_note_ignores_the_case_of_the_folder(world):
+    from roundtable_souls.mods import overhaul_install
+    from roundtable_souls.overhauls.config import BasicNative
+
+    folder = revive_shaped(world)
+    make_folder(folder, ["Cfg/B.dll", "Cfg/a.ini"])
+    b = basic.propose(folder, game="eldenring").model_copy(
+        update={"natives": [BasicNative(file="Cfg/B.dll")], "files": {"cfg/a.ini": "leave"}}
+    )
+    config = basic.make(id="revive", label="Revive", game="eldenring", basic=b, folder=folder)
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert any("cfg/a.ini is left out" in n for n in p.notes)
+
+
+def test_the_files_table_is_read_off_the_ui_thread_and_a_fresh_config_forgets_earlier_edits(world, monkeypatch):
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QCoreApplication
+    from test_overhaul_install import set_up
+
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.ui.pages.mods.install import InstallDraft
+    from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
+
+    QCoreApplication.instance() or QCoreApplication([])
+    folder, _toml, _out = set_up(world)
+    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
+    inside = {"refreshed": False}
+    real = mod_service.setup_file_rows
+
+    def rows(config, where):
+        assert not inside["refreshed"], "the Files table was read on the UI thread"
+        return real(config, where)
+
+    monkeypatch.setattr(mod_service, "setup_file_rows", rows)
+    host = SimpleNamespace(
+        profile=world.profile,
+        locations=world.loc,
+        run_in_background=lambda work, done: done(work()),
+        run_job=lambda *a: None,
+    )
+    adapter = InstallAdapter(host, SimpleNamespace())
+    adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
+    adapter._planned = adapter._key()
+    original = adapter._refreshed
+
+    def watched(got):
+        inside["refreshed"] = True
+        try:
+            original(got)
+        finally:
+            inside["refreshed"] = False
+
+    adapter._refreshed = watched
+    adapter._refresh()
+    assert adapter._draft.files
+    adapter._edited = True
+    adapter._config_for = ()  # the name or variant changed: the config is proposed again
+    adapter._previewed = ()
+    adapter._refresh()
+    assert adapter._edited is False

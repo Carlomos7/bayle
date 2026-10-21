@@ -74,6 +74,8 @@ def test_the_real_shell_renders_the_check_toast_and_other_pages_toasts(qt_app, t
 
     monkeypatch.setattr(updates_mod.feed, "check_launcher_update", lambda force=False: feed.UpdateCheck("fresh"))
     monkeypatch.setattr(updates_mod.feed, "check_advisory", lambda force=False: None)
+    # the Settings page asks me3 on a thread that outlives the test: no real me3, network or settings write
+    monkeypatch.setattr(ShellHost, "me3_facts", lambda self: {})
     host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
     w = ShellWindow(host)
     try:

@@ -5,18 +5,33 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.0] - 2026-10-21
+## [4.2.0] - 2026-10-21
 
-Mod READMEs show as formatted text, Mod Configs is quieter and clearer, and Nightreign saves are described honestly.
+Each profile now has a folder of its own with its own mods, kept per game in one folder the launcher owns. Profiles
+no longer share mod folders, so changing one profile never changes another. Mod READMEs show as formatted text.
+
+### Highlights
+
+- **One folder per profile:** `roundtable\<game>\profiles\<name>\` in me3's profiles folder holds the profile, its
+  game-file mods (`packages`), its DLL mods (`natives`) and the launcher's files for it.
+- **Your profiles move once, safely:** profiles in the old shared `rs-<game>` folder move into the new layout on the
+  first start. A mod that two profiles shared is copied to each. Undo it in Activity.
+- **Move into Roundtable's folder:** a plain me3 profile can join the launcher's folder from the Profile menu. Mods
+  other profiles still use are copied, not moved.
+- **Mod READMEs:** a mod's README shows on Mod Configs as formatted text.
 
 ### Added
 
-- **Mod Configs:** a mod's `README.md` or `readme.txt` is listed with its settings and shown as formatted text, with
-  Edit as text to change it.
+- **Profiles:** a notice when a profile's folder is named differently from the profile (Rename folder), or when one
+  folder holds several profiles (Split into folders). Both can be undone.
+- **Mod Configs:** a mod's `README.md` or `readme.txt` is listed with its settings and shown formatted, with Edit as
+  text to change it.
 - **Mod Configs:** a mod the profile has switched off shows a **Disabled** tag instead of a line of text.
 
 ### Changed
 
+- **Profiles:** Duplicate copies the profile's mods too, and Rename also renames its folder.
+- **Remove:** removing a mod deletes it from that profile only.
 - **Pages:** the profile's name stands out in the Mods, Mod Configs and Export headers.
 - **Mod Configs:** help icons that only repeated the help line under a setting are gone.
 - **Nightreign saves:** the Saves page says the character data is not documented yet, instead of calling the save
@@ -24,8 +39,14 @@ Mod READMEs show as formatted text, Mod Configs is quieter and clearer, and Nigh
 - **Records:** rebuild runs, backup notes and keep flags, the save library index and profile history are also kept in
   the launcher's database. The files stay the source of truth, so an older version still reads them.
 
+### Fixed
+
+- The Mods page no longer fails to open when no profile is selected.
+
 ### Removed
 
+- **Adopt into the Library** and the "Outside the library" and "Shared" tags, which only applied to shared mod
+  folders. Plain me3 profiles outside the launcher's folder keep working where they are.
 - Unused code left from the retired merge paths. Game file names now come from one catalog.
 
 ## [4.0.3] - 2026-10-21

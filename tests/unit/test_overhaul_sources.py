@@ -274,7 +274,7 @@ def _imports(module: str) -> set[str]:
                 "roundtable_souls.formats",
                 "roundtable_souls.platform",
                 "roundtable_souls.game.locate",
-                "roundtable_souls.config.settings",
+                "roundtable_souls.config.layout",
             ),
         ),  # fmt: skip
     ],

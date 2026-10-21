@@ -141,11 +141,11 @@ class Locations:
     def me3_profiles(self, game: catalog.Game | None = None) -> list[Path]:
         """User-made .me3 profiles for the game (the *-default.me3 ones me3 generates are skipped). A profile that
         names no game in [[supports]] counts for Elden Ring, the only game older profiles were written for."""
-        from roundtable_souls.mods import library
+        from roundtable_souls.config import layout
 
         game = game or self.game
         home = self.me3_profiles_dir()
-        also = [library.game_root(home, game.key)] if home is not None else []
+        also = [layout.game_root(home, game.key)] if home is not None else []
         return paths.find_profiles(home, game.key, catalog.ELDEN_RING.key, also)
 
 

@@ -25,6 +25,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from roundtable_souls.config.layout import game_root, layout
 from roundtable_souls.platform import files
 
 ROOT = "roundtable"  # 4.2.0: roundtable/<game key>/profiles/<name>/ and roundtable/<game key>/library/ (mods.migrate)
@@ -81,33 +82,6 @@ class StateFolders:
     previous: Path
     ops: Path
     ops_lock: Path
-
-
-@dataclass(frozen=True)
-class Layout:
-    """The folder names Settings lets the player choose (config.settings: profiles_root, game_folder_pattern,
-    packages_folder, natives_folder, shared_folder)."""
-
-    root: str | None = None
-    pattern: str = "b-{game}"
-    packages: str = "packages"
-    natives: str = "natives"
-    shared: str = ".shared"
-
-
-def layout() -> Layout:
-    """The layout settings as they are now."""
-    from roundtable_souls.config.settings import load_settings
-
-    s = load_settings()
-    return Layout(s.profiles_root, s.game_folder_pattern, s.packages_folder, s.natives_folder, s.shared_folder)
-
-
-def game_root(profiles_dir: Path, game: str) -> Path:
-    """The launcher's own folder for one game: b-<game> in the Profiles folder (me3's profiles folder unless Settings
-    names another)."""
-    lay = layout()
-    return Path(lay.root or profiles_dir) / lay.pattern.format(game=game)
 
 
 def profiles_root(profiles_dir: Path, game: str) -> Path:

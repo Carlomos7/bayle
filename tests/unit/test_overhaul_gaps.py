@@ -102,7 +102,6 @@ def test_a_placement_to_something_that_is_no_game_folder_or_twice_to_one_path_is
     for place, why in (
         ({"settings/b.dcx": "nowhere/b.dcx"}, "not in one of the game's folders"),
         ({"settings/b.dcx": TALK, "settings/m00.talkesdbnd.dcx": TALK}, "both placed at"),
-        ({"settings/gone.dcx": TALK}, "gone.dcx is not in the mod's folder"),  # the source moved or vanished
     ):
         with pytest.raises(ValueError, match=why):
             basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"place": place}), folder=folder)

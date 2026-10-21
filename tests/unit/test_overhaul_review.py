@@ -83,3 +83,27 @@ def test_an_old_keep_for_a_file_in_a_game_folder_is_ignored_as_before():
     assert basic.action_of("map/y.ini", "game", b) == "copy"
     assert basic.action_of("x.ini", "settings", Basic(keep=["x.ini"])) == "keep"
     assert basic.action_of("x.bnd", "binder", Basic(place={"x.bnd": "map/x.bnd"})) == "merge"
+
+
+# ----------------------------------------------------------------------------- stale entries, old package roots
+def test_settings_for_a_file_a_new_download_dropped_are_pruned_and_said(tmp_path):
+    folder = make_folder(tmp_path / "dl", ["M.dll", "M.ini"])
+    b = Basic(natives=[{"file": "M.dll"}], files={"gone.ini": "keep"}, place={"gone.bnd": "map/gone.bnd"})
+    notes: list[str] = []
+    config = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder, notes=notes)
+    assert config.basic.files == {} and config.basic.place == {} and len(notes) == 2
+    assert basic.level(config.model_copy(update={"basic": b}), folder) == "basic"
+    gone_dll = Basic(natives=[{"file": "N.dll"}])
+    with pytest.raises(ValueError, match="N.dll is not in"):
+        basic.make(id="m", label="M", game="eldenring", basic=gone_dll, folder=folder)
+
+
+def test_a_config_saved_before_package_roots_stays_basic(tmp_path):
+    folder = make_folder(tmp_path / "dl", ["payload/mod/chr/c0000.anibnd.dcx", "payload/M.dll"])
+    b = Basic()
+    old = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder, root="")
+    new = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder)
+    assert old.model_dump() != new.model_dump()
+    assert basic.level(old, folder) == "basic" and basic.level(new, folder) == "basic"
+    edited = old.model_copy(update={"recognise": old.recognise.model_copy(update={"mod_ids": ["other"]})})
+    assert basic.level(edited, folder) == "advanced"

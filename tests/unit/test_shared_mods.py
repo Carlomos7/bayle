@@ -570,3 +570,45 @@ def test_a_shared_update_that_ships_regulation_is_marked_blocked(world, tmp_path
     assert "blocked" not in mod_service.plan_mod_install(a, src, loc=loc)["library"]
     (src / loc.game.regulation).write_bytes(b"reg")
     assert mod_service.plan_mod_install(a, src, loc=loc)["library"]["blocked"] is True
+
+
+def test_two_profiles_in_one_folder_are_not_twins_and_a_scan_hashes_each_folder_once(world, monkeypatch):
+    loc, home, root, lib, a, b, c = world
+    shared_mods._HASHES.clear()
+    mine = shared_mods.separate_copies(loc)
+    other = shared_mods.Copy(c, 1, "grass", root / "a" / "packages" / "grass")  # profile c listing a's folder
+    monkeypatch.setattr(shared_mods, "separate_copies", lambda l, only=None: [*mine, other])
+    calls = []
+    real = shared_mods.tree_hash
+    monkeypatch.setattr(shared_mods, "tree_hash", lambda f: calls.append(f) or real(f))
+    assert [(t.name, len(t.copies)) for t in shared_mods.duplicates(loc)] == [
+        ("grass", 2)
+    ]  # a and b; c's link is a's folder
+    first = len(calls)
+    assert first and all(f.name == "grass" for f in calls)
+    shared_mods.duplicates(loc)
+    shared_mods.identical_elsewhere(loc, root / "a" / "packages" / "grass", c)
+    assert len(calls) == first  # unchanged folders are not hashed again
+    g = root / "a" / "packages" / "grass" / "g.dcx"
+    g.write_bytes(b"GRASS")
+    os.utime(g, ns=(0, g.stat().st_mtime_ns + 10**9))
+    assert shared_mods.duplicates(loc) == []
+    assert len(calls) > first
+    monkeypatch.setattr(shared_mods, "separate_copies", lambda l, only=None: [mine[0], other])
+    assert shared_mods.duplicates(loc) == []
+
+
+def test_the_hint_scan_runs_once_until_a_profile_file_changes(world, monkeypatch):
+    from roundtable_souls.services import shared_mods as library_service
+
+    loc, home, root, lib, a, b, c = world
+    library_service._scanned.clear()
+    calls = []
+    real = shared_mods.duplicates
+    monkeypatch.setattr(shared_mods, "duplicates", lambda l: calls.append(1) or real(l))
+    got = [library_service.duplicates(loc) for _ in range(5)]
+    assert len(calls) == 1 and len(set(got)) == 1 and got[0][0] == 1
+    st = c.stat()
+    os.utime(c, ns=(st.st_atime_ns, st.st_mtime_ns + 10**9))
+    library_service.duplicates(loc)
+    assert len(calls) == 2

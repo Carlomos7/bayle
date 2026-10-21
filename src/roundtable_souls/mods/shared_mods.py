@@ -799,9 +799,33 @@ class Twins:
         return self.size * (len(self.copies) - 1)
 
 
+def _scan(folder: Path) -> tuple[int, int, int]:
+    """(file count, total size, newest mtime ns) in one scandir walk."""
+    n = size = newest = 0
+    todo = [folder]
+    while todo:
+        with os.scandir(todo.pop()) as it:
+            for e in it:
+                if e.is_dir():
+                    todo.append(Path(e.path))
+                else:
+                    st = e.stat()
+                    n, size, newest = n + 1, size + st.st_size, max(newest, st.st_mtime_ns)
+    return n, size, newest
+
+
 def _shape(folder: Path) -> tuple[int, int]:
-    files = _files(folder)
-    return len(files), sum(p.stat().st_size for _r, p in files)
+    return _scan(folder)[:2]
+
+
+_HASHES: dict[tuple[str, int, int, int], str] = {}  # an unchanged folder is hashed once per session
+
+
+def _tree_id(folder: Path) -> str:
+    key = (_canon(folder), *_scan(folder))
+    if key not in _HASHES:
+        _HASHES[key] = tree_hash(folder)[0]
+    return _HASHES[key]
 
 
 def separate_copies(loc: Locations, only: Path | None = None) -> list[Copy]:
@@ -829,7 +853,11 @@ def duplicates(loc: Locations) -> list[Twins]:
     """Groups of identical Separate packages in two or more profiles, biggest saving first. Files are compared by
     name, file count and size first and hashed only when those agree."""
     by_shape: dict[tuple[str, int, int], list[Copy]] = {}
+    seen: set[str] = set()
     for c in separate_copies(loc):
+        if _canon(c.folder) in seen:  # profiles pointing at one folder share it; they are not twins
+            continue
+        seen.add(_canon(c.folder))
         by_shape.setdefault((c.name.lower(), *_shape(c.folder)), []).append(c)
     out: list[Twins] = []
     for (_name, _n, size), copies in by_shape.items():
@@ -837,7 +865,7 @@ def duplicates(loc: Locations) -> list[Twins]:
             continue
         by_hash: dict[str, list[Copy]] = {}
         for c in copies:
-            by_hash.setdefault(tree_hash(c.folder)[0], []).append(c)
+            by_hash.setdefault(_tree_id(c.folder), []).append(c)
         out += [Twins(g[0].name, h, size, g) for h, g in by_hash.items() if len({_canon(c.profile) for c in g}) > 1]
     return sorted(out, key=lambda t: -t.wasted)
 
@@ -855,8 +883,8 @@ def identical_elsewhere(loc: Locations, folder: Path, profile: Path) -> list[Cop
     for c in separate_copies(loc):
         if _canon(c.profile) == _canon(profile) or _shape(c.folder) != shape:
             continue
-        digest = digest or tree_hash(folder)[0]
-        if tree_hash(c.folder)[0] == digest:
+        digest = digest or _tree_id(folder)
+        if _tree_id(c.folder) == digest:
             out.append(c)
     return out
 

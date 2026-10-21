@@ -4,8 +4,6 @@ cannot do without losing undo (indent, replace all). The syntax itself is in cod
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import (
     QColor,
@@ -22,6 +20,7 @@ from PySide6.QtQml import QmlElement
 from PySide6.QtQuick import QQuickTextDocument
 
 from roundtable_souls.ui import code_syntax, find
+from roundtable_souls.ui.jobs import run_async
 
 QML_IMPORT_NAME = "Roundtable.Code"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -145,7 +144,7 @@ class CodeSupport(QObject):
             found = code_syntax.first_error(language, text)
             self._done.emit(generation, found[0] if found else 0, found[1] if found else "")
 
-        threading.Thread(target=work, daemon=True).start()
+        run_async(work)
 
     @Slot(int, int, str)
     def _finish(self, generation: int, line: int, message: str) -> None:

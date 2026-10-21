@@ -3,12 +3,37 @@ callbacks given with each piece of work."""
 
 from __future__ import annotations
 
+import sys
+import threading
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
 from roundtable_souls.services import jobs
+
+# The one pool for background work in the window (reads, jobs, the game watch). A bigger pool than the core count: the
+# watch and a running job each hold a thread for a long time.
+POOL = QThreadPool()
+POOL.setMaxThreadCount(16)
+
+
+class _Task(QRunnable):
+    def __init__(self, call: Callable[[], None]):
+        super().__init__()
+        self._call = call
+
+    def run(self) -> None:
+        try:
+            self._call()
+        except Exception:  # as a thread's failure: the window's excepthook reports it, no result is posted
+            kind, value, tb = sys.exc_info()
+            threading.excepthook(threading.ExceptHookArgs((kind, value, tb, threading.current_thread())))
+
+
+def run_async(call: Callable[[], None], name: str | None = None) -> None:
+    """Run call on a pool thread (name is only for the log of whoever asks)."""
+    POOL.start(_Task(call))
 
 
 class Jobs(QObject):
@@ -18,7 +43,7 @@ class Jobs(QObject):
         super().__init__(parent)
         self._calls: dict[int, tuple[Callable[[Any], None] | None, Callable[[Any], None] | None]] = {}
         self._arrived.connect(self._deliver)
-        self.runner = jobs.Runner(self._arrived.emit)
+        self.runner = jobs.Runner(self._arrived.emit, lambda run, name: run_async(run, name))
 
     def start(
         self,
@@ -49,3 +74,8 @@ class Jobs(QObject):
         self._calls.pop(event.task, None)
         if on_result is not None:
             on_result(event.value)
+
+    def shutdown(self) -> None:
+        """Queued work is dropped and running work is given a moment to end."""
+        POOL.clear()
+        POOL.waitForDone(1500)

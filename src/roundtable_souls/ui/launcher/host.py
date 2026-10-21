@@ -200,6 +200,10 @@ class ShellHost(QObject):
     def run_in_background(self, work, on_result) -> None:
         self.jobs.start(lambda _progress: work(), on_result=on_result)
 
+    def defer(self, call: Callable[[], None]) -> None:
+        """Run call on the UI thread after the current event-loop turn (requests made in one turn share one read)."""
+        QTimer.singleShot(0, call)
+
     def start(self, job, status: str, kind: str = "other", on_done: Callable[[bool], None] | None = None) -> bool:
         """Run job as a logged job of the shell. One job at a time; nothing but clearing leftover processes runs
         while the game does."""
@@ -270,7 +274,7 @@ class ShellHost(QObject):
                     self._stale.add(name)
                     continue
                 try:
-                    adapter.refresh()
+                    getattr(adapter, "refresh_if_changed", adapter.refresh)()
                 except RuntimeError:  # the page is gone
                     self.pages.pop(name, None)
 
@@ -812,6 +816,8 @@ class ShellHost(QObject):
         return {"job": self.state.busy or self.flow.active, "unsaved": self.unsaved()}
 
     def shutdown(self) -> None:
+        self.watch.stop()
+        self.jobs.shutdown()
         self.instance.release()
 
 

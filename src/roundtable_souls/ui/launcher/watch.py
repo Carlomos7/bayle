@@ -7,6 +7,7 @@ Steam signed out: Steam running but not signed in for SIGN_IN_WAIT seconds is sa
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 
@@ -31,6 +32,10 @@ class GameWatch:
         self._jobs, self._locations, self._interval = jobs, locations, interval
         self._on_running, self._on_steam, self._on_shells = on_running, on_steam, on_shells
         self._bad_since: float | None = None
+        self._stop = threading.Event()
+
+    def stop(self) -> None:
+        self._stop.set()
 
     def start(self) -> None:
         def work(report):
@@ -42,7 +47,8 @@ class GameWatch:
                     report(("shells", dead_shells_count(loc=loc)))  # type: ignore[arg-type]
                 except Exception:
                     pass  # a look that failed is just missed; the next one tries again
-                time.sleep(self._interval)
+                if self._stop.wait(self._interval):
+                    return
 
         self._jobs.start(work, on_progress=self._seen, name="game-watch")
 

@@ -19,6 +19,7 @@ from roundtable_souls.coop import scaling as coop_scaling
 from roundtable_souls.coop import share as coop_share
 from roundtable_souls.formats import config_model
 from roundtable_souls.mods import configs, profile_edit
+from roundtable_souls.platform.threads import assert_not_ui_thread
 from roundtable_souls.services.mods import overhaul_setup_of, profile_entries
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ def _kind(path: Path, seamless_ini: str | None) -> str:
 def tree(profile, *, loc: Locations, settings: LauncherSettings) -> list[ModNode]:
     """The profile's mods with settings files, Seamless Co-op first (also when the profile doesn't load it, so the
     page can say how to), then DLLs and packages in the profile's order."""
+    assert_not_ui_thread("mod_configs.tree")
     prof = Path(profile)
     game = loc.game
     entries = profile_entries(prof)

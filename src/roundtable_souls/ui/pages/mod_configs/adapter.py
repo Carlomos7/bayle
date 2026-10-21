@@ -19,6 +19,7 @@ from roundtable_souls.ui.models import plain
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mod_configs.presenter import ModConfigsPresenter
 from roundtable_souls.ui.pages.mods.presenter import Confirm, ModsPresenter, Pick, Refusal
+from roundtable_souls.ui.refresh import Refresher
 from roundtable_souls.ui.text import plural, tr
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
@@ -74,6 +75,7 @@ class ModConfigsAdapter(QObject):
         self._nodes: list[mod_configs.ModNode] = []
         self._profile: Path | None = None
         self._loading = False
+        self._refresher = Refresher(self.host, self._snapshot, self._build, self._apply, busy=self._set_loading)
         self._node: mod_configs.ModNode | None = None
         self._opened: mod_configs.Opened | None = None
         self._seamless: mod_configs.Seamless | None = None
@@ -283,22 +285,23 @@ class ModConfigsAdapter(QObject):
 
     @Slot()
     def refresh(self) -> None:
-        if self._loading:
-            return
-        profile = self.host.profile
-        loc, settings = self.host.locations, self.host.settings
-        self._loading = True
+        self._refresher.request()
+
+    def _snapshot(self) -> tuple:
+        return self.host.profile, self.host.locations, self.host.settings
+
+    @staticmethod
+    def _build(snap: tuple):
+        profile, loc, settings = snap
+        if profile is None or not Path(profile).is_file() or loc is None:
+            return None, []
+        return Path(profile), mod_configs.tree(profile, loc=loc, settings=settings)
+
+    def _set_loading(self, on: bool) -> None:
+        self._loading = on
         self.changed.emit()
 
-        def work():
-            if profile is None or not Path(profile).is_file() or loc is None:
-                return None, []
-            return Path(profile), mod_configs.tree(profile, loc=loc, settings=settings)
-
-        self.host.run_in_background(work, self._apply)
-
     def _apply(self, got) -> None:
-        self._loading = False
         profile, nodes = got
         moved = profile != self._profile
         self._profile, self._nodes = profile, nodes

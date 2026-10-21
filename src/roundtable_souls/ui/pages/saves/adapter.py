@@ -25,6 +25,7 @@ from roundtable_souls.services import saves as saves_service
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mods.presenter import Refusal
 from roundtable_souls.ui.pages.saves.presenter import SavesPresenter
+from roundtable_souls.ui.refresh import Refresher
 from roundtable_souls.ui.text import tr
 
 
@@ -79,7 +80,7 @@ class SavesAdapter(QObject):
         self._backups: list[dict] = []
         self._names: dict = {}
         self._loading = False
-        self._token = 0
+        self._refresher = Refresher(host, lambda: host.locations, self._build, self._apply, busy=self._set_loading)
         self._after: dict = {}  # filled by a job: {text, save, backup}; told at the next read
         self._sheet_path, self._sheet_slot = "", 0
         self._repair_path = ""
@@ -191,42 +192,36 @@ class SavesAdapter(QObject):
 
     @Slot()
     def refresh(self) -> None:
-        loc = self.host.locations
-        self._token += 1
-        token = self._token
-        if loc is None:
-            self._infos, self._libs, self._backups, self._names, self._loading = [], {}, [], {}, False
-            self.changed.emit()
-            return
-        self._loading = True
+        self._refresher.request()
+
+    def _set_loading(self, on: bool) -> None:
+        self._loading = on
         self.changed.emit()
+
+    def _build(self, loc):
+        if loc is None:
+            return [], {}, [], {}
         game = loc.game
         try:
-            self._names = self.host.saves_in_use()  # on this thread, before the read: the locations learn the names
+            names = self.host.saves_in_use()  # before the read: the locations learn the names
         except Exception:
-            self._names = {}
-
-        def work():
-            files = loc.save_files()
-            for d in {p.parent for p in files}:  # older tools may still drop backup folders beside the saves
-                save_backups.adopt_legacy_save_folders(d, game, again=True)
-            infos = [saves_service.save_info(p, game, loc=loc) for p in files]
-            libs = {str(f): save_library.load(f) for f in sorted({p.parent for p in files})}
-            try:
-                backups = saves_service.list_backups(loc=loc)
-            except Exception:
-                backups = []
-            return token, infos, libs, backups
-
-        self.host.run_in_background(work, self._apply)
+            names = {}
+        files = loc.save_files()
+        for d in {p.parent for p in files}:  # older tools may still drop backup folders beside the saves
+            save_backups.adopt_legacy_save_folders(d, game, again=True)
+        infos = [saves_service.save_info(p, game, loc=loc) for p in files]
+        libs = {str(f): save_library.load(f) for f in sorted({p.parent for p in files})}
+        try:
+            backups = saves_service.list_backups(loc=loc)
+        except Exception:
+            backups = []
+        return infos, libs, backups, names
 
     def _apply(self, got) -> None:
-        token, infos, libs, backups = got
-        if token != self._token:  # a newer read superseded this one
-            return
+        infos, libs, backups, names = got
         loc = self.host.locations
         self._infos = [i for i in infos if loc is None or games.for_save(i["path"]) in (loc.game, None)]
-        self._libs, self._backups, self._loading = libs, backups, False
+        self._libs, self._backups, self._names = libs, backups, names
         self.changed.emit()
         if self._repair_path:
             self._reload_repair()

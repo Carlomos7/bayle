@@ -4,7 +4,7 @@ out on texts alone so it can be checked without files.
 compose() takes the entry script the packages leave (the last package's copy, else the base a download ships) and
 the hooks in load order, and returns the composed text with a record of which lines came from where. Each hook's
 fragment is appended after the text so far; a fragment that wraps the game's Update (keeps the current one and
-defines its own that calls it, as the overhaul's does) therefore wraps the previous hook's. Code is never
+defines its own that calls it, as an overhaul's can) therefore wraps the previous hook's. Code is never
 merged: the game's own script is compiled, so there is no common base to merge against, and two scripts that each
 define Update would run and misbehave.
 

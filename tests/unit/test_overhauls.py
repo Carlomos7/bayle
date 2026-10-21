@@ -55,11 +55,11 @@ def test_configs_are_per_game():
 
 def test_a_local_config_replaces_the_shipped_one_with_its_id_and_adds_new_ones():
     shipped = (overhaul_config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
-    local("mine.toml", shipped.replace('short_label = "Example"', 'short_label = "ovh"'))
+    local("mine.toml", shipped.replace('short_label = "Example"', 'short_label = "XYZ"'))
     local("toy.toml", TOY)
     by_id = {o.id: o for o in overhauls.load()}
     assert sorted(by_id) == ["example-overhaul", "toy"]
-    assert by_id["example-overhaul"].short_label == "ovh" and by_id["toy"].builds == []
+    assert by_id["example-overhaul"].short_label == "XYZ" and by_id["toy"].builds == []
 
 
 def test_a_bad_config_is_left_out_and_problems_say_why():

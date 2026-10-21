@@ -2,7 +2,7 @@
 mods.library.state_of), so copying the folder to another PC copies them too:
 
     {"version": 1, "schema": 1,
-     "profiles": {"myprofile.me3": {"overlay": {"package": "ExampleOverhaul/mod", "rebuild": null},
+     "profiles": {"myprofile.me3": {"overlay": {"package": "Overhaul/mod", "rebuild": null},
                                     "after_overlay": ["some-mod"]}}}
 
     overlay        the package set by hand (Options) as the one that must stay last, and the rebuild.json picked for

@@ -101,7 +101,7 @@ class Example:
         )
         (self.setup / "installer").mkdir()
         (self.setup / "installer/example.hks").write_text("-- example extension\n")
-        (self.setup / "installer/installer.py").write_text("# the mod's installer")
+        (self.setup / "installer/setup.py").write_text("# the mod's installer")
         (self.setup / "tools/python").mkdir(parents=True)
         (self.setup / "tools/python/python.exe").write_bytes(b"py")
         (self.setup / "edition.json").write_text('{"version": "0.1.33-rc3", "edition": "LITE"}')

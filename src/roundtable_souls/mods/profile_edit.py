@@ -6,7 +6,7 @@ contains a .me3 file. Single-folder wrappers (the usual zip layout) are unwrappe
 
 Profile edits are text-level so comments and order survive: new [[packages]] / [[natives]] blocks go
 at the end (later loads later, so a new mod overrides what is above it), and per-mod options rewrite
-only the keys inside one block. Profiles in the inline-array form the overhaul's installer writes are
+only the keys inside one block. Profiles in the inline-array form some installers write are
 converted to blocks first (that form has no comments to lose). The functions here change text; every
 write of a profile goes through mods.profile_writer.
 """
@@ -331,7 +331,7 @@ def append_entry(text: str, kind: str, row: dict) -> str:
 def roots(profile: Path, text: str) -> tuple[Path, Path]:
     """(packages root, natives root). New packages go into the mods container existing packages share (a folder
     named mod / mods / packages beside the profile), else mod/; natives likewise into natives/. A package that lives
-    inside another mod's own folder (the overhaul's ExampleOverhaul/mod) is never used as the container."""
+    inside another mod's own folder (an overhaul's Folder/mod) is never used as the container."""
     profile = Path(profile)
     from roundtable_souls.mods import library
 

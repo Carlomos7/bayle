@@ -94,7 +94,7 @@ def _enabled(row: dict) -> bool:
 
 
 def _ordered(packages: list[dict]) -> tuple[list[dict], Problem | None]:
-    """Enabled packages in me3's order (installer.py ordered_packages): file order, each after what it loads after."""
+    """Enabled packages in me3's order (me3's rule): file order, each after what it loads after."""
     enabled = [r for r in packages if _enabled(r)]
     ids = [package_id(r) for r in enabled]
     if len(set(ids)) != len(ids):
@@ -320,7 +320,7 @@ def check(
     is_dir: Callable[[Path], bool] = Path.is_dir,
     has_files: Callable[[Path], bool] = lambda p: any(p.iterdir()),
 ) -> list[Problem]:
-    """What is wrong with an installed overhaul (its check, installer.py check(), the parts a LITE install has):
+    """What is wrong with an installed overhaul (its check: the parts an install has):
     its files, its package switched on, every switched-on DLL there, and an order me3 can follow."""
     problems: list[Problem] = []
     own = Path(own)

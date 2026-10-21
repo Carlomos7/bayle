@@ -134,7 +134,7 @@ class World:
         )
         (d / "installer").mkdir()
         (d / "installer/example.hks").write_text("-- example extension\n")
-        (d / "installer/installer.py").write_text("# the mod's installer")
+        (d / "installer/setup.py").write_text("# the mod's installer")
         (d / "tools/python").mkdir(parents=True)
         (d / "tools/python/python.exe").write_bytes(b"py")
         (d / "licenses").mkdir()
@@ -240,7 +240,7 @@ def test_a_fresh_install_is_previewed_then_applied_with_relative_paths(world):
     assert "payload/mod/regulation.bin" in kept and "installer/example.hks" in kept and "edition.json" in kept
     assert "payload/settings/vanilla/msg/rusru/menu_dlc02.msgbnd.dcx" not in kept  # the game's own are read instead
     assert "licenses/lupa.txt" in kept
-    assert not {"installer/installer.py", "tools/python/python.exe", "Install.cmd"} & set(kept)
+    assert not {"installer/setup.py", "tools/python/python.exe", "Install.cmd"} & set(kept)
     assert "payload/settings/vanilla/script/talk/m00.bin" not in kept
     src_record = records.SourcesRecord.load(sources / "roundtable.json")
     assert src_record.files["edition.json"].from_ == "edition.json"

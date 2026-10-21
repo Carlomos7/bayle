@@ -24,7 +24,7 @@ DOWNLOAD = [
     "edition.json",
     "example-maintenance.json",
     "installer/__pycache__/installer.cpython-313.pyc",
-    "installer/installer.py",
+    "installer/setup.py",
     "installer/Launch.ps1",
     "installer/load-convergence.hks",
     "installer/load-reforged.hks",

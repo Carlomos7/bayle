@@ -4,6 +4,11 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- The launcher no longer runs other installers or rebuild tools from a mod's download. A setup that another installer made is detected, listed and started as before, and left as it is: update it with that installer. A rebuild tool described by a rebuild.json still runs after you allow it.
+- No overhaul config ships with the launcher. Make one with **Set up as an overhaul** on the Mods page; the launcher then builds what it installs itself, and runs nothing from the download.
+- Settings: the "Build ... in the launcher (preview)" switch is gone (the launcher builds only what it installed). "Skip the overhaul too" is now "Skip the overhaul too"; your choice is kept.
+- New overhaul configs keep their manifest in overhaul.json. An installation.json left by another installer is only ever read.
+
 ## [4.0.0] - 2026-10-20
 
 - Settings > Updates > Check for updates answers at once: the line says "Checking for updates..." and the button waits, then a toast says up to date, could not check, or that an update is available.

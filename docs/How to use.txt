@@ -10,8 +10,8 @@ GETTING STARTED
 ---------------
 
 You need Steam with Elden Ring or Nightreign, and me3
-(https://github.com/garyttierney/me3). For Elden Ring, a the overhaul
-installation also works; it brings its own me3.
+(https://github.com/garyttierney/me3). A mod that brings its own me3 also
+works.
 
 Windows, installer (recommended)
   Run RoundtableSouls-Setup.exe. It installs for your account only, with no
@@ -123,7 +123,7 @@ Mods
                      recognise are installed as shipped. Tick or untick any.
     regulation.bin   the game's parameters. me3 uses only one: the last
                      package in the load order that has one. When another
-                     package already has one (the overhaul, say), the
+                     package already has one (an overhaul, say), the
                      new mod goes before it by default, so that one keeps
                      working; pick Last to use the new mod's instead, or
                      untick regulation.bin to leave it out.
@@ -212,18 +212,16 @@ Mods
   most of Elden Ring's, need the game's own Oodle library, so merging them
   works on Windows.
 
-  Build in the launcher (preview, on Settings). For a mod the launcher has
-  a recipe for (the overhaul LITE 0.1.33), a rebuild merges it from
-  the download kept in its setup folder instead of running its installer.
-  The launcher merges its animations, effects, menu text and parameters
-  itself, the same way as above; only the grace menu still goes through
-  the mod's own tool (two mods changing the same menu script need that
-  tool). The content is the same as the installer's (checked on a real
-  profile). Your profile is never rewritten, OverhaulPrototype.ini keeps
-  your values (a new version only adds its new settings), and one previous
-  build is kept in .roundtable-build for Undo rebuild, instead of a full
-  backup on every run. Other versions, or with the switch off, run the
-  mod's installer as before.
+  Overhauls. For a mod the launcher has an overhaul config for (the Mods
+  page's Set up as an overhaul makes one), a rebuild merges it from the
+  download kept in its setup folder. The launcher merges its animations,
+  effects, menu text, scripts and parameters itself, the same way as
+  above, and nothing from the download runs. Your profile is never
+  rewritten, the mod's own settings file keeps your values (a new version
+  only adds its new settings), and one previous build is kept in
+  .roundtable-build for Undo rebuild, instead of a full backup on every
+  run. A setup that another installer made is left as it is: the launcher
+  lists it and starts it, and you update it with that installer.
 
   Stays last. The package that must stay last (and its DLL) loads after
   every other mod, however mods are added: installing, adding existing

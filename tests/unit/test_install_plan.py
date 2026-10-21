@@ -1,6 +1,5 @@
 """overhauls.install_plan: what installing an overhaul does to a me3 profile, worked out without writing anything.
-The expected results are Example's installer's (LITE 0.1.33-rc3, installer/installer.py), worked out by hand from the
-lines cited; tools outside the repository compare the plan with that installer itself on more profiles."""
+The expected results are worked out by hand for the invented example overhaul (tests/data/overhauls)."""
 
 import tomllib
 from pathlib import Path

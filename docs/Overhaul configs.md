@@ -1,13 +1,14 @@
 # Overhaul configs (for mod authors)
 
 An overhaul is a mod that must load after the others and ships merged copies of game files other mods also change
-(the overhaul, for example). The launcher describes each one in a config: one TOML file saying how to recognise
-the mod and, optionally, how the launcher can build it itself instead of running the mod's installer. Nothing about a
+(a mod that rebuilds merged files, for example). The launcher describes each one in a config: one TOML file saying how
+to recognise the mod and, optionally, how the launcher can build it itself. It never runs anything from a mod's
+download. Nothing about a
 particular overhaul is in the launcher's code.
 
-The shipped configs are in `src/roundtable_souls/data/overhauls/*.toml`. To change one or add your own, put a file in
-the `overhauls` folder of the launcher's data folder: a file with the same `id` as a shipped config replaces it, and
-one with a new `id` adds an overhaul. A file that does not read, or does not fit the format, is left out and the
+The launcher ships no config. To add one, make it with **Set up as an overhaul** on the Mods page, or put a file in the
+`overhauls` folder of the launcher's data folder. A config shown as "your config" is one of these; a config from the
+launcher's own `data/overhauls` folder (none today) would be shown as verified. A file that does not read, or does not fit the format, is left out and the
 others still load. Editors can check a file against `src/roundtable_souls/data/schemas/overhaul.schema.json`.
 
 ```toml
@@ -19,7 +20,8 @@ game = "eldenring"               # the game's key: eldenring, nightreign, ...
 
 [recognise]
 folder = "MyOverhaul"            # its own folder beside the me3 profile (or in the game folder)
-manifest = "installation.json"   # its installer's manifest in that folder
+manifest = "overhaul.json"        # the manifest kept in that folder (the launcher writes it; an installation.json
+                                 # another installer left there is recognised and left alone)
 mod_ids = ["my-overhaul", "myoverhaul.dll"]  # profile entries meaning a setup includes it
 profile_marks = ["myoverhaul"]   # text marking its profile entries (case aside)
 installer_folders = [".myoverhaul-setup"]  # what its own installer keeps beside the profile (optional)
@@ -77,15 +79,14 @@ on in the profile."); an install adds it or switches it on as described under *I
 (`enable_if_off`, `candidates`, where `{profile_dir}` and `{game_dir}` are filled in). The launcher also keeps it on
 afterwards: a later change to the profile that would switch off or remove what an overhaul's entries need is
 refused. Requirements are the mod author's to declare: the launcher never adds one on a mod's behalf, and a
-config without `requires` needs nothing (the shipped the overhaul config has none). (Before 3.20 this was
+config without `requires` needs nothing. (Before 3.20 this was
 `[builds.install.seamless]`; a config still using it is left out, and the launcher says why.)
 
-For a mod whose installer keeps its download in a setup folder, the launcher can do the installer's merge itself when
-the player turns on **Build the overhaul in the launcher** on Settings. Nothing from the download runs: every
-merge is the launcher's.
+For a mod whose download holds the files to merge, the launcher does the merge itself. Nothing from the download runs:
+every merge is the launcher's. A setup that another installer made is left as it is.
 
 `match` recognises the download (files that must be there, values in its JSON files) and the versions the build was
-written for; another version runs the mod's own installer. The output is the folder holding the package's `mod`
+written for; another version is refused, and the message says so. The output is the folder holding the package's `mod`
 folder. Steps, in order:
 
 | `do` | What it does |
@@ -95,13 +96,13 @@ folder. Steps, in order:
 | `merge` | One file merged by the launcher: the last package before it that ships `file`, then the mod's copy (`patch`), against the game's copy (archives file by file, text entry by entry); with no package shipping it, the mod's copy as it is. |
 | `text` | A text archive: the mod's strings (`texts`, a JSON object of text ID to string, by `each` folder, `*` for the rest) set in its `table` of the game's own copy, then merged like `merge`. A file the game's archives lack stops the build (the launcher never falls back to a copy in the download). |
 | `params` | `regulation.bin`: the launcher's row-by-row combine of that package's copy and the mod's (`patch`) against the game's. |
-| `hook` | A script fragment: the packages' own `folder` (for example `action/script`) copied in load order, then `fragment` appended to `entry` (the last package's copy, or `base` up to `base_until` when no package has one). Several `hook` steps for one entry are appended in their order, each wrapping the one before (a fragment that keeps the current `Update` and defines its own wraps the previous hook's). `markers` lists text that means the script already contains the fragment, which is refused (`refuse_text` says why). A compiled entry script (Lua bytecode) is refused, and so is a result that does not compile as Lua 5.1 (checked, never run; the message names the file, the line and the mod whose part it is); packages shipping different entry scripts are a clash, recorded in the report. The report also warns about calls of functions defined nowhere the game looks (the script, the game's shared scripts, the game's own functions) and `env`/`act` IDs the game doesn't handle; `natives` lists the functions the mod's own DLL gives the script (`"OverhaulNative"`, or a prefix `"ovh*"`), which are then not reported; nor are calls the script makes only after testing the function is there
+| `hook` | A script fragment: the packages' own `folder` (for example `action/script`) copied in load order, then `fragment` appended to `entry` (the last package's copy, or `base` up to `base_until` when no package has one). Several `hook` steps for one entry are appended in their order, each wrapping the one before (a fragment that keeps the current `Update` and defines its own wraps the previous hook's). `markers` lists text that means the script already contains the fragment, which is refused (`refuse_text` says why). A compiled entry script (Lua bytecode) is refused, and so is a result that does not compile as Lua 5.1 (checked, never run; the message names the file, the line and the mod whose part it is); packages shipping different entry scripts are a clash, recorded in the report. The report also warns about calls of functions defined nowhere the game looks (the script, the game's shared scripts, the game's own functions) and `env`/`act` IDs the game doesn't handle; `natives` lists the functions the mod's own DLL gives the script (`"ExampleNative"`, or a prefix `"Example*"`), which are then not reported; nor are calls the script makes only after testing the function is there
 (`type(F) == "function"`, `F ~= nil`). A `0x…hl` number is refused: the game never compiles one. Code is never
 merged. Part of a mod's config (advanced), not a player setting. Before 3.20 this was `script_append` (`append` is now `fragment`, `refuse` is `markers`). |
 | `remove` | Leftovers, a `glob` below the output's `mod` folder. |
 
 `merge`, `text` and `params` take `each` to repeat (`{each}` in their paths): `each = { folders_in = "…" }` once per folder in the download, or `each = { game = "languages" }` once per text language of the game (its data, `data/games/<game>.json`); `except` leaves names out of either.
-As the mod's own installer does, only the **last** enabled package before it that ships a file is merged with the
+Only the **last** enabled package before it that ships a file is merged with the
 mod's copy. Files no format rule covers (behaviour and animation data, `.hkx`) are taken whole, three-way: changed
 by one side, its copy; changed differently by both, the mod's copy and a clash. Clashes and the rules' notes are
 written to the build's report (`merge-report.txt`).
@@ -113,10 +114,8 @@ travel with the binaries. None is required. What the download says about itself 
 `version`) is read once, when it is matched, and written into the build's manifest.
 
 The build runs in a staging folder beside the output and replaces it by renaming; the build it replaced is kept in
-`.roundtable-build/previous` for Undo rebuild. The manifest is written as the mod's installer writes it, with each
-source's path and sha256, so the launcher's checks and the mod's installer keep working. The inputs are only read
-and the profile is never written. A build is accepted when its output matches the mod's own installer's for the same
-inputs, file for file.
+`.roundtable-build/previous` for Undo rebuild. The manifest records each source's path and sha256, so the launcher
+can tell when a build is out of date. The inputs are only read and the profile is never written.
 
 The launcher adds what the build was made for under `inputs` in that manifest: the game's own files it merged
 against (the archive indexes and `regulation.bin`, with the version it names), a sha256 of the build as written in
@@ -152,11 +151,9 @@ The download's identity is a sha256 over exactly the files the two tables take, 
 translation; files left out, files no table takes and files the mod writes while running (its logs) don't change
 it. A config's known versions will be listed by it.
 
-The shipped the overhaul config maps `payload/mod/...` to `merge/` (its character script
-`payload/mod/action/script/c0000.hks` to `base/` instead, and its merge tool's `*.manifest.json` notes left out),
-`payload/settings/m00_00_00_00.talkesdbnd.dcx` to `merge/script/talk/`, `payload/settings/<lang>.json` to `text/`,
-`installer/overhaul.hks` to `hooks/`, and its DLLs, `OverhaulPrototype.ini`, `ui/` and `audio/` to its own folder. Its
-per-language fallback copies (`payload/settings/vanilla/`) are left out: the game's own archives are read instead.
+A typical config maps `payload/mod/...` to `merge/`, a character script `payload/mod/action/script/c0000.hks` to `base/`
+instead, a script fragment to `hooks/`, and the mod's DLLs, settings file, `ui/` and `audio/` to its own folder. Copies
+of the game's own files in the download are left out: the game's own archives are read instead.
 
 ## Installing it into a profile
 
@@ -200,11 +197,10 @@ overhaul's own (list every id and file name any version of it has used): install
 edition, removes those first, so it is an update of the earlier install and never a second set of entries. They are
 also how the launcher tells the overhaul's entries from the player's, which entries its `requires` apply to, and
 whether a profile already has an overhaul: a profile can have one overhaul for now, so installing a different one
-into it stops ("This profile already has the overhaul. A profile can have one overhaul for now: …").
+into it stops ("This profile already has Example Overhaul. A profile can have one overhaul for now: …").
 
 It stops for a profile me3 cannot use (two enabled packages with one id, a circle of `load_after`), an enabled
-package whose folder is missing, or an unreadable profile. the overhaul's LITE description is the one its own
-installer (0.1.33-rc3) applies; the plan gives the same profile as that installer on the profiles compared.
+package whose folder is missing, or an unreadable profile. The plan is worked out from the config alone.
 
 ## Installing and removing with the launcher (preview)
 

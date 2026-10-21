@@ -234,7 +234,7 @@ class ModsAdapter(QObject):
 
         def work():
             if profile is None or not Path(profile).is_file():
-                return None, None, None, None, (), (False, None, False), (None, False)
+                return None, None, None, None, (), (False, None, False)
             try:
                 self._seamless_found = coop_service.game_folder_seamless(launch) if launch is not None else None
             except Exception:  # a game folder that cannot be read: nothing to offer

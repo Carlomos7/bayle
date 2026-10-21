@@ -184,7 +184,8 @@ def _build_from_legacy(old: dict) -> dict:
             "regulation_sha256": old.get("base_sha256"),
             "regulation_version": old.get("base_version"),
         }
-    rows = old.get("sources") if isinstance(old.get("sources"), list) else old.get("packs") or []
+    sources = old.get("sources")
+    rows = sources if isinstance(sources, list) else (old.get("packs") or [])
     out["packages"] = [
         {"path": str(r["path"]).replace("\\", "/"), "sha256": str(r["sha256"]).lower()}
         for r in rows

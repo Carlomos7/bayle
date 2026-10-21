@@ -125,3 +125,50 @@ def test_live_unmodified_save_checksums_and_rewrite_identity():
     assert st["rslt"] and st["healthy"]
     assert nr.rewrite(data) == data
     assert src.read_bytes() == data  # live file was only read
+
+
+def _stale(data: bytes) -> bytes:
+    out = bytearray(data)
+    sec = container.sections(data)[3]
+    iv, dec = nr.decrypt_entry(data[sec.offset : sec.offset + sec.size])
+    dec = bytearray(dec)
+    dec[nr.checksum_offset(dec)] ^= 1
+    out[sec.offset : sec.offset + sec.size] = nr.encrypt_entry(iv, dec)
+    return bytes(out)
+
+
+def test_library_copy_and_swap_work_on_whole_nightreign_files(tmp_path):
+    from roundtable_souls.game import catalog as games
+    from roundtable_souls.saves import library
+
+    good = nr.pack_save(_payloads(), ivs=_ivs())
+    live = tmp_path / "NR0000.co2"
+    live.write_bytes(good)
+    e = library.add(tmp_path, live, "run one", games.NIGHTREIGN)
+    assert e["characters"] == [] and e["format"] == "co2"
+    with pytest.raises(library.LibraryError):
+        (tmp_path / "junk.co2").write_bytes(b"BND4" + bytes(100))
+        library.add(tmp_path, tmp_path / "junk.co2", "junk", games.NIGHTREIGN)
+    live.write_bytes(_stale(good))
+    out = library.swap_in(tmp_path, e["id"], live, "run two", games.NIGHTREIGN)
+    assert live.read_bytes() == good and out["backup"].is_file() and not out["signed"]
+
+
+def test_service_repair_backs_up_then_undo_restores(tmp_path, monkeypatch):
+    from roundtable_souls.game import catalog as games
+    from roundtable_souls.game.locate import Locations
+    from roundtable_souls.saves import repair as save_repair
+
+    monkeypatch.setattr(Locations, "game_running", lambda self: False)
+    monkeypatch.setattr(saves, "SETTLE_SECONDS", 0)
+    monkeypatch.setattr(save_repair, "wait_for_save_flush", lambda paths, timeout=30: True)
+    good = nr.pack_save(_payloads(), ivs=_ivs())
+    p = tmp_path / "NR0000.co2"
+    p.write_bytes(_stale(good))
+    stale = p.read_bytes()
+    assert saves.repair_save(p, loc=Locations(games.NIGHTREIGN)) is True
+    assert p.read_bytes() == good
+    (bak,) = [b for b in saves.list_backups(p, loc=Locations(games.NIGHTREIGN))]
+    assert bak["path"].read_bytes() == stale
+    saves.restore_backup(bak["path"], p, loc=Locations(games.NIGHTREIGN))
+    assert p.read_bytes() == stale

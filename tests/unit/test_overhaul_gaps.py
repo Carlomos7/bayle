@@ -430,3 +430,18 @@ def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_i
     adapter._refresh()
     assert adapter._via_setup and adapter._preview.found.config.basic.natives[0].load_early is True
     del app
+
+
+def test_a_dll_with_the_name_of_one_already_in_the_profile_is_said_in_the_review(world):
+    from roundtable_souls.mods import overhaul_install
+
+    folder = revive_shaped(world)
+    world.profile.write_text(
+        world.text() + "\n[[natives]]\npath = 'natives/Old/RevivePrototype.dll'\n", encoding="utf-8"
+    )
+    config = basic.make(
+        id="revive", label="Revive", game="eldenring", basic=basic.propose(folder, game="eldenring"), folder=folder
+    )
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert p.ok  # it is replaced by the overhaul's DLL, and the review says so
+    assert any("natives/Old/RevivePrototype.dll" in n and "is replaced" in n for n in p.notes)

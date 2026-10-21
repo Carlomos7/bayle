@@ -55,7 +55,8 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "play_update_merge",
             tr("Rebuild merged mods automatically before launch"),
             tr(
-                "Rebuilds combined parameters and each mod's own rebuild tool when mods, load order or the game changed."
+                "When mods, their load order or the game changed, Launching rebuilds the merged ones first (combined "
+                "parameters, and a mod's own rebuild tool), then starts the game."
             ),
             tr(
                 "Off: Launch asks first (rebuild, or launch once with the previous result), and a Steam shortcut "
@@ -65,26 +66,14 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "launch",
         ),
         SwitchSpec(
-            "build_merges",
-            tr("Build the overhaul in the launcher (preview)"),
-            tr(
-                "Rebuilds the overhaul LITE 0.1.33 from its download instead of running its installer. "
-                "Nothing from the download runs."
-            ),
-            tr(
-                "Not yet checked in game. Your profile is not rewritten and OverhaulPrototype.ini keeps your values. "
-                "One previous build stays in .roundtable-build for Undo rebuild. Other versions still use their "
-                "installer, and so does Off."
-            ),
-            "launch",
-        ),
-        SwitchSpec(
             "overhaul_install",
             tr("Install overhauls with the launcher (preview)"),
             overhaul_text,
             tr(
-                "An overhaul installed by its own installer is not changed: remove it first. Off hides the install "
-                "button; what you installed stays."
+                "Every change is shown before it happens, and each install or removal can be undone from Activity. "
+                "The launcher keeps a copy of the download and its notes in its own folder in me3's profiles "
+                "folder; the overhaul's own folder stays beside your profile. An overhaul another installer set up "
+                "isn't changed by the launcher. Off: the button is hidden; nothing installed with it changes."
             ),
             "launch",
         ),
@@ -164,15 +153,15 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
         SwitchSpec(
             "check_me3_updates",
             tr("Check for me3 updates"),
-            tr("Checks once a day. You are told; nothing is installed."),
-            tr("the overhaul profiles ship their own copy of me3, which the launcher never replaces."),
+            tr("Once a day, from me3's GitHub releases. A notice only; nothing is installed."),
+            tr("Roundtable Souls never replaces me3 itself: a mod that bundles its own copy keeps it."),
             "me3",
         ),
         SwitchSpec(
             "offline_strip_overhaul",
             tr("Skip the overhaul too"),
-            tr("Leaves the overhaul, an Elden Ring mod, off for this launch."),
-            tr("Works on a temporary copy of the profile. Your real profile is not changed."),
+            tr("Leave an overhaul the launcher has a config for off for this launch."),
+            tr("Turns its packages and natives off in a temporary copy. Your real profile is not changed."),
             "offline",
         ),
         SwitchSpec(

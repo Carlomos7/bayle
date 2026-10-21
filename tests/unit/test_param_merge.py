@@ -304,7 +304,7 @@ def test_with_an_overlay_tool_the_combine_sits_right_before_it_and_feeds_it(tmp_
     assert ids == ["parts", "a", "b", "combined-parameters", "last"]
     h = merge.health(w.profile, loc=er())
     assert h["state"] == "current" and h["combine"] and h["backend"] == "the rebuild tool of last"
-    sources = json.loads((w.base / "Merger" / "installation.json").read_text())["sources"]
+    sources = json.loads((w.record).read_text())["sources"]
     used = [s["path"].replace("\\", "/") for s in sources]
     assert any(p.endswith("combined-parameters/regulation.bin") for p in used), used  # the tool took the combined file
     combined = rows_of((w.base / "mod" / "combined-parameters" / "regulation.bin").read_bytes(), "EquipParamWeapon")

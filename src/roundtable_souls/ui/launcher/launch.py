@@ -463,7 +463,7 @@ class LaunchFlow:
         if run.mode == topbar.OFFLINE and not settings.offline_skip_confirm and not run.confirmed:
             bits = [tr("Seamless stays off, so the game uses the standard save")]
             if settings.offline_strip_overhaul:
-                bits.append(tr("the overhaul stays off too"))
+                bits.append(tr("The overhaul stays off too"))
             if settings.offline_start_steam:
                 bits.append(tr("Steam is started if it is not running"))
             ask = Ask(

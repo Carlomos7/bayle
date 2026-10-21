@@ -30,11 +30,10 @@ differently by several, the later one's, and a clash. Clashes are written to the
 
 The inputs are only read: the packages' folders and the download. The build happens in a staging folder beside the
 output, is checked (every output there and not empty), then swapped in by renaming. The build it replaced is kept in
-.roundtable-build/previous beside it, with a restore.json, so Undo rebuild swaps it back. The manifest the mod's own
-installer keeps (installation.json: the sources with their sha256) is written the same way, so the launcher's checks
-and the mod's installer keep working; the launcher adds what the build was made for under "inputs" (the game's files,
-the config's build, the merger's rules: merging.record), and a change to any makes the build out of date
-(input_reasons). The profile is never written.
+.roundtable-build/previous beside it, with a restore.json, so Undo rebuild swaps it back. The manifest
+(overhaul.json: the sources with their sha256) is written the same way; the launcher adds what the build was made
+for under "inputs" (the game's files, the config's build, the merger's rules: merging.record), and a change to any
+makes the build out of date (input_reasons). The profile is never written.
 """
 
 from __future__ import annotations
@@ -367,7 +366,7 @@ def build(
                 raise EngineError(f"An input changed during the build; rebuild again: {row['path']}")
         inputs = inputs_now(recipe, game_dir, loc, version=True)
         manifest = _manifest(own, out_cfg, recipe, version, sources, profile, setup, game_dir, __version__, inputs)
-        (stage / out_cfg.get("manifest", "installation.json")).write_text(
+        (stage / out_cfg.get("manifest", "overhaul.json")).write_text(
             json.dumps(manifest, indent=2), encoding="utf-8", newline="\n"
         )
         if not swap:
@@ -579,10 +578,10 @@ _OWN_KEYS = {"version", "game", "profile", "sources", "refreshProtocol", "mainte
 
 
 def _manifest(own, out_cfg, recipe, version, sources, profile, setup, game_dir, launcher, inputs) -> dict:
-    """The mod's own manifest, as its installer keeps it (so its checks and a later run of it work), with the new
-    sources, a note of who built it and what it was built for (inputs; every key of the installer's is kept)."""
+    """The build's manifest, with the new sources, a note of who built it and what it was built for (inputs; every
+    key of an earlier manifest of this name is kept)."""
     try:
-        old = json.loads((own / out_cfg.get("manifest", "installation.json")).read_text(encoding="utf-8"))
+        old = json.loads((own / out_cfg.get("manifest", "overhaul.json")).read_text(encoding="utf-8"))
     except OSError, ValueError:
         old = {}
     rows = [*sources, {"path": str(profile), "sha256": _sha(profile)}]
@@ -599,7 +598,6 @@ def _manifest(own, out_cfg, recipe, version, sources, profile, setup, game_dir, 
         "game": old.get("game") or str(game_dir / games.ELDEN_RING.exe),
         "profile": old.get("profile") or str(profile),
         "sources": rows,
-        "refreshProtocol": old.get("refreshProtocol", 1),
         "maintenance": old.get("maintenance") or str(setup),
         "builtBy": f"Roundtable Souls {launcher}",
         "recipe": recipe["id"],
@@ -621,7 +619,7 @@ def inputs_now(recipe: dict, game_dir: Path | None, loc: Locations, *, version: 
 
 
 def input_reasons(manifest: dict, recipe: dict, loc: Locations) -> list[str]:
-    """Why the launcher's build recorded in `manifest` (its installation.json) is out of date beyond its sources:
+    """Why the launcher's build recorded in `manifest` (its manifest) is out of date beyond its sources:
     the game was updated, the config's build or the merger changed, or it does not say (made before 3.21). Empty for
     a build the mod's own installer made: its sources are checked as before."""
     from roundtable_souls.merging import record as merge_record

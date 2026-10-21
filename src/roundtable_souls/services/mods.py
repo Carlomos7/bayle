@@ -26,7 +26,7 @@ def read_profile_mods(profile):
 
     An entry loads unless it sets enabled = false. enabled defaults to true.
     Commented-out blocks are comments, not entries. Both me3 shapes are read:
-    [[packages]] blocks, and the packages = [ { ... } ] form the overhaul's installer writes.
+    [[packages]] blocks, and the packages = [ { ... } ] form some installers write.
     """
     try:
         text = me3_profile.read_text(Path(profile))

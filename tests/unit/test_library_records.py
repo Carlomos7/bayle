@@ -34,7 +34,7 @@ EXAMPLES = {
         "version": 1,
         "files": {
             "merge/chr/c0000.anibnd.dcx": {"from": "payload/mod/chr/c0000.anibnd.dcx", "sha256": "a" * 64},
-            "hooks/overhaul.hks": {"from": "installer/overhaul.hks", "sha256": "b" * 64},
+            "hooks/example.hks": {"from": "installer/example.hks", "sha256": "b" * 64},
         },
     },
     BuildRecord: {
@@ -85,7 +85,7 @@ def test_unknown_keys_newer_versions_and_bad_values_are_refused(kind):
 
 def test_a_nested_unknown_key_is_refused():
     bad = json.loads(json.dumps(EXAMPLES[SourcesRecord]))
-    bad["files"]["hooks/overhaul.hks"]["size"] = 3
+    bad["files"]["hooks/example.hks"]["size"] = 3
     with pytest.raises(RecordError, match="size"):
         SourcesRecord.read(bad)
 
@@ -123,7 +123,7 @@ def test_a_build_record_from_before_the_library_moves_forward():
     assert (rec.game.regulation_sha256, rec.game.regulation_version) == ("d" * 64, "11711000")
     assert [(p.path, p.sha256) for p in rec.packages] == [("C:/Game/regulation.bin", "d" * 64)]
     assert rec.merger_revision == 5
-    manifest = {  # the engine's installation.json from 3.20, the overhaul's own keys around it
+    manifest = {  # the engine's installation.json from 3.20, Example's own keys around it
         "version": "0.1.33-rc3",
         "edition": "LITE",
         "sources": [{"path": "C:/p/mod/chr/c0000.anibnd.dcx", "sha256": "1" * 64}],

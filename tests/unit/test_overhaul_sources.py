@@ -19,24 +19,27 @@ GAME_FILES = ["chr/c0000.anibnd.dcx", "chr/c0000.behbnd.dcx", "chr/c0000_a00_hi.
               "chr/c0000_a00_lo.anibnd.dcx", "chr/c0000_a00_md.anibnd.dcx", "regulation.bin",
               "sfx/sfxbnd_commoneffects.ffxbnd.dcx"]  # fmt: skip
 
-# the overhaul 0.1.33-rc3 LITE's download as it is laid out (.example-overhaul-setup), its merge tool abridged
+# Example 0.1.33-rc3 LITE's download as it is laid out (.example-overhaul-setup), its merge tool abridged
 DOWNLOAD = [
     "edition.json",
-    "overhaul-maintenance.json",
+    "example-maintenance.json",
     "installer/__pycache__/installer.cpython-313.pyc",
-    "installer/installer.py",
+    "installer/setup.py",
     "installer/Launch.ps1",
     "installer/load-convergence.hks",
     "installer/load-reforged.hks",
     "installer/Me3Manager.ps1",
-    "installer/overhaul.hks",
-    *[f"payload/audio/{n}.wav" for n in ("ambient-bed", "ambient-pulse-a", "ambient-pulse-b", "fall", "hit", "overhaul")],
+    "installer/example.hks",
+    *[
+        f"payload/audio/{n}.wav"
+        for n in ("ambient-bed", "ambient-pulse-a", "ambient-pulse-b", "fall", "hit", "example")
+    ],
     "payload/mod/action/script/c0000.hks",
     *[f"payload/mod/{f}" for f in GAME_FILES],
     "payload/mod/sfx/sfxbnd_commoneffects.ffxbnd.dcx.manifest.json",
-    "payload/OverhaulHudBootstrap.dll",
-    "payload/OverhaulPrototype.dll",
-    "payload/OverhaulPrototype.ini",
+    "payload/ExampleHudBootstrap.dll",
+    "payload/ExamplePrototype.dll",
+    "payload/ExamplePrototype.ini",
     "payload/settings/engus.json",
     "payload/settings/m00_00_00_00.talkesdbnd.dcx",
     "payload/settings/rusru.json",
@@ -64,26 +67,26 @@ DOWNLOAD = [
 ]
 
 
-def overhaul() -> Build:
+def example() -> Build:
     (cfg,) = [o for o in overhauls.load() if o.id == "example-overhaul"]
     (build,) = cfg.builds
     return build
 
 
-def test_overhauls_download_by_role():
-    t = sources.translate(DOWNLOAD, overhaul())
+def test_examples_download_by_role():
+    t = sources.translate(DOWNLOAD, example())
     assert t.role("merge") == {
         **{f: f"payload/mod/{f}" for f in GAME_FILES},
         "script/talk/m00_00_00_00.talkesdbnd.dcx": "payload/settings/m00_00_00_00.talkesdbnd.dcx",
     }
     assert t.role("text") == {"engus.json": "payload/settings/engus.json", "rusru.json": "payload/settings/rusru.json"}
-    assert t.role("hooks") == {"overhaul.hks": "installer/overhaul.hks"}
+    assert t.role("hooks") == {"example.hks": "installer/example.hks"}
     assert t.role("base") == {"action/script/c0000.hks": "payload/mod/action/script/c0000.hks"}
     assert set(t.runtime) == {
-        "OverhaulPrototype.dll",
-        "OverhaulHudBootstrap.dll",
-        "OverhaulPrototype.ini",
-        *[f"audio/{n}.wav" for n in ("ambient-bed", "ambient-pulse-a", "ambient-pulse-b", "fall", "hit", "overhaul")],
+        "ExamplePrototype.dll",
+        "ExampleHudBootstrap.dll",
+        "ExamplePrototype.ini",
+        *[f"audio/{n}.wav" for n in ("ambient-bed", "ambient-pulse-a", "ambient-pulse-b", "fall", "hit", "example")],
         *[
             f"ui/{n}"
             for n in (
@@ -112,14 +115,14 @@ def test_overhauls_download_by_role():
     )
     assert not any("vanilla" in v for v in [*t.sources.values(), *t.runtime.values()])
     # the installer, its metadata and its merge tool are not the overhaul's to keep
-    assert sorted(t.untaken) == sorted(f for f in DOWNLOAD if f.startswith(("installer/", "tools/", "edition", "overhaul-"))
-                                       and f != "installer/overhaul.hks")  # fmt: skip
+    assert sorted(t.untaken) == sorted(f for f in DOWNLOAD if f.startswith(("installer/", "tools/", "edition", "example-"))
+                                       and f != "installer/example.hks")  # fmt: skip
 
 
 def test_every_file_the_build_reads_from_the_download_is_taken():
     """What the steps read (other than the vanilla copies the spec drops) is in the role layout or the runtime, so a
     build reading sources by role (3.22) finds everything."""
-    build = overhaul()
+    build = example()
     t = sources.translate(DOWNLOAD, build)
     taken = set(t.taken())
     read: set[str] = set()
@@ -136,7 +139,7 @@ def test_every_file_the_build_reads_from_the_download_is_taken():
 
 
 def test_the_fingerprint_is_stable_and_order_independent(tmp_path):
-    build = overhaul()
+    build = example()
     for i, rel in enumerate(DOWNLOAD):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_bytes(f"file {i} {rel}".encode())
@@ -150,9 +153,9 @@ def test_the_fingerprint_is_stable_and_order_independent(tmp_path):
     # a file the config doesn't take changes nothing; one it takes changes it
     (tmp_path / "tools/merge/Assets.exe").write_bytes(b"another tool")
     (tmp_path / "payload/settings/vanilla/msg/engus/menu_dlc02.msgbnd.dcx").write_bytes(b"dropped")
-    (tmp_path / "payload/OverhaulPrototype.log").write_text("written while running")
+    (tmp_path / "payload/ExamplePrototype.log").write_text("written while running")
     assert sources.fingerprint(tmp_path, build) == first
-    (tmp_path / "payload/OverhaulPrototype.dll").write_bytes(b"a newer DLL")
+    (tmp_path / "payload/ExamplePrototype.dll").write_bytes(b"a newer DLL")
     assert sources.fingerprint(tmp_path, build) != first
 
 
@@ -164,14 +167,14 @@ def records_sha(path) -> str:
 
 def test_a_sources_record_from_a_translation(tmp_path):
     """The record sources/<id>/roundtable.json keeps: each translated file's origin and hash."""
-    t = sources.translate(["installer/overhaul.hks", "payload/settings/engus.json"], overhaul())
+    t = sources.translate(["installer/example.hks", "payload/settings/engus.json"], example())
     rec = records.SourcesRecord(
         files={
             place: records.SourceFile.model_validate({"from": origin, "sha256": "0" * 64})
             for place, origin in t.sources.items()
         }  # fmt: skip
     )
-    assert records.SourcesRecord.read(rec.text()).files["hooks/overhaul.hks"].from_ == "installer/overhaul.hks"
+    assert records.SourcesRecord.read(rec.text()).files["hooks/example.hks"].from_ == "installer/example.hks"
 
 
 def build_with(src: dict[str, str], runtime: dict[str, str] | None = None) -> Build:

@@ -40,7 +40,7 @@ The window never touches a save directly. Every read goes through `save_info`, e
 ## Key Features
 
 - Game switcher: Elden Ring and Nightreign, each with its own profile, co-op settings, mods and saves; placeholder pages for Dark Souls III and Sekiro
-- One-click Play through me3 (or, for Elden Ring, a the overhaul installation), with Steam sign-in wait, leftover-process cleanup and save repair after the game closes
+- One-click Play through me3, with Steam sign-in wait, leftover-process cleanup and save repair after the game closes
 - `--game <name> --play` for a Steam shortcut, Big Picture or Steam Deck Gaming Mode: the same session without the window, one shortcut per game
 - Seamless Co-op for both games: password where the mod has one, difficulty (presets by party size for Elden Ring), every other setting explained, and a share format for a group
 - me3 profile management: install mods by drag and drop or from `.zip`, `.7z`, `.rar`, a `.dll` or a folder, choosing what to install and where a `regulation.bin` goes; entries checked the way me3 reads them; per-mod options, load order, settings files for DLL mods, conflict scan, profile create and delete
@@ -86,7 +86,7 @@ The window never touches a save directly. Every read goes through `save_info`, e
 
 - Windows 10 or 11, or Linux (including SteamOS in Desktop Mode)
 - Steam with Elden Ring or Nightreign installed
-- [me3](https://github.com/garyttierney/me3), or for Elden Ring a the overhaul installation (which brings its own me3)
+- [me3](https://github.com/garyttierney/me3) (a mod that brings its own me3 works too)
 - For development: [uv](https://docs.astral.sh/uv/) (it installs Python 3.14 for you)
 
 ### Installing

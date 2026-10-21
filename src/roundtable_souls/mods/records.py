@@ -175,7 +175,7 @@ class BuildRecord(BuildFacts, Record):
 
 def _build_from_legacy(old: dict) -> dict:
     """Version 0: the record a build kept before the library (Combine's combined-parameters.json, the launcher's
-    build of an overhaul in its installation.json) as a build record: its facts, its inputs and the game's files."""
+    build of an overhaul in its manifest) as a build record: its facts, its inputs and the game's files."""
     facts = old.get("inputs") if isinstance(old.get("inputs"), dict) else old
     out: dict = {k: facts[k] for k in BuildFacts.model_fields if k in facts}
     if "game" not in out and old.get("archives"):

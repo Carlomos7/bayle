@@ -144,7 +144,7 @@ def make(
         label=label,
         short_label=short_label or label,
         game=game,
-        recognise=Recognise(folder=id, manifest="installation.json", mod_ids=[id, *dlls], profile_marks=[id]),
+        recognise=Recognise(folder=id, manifest="overhaul.json", mod_ids=[id, *dlls], profile_marks=[id]),
         builds=[build],
         basic=basic,
     )

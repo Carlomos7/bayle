@@ -6,8 +6,7 @@ list of sources it used (path + sha256 of each input) and which folders are its 
 files next to a package, never from a mod's name:
 
     declared          a rebuild.json the package (or the user, in Options) provides; see docs/Rebuild tools.md
-    manifest_refresh  a tool that keeps installation.json with a refresh protocol beside its package and its setup
-                      files (an installer and the Python that runs it) in a folder of the profile
+    launcher_build    the launcher's own build of an overhaul it installed (mods.engine); nothing from a download runs
 
 A Tool wraps a Recipe with what merge.py uses: label, package, own_folders(), merges(), sources(), input_reasons(),
 report_time(), problem(), approval_key(), describe() and run(log).
@@ -238,9 +237,9 @@ class Tool:
 
 
 def _adapters():
-    from roundtable_souls.mods.backends import declared, manifest_refresh
+    from roundtable_souls.mods.backends import declared, launcher_build
 
-    return (declared, manifest_refresh)
+    return (declared, launcher_build)
 
 
 def detect(profile: Path, packs: list[dict], *, loc: Locations):
@@ -256,14 +255,14 @@ def detect(profile: Path, packs: list[dict], *, loc: Locations):
 
 def detect_for(profile: Path, layer: dict, rebuild_file: Path | None = None, *, loc: Locations):
     """The rebuild tool of a package the user set as the parameter overlay: from the rebuild.json they picked, else
-    looked for with looser rules (a fork or a newer version may name its files differently), or None."""
+    the one found beside the package, or None."""
     from roundtable_souls.mods.backends import declared
 
     if rebuild_file is not None:
         recipe = declared.recipe(Path(profile), layer, file=Path(rebuild_file), loc=loc)
         return Tool(recipe) if recipe is not None else None
     for kind in _adapters():
-        recipe = kind.recipe(Path(profile), layer, loc=loc) or kind.recipe(Path(profile), layer, relaxed=True, loc=loc)
+        recipe = kind.recipe(Path(profile), layer, loc=loc)
         if recipe is not None:
             return Tool(recipe)
     return None

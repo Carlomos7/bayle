@@ -682,3 +682,37 @@ def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
     undo.run(rec, lambda s: None, loc=world.loc)
     assert world.profile.read_bytes() == before and toml.read_bytes() == setup and not off.exists()
     assert not plain.exists() and files(world.base / "mixed-mod") == own
+
+
+# ----------------------------------------------------------------------------- the generic setup needs no shipped config
+def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(world, monkeypatch, tmp_path):
+    from roundtable_souls.config import settings
+    from roundtable_souls.overhauls import config as overhaul_config
+    from roundtable_souls.services import mods as service
+
+    empty = tmp_path / "no-shipped"
+    empty.mkdir()
+    monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", empty)
+    assert service.installable_overhauls("eldenring") == []
+    assert not service.overhaul_preview_on(world.loc)  # switch off: hidden
+    settings.save_settings(overhaul_install=True)
+    assert service.overhaul_preview_on(world.loc)
+    text = service.overhaul_switch_text("eldenring")
+    assert "Lets you set up any mod as an overhaul" in text and "none for this game" not in text
+    assert "Covers only" not in service.overhaul_button_tip("eldenring")
+
+
+def test_a_local_config_the_player_made_is_listed(world, monkeypatch, tmp_path):
+    from roundtable_souls import overhauls
+    from roundtable_souls.overhauls import config as overhaul_config
+    from roundtable_souls.services import mods as service
+
+    shipped = overhaul_config.SHIPPED_DIR / "example-overhaul.toml"
+    empty = tmp_path / "no-shipped"
+    empty.mkdir()
+    monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", empty)
+    folder = overhauls.local_dir()
+    assert folder is not None
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "mine.toml").write_text(shipped.read_text(encoding="utf-8"), encoding="utf-8")
+    assert service.installable_overhauls("eldenring") == ["Example Overhaul LITE 0.1.33-rc3"]

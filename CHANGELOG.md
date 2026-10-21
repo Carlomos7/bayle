@@ -4,6 +4,8 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 ## [Unreleased]
 
+- Overhauls: with no overhaul config shipped, **Set up as an overhaul** (Install dialog, Mods menu) and the Settings switch were hidden. They show whenever the switch is on; the switch always shows, with help text that no longer lists overhaul names when there are none.
+
 ## [4.0.2] - 2026-10-21
 
 - The first release after the repository history was cleaned; same launcher as 4.0.1.

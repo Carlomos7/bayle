@@ -17,6 +17,10 @@ if TYPE_CHECKING:
 
 def main() -> int:
     """Console entry point: the window; or without one --play, --check, --update (see headless.update_headless)."""
+    if "--worker" in sys.argv:  # a CPU worker for the window (platform/cpu.py): before anything else starts
+        from roundtable_souls.platform import cpu
+
+        return cpu.worker_main()
     if "--self-test" in sys.argv:  # first: before anything picks the data folder or starts Velopack's hooks
         return self_test()
     from roundtable_souls.app import use_data_folder

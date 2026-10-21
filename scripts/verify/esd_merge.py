@@ -4,7 +4,7 @@ The inputs are talk archives (script/talk/m00_00_00_00.talkesdbnd.dcx) in load o
 archive, or a mod folder that has one), or, without --input, the enabled packages of --profile that ship one. They are
 merged against the game's own archive as Combine does. Nothing given is changed: the result goes to the output folder.
 
-    uv run python scripts/verify/esd_merge.py --input map=DIR --input overhaul=FILE [--compare FILE] [--package]
+    uv run python scripts/verify/esd_merge.py --input map=DIR --input other=FILE [--compare FILE] [--package]
 
 --compare FILE: a talk archive another tool merged from the same mods; each script is compared with the result by
 meaning (the normal forms the rule compares), state by state, after new states are matched by content (another
@@ -239,7 +239,7 @@ def package(out: Path, rows: list[dict], inputs, result, added: list[str]) -> No
         f"{entries}\n\n"
         "1. Close the game and Roundtable Souls.\n"
         f"2. Double-click launch.cmd. The game uses a separate save, {SAVE}; your characters are not loaded. Online\n"
-        "   play stays off, and DLL mods (Seamless Co-op, the overhaul's DLL, ...) are not loaded.\n"
+        "   play stays off, and DLL mods (Seamless Co-op, a mod's DLL, ...) are not loaded.\n"
         "3. Continue a character on this save, or start a throwaway one and walk to the first site of grace.\n"
         "4. Rest at the grace. The menu has to list the game's options and every option the mods add (each mod's\n"
         "   own entry, once). Open each mod's option and back out; open each of the game's options and back out.\n"

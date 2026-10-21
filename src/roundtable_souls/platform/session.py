@@ -78,8 +78,8 @@ def launch(game, profile, me3, exe_name, exe=None, extra_args=()):
     """Run me3 and return once both me3 and the game are gone.
 
     me3: path of the me3.exe to use (None: not found). exe_name: the game process to watch (eldenring.exe).
-    exe: path of eldenring.exe to launch with `--exe` instead of `--game` (the overhaul's
-    Launch.cmd does this with the me3 runtime it bundles, for setups without a me3 install).
+    exe: path of eldenring.exe to launch with `--exe` instead of `--game` (a setup that bundles its
+    own me3 runtime does this, for setups without a me3 install).
 
     me3 0.13 stays attached and streams its log for as long as the game runs,
     so its exit normally means the game has already closed. Older or future

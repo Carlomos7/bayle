@@ -190,8 +190,9 @@ class ShellHost(QObject):
         return self.state.game
 
     # ---------------------------------------------------------------- the host contract: work
-    def run_job(self, job, status: str) -> None:
-        self.start(job, status, "other")
+    def run_job(self, job, status: str, on_done: Callable[[bool], None] | None = None) -> None:
+        # on_done: the page speaks for itself (its own toast), so the generic "done" toast is skipped
+        self.start(job, status, "other" if on_done is None else "page", on_done)
 
     def run_in_background(self, work, on_result) -> None:
         self.jobs.start(lambda _progress: work(), on_result=on_result)
@@ -326,7 +327,7 @@ class ShellHost(QObject):
             adapter.open_profile_import(unpacked, profiles, staging)
 
     def saves_in_use(self) -> dict:
-        """The save files the setup in use plays on; the locations learn them too, so the Saves page finds a setup's
+        """The save files the profile in use plays on; the locations learn them too, so the Saves page finds a profile's
         custom save names."""
         names = core.profile_saves(self.state.launch_profile, self.state.game)
         self.state.ctx.note_profile_saves({k: names[k] for k in ("standard", "coop")})
@@ -561,7 +562,7 @@ class ShellHost(QObject):
         return (id(s), str(s.profile) if s else "")
 
     @staticmethod
-    def _read_checks(s) -> tuple[tuple[str, ...], tuple[str, ...], dict[str, bool]]:
+    def _read_checks(s) -> tuple[tuple[core.Problem, ...], tuple[core.Problem, ...], dict[str, bool]]:
         """The disk reads behind the pill: the setup's problems and warnings, which games are installed."""
         return (
             tuple(s.problems()) if s else (),

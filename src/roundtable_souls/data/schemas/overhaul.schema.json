@@ -693,7 +693,7 @@
      "type": "string"
     },
     "manifest": {
-     "default": "installation.json",
+     "default": "overhaul.json",
      "title": "Manifest",
      "type": "string"
     }

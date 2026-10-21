@@ -31,7 +31,7 @@ def setup_of(loc: Locations, profile: Path) -> tuple[library_adopt.ExistingSetup
 
 
 def dismiss(setup: library_adopt.ExistingSetup) -> None:
-    """Stop offering this setup (Adopt into the library... in the menu still works)."""
+    """Stop offering this profile (Adopt into the library... in the menu still works)."""
     change_settings(lambda cur: {"adopt_dismissed": [*cur.adopt_dismissed, str(setup.folder)]})
 
 

@@ -2,8 +2,8 @@
 off) as optional, exceptions are respected, a change that would loop writes nothing, and a missing setup is named."""
 
 import difflib
+import json
 import random
-import shutil
 import tomllib
 from pathlib import Path
 
@@ -287,13 +287,15 @@ def test_random_profiles_keep_it_last_and_leave_every_other_entry_alone(tmp_path
 
 
 # ----------------------------------------------------------------------------- a missing setup is named
-def test_missing_setup_files_are_named_and_a_rebuild_changes_nothing(world):
-    shutil.rmtree(world.setup)
+def test_a_missing_tool_program_is_named_and_a_rebuild_changes_nothing(world):
+    data = json.loads(world.rebuild_json.read_text())
+    data["command"][0] = "{here}/missing-tool.exe"
+    world.rebuild_json.write_text(json.dumps(data))
     h = merge.health(world.profile, loc=er())
-    assert "setup files are missing: its setup folder" in h["reasons"][0]
+    assert "was not found" in h["reasons"][0]
     assert not any("loads after the combined parameters" in r for r in h["reasons"])
     before = world.profile.read_bytes()
-    with pytest.raises(merge.MergeError, match="setup files are missing"):
+    with pytest.raises(merge.MergeError, match="was not found"):
         merge.rebuild(world.profile, lambda s: None, loc=er())
     assert world.profile.read_bytes() == before
 
@@ -305,12 +307,12 @@ def test_a_package_that_lists_the_others_is_known_to_stay_last_without_its_files
         '{ id = "parts", optional = true },\n  { id = "params", optional = true },',
     )
     world.profile.write_text(text, encoding="utf-8")
-    (world.base / "Merger" / "installation.json").unlink()
+    world.rebuild_json.unlink()
     h = merge.health(world.profile, loc=er())
-    assert h["overlay"] == "last" and "setup files are missing: installation.json" in h["reasons"][0]
+    assert h["overlay"] == "last" and "no rebuild tool was found" in h["reasons"][0]
     assert not any("combined parameters and replaces them" in r for r in h["reasons"])
     before = world.profile.read_bytes()
-    with pytest.raises(merge.MergeError, match="installation.json"):
+    with pytest.raises(merge.MergeError, match="no rebuild tool was found"):
         merge.rebuild(world.profile, lambda s: None, combine=True, loc=er())
     assert world.profile.read_bytes() == before
     assert not (world.base / "mod" / "combined-parameters").exists()  # stopped before making anything

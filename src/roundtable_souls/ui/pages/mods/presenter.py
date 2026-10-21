@@ -167,9 +167,7 @@ class ModsPresenter:
     gear_menu = property(lambda self: (tr("Profile settings..."), tr("Versions..."), tr("Delete profile...")))
     more_menu = property(lambda self: (tr("Rescan"),))
     open_window_text = property(lambda self: tr("Open new Mods window"))
-    open_window_tip = property(
-        lambda self: tr("The new Mods page, in a window of its own: a preview of the launcher's new look.")
-    )
+    open_window_tip = property(lambda self: tr("A preview of the new Mods page, in its own window."))
     move_menu = property(lambda self: (tr("Move up"), tr("Move down"), tr("Move to top"), tr("Move to bottom")))
 
     def words(self) -> dict[str, str]:
@@ -191,14 +189,14 @@ class ModsPresenter:
             "rescan": tr("Rescan"),
             "addExisting": tr("Add existing..."),
             "more": tr("More"),
-            "gearTip": tr("Profile: settings, versions, delete"),
+            "gearTip": tr("Profile menu"),
             "healthTip": tr("Opens the Parameters card and the Load order panel"),
             "moveUp": up,
             "moveDown": down,
             "moveTop": top,
             "moveBottom": bottom,
-            "lockedTip": tr("Locked: stays last"),
-            "optionsTip": tr("Mod options (how me3 loads it)"),
+            "lockedTip": tr("Its rebuild tool keeps it last, so it cannot be moved."),
+            "optionsTip": tr("Mod options"),
             "configsTip": tr("has config files"),
             "attachTip": tr("Attach a config file to this DLL"),
             "removeTip": tr("Remove from the profile"),
@@ -232,13 +230,13 @@ class ModsPresenter:
                 "The .me3 text has changes that are not saved. Save them, or discard them and go back to the rows?"
             ),
             "undo": tr("Undo"),
-            "adoptMenu": tr("Adopt into the library..."),
-            "profileRenameTip": tr("Click to rename this profile"),
+            "adoptMenu": tr("Adopt into the Library..."),
+            "profileRenameTip": tr("Rename profile"),
             "profileRenameField": tr("Profile name"),
-            "profileRenameHelp": tr("Enter renames it. Esc cancels. Undo puts it back."),
+            "profileRenameHelp": tr("Enter renames it. Esc cancels."),
             "rename": tr("Rename..."),
             "renameTitle": tr("Rename {name}"),
-            "renameHint": tr("The folder is renamed, and for a package its id too. Undo puts it back."),
+            "renameHint": tr("The folder is renamed too, and a package's id with it."),
             "renameNew": tr("New name"),
             "renameButton": tr("Rename"),
             **self.dialog_words(),
@@ -271,7 +269,7 @@ class ModsPresenter:
             "finalizer": tr("Run a function when the game closes"),
             "finalizerTip": tr("me3 setting: finalizer"),
             "staysLastOption": tr("This mod must stay last"),
-            "staysLastHelp": tr("Its rebuild tool folds the other packages' parameters into it."),
+            "staysLastHelp": tr("Its rebuild tool combines the other packages' parameters into it."),
             "rebuildFile": tr("Rebuild-tool file"),
             "configFiles": tr("Config files"),
             "openOnModConfigs": tr("Open on Mod Configs"),
@@ -287,8 +285,8 @@ class ModsPresenter:
             "addPackagesTitle": tr("Mod folders that are not loaded"),
             "addNativesTitle": tr("DLLs that are not loaded"),
             "addBody": tr(
-                "Tick the ones to add; each gets its own entry, last in the load order. Nothing is copied or moved. "
-                "Leave alternates you keep switched off unticked."
+                "Tick the ones to add. Each gets its own entry, last in the load order. Nothing is copied or moved. "
+                "Skip alternates you keep switched off."
             ),
             "add": tr("Add"),
             "nothingToAdd": tr("Every folder here is loaded already."),
@@ -452,14 +450,16 @@ class ModsPresenter:
                     "warning",
                     "Info",
                     plural(
-                        "{n} file is provided by this mod and by another; the later one in the order wins.",
-                        "{n} files are provided by this mod and by another; the later one in the order wins.",
+                        "{n} file is also in another mod. The later one in the load order wins.",
+                        "{n} files are also in another mod. The later one in the load order wins.",
                         lost,
                     ).format(n=lost),
                 )
             )
         if e["kind"] == "native" and e.get("load_early"):
-            tags.append(Tag(tr("Loads early"), "muted", "Up", tr("Starts this DLL before the game sets itself up.")))
+            tags.append(
+                Tag(tr("Loads early"), "muted", "Up", tr("load_early: starts this DLL before the game sets itself up."))
+            )
         if e.get("optional"):
             tags.append(Tag(tr("Optional"), "muted", "Help"))
         if i in facts.outside:
@@ -509,9 +509,9 @@ class ModsPresenter:
         if e.get("finalizer"):
             bits.append(tr("finishes with {function}").format(function=e["finalizer"]))
         if empty == "empty":
-            bits.append(tr("Empty for now: game folders put here (parts, chr, msg, ...) load"))
+            bits.append(tr("Empty. Game folders you put here (parts, chr, msg, ...) will load."))
         elif empty == "no-game-folders":
-            bits.append(tr("No game folders at its top level (parts, chr, msg, ...), so me3 loads nothing from it"))
+            bits.append(tr("No game folders (parts, chr, msg, ...) at its top level, so me3 loads nothing from it."))
         return "  ·  ".join(bits)
 
     # ---- the Parameters card
@@ -564,8 +564,8 @@ class ModsPresenter:
             blocked=tr("Blocked while the game runs") if game_running and action else "",
             fingerprint=self.fingerprint(fingerprint, regulation),
             fingerprint_note=tr(
-                "Co-op partners should use the same parameters. Compare this fingerprint with theirs: if it differs, "
-                "expect desyncs or a failed session."
+                "Co-op partners need the same parameters. If your fingerprint differs from theirs, expect desyncs or a "
+                "failed session."
             )
             if fingerprint is not None
             else "",
@@ -626,10 +626,9 @@ class ModsPresenter:
                 Notice(
                     "allow-tool",
                     "warning",
-                    tr(
-                        "Allow {tool} to run? {mod} rebuilds the merged mods with a program of its own. Allow it only "
-                        "for mods you trust."
-                    ).format(tool=tool_to_allow.label, mod=tool_to_allow.package.get("name", "")),
+                    tr("Allow {tool} to run? {mod} uses it to rebuild merged mods.").format(
+                        tool=tool_to_allow.label, mod=tool_to_allow.package.get("name", "")
+                    ),
                     tr("Allow..."),
                     False,
                 )
@@ -650,8 +649,8 @@ class ModsPresenter:
                     "adopt",
                     "info",
                     tr(
-                        "{name} keeps its mods and profiles outside the launcher's library. Adopting moves them into one "
-                        "folder you can back up or copy, and Undo puts everything back."
+                        "{name} keeps its mods and profiles outside the Library. Adopting moves them into one folder "
+                        "you can back up or copy."
                     ).format(name=adopt),
                     tr("Preview..."),
                     True,
@@ -663,13 +662,13 @@ class ModsPresenter:
                     "seamless",
                     "info",
                     tr(
-                        "Seamless Co-op is also in the game folder. Move it into this profile so the profile has its "
-                        "own copy, or clean up what the game folder still holds."
+                        "Seamless Co-op is also in the game folder. Move it into this profile, or clean up the game "
+                        "folder."
                     )
                     if seamless == "move"
                     else tr(
-                        "This profile loads its own Seamless Co-op, and the game folder still holds one too. Two copies "
-                        "can conflict."
+                        "This profile loads its own Seamless Co-op, and the game folder holds one too. Two copies can "
+                        "conflict."
                     ),
                     tr("Move into this profile...") if seamless == "move" else tr("Clean up the game folder..."),
                     True,
@@ -700,10 +699,8 @@ class ModsPresenter:
                 files = tr("{files} and {n} more").format(files=files, n=len(plan.merged) - 3)
             changes.append(
                 plural(
-                    "Its {files} is still inside the merged mods: Launching rebuilds them before the game starts (or "
-                    "Rebuild on the Mods page), so the game does not run with it",
-                    "Its {files} are still inside the merged mods: Launching rebuilds them before the game starts (or "
-                    "Rebuild on the Mods page), so the game does not run with them",
+                    "Its {files} is still in the merged mods. Launch rebuilds them first, so the game does not use it",
+                    "Its {files} are still in the merged mods. Launch rebuilds them first, so the game does not use them",
                     len(plan.merged),
                 ).format(files=files)
             )
@@ -712,13 +709,9 @@ class ModsPresenter:
             changes=tuple(changes),
             apply=tr("Remove"),
             warning=tr(
-                "The game stops loading it at the next launch. If another mod is set to load after it, that mod "
-                "is left waiting for something that is gone."
+                "The game stops loading it at the next launch. A mod set to load after it is left waiting for it."
             ),
-            safety=tr(
-                "Activity can restore it: the entry goes back where it was, and a folder moved to the Recycle Bin "
-                "comes back with it. Versions keeps the profile as it was too."
-            ),
+            safety=tr("Undo in Activity puts it back, including a folder moved to the Recycle Bin."),
             option=tr("Also move the folder {folder} to the Recycle Bin").format(folder=plan.folder.name)
             if plan.folder is not None and plan.can_recycle
             else "",
@@ -753,8 +746,8 @@ class ModsPresenter:
             changes=tuple(f"{b['folder'].name}  ·  {b['size'] / 1048576:,.0f} MB" for b in extra),
             apply=tr("Move to the Recycle Bin"),
             safety=tr(
-                "Frees {mb} MB once the bin is emptied; until then they can be restored from it. The newest {keep} "
-                "stay, so the latest rebuilds can still be undone."
+                "Frees {mb} MB once the Recycle Bin is emptied. The newest {keep} stay, so the latest rebuilds can "
+                "still be undone."
             ).format(mb=f"{size / 1048576:,.0f}", keep=keep),
         )
 
@@ -782,7 +775,7 @@ class ModsPresenter:
         )
         return Confirm(
             title=tr("Delete profile {name}?").format(name=p.stem),
-            changes=(tr("The .me3 moves to Deleted profiles."), tr("Its mod folders stay on disk."), *kept),
+            changes=(tr("The profile moves to Deleted profiles."), tr("Its mod folders stay on disk."), *kept),
             apply=tr("Delete"),
         )
 
@@ -803,12 +796,12 @@ class ModsPresenter:
         if code == profile_mods.DELETE_MANAGED:
             return Refusal(
                 tr("Not this one"),
-                tr("{name} is managed by its installer; delete it there.").format(
+                tr("{name} is managed by its installer. Delete it there.").format(
                     name=profile_name or tr("This profile")
                 ),
             )
         if code == profile_mods.DELETE_BUSY:
-            return Refusal(tr("Wait for the current job"), tr("The profile can be deleted when it finishes."))
+            return Refusal(tr("Wait for the current job"), tr("Delete the profile when it finishes."))
         return None
 
     def rename_block(self, code: str | None, name: str, game_running: bool) -> str:
@@ -816,18 +809,18 @@ class ModsPresenter:
         if code == profile_mods.DELETE_NO_PROFILE:
             return tr("Pick a profile first.")
         if code == profile_mods.DELETE_MANAGED:
-            return tr("{name} is managed by its installer; rename it there.").format(name=name or tr("This profile"))
+            return tr("{name} is managed by its installer. Rename it there.").format(name=name or tr("This profile"))
         if code == profile_mods.DELETE_BUSY:
             return tr("Wait for the current job to finish.")
         if game_running:
-            return tr("Close the game first: it has these files open.")
+            return tr("Close the game first. It has these files open.")
         return ""
 
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
 
     def move_busy(self) -> Refusal:
-        return Refusal(tr("Load order not changed"), tr("Wait for the current job to finish, then move it."))
+        return Refusal(tr("Load order not changed"), tr("Wait for the current job to finish."))
 
     def edit_options_text(self) -> str:
         return tr("Edit options")
@@ -863,8 +856,8 @@ class ModsPresenter:
             changes=(*preview.lines, *preview.notes),
             apply=tr("Update") if preview.update else tr("Install"),
             safety=tr(
-                "It's one step: if anything fails, nothing changes, and you can undo it from Activity. Nothing of the "
-                "overhaul's own installer runs."
+                "If anything fails, nothing changes. Undo in Activity puts it back. The overhaul's own installer does "
+                "not run."
             ),
         )
 
@@ -894,7 +887,7 @@ class ModsPresenter:
             title=tr("Remove {label} from {profile}").format(label=label, profile=Path(profile).name),
             changes=tuple(preview.lines),
             apply=tr("Remove"),
-            safety=tr("It's one step, and Restore in Activity puts it all back. Folders go to the Recycle Bin."),
+            safety=tr("Undo in Activity puts it all back. Folders go to the Recycle Bin."),
             option=tr("Also switch {names} back off, as it was before the install").format(names=asked)
             if asked
             else "",
@@ -907,7 +900,7 @@ class ModsPresenter:
         return tr("Removing {label}...").format(label=label)
 
     def overhaul_leftovers_later(self, label: str) -> Refusal:
-        """The note after removing a setup its installer made (a toast, not a refusal)."""
+        """The note after removing a profile its installer made (a toast, not a refusal)."""
         return Refusal(
             tr("{label}'s installer left folders behind").format(label=label),
             tr("Clean up installer leftovers shows them with their sizes once the removal is done."),
@@ -918,10 +911,10 @@ class ModsPresenter:
         return Pick(
             title=tr("Clean up installer leftovers"),
             body=tr(
-                "What an overhaul's own installer left beside your profile, which no profile there uses any more. The "
-                "ticked ones go to the Recycle Bin."
+                "What an overhaul's own installer left beside your profile that no profile uses any more. Ticked ones "
+                "go to the Recycle Bin."
             ),
-            apply=tr("Move to Recycle Bin"),
+            apply=tr("Move to the Recycle Bin"),
             none=tr("Next") if more_after else "",
         )
 
@@ -930,7 +923,7 @@ class ModsPresenter:
         return Confirm(
             title=tr("Also remove {name}?").format(name=leftover.path.name),
             changes=(tr("{what} goes to the Recycle Bin").format(what=leftover.label),),
-            apply=tr("Move to Recycle Bin"),
+            apply=tr("Move to the Recycle Bin"),
             warning=tr(
                 "These are its installer's backups of your profiles: the only copy from before the overhaul was "
                 "installed. Keep them unless you're sure you don't need them."
@@ -942,8 +935,8 @@ class ModsPresenter:
         return Pick(
             title=tr("Move unused folders too?"),
             body=tr(
-                "No profile here uses these folders. Tick the ones to move into the library as well; the "
-                "others stay where they are. Nothing is deleted either way."
+                "No profile here uses these folders. Tick the ones to move into the Library too; the others stay. "
+                "Nothing is deleted."
             ),
             apply=tr("Move ticked"),
             none=tr("Leave them all"),
@@ -956,21 +949,21 @@ class ModsPresenter:
         if not preview.ok:
             return Refusal(tr("{name} can't be adopted").format(name=name), " ".join(preview.refusals))
         return Confirm(
-            title=tr("Adopt {name} into the library").format(name=name),
+            title=tr("Adopt {name} into the Library").format(name=name),
             changes=tuple(preview.lines),
             apply=tr("Adopt"),
             safety=tr(
-                "It's one step: if anything fails, nothing moves. Nothing is copied or deleted, and Undo adoption in "
-                "Activity puts every file back (as long as the profiles are unchanged)."
+                "If anything fails, nothing moves. Nothing is copied or deleted. Undo adoption in Activity puts every "
+                "file back while the profiles are unchanged."
             ),
             option=tr("Don't offer this again for this profile"),
         )
 
     def adopt_running(self, name: str) -> str:
-        return tr("Adopting {name} into the library...").format(name=name)
+        return tr("Adopting {name} into the Library...").format(name=name)
 
     def adopt_unavailable(self) -> Refusal:
-        return Refusal(tr("Nothing to adopt"), tr("This profile is already in the library."))
+        return Refusal(tr("Nothing to adopt"), tr("This profile is already in the Library."))
 
     def leftovers_moving(self) -> str:
         return tr("Moving leftovers to the Recycle Bin...")

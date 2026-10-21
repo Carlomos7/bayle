@@ -139,22 +139,21 @@ PageScroll {
             model: page.adapter.notices
 
             InfoBar {
-                required property string action
-                required property bool closable
-                required property string key
-                required property string severity
-                required property string text
+                id: notice
 
-                actionLabel: action
-                closable: closable
-                objectName: "notice_" + key
+                // the row's roles are read through `model`: a role named like an InfoBar property would bind to itself
+                required property var model
+
+                actionLabel: model.action
+                closable: model.closable
+                objectName: "notice_" + model.key
                 open: true
-                severity: severity
-                text: text
+                severity: model.severity
+                text: model.text
                 width: parent ? parent.width : 0
 
-                onActionClicked: page.adapter.noticeAction(key)
-                onClosed: page.adapter.closeNotice(key)
+                onActionClicked: page.adapter.noticeAction(notice.model.key)
+                onClosed: page.adapter.closeNotice(notice.model.key)
             }
         }
     }

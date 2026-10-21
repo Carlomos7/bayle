@@ -66,7 +66,7 @@ BASE = "function Update()\n  ExecTalk()\n  env(105, 1)\nend\n"
 
 
 def checked(fragment: str, shared=frozenset({"ExecTalk"}), natives=(), caveat: str = "") -> list[str]:
-    composed = compose(BASE, "c0000.hks from anims", [Hook("the overhaul", fragment)])
+    composed = compose(BASE, "c0000.hks from anims", [Hook("Example", fragment)])
     return hks_check.check(ENTRY, composed, lists(caveat), hks_check.Shared(set(shared)), natives)
 
 
@@ -75,38 +75,38 @@ def test_a_script_whose_calls_all_resolve_has_no_warning():
 
 
 def test_calls_of_functions_defined_nowhere_are_one_warning_naming_the_part():
-    said = checked("OverhaulNative(1)\nOverhaulNative(2)\nMissing()\n")
+    said = checked("ExNative(1)\nExNative(2)\nMissing()\n")
     assert said == [
         "action/script/c0000.hks calls 2 functions defined nowhere the game looks (this script, the game's shared "
-        "scripts, the game's own functions): OverhaulNative (line 6, in what the overhaul added), Missing (line 8, in what "
-        "the overhaul added). In game such a call is an error each time it runs, unless a mod's DLL provides the function"
+        "scripts, the game's own functions): ExNative (line 6, in what Example added), Missing (line 8, in what "
+        "Example added). In game such a call is an error each time it runs, unless a mod's DLL provides the function"
     ]
-    assert checked("OverhaulNative(1)\nNrmStop()\n", natives=["OverhaulNative", "Nrm*"]) == []
+    assert checked("ExNative(1)\nNrmStop()\n", natives=["ExNative", "Nrm*"]) == []
 
 
 def test_calls_the_script_checks_are_there_first_are_not_reported():
     fragment = (
-        "if OverhaulNative == nil then return end\n"
+        "if ExNative == nil then return end\n"
         'if type(NrmStop) == "function" then NrmStop() end\n'
         "if nil ~= NrmGo then NrmGo() end\n"
         "Missing() -- type(Missing) in a comment doesn't count\n"
     )
-    (said,) = checked(fragment + "OverhaulNative(1)\n")
+    (said,) = checked(fragment + "ExNative(1)\n")
     assert "calls a function defined nowhere" in said and ": Missing (line 9" in said
 
 
 def test_env_and_act_ids_the_game_does_not_handle_are_warned_about():
     said = checked("env(999, 1)\nact(2)\nact(118)\n", caveat="lists of 1.17.1 used, so this may be out of date")
     assert said == [
-        "action/script/c0000.hks line 6, in what the overhaul added: env(999, ...) uses an ID the game doesn't handle; "
+        "action/script/c0000.hks line 6, in what Example added: env(999, ...) uses an ID the game doesn't handle; "
         "what the game does with it isn't known (lists of 1.17.1 used, so this may be out of date)",
-        "action/script/c0000.hks line 7, in what the overhaul added: act(2, ...) uses an ID the game doesn't handle; what "
+        "action/script/c0000.hks line 7, in what Example added: act(2, ...) uses an ID the game doesn't handle; what "
         "the game does with it isn't known (lists of 1.17.1 used, so this may be out of date)",
     ]
 
 
 def test_unreadable_shared_scripts_mean_calls_are_not_checked():
-    composed = compose(BASE, "c0000.hks from anims", [Hook("the overhaul", "Missing()\n")])
+    composed = compose(BASE, "c0000.hks from anims", [Hook("Example", "Missing()\n")])
     said = hks_check.check(ENTRY, composed, lists(), hks_check.Shared(set(), ["action/script/c9997.hks"]))
     assert said == [
         "action/script/c0000.hks: calls were not checked: the game's action/script/c9997.hks could not be read, so "

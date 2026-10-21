@@ -13,13 +13,12 @@ from test_esd_merge import game_script, options, with_option
 from test_param_merge import pack, rows_of, set_word, vanilla
 
 from roundtable_souls import overhauls
-from roundtable_souls.config import settings
 from roundtable_souls.formats.esd import write_esd
 from roundtable_souls.game import config as game_config
 from roundtable_souls.game import locate
 from roundtable_souls.mods import backends, engine
 from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.mods.backends import manifest_refresh
+from roundtable_souls.mods.backends import launcher_build
 from roundtable_souls.platform import paths as common
 from support import er
 
@@ -48,13 +47,13 @@ path = 'natives/SeamlessCoop/ersc.dll'
 load_early = true
 
 [[natives]]
-path = 'ExampleOverhaul/OverhaulPrototype.dll'
-initializer = { function = "ovhInitialize" }
+path = 'ExampleOverhaul/ExamplePrototype.dll'
+initializer = { function = "ExInitialize" }
 """
 PAYLOAD = [
-    "payload/OverhaulPrototype.dll",
-    "payload/OverhaulHudBootstrap.dll",
-    "payload/audio/overhaul.wav",
+    "payload/ExamplePrototype.dll",
+    "payload/ExampleHudBootstrap.dll",
+    "payload/audio/example.wav",
     "payload/ui/base.png",
     "payload/settings/m00_00_00_00.talkesdbnd.dcx",
 ]
@@ -72,8 +71,8 @@ def game_files() -> dict[str, bytes]:
     return files
 
 
-class the overhaul:
-    """A profile folder with a the overhaul-like mod: its download (setup folder), an installed build, packages before it,
+class Example:
+    """A profile folder with a Example-like mod: its download (setup folder), an installed build, packages before it,
     Seamless, and a game. Starting any program fails: the launcher's build runs nothing of the mod's."""
 
     def __init__(self, tmp_path, monkeypatch):
@@ -89,24 +88,24 @@ class the overhaul:
         for f in PAYLOAD:
             (self.setup / f).parent.mkdir(parents=True, exist_ok=True)
             (self.setup / f).write_bytes(f"stock {f}".encode())
-        (self.setup / "payload/OverhaulPrototype.ini").write_text("[Coop]\nEnabled=1\n[UI]\nLanguage=auto\n")
+        (self.setup / "payload/ExamplePrototype.ini").write_text("[Coop]\nEnabled=1\n[UI]\nLanguage=auto\n")
         for rel in ARCHIVES:  # the mod's copies: the game's with one clip of its own added
             (self.setup / "payload/mod" / rel).parent.mkdir(parents=True, exist_ok=True)
-            (self.setup / "payload/mod" / rel).write_bytes(dcx(bnd({**GAME_CLIPS, "overhaul.hkx": b"overhaul"})))
+            (self.setup / "payload/mod" / rel).write_bytes(dcx(bnd({**GAME_CLIPS, "example.hkx": b"example"})))
         (self.setup / "payload/mod/regulation.bin").write_bytes(pack({"EquipParamWeapon": set_word(2000, 1, 77)}))
-        (self.setup / "payload/settings/engus.json").write_text('{"99002000": "the overhaul: session settings"}')
-        (self.setup / "payload/settings/rusru.json").write_text('{"99002000": "the overhaul ru"}', encoding="utf-8")
+        (self.setup / "payload/settings/engus.json").write_text('{"99002000": "Example: session settings"}')
+        (self.setup / "payload/settings/rusru.json").write_text('{"99002000": "Example ru"}', encoding="utf-8")
         (self.setup / "payload/mod/action/script").mkdir(parents=True)
         (self.setup / "payload/mod/action/script/c0000.hks").write_text(
-            "-- vanilla\nfunction Update() end\n-- Wrap the current mod's Update;\noverhaul stock wrapper\n"
+            "-- vanilla\nfunction Update() end\n-- Wrap the current mod's Update;\nexample stock wrapper\n"
         )
         (self.setup / "installer").mkdir()
-        (self.setup / "installer/overhaul.hks").write_text("-- overhaul extension\n")
-        (self.setup / "installer/installer.py").write_text("# the mod's installer")
+        (self.setup / "installer/example.hks").write_text("-- example extension\n")
+        (self.setup / "installer/setup.py").write_text("# the mod's installer")
         (self.setup / "tools/python").mkdir(parents=True)
         (self.setup / "tools/python/python.exe").write_bytes(b"py")
         (self.setup / "edition.json").write_text('{"version": "0.1.33-rc3", "edition": "LITE"}')
-        (self.setup / "overhaul-maintenance.json").write_text('{"protocol": 1, "version": "0.1.33-rc3"}')
+        (self.setup / "example-maintenance.json").write_text('{"protocol": 1, "version": "0.1.33-rc3"}')
         body = self.base / "mod" / "body"
         (body / "parts").mkdir(parents=True)
         anims = self.base / "mod" / "anims"
@@ -128,14 +127,15 @@ class the overhaul:
         self.own = self.base / "ExampleOverhaul"
         (self.own / "mod").mkdir(parents=True)
         (self.own / "mod/regulation.bin").write_bytes(b"OLD BUILD")
-        (self.own / "OverhaulPrototype.dll").write_bytes(b"old")
-        (self.own / "OverhaulPrototype.ini").write_text("[Coop]\nEnabled=0\n")
+        (self.own / "ExamplePrototype.dll").write_bytes(b"old")
+        (self.own / "ExamplePrototype.ini").write_text("[Coop]\nEnabled=0\n")
         (self.own / "installation.json").write_text(
             json.dumps(
                 {
                     "version": "0.1.33-rc3",
                     "edition": "LITE",
                     "refreshProtocol": 1,
+                    "installedBy": "Roundtable Souls test",
                     "maintenance": str(self.setup),
                     "game": str(self.game / "eldenring.exe"),
                     "seamless": str(self.base / "natives/SeamlessCoop/ersc.dll"),
@@ -159,7 +159,7 @@ class the overhaul:
 
 @pytest.fixture
 def world(tmp_path, monkeypatch):
-    return the overhaul(tmp_path, monkeypatch)
+    return Example(tmp_path, monkeypatch)
 
 
 def test_the_bundled_recipe_is_valid_and_fits_the_download(world):
@@ -176,8 +176,8 @@ def test_a_newer_version_is_not_built_and_says_why(world):
 
 
 def test_a_download_straight_from_its_archive_is_recognised(world):
-    """Only the mod's installer writes overhaul-maintenance.json: the download itself says its version in edition.json."""
-    (world.setup / "overhaul-maintenance.json").unlink()
+    """Only the mod's installer writes example-maintenance.json: the download itself says its version in edition.json."""
+    (world.setup / "example-maintenance.json").unlink()
     recipe, version, why = engine.match(world.setup)
     assert recipe is not None and version == "0.1.33-rc3" and why is None
 
@@ -194,7 +194,7 @@ def test_the_launcher_merges_the_mods_files_with_the_packages_before_it(world):
     assert files_of((own / "mod/chr/c0000_a00_hi.anibnd.dcx").read_bytes()) == {
         "a000_000.hkx": b"sekiro walk",
         "a000_002.hkx": b"roll",
-        "overhaul.hkx": b"overhaul",
+        "example.hkx": b"example",
     }
     # no package ships this one: the mod's own copy as it is
     behavior = world.setup / "payload/mod/chr/c0000.behbnd.dcx"
@@ -214,33 +214,33 @@ def test_the_launcher_merges_the_mods_files_with_the_packages_before_it(world):
         "notice: chr/c0000_a00_hi.anibnd.dcx (the player character's animations): "
         f"{anims} lacks 1 animation the current game uses (they won't play)"
     ) in report
-    assert (own / "audio/overhaul.wav").is_file() and (own / "ui/base.png").is_file()
-    assert (own / "OverhaulPrototype.dll").read_bytes() == b"stock payload/OverhaulPrototype.dll"
+    assert (own / "audio/example.wav").is_file() and (own / "ui/base.png").is_file()
+    assert (own / "ExamplePrototype.dll").read_bytes() == b"stock payload/ExamplePrototype.dll"
 
 
 def test_the_menu_text_keeps_the_packages_text_and_adds_the_mods_in_each_language(world):
     world.build()
     en = texts_of((world.own / "mod/msg/engus/menu_dlc02.msgbnd.dcx").read_bytes(), "EventTextForTalk.fmg")
     ru = texts_of((world.own / "mod/msg/rusru/menu_dlc02.msgbnd.dcx").read_bytes(), "EventTextForTalk.fmg")
-    assert en == {1000: "Rest here", 1001: None, 99002000: "the overhaul: session settings"}
-    assert ru == {1000: "Rest", 1001: None, 99002000: "the overhaul ru"}
+    assert en == {1000: "Rest here", 1001: None, 99002000: "Example: session settings"}
+    assert ru == {1000: "Rest", 1001: None, 99002000: "Example ru"}
 
 
 def test_the_script_is_the_last_packages_with_the_mods_text_appended(world):
     world.build()
     hks = (world.own / "mod/action/script/c0000.hks").read_bytes()
-    assert hks == b"-- anims script\nfunction Update() end\n\n-- overhaul extension\n"  # line endings as the installer's
+    assert hks == b"-- anims script\nfunction Update() end\n\n-- example extension\n"  # line endings as the installer's
 
 
 def test_without_a_packages_script_the_downloads_base_is_used(world):
     shutil.rmtree(world.base / "mod/anims/action")
     world.build()
     hks = (world.own / "mod/action/script/c0000.hks").read_text()
-    assert hks == "-- vanilla\nfunction Update() end\n\n-- overhaul extension\n"
+    assert hks == "-- vanilla\nfunction Update() end\n\n-- example extension\n"
 
 
 def test_a_package_that_already_contains_it_is_refused(world):
-    (world.base / "mod/anims/action/script/c0000.hks").write_text("local ovhOriginalUpdate = Update\n")
+    (world.base / "mod/anims/action/script/c0000.hks").write_text("local ExOriginalUpdate = Update\n")
     with pytest.raises(engine.EngineError, match="already contains"):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"  # the build in place is unchanged
@@ -248,7 +248,7 @@ def test_a_package_that_already_contains_it_is_refused(world):
 
 def test_the_players_settings_are_kept_and_new_keys_added(world):
     world.build()
-    ini = (world.own / "OverhaulPrototype.ini").read_text()
+    ini = (world.own / "ExamplePrototype.ini").read_text()
     assert "Enabled=0" in ini and "Enabled=1" not in ini  # the player's value
     assert "[UI]\nLanguage=auto" in ini  # a section the new version adds
 
@@ -312,7 +312,7 @@ def test_a_build_can_be_left_staged_for_an_operation_to_put_in_place(world):
     assert staged != world.own and staged.parent == world.base and (staged / "mod/regulation.bin").is_file()
     assert out["previous"] is None and out["restore"] is None and not work.exists()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
-    assert (staged / "OverhaulPrototype.ini").read_text().startswith("[Coop]\nEnabled=0\n")  # the player's value
+    assert (staged / "ExamplePrototype.ini").read_text().startswith("[Coop]\nEnabled=0\n")  # the player's value
 
 
 def test_a_failed_merge_leaves_the_build_in_place_and_no_staging(world, monkeypatch):
@@ -348,7 +348,7 @@ def test_a_damaged_file_stops_the_build_with_its_name(world):
 
 
 def test_without_a_requires_list_nothing_is_required(world):
-    """the overhaul's config declares no requirement, so it builds without Seamless Co-op switched on."""
+    """Example's config declares no requirement, so it builds without Seamless Co-op switched on."""
     world.profile.write_text(
         PROFILE.replace(
             "path = 'natives/SeamlessCoop/ersc.dll'", "path = 'natives/SeamlessCoop/ersc.dll'\nenabled = false"
@@ -368,8 +368,8 @@ def test_a_configs_requirements_refuse_the_build_naming_them(world):
     }
     world.profile.write_text(PROFILE.replace("path = 'natives/SeamlessCoop/ersc.dll'\nload_early = true\n", ""))
     assert engine.unmet(world.profile, needs) == [
-        "the overhaul needs Trees (trees) switched on in the profile.",
-        "the overhaul needs ersc.dll switched on in the profile.",
+        "Example Overhaul needs Trees (trees) switched on in the profile.",
+        "Example Overhaul needs ersc.dll switched on in the profile.",
     ]
     with pytest.raises(engine.EngineError, match="needs Trees"):
         engine.build(world.profile, world.own / "mod", world.setup, needs, version, lambda s: None, loc=er())
@@ -388,22 +388,23 @@ def test_the_inputs_are_only_read(world):
     assert snapshot() == before and world.profile.read_bytes() == profile_before
 
 
-def test_a_rebuild_uses_the_engine_only_with_the_switch_on(world, monkeypatch):
-    ran = []
-    monkeypatch.setattr(backends.Tool, "run", lambda self, log: ran.append(self.recipe.engine is not None))
+def test_the_launcher_builds_only_what_it_installed_and_never_runs_another_installers_setup(world, monkeypatch):
     layer = next(l for l in merge.layers(world.profile) if l["name"] == "example-overhaul")
-    r = manifest_refresh.recipe(world.profile, layer, loc=er())
-    assert r is not None and r.engine is None and r.command  # off: the mod's installer runs
-    settings.save_settings(build_merges=True)
-    r = manifest_refresh.recipe(world.profile, layer, loc=er())
-    assert r.engine is not None and r.label == "the launcher's build of example-overhaul"
-    assert (
-        "builds nightreign" in backends.Tool(r).describe().lower() or "the overhaul" in backends.Tool(r).describe()
-    )
+    r = launcher_build.recipe(world.profile, layer, loc=er())
+    assert r.engine is not None and r.label == "the launcher's build of example-overhaul" and not r.command
+    assert "Example Overhaul" in backends.Tool(r).describe()
+    manifest = world.own / "installation.json"
+    data = json.loads(manifest.read_text())
+    data.pop("installedBy")  # made by another installer: left alone
+    manifest.write_text(json.dumps(data))
+    before = manifest.read_bytes()
+    assert launcher_build.recipe(world.profile, layer, loc=er()) is None
+    assert merge.find_backend(world.profile, loc=er()) is None
+    assert "another installer" in merge.setup_problem(world.profile, loc=er())
+    assert manifest.read_bytes() == before
 
 
 def test_a_whole_rebuild_through_the_engine_is_current_and_can_be_undone(world):
-    settings.save_settings(build_merges=True)
     tool = merge.find_backend(world.profile, loc=er())
     merge.approve(tool)
     out = merge.rebuild(world.profile, lambda s: None, loc=er())
@@ -440,7 +441,7 @@ patch = "payload/toy.bin"
 
 
 def test_a_second_recipe_needs_no_code(world, tmp_path):
-    """Nothing about the overhaul is in the engine: a made-up mod with other names builds from its config alone, a file in
+    """Nothing about Example is in the engine: a made-up mod with other names builds from its config alone, a file in
     the local overhauls folder."""
     local = overhauls.local_dir()
     assert local is not None
@@ -471,10 +472,10 @@ def test_the_grace_menu_is_merged_by_the_launcher_with_the_packages(world, monke
     game = write_esd(game_script())
     fakegame.game(monkeypatch, {**game_files(), TALK: dcx(bnd({"t000001000.esd": game}))})
     map_mod = write_esd(with_option(game_script(), 10, 1000, 4, 120))
-    overhaul = write_esd(with_option(game_script(), 20, 2000, 4, 130))
+    example = write_esd(with_option(game_script(), 20, 2000, 4, 130))
     (world.base / "mod/anims/script/talk").mkdir(parents=True)
     (world.base / "mod/anims" / TALK).write_bytes(dcx(bnd({"t000001000.esd": map_mod})))
-    (world.setup / "payload/settings/m00_00_00_00.talkesdbnd.dcx").write_bytes(dcx(bnd({"t000001000.esd": overhaul})))
+    (world.setup / "payload/settings/m00_00_00_00.talkesdbnd.dcx").write_bytes(dcx(bnd({"t000001000.esd": example})))
     world.build()
     merged = files_of((world.own / "mod" / TALK).read_bytes())["t000001000.esd"]
     assert options(merged) == [(1, 2), (2, 3), (10, 4), (20, 5)]
@@ -486,10 +487,12 @@ def test_animation_data_changed_differently_by_the_package_and_the_mod_is_a_reco
     """.hkx is taken whole, three-way: the mod's copy (it loads last), and a line in the build's report. (As the
     mod's installer does, only the last package that ships the file is merged with the mod's: parity mode.)"""
     rel = "payload/mod/chr/c0000_a00_hi.anibnd.dcx"
-    (world.setup / rel).write_bytes(dcx(bnd({**GAME_CLIPS, "a000_000.hkx": b"overhaul walk", "overhaul.hkx": b"overhaul"})))
+    (world.setup / rel).write_bytes(
+        dcx(bnd({**GAME_CLIPS, "a000_000.hkx": b"example walk", "example.hkx": b"example"}))
+    )
     world.build()
     clips = files_of((world.own / "mod/chr/c0000_a00_hi.anibnd.dcx").read_bytes())
-    assert clips["a000_000.hkx"] == b"overhaul walk"
+    assert clips["a000_000.hkx"] == b"example walk"
     report = (world.own / "merge-report.txt").read_text()
     assert "clash: chr/c0000_a00_hi.anibnd.dcx (the player character's animations) " in report
     assert "a000_000.hkx" in report
@@ -583,7 +586,7 @@ def hooks_setup(world, tmp_path):
 def test_several_hook_steps_are_appended_in_order_to_the_last_packages_script(world, tmp_path):
     setup, target, recipe, version = hooks_setup(world, tmp_path)
     engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er())
-    # the last package before it with the script: the overhaul's build ("ExampleOverhaul/mod" loads after anims)
+    # the last package before it with the script: Example's build ("ExampleOverhaul/mod" loads after anims)
     hks = (target / "action/script/c0000.hks").read_text()
     assert hks.endswith("\nlocal FirstOriginalUpdate = Update\n\nlocal SecondOriginalUpdate = Update\n")
     assert hks.index("FirstOriginalUpdate") < hks.index("SecondOriginalUpdate")
@@ -634,12 +637,12 @@ def test_the_manifest_records_what_the_download_said_about_itself(world):
 
 
 def test_a_composed_script_that_would_not_load_is_refused_offline(world):
-    """the overhaul's fragment cut short: the build is refused naming the file, the line and the mod; nothing changes."""
-    (world.setup / "installer/overhaul.hks").write_text("local ovhOriginalUpdate = Update\nfunction Update()\n")
+    """Example's fragment cut short: the build is refused naming the file, the line and the mod; nothing changes."""
+    (world.setup / "installer/example.hks").write_text("local ExOriginalUpdate = Update\nfunction Update()\n")
     with pytest.raises(engine.EngineError) as e:
         world.build()
     assert str(e.value).startswith(
-        "action/script/c0000.hks would not load in game: the overhaul's script has a syntax error at its line 2 ("
+        "action/script/c0000.hks would not load in game: Example Overhaul's script has a syntax error at its line 2 ("
     )
     assert str(e.value).endswith("The previous build is kept.")
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
@@ -650,7 +653,6 @@ def _built(world):
     """A whole rebuild through the engine, current afterwards; the game folder has archive indexes."""
     for name in ("Data0", "Data1"):
         (world.game / f"{name}.bhd").write_bytes(b"index")
-    settings.save_settings(build_merges=True)
     merge.approve(merge.find_backend(world.profile, loc=er()))
     merge.rebuild(world.profile, lambda s: None, loc=er())
     h = merge.health(world.profile, loc=er())
@@ -672,7 +674,7 @@ def test_the_build_records_the_game_the_config_and_the_merger(world):
     world.build()
     m = json.loads((world.own / "installation.json").read_text())
     for key in ("version", "edition", "refreshProtocol", "maintenance", "game", "seamless", "sources"):
-        assert key in m  # the overhaul's own keys are kept
+        assert key in m  # Example's own keys are kept
     facts = records.BuildFacts.model_validate(m["inputs"])  # the shape the library's build.json has
     assert facts.merger_revision == record.MERGER_REVISION
     assert facts.game is not None and facts.game.archives and facts.game.regulation_sha256
@@ -704,7 +706,7 @@ def test_a_changed_config_makes_the_build_out_of_date(world):
     assert merge.health(world.profile, loc=er())["state"] == "current"  # a comment changes nothing it does
     changed = shipped + '\n[[builds.steps]]\ndo = "remove"\nglob = "**/*.bak"\n'
     (local / "example-overhaul.toml").write_text(changed, encoding="utf-8")
-    assert "the overhaul's config changed since the last build" in _stale(world)
+    assert "Example Overhaul's config changed since the last build" in _stale(world)
 
 
 def test_a_new_merger_revision_makes_the_build_out_of_date(world, monkeypatch):
@@ -736,7 +738,7 @@ def test_a_build_the_mods_installer_made_is_checked_as_before(world):
 
 
 def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
-    (world.setup / "installer/overhaul.hks").write_text("local mask = 0x10hi\n")
+    (world.setup / "installer/example.hks").write_text("local mask = 0x10hi\n")
     world.build()
     report = (world.own / "merge-report.txt").read_text()
     assert (
@@ -780,7 +782,7 @@ def test_the_composed_scripts_calls_are_checked_against_the_game(world, monkeypa
     monkeypatch.setattr(
         hks_check.gamearchive, "read", lambda d, rel: shared if rel.startswith("action/script/") else real(d, rel)
     )
-    (world.setup / "installer/overhaul.hks").write_text("ExecTalk()\nNotAnywhere()\n")
+    (world.setup / "installer/example.hks").write_text("ExecTalk()\nNotAnywhere()\n")
     world.build()
     report = (world.own / "merge-report.txt").read_text()
     assert "warning: action/script/c0000.hks calls a function defined nowhere the game looks" in report

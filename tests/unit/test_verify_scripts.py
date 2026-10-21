@@ -75,8 +75,8 @@ def test_animation_events_two_mods_change_are_worked_out_animation_by_animation(
 
     van = {"a00.tae": part(t(37, (0, 1.0), (1, 1.0), (2, 1.0)))}
     dash = {"a00.tae": part(t(-1, (0, 1.0), (1, 0.5), (2, 1.0)))}  # changes 1 and the event bank
-    overhaul = {"a00.tae": part(t(37, (0, 1.0), (1, 1.0), (2, 1.0), (975000, 2.0)))}  # adds 975000
-    _want, _texts, _removals, taes = verify_output.intended_parts(van, [("dash", dash), ("overhaul", overhaul)], None)
+    example = {"a00.tae": part(t(37, (0, 1.0), (1, 1.0), (2, 1.0), (975000, 2.0)))}  # adds 975000
+    _want, _texts, _removals, taes = verify_output.intended_parts(van, [("dash", dash), ("example", example)], None)
     header, anims = taes["a00.tae"]
     assert header[1] == -1
     assert [i for i, _ in anims] == [0, 1, 2, 975000]

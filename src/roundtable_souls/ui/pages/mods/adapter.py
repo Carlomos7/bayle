@@ -65,13 +65,13 @@ class ModsHost(Protocol):
     def locations(self) -> Any: ...
     @property
     def profile(self) -> Path | None:
-        """The profile the page shows (the current setup's), or None."""
+        """The profile the page shows (the current profile's), or None."""
 
     @property
     def settings(self) -> Any: ...
     @property
     def game(self) -> Any: ...
-    def run_job(self, job, status: str) -> None: ...
+    def run_job(self, job, status: str, on_done=None) -> None: ...
     def run_in_background(self, work, on_result) -> None: ...
     def profile_changed(self, note: str) -> None:
         """The page changed the profile: the host's other views read it again (and log the note)."""
@@ -93,7 +93,7 @@ class ModsHost(Protocol):
 
     @property
     def launch_profile(self) -> Any:
-        """The current setup (its profile and kind), for the rules about deleting it."""
+        """The current profile (its file and kind), for the rules about deleting it."""
 
     def open_path(self, path: Path) -> None: ...
 
@@ -104,7 +104,7 @@ class ModsHost(Protocol):
         """Ask for a file (a mod archive or DLL to install); None when cancelled."""
 
     def profiles(self) -> list[str]:
-        """The setups the player can pick (the Play list's labels)."""
+        """The profiles the player can pick (the top bar's profile labels)."""
         ...
 
     def request_new_profile(self) -> None:
@@ -310,9 +310,7 @@ class ModsAdapter(QObject):
             self.notifier.toast(tr("Pick a profile first."), error=True)
             return None
         if self.host.busy:
-            self.notifier.toast(
-                tr("Wait for the current job. The profile is not changed while something runs."), error=True
-            )
+            self.notifier.toast(tr("Wait for the current job to finish."), error=True)
             return None
         return Path(profile)
 
@@ -352,7 +350,7 @@ class ModsAdapter(QObject):
         name = entry["name"]
         self._changed(
             f"profile: {name} {'on' if on else 'off'}",
-            (tr("{name} is loaded again") if on else tr("{name} is off: kept in the profile, me3 skips it")).format(
+            (tr("{name} is on again") if on else tr("{name} is off. It stays in the profile and me3 skips it.")).format(
                 name=name
             ),
         )
@@ -365,7 +363,7 @@ class ModsAdapter(QObject):
         plan = profile_mods.removal(profile, entry, loc=self.host.locations, scan=self._scan)
         words = self.presenter.removal(profile, plan)
 
-        def answered(ok: bool, recycle: bool) -> None:
+        def answered(ok: bool, recycle: bool, quiet: bool = False) -> None:
             if not ok or self.host.busy:
                 return
             fresh = self._entry(index)
@@ -379,11 +377,36 @@ class ModsAdapter(QObject):
                 from roundtable_souls.platform import logging as run_logging
 
                 run_logging.start_log(f"launcher: remove {name}", loc.game.key)
-                profile_mods.remove_entry(profile, index, plan, delete_folder=recycle, loc=self.host.locations)
+                out = profile_mods.remove_entry(profile, index, plan, delete_folder=recycle, loc=self.host.locations)
+                undone.append(out["undo"])
 
-            self.host.run_job(job, tr("Removing {name}...").format(name=name))
+            def finished(ok: bool) -> None:
+                if not (ok and undone):
+                    return
+                self.notifier.toast_action(
+                    tr("Removed {name}").format(name=name), self._words["undo"], lambda: self._undo_removal(undone[0])
+                )
 
-        self.notifier.ask(words, answered, destructive=True)
+            undone: list[dict] = []
+            if quiet:
+                self.host.run_job(job, tr("Removing {name}...").format(name=name), on_done=finished)
+            else:
+                self.host.run_job(job, tr("Removing {name}...").format(name=name))
+
+        if profile_mods.removal_undoable(profile, plan, loc=self.host.locations):
+            answered(True, plan.can_recycle, True)  # Undo brings it all back: no confirm
+        else:
+            self.notifier.ask(words, answered, destructive=True)
+
+    def _undo_removal(self, undo: dict) -> None:
+        try:
+            profile_mods.undo_removal(undo, loc=self.host.locations)
+        except Exception as e:
+            self.notifier.toast(tr("Could not undo: {why}").format(why=e), error=True)
+            return
+        self.host.profile_changed(f"profile: restored {undo.get('name')}")
+        self.refresh()
+        self.notifier.toast(tr("Undone"))
 
     @Slot(int)
     def removeHolder(self, index: int) -> None:
@@ -402,7 +425,7 @@ class ModsAdapter(QObject):
                 return
             self._changed(
                 f"profile: removed {entry['name']} (a folder of mods)",
-                tr("'{name}' is out of the profile. Nothing in the game changes.").format(name=entry["name"]),
+                tr("{name} is out of the profile. Nothing in the game changes.").format(name=entry["name"]),
             )
 
         self.notifier.ask(self.presenter.holder(profile, entry["name"], needs), answered)
@@ -514,11 +537,11 @@ class ModsAdapter(QObject):
             code, detail = refusal
             text = {
                 profile_mods.REBUILD_GAME_RUNNING: tr(
-                    "Close the game first: the rebuild rewrites files the game has open."
+                    "Close the game first. The rebuild rewrites files the game has open."
                 ),
                 profile_mods.REBUILD_BLOCKED: tr("It cannot be rebuilt now: {why}").format(why=detail),
                 profile_mods.REBUILD_NOTHING: tr(
-                    "Nothing to rebuild: fewer than two packs ship parameters and there is no rebuild tool."
+                    "Nothing to rebuild. Fewer than two packs ship parameters and there is no rebuild tool."
                 ),
             }[code]
             self.notifier.toast(text, error=True)
@@ -589,14 +612,14 @@ class ModsAdapter(QObject):
         extra = profile_mods.tool_backups_to_trim(profile)
         if not extra:
             self.notifier.toast(
-                tr("Nothing to trim: {n} or fewer backups are kept.").format(n=profile_mods.KEEP_TOOL_BACKUPS)
+                tr("Nothing to trim. {n} or fewer backups are kept.").format(n=profile_mods.KEEP_TOOL_BACKUPS)
             )
             return
 
         def answered(ok: bool, _option: bool) -> None:
             if ok:
                 moved = profile_mods.trim_tool_backups(profile)
-                self.notifier.toast(tr("Older rebuild backups moved: {n} to the Recycle Bin.").format(n=len(moved)))
+                self.notifier.toast(tr("{n} older rebuild backups moved to the Recycle Bin.").format(n=len(moved)))
                 self.refresh()
 
         self.notifier.ask(self.presenter.trim(extra), answered)
@@ -703,7 +726,7 @@ class ModsAdapter(QObject):
     def _ready(self) -> Path | None:
         """The profile to change, or None (with the reason said) while a job runs."""
         if self.host.busy:
-            self.notifier.toast(tr("Wait for the current job"), error=True)
+            self.notifier.toast(tr("Wait for the current job to finish."), error=True)
             return None
         return self._profile()
 
@@ -1232,7 +1255,7 @@ class ModsAdapter(QObject):
                 return
             self.host.profile_deleted(Path(profile), gone)
             self.notifier.toast(
-                tr("Profile {name} deleted: the .me3 is in Deleted profiles").format(name=Path(profile).stem)
+                tr("Profile {name} deleted. It is in Deleted profiles.").format(name=Path(profile).stem)
             )
             self.refresh()
 
@@ -1303,7 +1326,7 @@ class ModsAdapter(QObject):
         self.host.run_job(job, tr("Copying {name}...").format(name=old.stem))
 
     def _launch_profile_like(self):
-        """The host's current setup as delete_refusal reads it (profile and kind)."""
+        """The host's current profile as delete_refusal reads it (profile and kind)."""
         return getattr(self.host, "launch_profile", None)
 
     # ---- Edit as text

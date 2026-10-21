@@ -292,7 +292,7 @@ Item {
     }
     TeachingTip {
         parent: Overlay.overlay
-        text: qsTr("This folds the navigation to icons. Click again for the labels; narrow windows fold it on their own.")
+        text: qsTr("Folds the navigation to icons. Narrow windows do it on their own.")
         visible: !root.compact && root.shell.tips.indexOf("launch") < 0 && root.shell.tips.indexOf("rail") >= 0
         pointer: false
         x: (root.shell.railCollapsed ? Theme.railCollapsedW : Theme.railW) + Theme.sp8  // beside the rail, not over its labels

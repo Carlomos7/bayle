@@ -6,8 +6,8 @@ import Components
 // The Overhaul setup (§8.10, Mod Configs): how a mod the profile treats as an overhaul is set up. The basic level is
 // the generated rows of ConfigForm (per DLL: load early, load after the other DLLs, initializer; the settings files
 // kept on updates; the merged copies, each untickable); it always loads last, which is said, not asked. A hand-edited
-// (advanced) or verified setup shows what it does, read-only; Edit as text changes an advanced one. Save, Discard and
-// Edit as text are the page's; Turn off is here. Everything shown comes from the adapter.
+// (advanced) or verified setup shows what it does, read-only; Edit as text changes an advanced one. Save, Discard,
+// Edit as text and the turn-off menu entry are the page's. Everything shown comes from the adapter.
 Column {
     id: form
 
@@ -65,13 +65,5 @@ Column {
                 wrapMode: Text.WordWrap
             }
         }
-    }
-    GhostButton {
-        icon_: "Delete"
-        objectName: "turnOffOverhaul"
-        text: form.words.turnOff
-        visible: form.ov.canTurnOff === true
-
-        onClicked: form.adapter.turnOffOverhaul()
     }
 }

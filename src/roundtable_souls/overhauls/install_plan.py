@@ -5,8 +5,8 @@ the changes, as data the profile writer applies, and the problems that stop the 
 know. check() looks at a profile after an install, as the overhaul's own check does. Nothing here writes a file; the
 only reads are the file checks passed in (is_file, is_dir), so tests pass their own.
 
-The changes are those the overhaul's installer makes to a profile on a LITE install (0.1.33-rc3,
-installer/installer.py: clean_owned, then patched_profile), with its DLLs' load settings exactly as it writes them:
+The changes an overhaul needs in a profile, all from its config, with its DLLs' load settings as the config
+writes them:
     remove   earlier installs' own entries (its package ids and DLL file names)
     set      top-level settings (profileVersion, start_online)
     update   a required mod (the build's requires list, as the mod's author declares it) switched back on, pointed at
@@ -94,7 +94,7 @@ def _enabled(row: dict) -> bool:
 
 
 def _ordered(packages: list[dict]) -> tuple[list[dict], Problem | None]:
-    """Enabled packages in me3's order (installer.py ordered_packages): file order, each after what it loads after."""
+    """Enabled packages in me3's order (me3's rule): file order, each after what it loads after."""
     enabled = [r for r in packages if _enabled(r)]
     ids = [package_id(r) for r in enabled]
     if len(set(ids)) != len(ids):
@@ -320,7 +320,7 @@ def check(
     is_dir: Callable[[Path], bool] = Path.is_dir,
     has_files: Callable[[Path], bool] = lambda p: any(p.iterdir()),
 ) -> list[Problem]:
-    """What is wrong with an installed overhaul (its check, installer.py check(), the parts a LITE install has):
+    """What is wrong with an installed overhaul (its check: the parts an install has):
     its files, its package switched on, every switched-on DLL there, and an order me3 can follow."""
     problems: list[Problem] = []
     own = Path(own)

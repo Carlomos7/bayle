@@ -176,6 +176,24 @@ def run(undo: dict, log, *, loc: Locations) -> str:
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 
 
+def check_removed(undo: dict) -> None:
+    """Whether a removal can be taken back exactly, for the toast's Undo: raises UndoError saying why not, before
+    anything is touched. (Activity is lenient: it also brings back only the entry when the folder is gone.)"""
+    from roundtable_souls.platform import trash
+
+    profile = Path(undo.get("profile") or "")
+    name = undo.get("name") or "the mod"
+    if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
+        raise UndoError(f"{profile.name or 'The profile'} is no longer there.")
+    if _listed(profile, undo.get("path") or ""):
+        raise UndoError(f"{name} is already back in {profile.name}.")
+    rec = undo.get("trash")
+    if rec and not trash.exists(rec):
+        raise UndoError(f"{name}'s folder is no longer in the Recycle Bin.")
+    if rec and Path(str(rec.get("original") or "")).exists():
+        raise UndoError(f"A folder is already at {rec['original']}.")
+
+
 def _restore_removed(undo: dict, log, loc: Locations) -> str:
     from roundtable_souls.platform import trash
 

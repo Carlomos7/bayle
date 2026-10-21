@@ -102,7 +102,7 @@ class GameFolderSeamless:
 
 
 def game_folder_seamless(launch) -> GameFolderSeamless | None:
-    """What of Seamless Co-op sits in the game folder of this setup's game, and what can be done with it. None when
+    """What of Seamless Co-op sits in the game folder of this profile's game, and what can be done with it. None when
     there is nothing (crash-dump folders alone don't count: Seamless Co-op recreates them) or no game folder."""
     from roundtable_souls.coop.ini import coop_ini_for
 
@@ -169,7 +169,7 @@ def move_seamless_into_profile(launch, found: GameFolderSeamless, log=lambda s: 
         if old is not None:
             w.remove_entry(old)
         w.add_native(dest / game.coop_dll, load_early=True)
-        w.write(f"before moving {game.coop_dll} from the game folder into this setup")
+        w.write(f"before moving {game.coop_dll} from the game folder into this profile")
     except BaseException:
         for src, target in reversed(moved):
             try:

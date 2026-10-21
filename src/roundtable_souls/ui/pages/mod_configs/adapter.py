@@ -101,6 +101,8 @@ class ModConfigsAdapter(QObject):
     selectedFile = Property(str, lambda self: self._selected(), notify=fileChanged)
     overhaul = Property(dict, lambda self: self._overhaul_view(), notify=fileChanged)
     canEditText = Property(bool, lambda self: self._can_edit_text(), notify=fileChanged)
+    formNote = Property(str, lambda self: self._form_note(), notify=fileChanged)
+    overhaulAction = Property(str, lambda self: self._overhaul_action(), notify=fileChanged)
     fileKind = Property(str, lambda self: self._kind(), notify=fileChanged)
     crumb = Property(str, lambda self: self._crumb(), notify=fileChanged)
     sections = Property(list, lambda self: self._sections(), notify=fileChanged)
@@ -127,8 +129,27 @@ class ModConfigsAdapter(QObject):
             return str(self._opened.path)
         return str(self._ov["folder"]) if self._ov is not None else ""  # a new setup: the mod's folder
 
+    def _has_form(self) -> bool:
+        """The open file reads as settings (a TOML that does not parse has a doc but no form)."""
+        doc = self._opened.doc if self._opened else None
+        return doc is not None and (doc.toml is not None or doc.lang != config_model.TOML)
+
     def _can_edit_text(self) -> bool:
-        return self._opened is not None and not (self._ov is not None and self._ov["setup"].get("verified"))
+        """The toggle is only for a file that has a form (or an overhaul setup); a plain text file opens as text."""
+        if self._opened is None or (self._ov is not None and self._ov["setup"].get("verified")):
+            return False
+        return self._ov is not None or self._has_form()
+
+    def _form_note(self) -> str:
+        """Why a settings-looking file opens as text, when it could not be read as settings."""
+        doc = self._opened.doc if self._opened else None
+        return self._words["noForm"] if doc is not None and not self._has_form() else ""
+
+    def _overhaul_action(self) -> str:
+        """What the overhaul menu offers for the open mod: setUp, turnOff, or nothing."""
+        if self._node is None or (self._ov is not None and self._ov["new"]):
+            return ""
+        return self.presenter.overhaul_action(self._node)
 
     def _kind(self) -> str:
         if self._ov is not None and not self._edit_text:
@@ -139,9 +160,7 @@ class ModConfigsAdapter(QObject):
             return "text"
         if self._seamless is not None:
             return "seamless"
-        if self._opened.doc is not None:
-            return "form"
-        return "markdown" if self._opened.path.suffix.lower() == ".md" else "text"
+        return "form" if self._has_form() else "text"
 
     def _crumb(self) -> str:
         if self._node is None:
@@ -208,7 +227,7 @@ class ModConfigsAdapter(QObject):
     def _change_count(self) -> int:
         if self._ov is not None and not self._edit_text:
             return 1 if self._ov["dirty"] else 0
-        if self._edit_text or self._kind() in ("text", "markdown"):
+        if self._edit_text or self._kind() == "text":
             return 1 if self._is_dirty() else 0
         return len(self._changed_keys())
 
@@ -217,7 +236,7 @@ class ModConfigsAdapter(QObject):
             return bool(self._ov["dirty"])
         if self._opened is None:
             return False
-        if self._edit_text or self._kind() in ("text", "markdown"):
+        if self._edit_text or self._kind() == "text":
             return self._text != self._opened.text
         return bool(self._pending)
 
@@ -471,7 +490,7 @@ class ModConfigsAdapter(QObject):
             if self._ov is not None:  # the setup's own file, as text
                 self._save_overhaul_text(opened)
                 return
-            if self._kind() in ("text", "markdown"):
+            if self._kind() == "text":
                 mod_configs.save_text(opened, self._text)
                 said = self.presenter.saved_text(opened.path.name)
             elif self._seamless is not None:
@@ -676,12 +695,18 @@ class ModConfigsAdapter(QObject):
             self._refuse(Refusal(tr("Nothing to set up"), self._words["noMods"]))
 
     @Slot()
+    def setUpSelectedAsOverhaul(self) -> None:
+        self.addOverhaulSetup(self._node.key if self._node else "")
+
+    @Slot()
     def turnOffOverhaul(self) -> None:
         profile, loc = self._profile, self.host.locations
-        ov = self._ov
-        if profile is None or ov is None or ov["new"] or self.host.busy:
+        setup = self._ov["setup"] if self._ov is not None and not self._ov["new"] else None
+        if setup is None and self._node is not None and self._node.kind == mod_configs.OVERHAUL:
+            setup = self._node.setup  # a kept file of the overhaul is open: its setup is the node's
+        if profile is None or setup is None or setup.get("verified") or self.host.busy:
             return
-        label = ov["setup"]["config"].label
+        label = setup["config"].label
 
         def work():
             try:

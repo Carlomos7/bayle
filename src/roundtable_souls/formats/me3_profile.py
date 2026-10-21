@@ -1,6 +1,6 @@
 """me3 profiles (.me3): reading the [[packages]] / [[natives]] entries out of the text, in both shapes me3 accepts.
 
-Hand-written profiles use [[packages]] / [[natives]] blocks; the overhaul's installer writes packages = [ { ... } ]
+Hand-written profiles use [[packages]] / [[natives]] blocks; some installers write packages = [ { ... } ]
 and natives = [ { ... } ] instead. Text surgery on a profile (adding, removing, rewriting entries) is mods.profile_edit's;
 this module reads, and renders one entry as a block (entry_lines, to_blocks).
 """
@@ -91,7 +91,7 @@ def entry_lines(kind: str, row: dict, nl: str) -> list[str]:
 
 
 def to_blocks(text: str) -> str:
-    """Rewrite an inline-array profile (the overhaul's shape) as [[packages]] / [[natives]] blocks."""
+    """Rewrite an inline-array profile (the shape some installers write) as [[packages]] / [[natives]] blocks."""
     data = tomllib.loads(text)
     nl = "\r\n" if "\r\n" in text else "\n"
     out = []

@@ -38,7 +38,7 @@ ModalDialog {
         }
     ]
     preferredWidth: 480
-    subtitle: qsTr("A new me3 profile for this game. Add mods to it from the Mods page.")
+    subtitle: qsTr("A new profile for this game. Add mods to it from the Mods page.")
     title: qsTr("New profile")
 
     Column {

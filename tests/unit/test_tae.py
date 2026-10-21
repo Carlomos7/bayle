@@ -229,21 +229,21 @@ def test_merged_animations_keep_their_parameter_bytes_exactly():
 def test_independent_changes_of_two_mods_all_apply():
     game = game_tae()
     dash = with_anims(game, anim(1, Event(0.0, 0.3, 129, 0, params(1))), event_bank=-1)
-    overhaul = with_anims(game, anim(975000, Event(0.0, 2.0, 16, 0, params(9))), anim(2, name="a000_000002.hkt"))
-    r = rule.merge(tae_bytes(game), [("dash", tae_bytes(dash)), ("overhaul", tae_bytes(overhaul))], "a00.tae")
+    example = with_anims(game, anim(975000, Event(0.0, 2.0, 16, 0, params(9))), anim(2, name="a000_000002.hkt"))
+    r = rule.merge(tae_bytes(game), [("dash", tae_bytes(dash)), ("example", tae_bytes(example))], "a00.tae")
     assert r.merged and not r.clashes and not r.removed
     out = read_tae(r.data)
     assert out.event_bank == -1
     assert [a.id for a in out.animations] == [0, 1, 2, 3, 10, 11, 975000]
     want = {a.id: animation_key(a) for a in game.animations}
     want[1] = animation_key(dash.animations[1])
-    want[2] = animation_key(overhaul.animations[2])
-    want[975000] = animation_key(overhaul.animations[-1])
+    want[2] = animation_key(example.animations[2])
+    want[975000] = animation_key(example.animations[-1])
     assert {a.id: animation_key(a) for a in out.animations} == want
-    assert r.changed == {"a00.tae": ["dash", "overhaul"]}
+    assert r.changed == {"a00.tae": ["dash", "example"]}
     assert r.notes["a00.tae"] == [
         "dash: changed 1 (1); file header (event bank 37 -> -1)",
-        "overhaul: changed 1 (2); added 1 (975000)",
+        "example: changed 1 (2); added 1 (975000)",
     ]
 
 
@@ -301,13 +301,13 @@ def test_a_copy_the_code_cannot_read_is_the_later_mods_whole_with_the_reason():
 def test_animation_archives_merge_their_tae_through_the_archive_rule(monkeypatch):
     game = game_tae()
     dash = with_anims(game, anim(1, Event(0.0, 0.3, 129, 0, params(1))), event_bank=-1)
-    overhaul = with_anims(game, anim(975000, Event(0.0, 2.0, 16, 0, params(9))))
+    example = with_anims(game, anim(975000, Event(0.0, 2.0, 16, 0, params(9))))
     other = {"a000_000000.hkx": b"motion"}
 
     def anibnd(t: TAE, **files: bytes) -> bytes:
         return dcx(bnd({**other, **files, "a00.tae": tae_bytes(t)}))
 
-    layers = [("dash", anibnd(dash)), ("overhaul", anibnd(overhaul, **{"a975_000000.hkx": b"downed"}))]
+    layers = [("dash", anibnd(dash)), ("example", anibnd(example, **{"a975_000000.hkx": b"downed"}))]
     r = merger.merge(anibnd(game), layers)
     assert r.merged and not r.clashes
     files = files_of(r.data)

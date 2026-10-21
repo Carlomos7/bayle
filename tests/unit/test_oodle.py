@@ -19,6 +19,8 @@ class FakeFn:
 
     def __call__(self, *args):
         self.calls.append(args)
+        if self.impl is None:
+            raise AssertionError("the test did not say what this function answers")
         return self.impl(*args)
 
 

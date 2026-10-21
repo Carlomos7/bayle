@@ -27,7 +27,7 @@ import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from pydantic_core import ErrorDetails
 
 from roundtable_souls.resources import DATA_DIR
@@ -266,6 +266,14 @@ class BasicNative(_Strict):
     after_others: bool = True  # loads after every other enabled DLL in the profile
 
 
+def _inside(path: str) -> str:
+    """The path when it is relative and stays inside its folder (no .., drive letter or leading slash)."""
+    p = path.replace("\\", "/")
+    if not p or p.startswith("/") or ":" in p or ".." in p.split("/"):
+        raise ValueError(f"{path!r} must be a path inside the mod's folder (no .., drive letter or leading slash)")
+    return path
+
+
 class BasicText(_Strict):
     """Strings of a JSON file (text ID to string) set in a table of a message binder, merged on top of the packages
     before it: becomes a "text" step."""
@@ -273,6 +281,18 @@ class BasicText(_Strict):
     file: str  # the binder's game path; {each} is every text language of the game
     table: str  # the table in it, for example eventtextfortalk.fmg
     texts: dict[str, str]  # language folder (or "*" for the rest) -> the JSON file in the mod's folder
+
+    @field_validator("file")
+    @classmethod
+    def _file_inside(cls, v: str) -> str:
+        return _inside(v)
+
+    @field_validator("texts")
+    @classmethod
+    def _texts_inside(cls, v: dict[str, str]) -> dict[str, str]:
+        for name in v.values():
+            _inside(name)
+        return v
 
 
 class Basic(_Strict):

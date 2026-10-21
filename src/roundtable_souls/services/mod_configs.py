@@ -238,7 +238,10 @@ def file_rows(basic_config, folder, game: str) -> list[dict]:
     files = basic.files_of(folder)
     root = basic.package_root(files, folders, regulation)
     rows = []
+    texts_from = {v.lower() for t in basic_config.texts for v in t.texts.values()}  # used for texts, not a step
     for f in files:
+        if f.lower() in texts_from:
+            continue
         kind = basic.file_kind(f, folders, regulation, root)
         act = basic.action_of(f, kind, basic_config)
         rows.append(

@@ -439,6 +439,9 @@ def _codecs(game_dir: Path):
     return _oodle[key]
 
 
+MAX_TEXTS_BYTES = 16 << 20  # a texts JSON file larger than this is refused
+
+
 def _launcher_step(
     step, each, setup, inputs, game_dir, mod, sources, report, log, game: str = "eldenring"
 ) -> Path | None:
@@ -481,8 +484,13 @@ def _launcher_step(
             report.append(line)
             log(f"  {line}")
             return None
+        path = (setup / named).resolve()
+        if not path.is_relative_to(Path(setup).resolve()):
+            raise EngineError(f"{named} is outside the mod's folder.")
+        if path.stat().st_size > MAX_TEXTS_BYTES:
+            raise EngineError(f"{named} is larger than {MAX_TEXTS_BYTES >> 20} MB; it is not a list of texts.")
         try:
-            texts = {int(k): str(v) for k, v in json.loads((setup / named).read_text(encoding="utf-8-sig")).items()}
+            texts = {int(k): str(v) for k, v in json.loads(path.read_text(encoding="utf-8-sig")).items()}
         except (ValueError, AttributeError) as e:
             raise EngineError(f"{named} is not a JSON object of text IDs to texts: {e}") from e
         body, how = formats.dcx.unpack(vanilla, dec)

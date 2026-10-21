@@ -188,6 +188,17 @@ def plan(
     for r in natives:
         if mine("native", r):
             out.changes.append(Change("remove", "native", str(r.get("path", "")), why="an earlier install's own DLL"))
+            where = absolute(profile, str(r.get("path", "")))
+            if not Path(where).as_posix().lower().startswith(Path(own).as_posix().lower().rstrip("/") + "/"):
+                out.problems.append(  # the name is the overhaul's, but the file is somewhere else: said, not silent
+                    Problem(
+                        "dll-name-taken",
+                        f"The profile has a DLL called {dll_name(r)} ({r.get('path')}) outside the overhaul's folder. "
+                        "The overhaul has a DLL of that name and the game loads one DLL of a name, so this entry "
+                        "is replaced by the overhaul's.",
+                        blocks=False,
+                    )
+                )
     out.update = any(c.action == "remove" for c in out.changes)
     packages = [r for r in packages if not mine("package", r)]
     natives = [r for r in natives if not mine("native", r)]

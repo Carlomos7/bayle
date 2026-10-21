@@ -38,6 +38,7 @@ The overhaul's own installer files are never written.
 
 from __future__ import annotations
 
+import base64
 import datetime
 import fnmatch
 import hashlib
@@ -53,7 +54,7 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls import overhauls
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.game import catalog as games
-from roundtable_souls.mods import library, operations, records
+from roundtable_souls.mods import installer_leftovers, library, operations, records
 from roundtable_souls.mods.checks import same_folder
 from roundtable_souls.mods.library import ProfileFolder
 from roundtable_souls.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
@@ -303,10 +304,18 @@ def _find(writer: ProfileWriter, kind: str, key: str) -> dict | None:
     return None
 
 
-def _entry_named(writer: ProfileWriter, name: str) -> dict | None:
-    """An entry by the name a requirement or a side effect uses: a package's id, a DLL's file name (case aside)."""
+def _entry_named(writer: ProfileWriter, name: str, kind: str | None = None) -> dict | None:
+    """An entry by the name a requirement or a side effect uses: a package's id, a DLL's file name (case aside); of
+    the kind given when the caller knows it (a DLL and a package can share a name)."""
     low = name.lower()
-    return next((e for e in writer.entries() if requirements.entry_name(e["kind"], e).lower() == low), None)
+    return next(
+        (
+            e
+            for e in writer.entries()
+            if requirements.entry_name(e["kind"], e).lower() == low and kind in (None, e["kind"])
+        ),
+        None,
+    )
 
 
 def _value(row: dict | None, setting: str) -> tuple[bool, Any]:
@@ -433,7 +442,11 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
     effects: list[records.SideEffect] = []
     removes = [c for c in plan.changes if c.action == "remove"]
     found = [_find(writer, c.kind, c.key) for c in removes]
-    off = {requirements.entry_name(e["kind"], e) for e in found if e is not None and e["row"].get("enabled") is False}
+    off = {
+        (e["kind"], requirements.entry_name(e["kind"], e))
+        for e in found
+        if e is not None and e["row"].get("enabled") is False
+    }
     for e in sorted((e for e in found if e is not None), key=lambda e: e["index"], reverse=True):
         writer.remove_entry(e["index"])
     for c in plan.changes:
@@ -451,7 +464,7 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 value = _relative(writer.profile, str(v)) if k == "path" else v
                 effects.append(records.SideEffect(entry=name, setting=k, before=was, before_set=present, after=value))
                 _set_entry(writer, e["index"], k, value)
-                e = _entry_named(writer, name) or e
+                e = _entry_named(writer, name, e["kind"]) or e
         elif c.action == "add":
             row = dict(c.values)
             writer.add_entry(c.kind, row)
@@ -460,8 +473,8 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 effects.append(
                     records.SideEffect(entry=name, setting="added", before=None, before_set=False, after=True)
                 )
-    for name in sorted(off):  # an entry the player had switched off stays off when it is added again
-        e = _entry_named(writer, name)
+    for kind, name in sorted(off):  # an entry the player had switched off stays off when it is added again
+        e = _entry_named(writer, name, kind)
         if e is not None:
             _set_entry(writer, e["index"], "enabled", False)
     return effects
@@ -694,15 +707,15 @@ def _users(profile: Path, config: OverhaulConfig, own: Path, *, others: bool = T
 
 def apply_entries(preview: InstallPreview) -> dict:
     """Write only the profile part of a preview, for a profile that shares the overhaul's folder with one already
-    installed (the build is the same). Returns what an undo needs: {profile, before (its text), after (sha256)}.
+    installed (the build is the same). Returns what an undo needs: {profile, before_b64 (its bytes), after (sha256)}.
     Raises OverhaulError when the preview was refused."""
     p = preview
     if not p.ok or p.change is None:
         raise OverhaulError("; ".join(p.refusals) or "Nothing to apply.")
     data = p.change.bytes_to_write
-    before = p.change.read.decode("utf-8", errors="replace")
+    before = base64.b64encode(p.change.read).decode("ascii")  # the exact bytes: a profile need not be UTF-8
     p.writer.commit(p.change)
-    return {"profile": str(p.profile), "before": before, "after": hashlib.sha256(data).hexdigest()}
+    return {"profile": str(p.profile), "before_b64": before, "after": hashlib.sha256(data).hexdigest()}
 
 
 def own_folders(profile: Path, entries: list[dict], configs: Sequence[OverhaulConfig]) -> list[Path]:
@@ -782,10 +795,7 @@ def preview_remove(
     own = _own_of(profile, config, owned)
     where = places(profile, config.id, loc)
     effects_file = where.effects if where is not None else None
-    if own.exists() and same_folder(own, own_folder(profile, config)):
-        legacy = installer_setup(profile, config) is not None
-    else:  # its folder is gone, or elsewhere: a launcher install leaves its record
-        legacy = effects_file is None or not effects_file.is_file()
+    legacy = _installer_made(profile, config, own, effects_file)
     writer = ProfileWriter(profile)
     removed = []
     for e in sorted(owned, key=lambda e: e["index"], reverse=True):
@@ -827,6 +837,27 @@ def preview_remove(
             out.trash.append(own)  # last: once it is gone the removal counts as done
     out.lines = _remove_lines(out)
     return out
+
+
+def _installer_made(profile: Path, config: OverhaulConfig, own: Path, effects_file: Path | None) -> bool:
+    """The profile's overhaul was set up by its own installer (no launcher install made it)."""
+    if own.exists() and same_folder(own, own_folder(profile, config)):
+        return installer_setup(profile, config) is not None
+    return (
+        effects_file is None or not effects_file.is_file()
+    )  # its folder is gone, or elsewhere: a launcher install leaves its record
+
+
+def installer_made(profile: Path, *, loc: Locations, configs: Sequence[OverhaulConfig] | None = None) -> bool:
+    """The profile has an overhaul and its own installer set it up (Take over applies)."""
+    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    hit = overhaul_in(Path(profile), configs)
+    if hit is None:
+        return False
+    where = places(Path(profile), hit[0].id, loc)
+    return _installer_made(
+        Path(profile), hit[0], _own_of(Path(profile), hit[0], hit[1]), where.effects if where else None
+    )
 
 
 def _engine_previous(profile: Path, own: Path) -> Path | None:
@@ -1067,6 +1098,11 @@ def leftovers(profile: Path, *, loc: Locations, configs: Sequence[OverhaulConfig
             p = profile.parent / config.recognise.installer_backups
             if p.is_dir():
                 backups.append(Leftover(p, size_of(p), True))
+    # installers no config describes (a setup the player never saved a config for): by their manifests and files
+    listed = [x.path for x in out + backups]
+    for f in installer_leftovers.find(profile.parent):
+        if not any(same_folder(f.path, x) for x in listed):
+            (backups if f.backups else out).append(Leftover(f.path, size_of(f.path), f.backups))
     return out + backups
 
 
@@ -1163,7 +1199,10 @@ def setup_config(config: OverhaulConfig, folder: Path) -> OverhaulConfig:
     the steps follow the form), at the advanced level as it is."""
     if config.basic is None:
         return config
+    from roundtable_souls.config import layout
+
     return overhauls.basic.make(
+        reserved=layout.reserved_names(),
         id=config.id,
         label=config.label,
         game=config.game,
@@ -1204,9 +1243,9 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
     # its own config first: a folder another config also fits is still the one the player set up
     out = preview_install(profile, folder, loc=loc, configs=[made, *(c for c in configs if c.id != made.id)])
     if made.basic is not None:  # a file left out beside one of its DLLs may be what the DLL reads
-        beside = {PurePosixPath(n.file).parent for n in made.basic.natives}
+        beside = {str(PurePosixPath(n.file).parent).casefold() for n in made.basic.natives}
         for f, action in sorted(made.basic.files.items()):
-            if action == "leave" and PurePosixPath(f).parent in beside:
+            if action == "leave" and str(PurePosixPath(f).parent).casefold() in beside:
                 out.notes.append(f"{f} is left out, and a DLL of the mod is in the same folder: it may need it.")
     if path.is_file():
         out.notes.append(f"Your profile in {path.name} is replaced by this one (Undo puts the old one back).")
@@ -1214,14 +1253,34 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
 
 
 def install_setup(preview: InstallPreview, *, loc: Locations, log=lambda s: None) -> dict:
-    """Install as previewed (preview_setup), its config written in the same operation."""
+    """Install as previewed (preview_setup), its config written in the same operation (unless the file already holds
+    it)."""
     from roundtable_souls.overhauls import writer
 
     config = preview.found.config
     path = config_path(config)
     if path is None:
         raise OverhaulError("The launcher's data folder is not set.")
-    return install(preview, loc=loc, log=log, config_file=(path, writer.render(config).encode("utf-8")))
+    return install(
+        preview,
+        loc=loc,
+        log=log,
+        config_file=None if _saved_as(path, config) else (path, writer.render(config).encode("utf-8")),
+    )
+
+
+def _saved_as(path: Path, config: OverhaulConfig) -> bool:
+    """Whether the file already holds this config: it is then left as it is (a hand-edited file keeps its comments and
+    order)."""
+    import tomllib
+
+    try:
+        return (
+            OverhaulConfig.model_validate(tomllib.loads(path.read_text(encoding="utf-8"))).model_dump()
+            == config.model_dump()
+        )
+    except OSError, ValueError:
+        return False
 
 
 @dataclass

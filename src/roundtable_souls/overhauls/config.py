@@ -28,7 +28,7 @@ import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from pydantic_core import ErrorDetails
 
 from roundtable_souls.resources import DATA_DIR
@@ -279,6 +279,20 @@ class Health(_Strict):
 
 
 # ----------------------------------------------------------------------------- the basic level
+def _relative(path: str) -> str:
+    """A path inside a folder: forward slashes, no "..", not absolute, no drive letter (a download and a TOML are
+    not trusted)."""
+    if (
+        not path
+        or "\\" in path
+        or path.startswith("/")
+        or ":" in path
+        or any(part in ("", ".", "..") for part in path.split("/"))
+    ):
+        raise ValueError(f"{path!r} must be a path inside the folder (forward slashes, no '..', not absolute).")
+    return path
+
+
 class BasicNative(_Strict):
     """One of the mod's DLLs, as the Overhaul setup form sets it."""
 
@@ -288,13 +302,33 @@ class BasicNative(_Strict):
     after_others: bool = True  # loads after every other enabled DLL in the profile
 
 
+def _inside(path: str) -> str:
+    """The path when it is relative and stays inside its folder (no .., drive letter or leading slash)."""
+    p = path.replace("\\", "/")
+    if not p or p.startswith("/") or ":" in p or ".." in p.split("/"):
+        raise ValueError(f"{path!r} must be a path inside the mod's folder (no .., drive letter or leading slash)")
+    return path
+
+
 class BasicText(_Strict):
     """Strings of a JSON file (text ID to string) set in a table of a message binder, merged on top of the packages
     before it: becomes a "text" step."""
 
     file: str  # the binder's game path; {each} is every text language of the game
-    table: str  # the table in it, for example eventtextfortalk.fmg
+    table: str = ""  # the table in it (any case), for example EventTextForTalk.fmg; "" until the form's choice
     texts: dict[str, str]  # language folder (or "*" for the rest) -> the JSON file in the mod's folder
+
+    @field_validator("file")
+    @classmethod
+    def _file_inside(cls, v: str) -> str:
+        return _inside(v)
+
+    @field_validator("texts")
+    @classmethod
+    def _texts_inside(cls, v: dict[str, str]) -> dict[str, str]:
+        for name in v.values():
+            _inside(name)
+        return v
 
 
 class Basic(_Strict):
@@ -315,6 +349,23 @@ class Basic(_Strict):
     # which the form no longer writes (an older file, or a proposal, may still have them).
     files: dict[str, str] = Field(default_factory=dict)
     health: list[Health] = Field(default_factory=list)  # logs read after a run (the same as the config's own)
+
+    @field_validator("place")
+    @classmethod
+    def _place_inside(cls, v: dict[str, str]) -> dict[str, str]:
+        for k, to in v.items():
+            _relative(k)
+            _relative(to)
+        return v
+
+    @field_validator("files")
+    @classmethod
+    def _files_inside(cls, v: dict[str, str]) -> dict[str, str]:
+        for k, act in v.items():
+            _relative(k)
+            if act.startswith("place:"):
+                _relative(act[6:])
+        return v
 
 
 # ----------------------------------------------------------------------------- the config

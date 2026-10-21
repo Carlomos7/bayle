@@ -43,6 +43,15 @@ _ILLEGAL = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 # Names the launcher uses for its own folders: no mod id may take them.
 RESERVED = frozenset({"combined-parameters", "profiles", "packages", "natives", "overhauls", "sources", "builds"})
 
+
+def reserved() -> frozenset[str]:
+    """RESERVED plus the folder names Settings > Locations gives the launcher's packages and natives folders."""
+    from roundtable_souls.config.layout import layout
+
+    lay = layout()
+    return RESERVED | {lay.packages.lower(), lay.natives.lower()}
+
+
 # How long a path may get. Windows refuses most paths of 260 characters or more; the launcher keeps the deepest file
 # below what it adds under MAX_PATH, and assumes ROOM characters for a mod's files while they are not known yet.
 MAX_PATH = 220
@@ -78,7 +87,7 @@ def unsafe(name: str) -> str | None:
 def unique(ident: str, taken: Iterable[str]) -> str:
     """`ident`, or `ident`-2, -3, ... when it is taken (case aside) or is one of the launcher's reserved names; the
     result stays within ID_LENGTH characters."""
-    used = {t.lower() for t in taken} | RESERVED
+    used = {t.lower() for t in taken} | reserved()
     if ident.lower() not in used:
         return ident
     n = 2

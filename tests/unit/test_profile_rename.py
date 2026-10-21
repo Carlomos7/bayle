@@ -198,8 +198,8 @@ def test_an_older_launchers_rollback_cannot_delete_a_folder(world):
 
 def test_duplicate_and_its_undo(world, monkeypatch):
     loc, root, lib, a, b = world
-    with pytest.raises(ProfileRenameError):  # a has its own build folder: not copied yet
-        profile_rename.duplicate(a, loc=loc)
+    with_builds = profile_rename.duplicate(a, loc=loc)  # a's build folder is copied with it
+    assert (Path(with_builds["profile"]).parent / "builds" / "combined-parameters" / "build.json").is_file()
     (b.parent / "mod" / "hair").mkdir(parents=True)
     (b.parent / "mod" / "hair" / "h.dcx").write_bytes(b"hair")
     out = profile_rename.duplicate(b, loc=loc)

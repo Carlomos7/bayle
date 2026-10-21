@@ -140,6 +140,7 @@ class Pick:
     body: str
     apply: str
     none: str = ""
+    ticked: tuple[int, ...] = ()  # rows ticked at first
 
 
 @dataclass(frozen=True)
@@ -153,6 +154,8 @@ class OverhaulMenu:
     can_remove: bool
     clean: str
     can_clean: bool
+    take_over: str = ""
+    can_take_over: bool = False
 
 
 # ----------------------------------------------------------------------------- the presenter
@@ -381,6 +384,7 @@ class ModsPresenter:
                 facts.folder,
                 len(facts.loose_dlls),
                 duplicated,
+                facts.outside,
             ),
         )
 
@@ -628,6 +632,7 @@ class ModsPresenter:
         folder: profile_mods.folder_check.FolderCheck | None = None,
         loose_dlls: int = 0,
         duplicated: tuple[int, int] = (0, 0),
+        outside: bool = False,
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -728,6 +733,16 @@ class ModsPresenter:
                     ),
                     tr("Move into this profile...") if seamless == "move" else tr("Clean up the game folder..."),
                     True,
+                )
+            )
+        if outside:
+            out.append(
+                Notice(
+                    "outside",
+                    "info",
+                    tr("This profile is outside Bayle's folder, so Bayle can't manage its layout."),
+                    tr("Move in..."),
+                    False,
                 )
             )
         if duplicated[1] > shared_mods.HINT_BYTES:
@@ -1036,9 +1051,11 @@ class ModsPresenter:
             visible=on,
             install=tr("Install an overhaul with the launcher (preview)..."),
             remove=tr("Remove {label}...").format(label=has["label"]) if has else tr("Remove overhaul..."),
-            can_remove=has is not None,
+            can_remove=has is not None and has.get("removable", True),
             clean=tr("Clean up installer leftovers..."),
             can_clean=leftovers,
+            take_over=tr("Take over {label}...").format(label=has["label"]) if has else tr("Take over overhaul..."),
+            can_take_over=bool(has and has.get("takeover")),
         )
 
     def overhaul_folder_title(self) -> str:

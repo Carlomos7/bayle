@@ -13,6 +13,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from roundtable_souls.coop import scaling as coop_scaling
 from roundtable_souls.formats import config_model
+from roundtable_souls.overhauls import basic
 from roundtable_souls.services import mod_configs
 from roundtable_souls.services import mods as mod_service
 from roundtable_souls.ui.models import plain
@@ -526,12 +527,12 @@ class ModConfigsAdapter(QObject):
     # ---- the Overhaul setup (S7d): the profile's overhaul as a form, turned off, or a mod set up as one
     def _new_ov(self, setup: dict, mod: dict | None) -> dict:
         """The form's state for a setup: the choices the mod's files give and the values as the config has them."""
-        choices = mod_configs.overhaul_choices(setup)
+        loc = self.host.locations
+        choices = mod_configs.overhaul_choices(setup, loc.game_dir() if loc is not None else None)
         values = {
             "natives": choices["natives"],
-            "files": {
-                r["file"]: f"place:{r['target']}" if r["action"] == "place" else r["action"] for r in choices["files"]
-            },
+            "files": {r["file"]: basic.encode_action(r["action"], r["target"]) for r in choices["files"]},
+            "tables": {t["file"]: t["table"] for t in choices["texts"]},
         }
         values["health"] = mod_configs.health_form(setup["config"])
         return {
@@ -567,14 +568,12 @@ class ModConfigsAdapter(QObject):
         elif kind == "init" and native is not None:
             native["initializer"] = value.strip() or None
         elif kind == "file":  # a choice of the Files table; placing keeps the path typed before
-            was = values["files"].get(name, "")
-            values["files"][name] = (
-                f"place:{was[6:]}"
-                if value == "place" and was.startswith("place:")
-                else ("place:" if value == "place" else value)
-            )
+            target = basic.decode_action(values["files"].get(name, ""))[1]
+            values["files"][name] = basic.encode_action(value, target)
+        elif kind == "table":
+            values["tables"][name] = value
         elif kind == "target":
-            values["files"][name] = f"place:{value.strip()}"
+            values["files"][name] = basic.encode_action("place", value.strip())
         elif kind == "health" and name in values["health"]:
             values["health"][name] = value
             values["health_touched"] = True
@@ -590,6 +589,7 @@ class ModConfigsAdapter(QObject):
             natives=values["natives"],
             files=mod_configs.files_to_store(ov["choices"]["files"], values["files"]),
             health=mod_configs.health_of_form(values["health"]) if values.get("health_touched") else None,
+            tables=values["tables"],
         )
 
     def _saved(self, node_key: str, said: str) -> None:
@@ -603,7 +603,7 @@ class ModConfigsAdapter(QObject):
             return
         try:
             config = self._with_values()
-        except ValueError as e:  # a "re:" text that is not a regular expression
+        except ValueError as e:  # a texts entry with no table chosen, or a "re:" text that is not a regular expression
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         if ov["new"]:
@@ -616,12 +616,18 @@ class ModConfigsAdapter(QObject):
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         self._saved(self._node.key, self.presenter.saved_text(setup["path"].name))
-        self._reapply()
+        self._reapply(config.id)
 
-    def _reapply(self) -> None:
+    def _reapply(self, overhaul_id: str) -> None:
         """The saved setup, installed again in the profiles using it (their entries are the install's, not the file's)."""
         profile = self._profile
-        if profile is None or self.host.busy:
+        if profile is None:
+            return
+        if self.host.busy:
+            self.notifier.toast(
+                tr("Saved, but not applied to the profiles yet: wait for the current job, then save again."),
+                error=True,
+            )
             return
 
         def job(_launch, loc):
@@ -629,7 +635,7 @@ class ModConfigsAdapter(QObject):
 
             run_logging.start_log("launcher: apply the saved overhaul setup", loc.game.key)
             try:
-                mod_service.reapply_overhaul_setup(profile, loc=loc)
+                mod_service.reapply_overhaul_setup(profile, overhaul_id, loc=loc)
             except Exception as e:
                 run_logging.log(f"error: {e}")
                 raise SystemExit(1) from e
@@ -644,7 +650,7 @@ class ModConfigsAdapter(QObject):
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         self._saved(self._node.key if self._node else "overhaul", self.presenter.saved_text(opened.path.name))
-        self._reapply()
+        self._reapply(config.id)
 
     def _start_new(self, config, mod: dict) -> None:
         """Show the proposal for a mod as a new setup (nothing is written until Save is confirmed)."""

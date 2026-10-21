@@ -94,7 +94,7 @@ folder. Steps, in order:
 | `copy_tree`, `copy` | Files of the download (`from`) into the output (`to`) as they are. |
 | `config` | A settings file of the player's: kept when it is there, with only the keys a newer default adds; else the default. |
 | `merge` | One file merged by the launcher: the last package before it that ships `file`, then the mod's copy (`patch`), against the game's copy (archives file by file, text entry by entry); with no package shipping it, the mod's copy as it is. |
-| `text` | A text archive: the mod's strings (`texts`, a JSON object of text ID to string, by `each` folder, `*` for the rest) set in its `table` of the game's own copy, then merged like `merge`. A file the game's archives lack stops the build (the launcher never falls back to a copy in the download). |
+| `text` | A text archive: the mod's strings (`texts`, a JSON object of text ID to string, by `each` folder, `*` for the rest) set in its `table` (the table's file name in the binder, any case) of the game's own copy, then merged like `merge`. A file the game's archives lack stops the build (the launcher never falls back to a copy in the download). |
 | `params` | `regulation.bin`: the launcher's row-by-row combine of that package's copy and the mod's (`patch`) against the game's. |
 | `hook` | A script fragment: the packages' own `folder` (for example `action/script`) copied in load order, then `fragment` appended to `entry` (the last package's copy, or `base` up to `base_until` when no package has one). Several `hook` steps for one entry are appended in their order, each wrapping the one before (a fragment that keeps the current `Update` and defines its own wraps the previous hook's). `markers` lists text that means the script already contains the fragment, which is refused (`refuse_text` says why). A compiled entry script (Lua bytecode) is refused, and so is a result that does not compile as Lua 5.1 (checked, never run; the message names the file, the line and the mod whose part it is); packages shipping different entry scripts are a clash, recorded in the report. The report also warns about calls of functions defined nowhere the game looks (the script, the game's shared scripts, the game's own functions) and `env`/`act` IDs the game doesn't handle; `natives` lists the functions the mod's own DLL gives the script (`"ExampleNative"`, or a prefix `"Example*"`), which are then not reported; nor are calls the script makes only after testing the function is there
 (`type(F) == "function"`, `F ~= nil`). A `0x…hl` number is refused: the game never compiles one. Code is never
@@ -265,13 +265,27 @@ skip = ["settings/vanilla"]      # files or folders of the download left out
 "settings/m00.talkesdbnd.dcx" = "script/talk/m00.talkesdbnd.dcx"
 [[basic.texts]]                  # strings of a JSON file set in a message binder of the game, merged on top
 file = "msg/{each}/menu_dlc02.msgbnd.dcx"   # {each}: every text language of the game
-table = "eventtextfortalk.fmg"
+table = "EventTextForTalk.fmg"  # the table file inside the binder, any case; the form asks when a download leaves it open
 texts = { rusru = "settings/rusru.json", "*" = "settings/engus.json" }
 ```
 
 What each of the mod's files becomes (the form's **Files** table shows each file with this choice and lets the player
 change it: `files` stores only the differences, as `merge`, `whole` (copy as it is), `keep`, `copy`, `leave` or
-`place:<game path>`; it wins over `keep`, `not_merged`, `place` and `skip`):
+`place:<game path>`; it wins over `keep`, `not_merged`, `place` and `skip`, the older lists):
+
+- The older lists still work in a file that has them. An entry whose action the file's kind cannot have (a `keep` for
+  a file in a game folder) is ignored, as it always was. Saving the form folds the lists into `files` and drops them;
+  when the form cannot show the Files table (the launcher's copy of the download is gone) saving keeps the lists
+  and `files` as they are.
+- A `files` or `place` entry naming a file a newer download no longer has is dropped (and said); a DLL or a texts file
+  that is gone is an error.
+- Paths in `files` (keys and `place:` targets) and in `place` (keys and values) must stay inside their folder: forward
+  slashes, no `..`, not absolute, no drive letter. A config that breaks this does not load, and the build refuses any
+  step path that leaves the download's folder or the build's.
+- An overhaul's `id` can't be a folder name the launcher uses (`packages`, `natives`, `mod`, `.roundtable`, ..., or the
+  names set in Settings > Locations).
+- Applying a saved setup to the profiles leaves the config file as it is when it already holds the setup, so a
+  hand-edited file keeps its comments and order.
 
 - `regulation.bin`: `params`, combined on top of the packages before it;
 - a binder in a game folder (`*bnd.dcx`: animations, behaviours, parts, text, talk scripts, ...): `merge`, on top of

@@ -329,6 +329,18 @@ class ModConfigsPresenter:
                         ],
                     }
                 )
+        if basic_level and config.basic.texts:
+            sections.append(
+                {
+                    "title": tr("Texts"),
+                    "rows": [
+                        self._texts_row(
+                            t, next((c for c in choices.get("texts", []) if c["file"] == t.file), None), values
+                        )
+                        for t in config.basic.texts
+                    ],
+                }
+            )
         if basic_level:
             sections.append(self.health_section(values.get("health") or {}))
         if verified:
@@ -366,6 +378,26 @@ class ModConfigsPresenter:
         ]
         rows[1]["blurb"] = tr("Plain text; start with re: for a regular expression.")
         return {"title": tr("Check a log after each run"), "rows": rows}
+
+    def _texts_row(self, t, choice: dict | None, values: dict) -> dict[str, Any]:
+        """One [[basic.texts]] entry: where the strings go and which file each language uses (the blurb), and the table
+        to set them in as a choice among the tables of the download's copy (a read-only summary when there are none)."""
+        tables = (choice or {}).get("tables") or []
+        shown = values.get("tables", {}).get(t.file, t.table)
+        per = [(tr("other languages") if k == "*" else k) + ": " + v for k, v in t.texts.items()]
+        label = tr("Texts in {file}").format(file=t.file)
+        if tables:
+            row = self._ov_row("texts", "table:" + t.file, label + " - " + tr("table"), "choice", shown)
+            row["choices"] = [{"value": "", "label": tr("(choose a table)")}] if not shown else []
+            row["choices"] += [{"value": n, "label": n} for n in tables]
+        else:
+            row = self._ov_row(
+                "texts", "table:" + t.file, label + " - " + tr("table {table}").format(table=shown), "readonly", ""
+            )
+        row["blurb"] = "; ".join(per)
+        if "*" not in t.texts:
+            row["blurb"] += ". " + tr("A language with no file of its own is left as it is.")
+        return row
 
     def file_rows(self, r: dict, action: str) -> list[dict[str, Any]]:
         """The Files table's rows for one file: its choice, and for a placed file the game path it goes to."""

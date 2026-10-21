@@ -2,6 +2,7 @@
 undone as a whole when interrupted, taken back as a set. Temporary folders only."""
 
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -135,7 +136,7 @@ def test_an_interrupted_install_is_undone_wherever_its_journal_is(profile, tmp_p
     Play and is undone on the next start, as one in the profile's .bayle/ops is."""
 
     def before_3_23(prof, what):
-        op = B.Operation(Path(prof).parent, what)
+        op = B.Operation(Path(prof).parent, what, ops=B.LEGACY_OPS)
         op.note(profile=str(Path(prof)))
         return op
 
@@ -684,3 +685,30 @@ def test_renaming_makes_the_merged_build_stale_without_touching_its_record_and_n
     do_rename(w.profile, "params", "params2")
     assert record.read_bytes() == kept
     assert merge.needs_update(w.profile, loc=er()) is not None
+
+
+def test_the_old_name_ops_folder_and_lock_are_retired_safely(profile):
+    """Safety (players' files): an old .roundtable-ops folder moves into .bayle/ops (finished entries kept, none
+    overwritten, an unfinished one undone first), and its lock is removed only when nobody holds it."""
+    from roundtable_souls.platform import filelock
+
+    root = profile.parent
+    done = B.Operation(root, "install", ops=B.LEGACY_OPS)
+    done.state = B.ACTIVE
+    done._save()
+    (root / ".bayle/ops" / done.id).mkdir(parents=True)  # same id already there: it is not overwritten
+    (root / ".bayle/ops" / done.id / "keep").write_text("x")
+    kept = B.Operation(root, "install", op_id="20200101-000000-aaaaaa", ops=B.LEGACY_OPS)
+    kept.state = B.ACTIVE
+    kept._save()
+    (root / ".roundtable-ops.lock").write_bytes(b"")
+    with filelock.locked(root / B.LEGACY_OPS, 5) as got:  # held by someone: nothing is touched
+        assert got and B.adopt_legacy_ops(root) == [] and (root / B.LEGACY_OPS).is_dir()
+        assert (root / ".roundtable-ops.lock").exists()
+    B.adopt_legacy_ops(root)
+    assert not (root / B.LEGACY_OPS / kept.id).exists() and (root / B.OPS / kept.id / B.OP_JOURNAL).is_file()
+    assert (root / B.OPS / done.id / "keep").exists() and (root / B.LEGACY_OPS / done.id).is_dir()  # left, not lost
+    assert (root / B.LEGACY_OPS).is_dir() and (root / ".roundtable-ops.lock").exists()  # not empty: lock stays
+    shutil.rmtree(root / B.LEGACY_OPS / done.id)
+    B.adopt_legacy_ops(root)
+    assert not (root / B.LEGACY_OPS).exists() and not (root / ".roundtable-ops.lock").exists()

@@ -245,6 +245,10 @@ natives = [{ file = "MyMod.dll", load_early = false, after_others = true }]  # i
 skip = ["settings/vanilla"]      # files or folders of the download left out
 [basic.place]                    # a file outside the game folders meant for a game path (merged there)
 "settings/m00.talkesdbnd.dcx" = "script/talk/m00.talkesdbnd.dcx"
+[[basic.texts]]                  # strings of a JSON file set in a message binder of the game, merged on top
+file = "msg/{each}/menu_dlc02.msgbnd.dcx"   # {each}: every text language of the game
+table = "eventtextfortalk.fmg"
+texts = { rusru = "settings/rusru.json", "*" = "settings/engus.json" }
 ```
 
 What each of the mod's files becomes (the form's **Files** table shows each file with this choice and lets the player
@@ -259,6 +263,7 @@ change it: `files` stores only the differences, as `merge`, `whole` (copy as it 
 - a file listed in `place`: `merge` at that game path (or copied there when it is in `not_merged` or not a binder);
   the form proposes one for a loose binder named like a file in a folder of copies of the game's files, and leaves
   that folder out (`skip`);
+- `texts`: a `text` step per entry, the JSON files are not copied;
 - a download whose game files all sit in one top folder (`payload/mod/...`, whatever it is called) is read with that
   folder as the package root, so its paths are the game's own;
 - a settings file listed in `keep`: `config`;

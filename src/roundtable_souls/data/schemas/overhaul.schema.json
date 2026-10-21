@@ -88,6 +88,13 @@
      "title": "Place",
      "type": "object"
     },
+    "texts": {
+     "items": {
+      "$ref": "#/$defs/BasicText"
+     },
+     "title": "Texts",
+     "type": "array"
+    },
     "skip": {
      "items": {
       "type": "string"
@@ -141,6 +148,34 @@
     "file"
    ],
    "title": "BasicNative",
+   "type": "object"
+  },
+  "BasicText": {
+   "additionalProperties": false,
+   "description": "Strings of a JSON file (text ID to string) set in a table of a message binder, merged on top of the packages\nbefore it: becomes a \"text\" step.",
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "table": {
+     "title": "Table",
+     "type": "string"
+    },
+    "texts": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Texts",
+     "type": "object"
+    }
+   },
+   "required": [
+    "file",
+    "table",
+    "texts"
+   ],
+   "title": "BasicText",
    "type": "object"
   },
   "Build": {

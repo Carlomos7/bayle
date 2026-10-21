@@ -11,6 +11,8 @@ What each of the mod's files becomes (make):
     a settings file the form keeps      config: the player's copy kept on updates, new keys added
     a file the form places              a file outside the game folders meant for a game path (Basic.place): merged
                                         there like a binder in a game folder, or copied (the form can untick it)
+    a text list the form names          strings of a JSON file set in a message binder of the game and merged on top
+                                        of the packages before it (Basic.texts)
     anything else                       copied into its own folder at the same path (its DLLs, their data)
     installers, .me3, empty files       left out: nothing of the mod's runs, and a profile is the player's
 
@@ -29,10 +31,13 @@ from pathlib import Path
 from roundtable_souls.game import catalog as games
 from roundtable_souls.game import config as game_config
 from roundtable_souls.overhauls.config import (
+    AddText,
     Basic,
     BasicNative,
+    BasicText,
     Build,
     Copy,
+    Each,
     Initializer,
     Install,
     InstallNative,
@@ -212,6 +217,11 @@ def _placed(f: str, to: str, whole: bool) -> Step:
     return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{to}")
 
 
+def _text(t: BasicText) -> Step:
+    each = Each(game="languages") if "{each}" in t.file else None
+    return AddText(do="text", file=t.file, table=t.table, texts=t.texts, each=each)
+
+
 def make(
     *, id: str, label: str, game: str, basic: Basic, folder: Path, short_label: str | None = None
 ) -> OverhaulConfig:
@@ -225,7 +235,8 @@ def make(
     everything = files_of(folder)
     root = package_root(everything, folders, regulation)
     have = {f.lower() for f in everything}
-    named = [*(n.file for n in basic.natives), *basic.place, *basic.files]
+    texts_from = {v.lower() for t in basic.texts for v in t.texts.values()}
+    named = [*(n.file for n in basic.natives), *basic.place, *basic.files, *texts_from]
     for name in named:
         if name.lower() not in have:
             raise ValueError(f"{name} is not in the mod's folder.")
@@ -255,11 +266,14 @@ def make(
         if act.startswith("place:")
         else _step(f, kind, act, regulation, root)
         for f, (kind, act) in acts.items()
-    ]
-    files = list(acts)
+        if f.lower() not in texts_from
+    ] + [_text(t) for t in basic.texts]
+    files = [f for f in acts if f.lower() not in texts_from]
     if not steps:
         raise ValueError("The mod's folder has no files to set up.")
-    in_package = any(s.do in ("params", "merge") or (s.do == "copy" and s.to.startswith(f"{PACKAGE}/")) for s in steps)
+    in_package = any(
+        s.do in ("params", "merge", "text") or (s.do == "copy" and s.to.startswith(f"{PACKAGE}/")) for s in steps
+    )
     dlls = [n.file.lower().rsplit("/", 1)[-1] for n in basic.natives]
     install = Install(
         owned_package_ids=[id] if in_package else [],

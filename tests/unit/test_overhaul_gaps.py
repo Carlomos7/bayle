@@ -255,3 +255,72 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
     assert mod_service.reapply_overhaul_setup(world.profile, loc=world.loc) == ["my.me3"]
     entry = world.data()["natives"][-1]
     assert entry["initializer"] == {"function": "Boot"} and entry["load_early"] is True
+
+
+# ----------------------------------------------------------------------------- gap 3: texts from a JSON file
+def texts_setup(world, texts: dict[str, str]):
+    from roundtable_souls.overhauls.config import BasicText
+
+    folder = revive_shaped(world)
+    (folder / "settings/en.json").write_text('{"99002000": "Session settings"}', encoding="utf-8")
+    (folder / "settings/ru.json").write_text('{"99002000": "ru"}', encoding="utf-8")
+    entry = BasicText(file="msg/{each}/menu_dlc02.msgbnd.dcx", table="eventtextfortalk.fmg", texts=texts)
+    b = basic.propose(folder, game="eldenring").model_copy(update={"texts": [entry]})
+    return folder, basic.make(id="revive", label="Revive", game="eldenring", basic=b, folder=folder)
+
+
+def test_texts_from_json_files_are_set_in_each_languages_binder_and_the_files_are_not_copied(world):
+    from roundtable_souls.mods import overhaul_install
+
+    folder, config = texts_setup(world, {"rusru": "settings/ru.json", "*": "settings/en.json"})
+    (step,) = [s for s in config.builds[0].steps if s.do == "text"]
+    assert step.each is not None and step.each.game == "languages"
+    assert not any(s.do == "copy" and s.from_.endswith((".json",)) for s in config.builds[0].steps)
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    assert p.ok, p.refusals
+    overhaul_install.install_setup(p, loc=world.loc)
+    out = world.base / "revive/mod/msg"
+    assert (out / "engus/menu_dlc02.msgbnd.dcx").is_file() and (out / "rusru/menu_dlc02.msgbnd.dcx").is_file()
+
+
+def test_a_language_with_no_texts_is_left_alone_and_said(world):
+    from roundtable_souls.mods import overhaul_install
+
+    folder, config = texts_setup(world, {"rusru": "settings/ru.json"})
+    overhaul_install.install_setup(
+        overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc), loc=world.loc
+    )
+    assert (world.base / "revive/mod/msg/rusru/menu_dlc02.msgbnd.dcx").is_file()
+    assert not (world.base / "revive/mod/msg/engus/menu_dlc02.msgbnd.dcx").exists()
+    report = (world.base / "revive/merge-report.txt").read_text(encoding="utf-8")
+    assert "msg/engus/menu_dlc02.msgbnd.dcx: the mod has no texts for this language" in report
+
+
+def test_malformed_texts_stop_the_install_and_write_nothing(world):
+    from roundtable_souls.mods import overhaul_install
+
+    folder, config = texts_setup(world, {"*": "settings/en.json"})
+    (folder / "settings/en.json").write_text('{"not a number": "x"}', encoding="utf-8")
+    before = world.profile.read_bytes()
+    p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
+    with pytest.raises(Exception, match="not a JSON object of text IDs"):
+        overhaul_install.install_setup(p, loc=world.loc)
+    assert world.profile.read_bytes() == before and not (world.base / "revive").exists()
+
+
+def test_a_texts_file_the_mod_does_not_have_is_refused_and_the_form_keeps_the_texts(world):
+    from roundtable_souls.overhauls.config import BasicText
+    from roundtable_souls.services import mod_configs
+
+    folder, config = texts_setup(world, {"*": "settings/en.json"})
+    gone = BasicText(file="msg/engus/m.msgbnd.dcx", table="t.fmg", texts={"*": "settings/none.json"})
+    with pytest.raises(ValueError, match="none.json is not in the mod's folder"):
+        basic.make(
+            id="revive",
+            label="R",
+            game="eldenring",
+            folder=folder,
+            basic=config.basic.model_copy(update={"texts": [gone]}),
+        )
+    saved = mod_configs.with_basic(config, natives=[], files={})
+    assert saved.basic.texts == config.basic.texts

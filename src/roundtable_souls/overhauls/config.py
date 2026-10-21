@@ -266,6 +266,15 @@ class BasicNative(_Strict):
     after_others: bool = True  # loads after every other enabled DLL in the profile
 
 
+class BasicText(_Strict):
+    """Strings of a JSON file (text ID to string) set in a table of a message binder, merged on top of the packages
+    before it: becomes a "text" step."""
+
+    file: str  # the binder's game path; {each} is every text language of the game
+    table: str  # the table in it, for example eventtextfortalk.fmg
+    texts: dict[str, str]  # language folder (or "*" for the rest) -> the JSON file in the mod's folder
+
+
 class Basic(_Strict):
     """What the Overhaul setup form sets (overhauls.basic derives the rest of the config from it and the mod's
     files). The config's recognise and builds are written beside it; it loads last whatever is set here."""
@@ -277,6 +286,7 @@ class Basic(_Strict):
     # Files outside the game folders meant for a game path: file in the mod's folder -> the game path it is merged
     # at (copied there when it is in not_merged or is not a binder).
     place: dict[str, str] = Field(default_factory=dict)
+    texts: list[BasicText] = Field(default_factory=list)  # text lists set in the game's message binders
     skip: list[str] = Field(default_factory=list)  # files or folders of the download left out
     # What the Files table of the form sets for a file where it differs from what the setup does by itself:
     # merge | whole | keep | copy | leave | place:<game path>. It wins over keep, not_merged, place and skip above,

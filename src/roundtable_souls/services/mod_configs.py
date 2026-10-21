@@ -279,6 +279,7 @@ def with_basic(config, *, natives: list[dict], files: dict[str, str]):
         version=old.version if old is not None else None,
         natives=[BasicNative(**n) for n in natives],
         files=files,
+        texts=old.texts if old is not None else [],
     )
     return config.model_copy(update={"basic": new})
 

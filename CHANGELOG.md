@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-10-21
+
+Mods can be shared between profiles to save space, DLL mods get folders of their own, and the window has a single
+title row.
+
+### Highlights
+
+- **Shared mods:** share a game-file mod between profiles to store it once. Each profile stays on its own version
+  until you choose Update here or Update everywhere.
+- **DLL mods in their own folders:** a notice offers to move loose DLLs into folders of their own, with their
+  settings files.
+- **One window row:** the menus, the title and the window buttons share one row, with Windows snapping kept.
+
+### Added
+
+- **Shared mods:** Share, Use in other profiles… and Use a separate copy on a mod's menu, a Shared mods window
+  listing versions and who uses them, Remove unused versions, and a hint when duplicated mods take over 1 GB.
+- **Install:** when another profile has the same mod, choose Keep separate or Share. A new version of a shared mod
+  offers Update here or Update everywhere.
+- **Duplicate:** choose to copy the mods or share them with the original.
+- **DLL mods:** Put in folders moves a DLL that isn't in its own folder, with its own settings files. Undo it in
+  Activity.
+
+### Changed
+
+- **Install:** a DLL's folder keeps the DLL's own spelling (`natives\UnlockTheFps\`).
+- **Combine:** for a profile with its own folder, merged parameters go to `builds\combined-parameters`.
+- **Split into folders:** uses `packages` for each new profile.
+- **Rename, Move into the launcher's folder, Split:** paths to the profile's own files are written as relative
+  paths, so they keep working when the folder moves.
+- **Releases:** the notes on GitHub are this changelog's section for the version.
+
 ## [4.2.0] - 2026-10-21
 
 Each profile now has a folder of its own with its own mods, kept per game in one folder the launcher owns. Profiles

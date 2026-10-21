@@ -284,3 +284,21 @@ def test_every_string_goes_through_tr():
         assert ModsPresenter().open_window_text == "OPEN NEW MODS WINDOW"
     finally:
         text.install(None)
+
+
+def test_a_misnamed_or_crowded_folder_gets_one_plain_notice():
+    check = profile_mods.folder_check
+    mis = ModsPresenter().page(facts(folder=check.FolderCheck(check.MISNAMED, "old", (PROFILE,))), scan())
+    note = next(n for n in mis.notices if n.key == "folder")
+    assert note.text == "This profile's folder is named 'old'. Rename it to match the profile?"
+    assert note.action == "Rename folder"
+    crowd = ModsPresenter().page(facts(folder=check.FolderCheck(check.CROWDED, "pack", (PROFILE, PROFILE))), scan())
+    note = next(n for n in crowd.notices if n.key == "folder")
+    assert note.text == "This folder holds 2 profiles. Each profile needs its own folder."
+    assert note.action == "Split into folders"
+    for kind in (check.OK, check.OUTSIDE):  # nothing to say
+        assert not [
+            n for n in ModsPresenter().page(facts(folder=check.FolderCheck(kind)), scan()).notices if n.key == "folder"
+        ]
+    title, changes, safety, button = ModsPresenter.split_confirm(3, 2, 1)
+    assert changes == ["3 profiles, 2 mods copied, 1 moved."] and safety == "Undo in Activity." and button == "Split"

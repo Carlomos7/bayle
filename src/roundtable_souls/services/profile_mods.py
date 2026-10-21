@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
+from roundtable_souls.mods import folder_check, profile_edit, profile_writer
 from roundtable_souls.mods import order as mod_order
-from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods import rename as mod_rename
@@ -361,6 +361,9 @@ class PageFacts:
     online_with: str = ""  # the package whose parameters the profile goes online with (game_checks.online_risk)
     fingerprint: game_checks.Fingerprint | None = None  # the parameters the game will use (co-op partners compare)
     regulation: str = games.REGULATION  # the game's parameters file name
+    folder: folder_check.FolderCheck = (
+        folder_check.FolderCheck()
+    )  # whether the profile's folder is named and used right
 
 
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
@@ -416,7 +419,15 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         online_with=risk.source if (risk := game_checks.online_risk(prof, loc)) is not None else "",
         fingerprint=game_checks.regulation_fingerprint(prof, loc),
         regulation=loc.game.regulation,
+        folder=_folder_check(prof, loc),
     )
+
+
+def _folder_check(profile: Path, loc: Locations) -> folder_check.FolderCheck:
+    try:
+        return folder_check.check(profile, loc)
+    except OSError, ValueError:
+        return folder_check.FolderCheck()
 
 
 # ----------------------------------------------------------------------------- rebuilding the combined parameters

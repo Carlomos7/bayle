@@ -129,6 +129,8 @@ class UndoPlan:
                 if u.get("type") == "profile-duplicate"
                 else f"launcher: undo the move of {name}"
                 if u.get("type") == "profile-move-in"
+                else f"launcher: undo the folder change of {name}"
+                if u.get("type") in ("folder-rename", "folder-split")
                 else f"launcher: restore {name}",
                 loc.game.key,
             )
@@ -514,6 +516,23 @@ class ActivityPresenter:
                 tr("If the profile changed since, everything is left as it is and you are told why."),
                 tr("Undo move"),
                 tr("Undoing the move..."),
+                u,
+                job_id,
+                name,
+            )
+        if u.get("type") in ("folder-rename", "folder-split"):
+            name = u.get("name") or tr("the profile")
+            split = u.get("type") == "folder-split"
+            return UndoPlan(
+                (tr("Undo the split of {name}") if split else tr("Undo the folder rename of {name}")).format(name=name),
+                (
+                    tr("The profiles and their mods go back into the old folder")
+                    if split
+                    else tr("The folder goes back to its old name"),
+                ),
+                tr("If a profile changed since, nothing is changed and you are told why."),
+                tr("Undo split") if split else tr("Undo rename"),
+                tr("Undoing the split...") if split else tr("Undoing the rename..."),
                 u,
                 job_id,
                 name,

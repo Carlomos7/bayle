@@ -44,6 +44,8 @@ LABEL = {
     "profile-duplicate": "Undo copy",
     "profile-folders": "Undo move",
     "profile-move-in": "Undo move",
+    "folder-rename": "Undo rename",
+    "folder-split": "Undo split",
     "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
@@ -103,7 +105,14 @@ def available(undo: dict | None) -> bool:
         if not undo.get("operation") or build._state(op) != build.ACTIVE:
             return False
         return not undo.get("profile") or Path(undo["profile"]).is_file()
-    if undo.get("type") in ("profile-rename", "profile-duplicate", "profile-folders", "profile-move-in"):
+    if undo.get("type") in (
+        "profile-rename",
+        "profile-duplicate",
+        "profile-folders",
+        "profile-move-in",
+        "folder-rename",
+        "folder-split",
+    ):
         from roundtable_souls.merging import build
 
         return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
@@ -168,6 +177,17 @@ def run(undo: dict, log, *, loc: Locations) -> str:
         try:
             return move_in.undo_move_in(Path(undo["operation"]), log)
         except (move_in.MoveInError, ps.Unreadable) as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in ("folder-rename", "folder-split"):
+        from roundtable_souls.mods import folder_check, folder_split
+
+        if not available(undo):
+            raise UndoError("The change to the profile's folder can no longer be taken back.")
+        try:
+            if undo["type"] == "folder-rename":
+                return folder_check.undo_rename(Path(undo["operation"]), log)
+            return folder_split.undo_split(Path(undo["operation"]), log)
+        except folder_check.FolderError as e:
             raise UndoError(str(e)) from e
     if undo.get("type") == "profile-folders":
         from roundtable_souls.mods import migrate

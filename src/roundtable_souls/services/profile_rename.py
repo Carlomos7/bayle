@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from roundtable_souls.mods import folder_check, folder_split
 from roundtable_souls.mods import profile_rename as renamer
 from roundtable_souls.mods import undo as mod_undo
 from roundtable_souls.platform import logging as run_logging
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
 Error = renamer.ProfileRenameError
+FolderError = folder_check.FolderError
 
 
 def refusal(launch, busy: bool, *, loc: Locations) -> str | None:
@@ -50,6 +52,42 @@ def duplicate(profile: Path, *, loc: Locations) -> dict:
         "operation": out["operation"],
     }
     run_logging.set_undo(out["undo"])
+    return out
+
+
+def rename_folder(profile: Path, *, loc: Locations) -> dict:
+    """Rename the profile's folder to the profile's name (mods.folder_check). Raises folder_check.FolderError."""
+    out = folder_check.rename_folder(profile, loc, run_logging.log)
+    out["undo"] = {
+        "type": folder_check.KIND,
+        "profile": out["profile"],
+        "name": out["name"],
+        "operation": out["operation"],
+    }
+    run_logging.set_undo(out["undo"])
+    return out
+
+
+def rename_folder_refusal(profile: Path, *, loc: Locations) -> str | None:
+    return folder_check.rename_refusal(profile, loc)
+
+
+def split_preview(profile: Path, *, loc: Locations) -> folder_split.SplitPlan:
+    return folder_split.preview(profile, loc)
+
+
+def split_folder(profile: Path, *, loc: Locations) -> dict:
+    """Give every profile of the crowded folder its own folder (mods.folder_split). Raises folder_check.FolderError."""
+    out = folder_split.split(profile, loc, run_logging.log)
+    out["undo"] = {
+        "type": folder_split.KIND,
+        "profile": out["profile"],
+        "name": out["name"],
+        "operation": out["operation"],
+    }
+    run_logging.set_undo(out["undo"])
+    for note in out["notes"]:
+        run_logging.log(f"warning: {note}")
     return out
 
 

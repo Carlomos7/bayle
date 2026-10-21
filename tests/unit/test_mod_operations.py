@@ -241,9 +241,9 @@ def test_an_unfinished_operation_blocks_play(profile, tmp_path):
 
     op = operations.start(profile, "install of grass")  # prepared, never applied: as a crash leaves it
     s = play.LaunchProfile("me3", str(profile), loc=Locations(catalog.ELDEN_RING))
-    assert any("did not finish" in p for p in s.problems())
+    assert any("did not finish" in str(p) for p in s.problems())
     operations.recover(profile)
-    assert not any("did not finish" in p for p in s.problems())
+    assert not any("did not finish" in str(p) for p in s.problems())
     assert not op.dir.exists()
 
 

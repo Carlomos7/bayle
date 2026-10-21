@@ -83,7 +83,7 @@ def test_profiles_are_listed_for_the_game_they_support(tmp_path, monkeypatch):
     launch_profiles = core.discover(None, loc)
     assert [s.label for s in launch_profiles] == ["nr.me3"] and launch_profiles[0].game is NR
     wrong = core.LaunchProfile("me3", root / "er.me3", loc=loc)
-    assert any("for Elden Ring, not Nightreign" in p for p in wrong.problems())
+    assert any("for Elden Ring, not Nightreign" in str(p) for p in wrong.problems())
 
 
 def test_settings_are_kept_per_game():

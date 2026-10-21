@@ -561,7 +561,7 @@ class ShellHost(QObject):
         return (id(s), str(s.profile) if s else "")
 
     @staticmethod
-    def _read_checks(s) -> tuple[tuple[str, ...], tuple[str, ...], dict[str, bool]]:
+    def _read_checks(s) -> tuple[tuple[core.Problem, ...], tuple[core.Problem, ...], dict[str, bool]]:
         """The disk reads behind the pill: the setup's problems and warnings, which games are installed."""
         return (
             tuple(s.problems()) if s else (),

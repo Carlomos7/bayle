@@ -174,7 +174,9 @@ def test_a_blocked_state_starts_nothing():
         State(game=catalog.SEKIRO),  # not supported yet
         State(exe=False),  # the game is not installed
         State(launch_profile=None),  # no profile
-        State(launch_profile=LaunchProfile(["this setup was not finished"])),  # an incomplete managed setup
+        State(
+            launch_profile=LaunchProfile([core.Problem("unfinished", detail="this setup was not finished")])
+        ),  # an incomplete managed setup
     )
     for state in blocked:
         f, ports, calls = flow(state=state)
@@ -308,5 +310,7 @@ def test_launch_reads_the_profile_checks_fresh_each_time():
     f.start(PROFILE)
     assert calls.started  # a clean setup starts
     calls.started.clear()
-    launch_profile._problems = ["profile missing: gone.me3"]  # changed on disk since: the next Launch must see it
+    launch_profile._problems = [
+        core.Problem("profile_missing", path="gone.me3")
+    ]  # changed on disk since: the next Launch must see it
     assert f.start(PROFILE) is False and calls.started == []

@@ -79,7 +79,7 @@ reportOptionalMemberAccess = "warning"
 reportOptionalSubscript = "warning"
 reportOptionalIterable = "error"
 reportGeneralTypeIssues = "warning"
-reportIndexIssue = "warning"
+reportIndexIssue = "error"
 reportCallIssue = "warning"
 reportOperatorIssue = "warning"
 

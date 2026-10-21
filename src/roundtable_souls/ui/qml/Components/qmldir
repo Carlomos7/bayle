@@ -40,6 +40,7 @@ Thumb 1.0 Thumb.qml
 Toast 1.0 Toast.qml
 ToolTipText 1.0 ToolTipText.qml
 ToggleSwitch 1.0 ToggleSwitch.qml
+MarkdownView 1.0 MarkdownView.qml
 Txt 1.0 Txt.qml
 DropIndicator 1.0 DropIndicator.qml
 DragHandle 1.0 DragHandle.qml

@@ -138,7 +138,13 @@ class ModConfigsAdapter(QObject):
         """The toggle is only for a file that has a form (or an overhaul setup); a plain text file opens as text."""
         if self._opened is None or (self._ov is not None and self._ov["setup"].get("verified")):
             return False
-        return self._ov is not None or self._has_form()
+        return self._ov is not None or self._has_form() or self._is_readme()
+
+    def _is_readme(self) -> bool:
+        return self._opened is not None and any(
+            f.path == self._opened.path and f.kind == mod_configs.README
+            for f in (self._node.files if self._node else ())
+        )
 
     def _form_note(self) -> str:
         """Why a settings-looking file opens as text, when it could not be read as settings."""
@@ -160,6 +166,8 @@ class ModConfigsAdapter(QObject):
             return "text"
         if self._seamless is not None:
             return "seamless"
+        if self._is_readme():
+            return "readme"
         return "form" if self._has_form() else "text"
 
     def _crumb(self) -> str:

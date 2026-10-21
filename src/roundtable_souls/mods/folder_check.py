@@ -116,7 +116,14 @@ def rename_folder(profile: Path, loc: Locations, log: Callable[[str], None] = la
         if why := rename_refusal(profile, loc):
             raise FolderError(why)
         raw = profile.read_bytes()
-        item = migrate.Item(profile, profile.stem, dst, [migrate.Unit(src, ".", [profile.stem])], raw)
+        item = migrate.Item(
+            profile,
+            profile.stem,
+            dst,
+            library.state_of(profile).root,
+            units=[migrate.Unit(src, ".", [profile.stem])],
+            old_bytes=raw,
+        )
         item.new_bytes = migrate._rewrite(item)  # an absolute entry path into the folder follows it
         op = build.Operation(src.parent, f"rename of the folder {src.name} to {dst.name}")
         try:

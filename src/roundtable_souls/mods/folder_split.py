@@ -84,7 +84,9 @@ def preview(profile: Path, loc: Locations) -> SplitPlan:
         is_keeper = p.stem.lower() == keeper_name
         if not is_keeper and p.stem.lower() in taken:
             out.refusals.append(f"A folder called {p.stem} is already there, so nothing was split.")
-        item = migrate.Item(p, p.stem, folder if is_keeper else folder.parent / p.stem, old_bytes=raw)
+        item = migrate.Item(
+            p, p.stem, folder if is_keeper else folder.parent / p.stem, library.state_of(p).root, old_bytes=raw
+        )
         out.items.append(item)
         if is_keeper:
             out.keeper = item

@@ -98,18 +98,37 @@ Item {
                     spacing: 2
                     width: treeColumn.width
 
-                    Txt {
-                        color: node.modelData.muted ? Theme.textSecondary : Theme.textPrimary
-                        kind: "strong"
-                        text: node.modelData.name
+                    Row {  // the mod's name, and the Disabled tag when the profile has it switched off
+                        spacing: Theme.sp8
                         width: parent.width
 
-                        MouseArea {  // right-click the mod's name: its overhaul menu
-                            acceptedButtons: Qt.RightButton
-                            anchors.fill: parent
-                            enabled: node.modelData.action !== ""
+                        Txt {
+                            color: node.modelData.muted ? Theme.textSecondary : Theme.textPrimary
+                            kind: "strong"
+                            text: node.modelData.name
+                            width: Math.min(implicitWidth, parent.width - (tag.visible ? tag.width + Theme.sp8 : 0))
 
-                            onClicked: rowMenu.popup()
+                            MouseArea {  // right-click the mod's name: its overhaul menu
+                                acceptedButtons: Qt.RightButton
+                                anchors.fill: parent
+                                enabled: node.modelData.action !== ""
+
+                                onClicked: rowMenu.popup()
+                            }
+                        }
+                        Pill {
+                            id: tag
+
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: page.words.disabled
+                            visible: node.modelData.disabled
+
+                            HoverHandler {
+                                id: tagHover
+                            }
+                            ToolTip.delay: Theme.mTooltipDelay
+                            ToolTip.text: node.modelData.disabledTip
+                            ToolTip.visible: tagHover.hovered && node.modelData.disabledTip !== ""
                         }
                     }
                     Txt {

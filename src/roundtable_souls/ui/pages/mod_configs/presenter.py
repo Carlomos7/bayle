@@ -223,6 +223,7 @@ class ModConfigsPresenter:
             "load": tr("Load settings..."),
             "saveAs": tr("Save settings..."),
             "more": tr("More"),
+            "disabled": tr("Disabled"),
             "setUpOverhaul": tr("Set up as an overhaul..."),
             "turnOffOverhaul": tr("Turn off overhaul setup..."),
             "setUpModLink": tr("Set up a mod as an overhaul..."),
@@ -233,20 +234,18 @@ class ModConfigsPresenter:
         """One mod: its name, the line under it, whether it is muted, and its files."""
         if node.kind == mod_configs.SEAMLESS:
             name = tr("Seamless Co-op")
-            if not node.loaded:
-                sub = tr("Install Seamless Co-op to use these settings")
-            elif not node.enabled:
-                sub = tr("Switched off in this profile; still editable")
-            else:
-                sub = ""
+            sub = "" if node.loaded else tr("Install Seamless Co-op to use these settings")
+            tip = tr("Still editable here.") if node.loaded and not node.enabled else ""
         else:
             name = node.name
-            sub = "" if node.enabled else tr("Switched off in this profile")
+            sub, tip = "", ""
         return {
             "key": node.key,
             "kind": node.kind,
             "name": name,
             "sub": sub,
+            "disabled": node.loaded and not node.enabled,  # shown as the Disabled tag beside the name
+            "disabledTip": tip,
             "muted": not node.loaded or not node.enabled,
             "action": self.overhaul_action(node),
             "files": [
@@ -262,6 +261,8 @@ class ModConfigsPresenter:
             "key": node.key,
             "kind": node.kind,
             "muted": False,
+            "disabled": False,
+            "disabledTip": "",
             "action": self.overhaul_action(node),
             "name": tr("Overhaul setup") + ": " + node.name,
             "sub": self.overhaul_status(bool(setup.get("verified"))),

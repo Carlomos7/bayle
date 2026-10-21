@@ -151,3 +151,16 @@ Issues and pull requests are welcome.
 
 - [me3](https://github.com/garyttierney/me3): the mod loader this launcher drives.
 - [Seamless Co-op](https://www.nexusmods.com/eldenring/mods/510): the co-op mod whose settings the launcher edits.
+- [SoulsFormatsNEXT](https://github.com/soulsmods/SoulsFormatsNEXT), after TKGP's SoulsFormats: file layouts, and the
+  animation event (TAE) reader and writer ported from it.
+- [Soulstruct](https://github.com/Grimrukh/soulstruct) and [constrata](https://github.com/Grimrukh/constrata) by
+  Grimrukh: the talk script (ESD) reader and writer, and the binary structure library.
+- [ER-Save-Editor](https://github.com/ClayAmore/ER-Save-Editor) by ClayAmore: save layout and item ID tables.
+- [UXM Selective Unpack](https://github.com/Nordgaren/UXM-Selective-Unpack) by Nordgaren, after TKGP's UXM: the game
+  archive keys.
+- [me3-manager](https://github.com/2Pz/me3-manager) by 2Pz.
+- [Velopack](https://github.com/velopack/velopack): installs and updates.
+- Fonts (Cormorant Garamond, EB Garamond, Inter) and
+  [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons).
+
+Full license texts and every bundled library are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

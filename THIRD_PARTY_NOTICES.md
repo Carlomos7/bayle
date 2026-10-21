@@ -346,9 +346,31 @@ THE SOFTWARE.
 
 ## Libraries
 
-Bundled into the release exe: PySide6 and Qt (LGPL-3.0), pydantic (MIT), py7zr (LGPL-2.1), SQLAlchemy (MIT),
-Alembic (MIT), Mako (MIT), MarkupSafe (BSD-3-Clause), lupa (MIT), tomlkit (MIT). Their license
-texts ship inside the installed packages; the complete source of this program is the repository it was built from.
+Bundled into the release exe (with the license each package declares):
+
+| Package | License |
+| --- | --- |
+| PySide6, PySide6-Essentials, PySide6-Addons, Shiboken6 and Qt | LGPL-3.0 |
+| pydantic, pydantic-core, annotated-types, typing-inspection | MIT |
+| typing-extensions | PSF-2.0 |
+| SQLAlchemy, Alembic, Mako | MIT |
+| MarkupSafe | BSD-3-Clause |
+| cryptography | Apache-2.0 OR BSD-3-Clause |
+| cffi | MIT |
+| pycparser | BSD-3-Clause |
+| psutil | BSD-3-Clause |
+| py7zr, pybcj, pyppmd, inflate64, multivolumefile | LGPL-2.1-or-later |
+| pycryptodomex | BSD-2-Clause and Public Domain |
+| Brotli | MIT |
+| texttable | MIT |
+| lupa | MIT |
+| tomlkit | MIT |
+| constrata | MIT (above) |
+| velopack | MIT (above) |
+
+Their license texts ship inside the installed packages; the complete source of this program is the repository it was
+built from. Releases are signed with [minisign](https://github.com/jedisct1/minisign) (ISC) in CI; it is not
+bundled.
 
 ## Apache License 2.0
 

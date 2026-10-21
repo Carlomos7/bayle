@@ -5,7 +5,7 @@
 **A mod launcher and save toolkit for Elden Ring and Nightreign, built on [me3](https://github.com/garyttierney/me3).**
 
 [![Release](https://img.shields.io/github/v/release/Carlomos7/roundtable-souls?include_prereleases&sort=semver)](https://github.com/Carlomos7/roundtable-souls/releases/latest)
-[![Tests](https://github.com/Carlomos7/roundtable-souls/actions/workflows/test.yml/badge.svg?branch=dev)](https://github.com/Carlomos7/roundtable-souls/actions/workflows/test.yml)
+[![Tests](https://github.com/Carlomos7/roundtable-souls/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/Carlomos7/roundtable-souls/actions/workflows/test.yml)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Steam%20Deck-lightgrey)
 
@@ -60,9 +60,9 @@ The full guide is in [docs/How to use.txt](docs/How%20to%20use.txt).
 The launcher isn't code-signed yet, so Defender can wrongly flag it. Setup may say *"Install Partially Succeeded"* or
 show error `-2147024671`.
 
-1. Open **Windows Security → Virus & threat protection → Protection history**, find the Roundtable Souls entry, and
+1. Open **Windows Security â†’ Virus & threat protection â†’ Protection history**, find the Roundtable Souls entry, and
    choose **Restore** (or **Allow on device**).
-2. Under **Manage settings → Exclusions**, add the folder `%LOCALAPPDATA%\Carlomos7.RoundtableSouls`.
+2. Under **Manage settings â†’ Exclusions**, add the folder `%LOCALAPPDATA%\Carlomos7.RoundtableSouls`.
 3. Run `RoundtableSouls-Setup.exe` again and choose **Repair**. Your settings and data are kept.
 
 If you can, please share the detection name from Protection history, so we can report the false positive.
@@ -97,7 +97,7 @@ uv run pytest                     # tests (tests/unit and tests/ui run anywhere,
 uv run ruff check . && uv run ruff format --check .
 uv run pyright                    # type checking
 uv run lint-imports --no-cache    # import layers (contracts in pyproject.toml)
-uv run pre-commit install         # run the same checks before every commit
+uv run pre-commit install --hook-type pre-commit --hook-type commit-msg   # the same checks and the commit message check before every commit
 ```
 
 `tests/integration` works on temporary copies of a real save; it skips when none is available.
@@ -115,17 +115,17 @@ uv run python scripts/build.py --identity test.json  # an isolated test build (o
 
 ```text
 src/roundtable_souls/
-├── ui/          Qt Quick shell, pages, presenters (Qt-free) and adapters
-├── services/    what the pages call: launch, mods, saves, settings, transfers
-├── mods/        profiles, the profile writer, install, library, rename, undo, operations
-├── overhauls/   the overhaul config format, its writer and checks
-├── merging/     the merger, per-format rules and the operation journal
-├── formats/     DCX, BND4, PARAM, FMG, ESD, TAE, me3 profiles, config files
-├── saves/       save parsing, checks, repairs, library and backups
-├── game/        game catalog, locations, archives
-├── storage/     the records database
-├── updates/     update feed, signing and apply
-└── platform/    paths, Steam, processes, logging, locks
+â”œâ”€â”€ ui/          Qt Quick shell, pages, presenters (Qt-free) and adapters
+â”œâ”€â”€ services/    what the pages call: launch, mods, saves, settings, transfers
+â”œâ”€â”€ mods/        profiles, the profile writer, install, library, rename, undo, operations
+â”œâ”€â”€ overhauls/   the overhaul config format, its writer and checks
+â”œâ”€â”€ merging/     the merger, per-format rules and the operation journal
+â”œâ”€â”€ formats/     DCX, BND4, PARAM, FMG, ESD, TAE, me3 profiles, config files
+â”œâ”€â”€ saves/       save parsing, checks, repairs, library and backups
+â”œâ”€â”€ game/        game catalog, locations, archives
+â”œâ”€â”€ storage/     the records database
+â”œâ”€â”€ updates/     update feed, signing and apply
+â””â”€â”€ platform/    paths, Steam, processes, logging, locks
 ```
 
 Each package may import only from the packages below it; `lint-imports` enforces this in CI. Technical decisions are
@@ -133,11 +133,13 @@ recorded in [docs/decisions](docs/decisions).
 
 ## Contributing
 
-Work happens on `dev`. `main` only receives merges from `dev`, and releases are cut from it. Every push runs lint,
-type checks and tests on Windows and Linux.
+`main` is the only long-lived branch (GitHub Flow). Work happens on short-lived `feat/...`, `fix/...`, `docs/...` and
+`chore/...` branches, merged into `main` by pull request (squash merge, the PR title in Conventional Commit form).
+Every pull request and push to `main` runs lint, type checks and tests on Windows and Linux.
 
-Every version ships as betas first (`X.Y.Z-beta.N`, on the Beta channel), then as the plain `X.Y.Z`. Pushing a `v*`
-tag builds, tests, signs and publishes the release (`.github/workflows/release.yml`). See
+Versions follow [SemVer 2.0](https://semver.org) (`X.Y.Z`, pre-releases `X.Y.Z-rc.N` on the Beta channel). Releases are
+cut by release-please from the Conventional Commits; merging its release pull request tags `vX.Y.Z`, and the tag builds,
+tests, signs and publishes the release (`.github/workflows/release.yml`). See [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CHANGELOG.md](CHANGELOG.md) for the version history.
 
 Issues and pull requests are welcome.

@@ -277,9 +277,8 @@ def overhaul_switch_text(game: str) -> str:
     names = installable_overhauls(game)
     covered = ", ".join(names) if names else "none for this game yet"
     return (
-        "Adds an Overhaul button to the Mods page: install an overhaul into a profile from the folder you unpacked "
-        "its download into, without running its installer, and remove it again. It covers only the overhauls the "
-        f"launcher has an install description for ({covered}); others aren't offered, so use their own installer. "
+        "Install an overhaul from the folder you unpacked it into, without its installer, and remove it again. "
+        f"Covers only {covered}; use the others' own installers. "
         f"The launcher keeps its copy of the download in {overhaul_library_folder(game)}, in me3's profiles folder."
     )
 
@@ -288,9 +287,8 @@ def overhaul_button_tip(game: str) -> str:
     """The Overhaul button's tooltip on the Mods page."""
     names = installable_overhauls(game)
     return (
-        "Install an overhaul with the launcher, remove one, or clean up what its own installer left. Only overhauls "
-        f"the launcher has an install description for: {', '.join(names) if names else 'none for this game yet'}. "
-        "A preview: Settings > Play session turns it on and off."
+        "Install or remove an overhaul, or clean up after its own installer. Covers only "
+        f"{', '.join(names) if names else 'none for this game yet'}. Turn it off in Settings > Launch."
     )
 
 

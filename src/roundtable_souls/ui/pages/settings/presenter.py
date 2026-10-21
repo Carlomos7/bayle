@@ -27,7 +27,7 @@ GITHUB_BLOB = RELEASES_URL.removesuffix("/releases") + "/blob"  # + /v<version>/
 
 
 OPEN_WINDOW_TEXT = tr("Open new Settings window")
-OPEN_WINDOW_TIP = tr("The new Settings page in a window of its own. This page stays until the new window replaces it.")
+OPEN_WINDOW_TIP = tr("A preview of the new Settings page, in its own window.")
 
 
 # ----------------------------------------------------------------------------- the switches
@@ -55,14 +55,12 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "play_update_merge",
             tr("Rebuild merged mods automatically before launch"),
             tr(
-                "When mods, their load order or the game changed, Launching rebuilds the merged ones first (combined "
-                "parameters, and a mod's own rebuild tool such as the overhaul's), then starts the game."
+                "Rebuilds combined parameters and each mod's own rebuild tool when mods, load order or the game changed."
             ),
             tr(
-                "Off: Play asks first (rebuild, or play this once with the previous result); a Steam shortcut "
-                "does not start the game and says why. A failed rebuild keeps the previous result and asks before "
-                "starting. After an automatic rebuild only the newest 3 of a rebuild tool's backups are kept; older "
-                "ones go to the Recycle Bin."
+                "Off: Launch asks first (rebuild, or launch once with the previous result), and a Steam shortcut "
+                "does not start the game. A failed rebuild keeps the previous result and asks before starting. "
+                "Only the newest 3 rebuild-tool backups are kept; older ones go to the Recycle Bin."
             ),
             "launch",
         ),
@@ -70,16 +68,13 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             "build_merges",
             tr("Build the overhaul in the launcher (preview)"),
             tr(
-                "For a mod the launcher has a config for (the overhaul LITE 0.1.33), a rebuild merges it from "
-                "its own download instead of running its installer: the launcher merges its animations, effects, "
-                "menu text, grace menu and parameters itself, and runs nothing from the download."
+                "Rebuilds the overhaul LITE 0.1.33 from its download instead of running its installer. "
+                "Nothing from the download runs."
             ),
             tr(
-                "Still being compared with what its installer makes, and not yet checked in game: a preview. Your "
-                "profile is never rewritten, OverhaulPrototype.ini keeps your values (a new version only adds its new "
-                "settings), and one previous build is kept in .roundtable-build for Undo rebuild instead of a full "
-                "backup on every run. Other versions still use their own installer. Off: the installer runs, as "
-                "before."
+                "Not yet checked in game. Your profile is not rewritten and OverhaulPrototype.ini keeps your values. "
+                "One previous build stays in .roundtable-build for Undo rebuild. Other versions still use their "
+                "installer, and so does Off."
             ),
             "launch",
         ),
@@ -88,10 +83,8 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             tr("Install overhauls with the launcher (preview)"),
             overhaul_text,
             tr(
-                "Every change is shown before it happens, and each install or removal can be undone from Activity. "
-                "The launcher keeps a copy of the download and its notes in its own folder in me3's profiles "
-                "folder; the overhaul's own folder stays beside your profile. An overhaul its own installer set up "
-                "isn't changed: remove it first. Off: the button is hidden; nothing installed with it changes."
+                "An overhaul installed by its own installer is not changed: remove it first. Off hides the install "
+                "button; what you installed stays."
             ),
             "launch",
         ),
@@ -102,41 +95,39 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
                 "me3 keeps a decrypted copy of the game's archive indexes so the game starts faster. If DLC areas "
                 "or items are sometimes missing, try turning this off."
             ),
-            tr("Turn off only if a mod misbehaves with the cache; me3 passes --no-boot-boost."),
+            tr("Off passes --no-boot-boost to me3."),
             "launch",
         ),
         SwitchSpec(
             "play_show_logos",
             tr("Show intro logos"),
-            tr("Show the publisher logos me3 skips by default."),
-            tr("Passes --show-logos to me3."),
+            tr("Shows the publisher logos that me3 skips by default."),
+            tr("On passes --show-logos to me3."),
             "launch",
         ),
         SwitchSpec(
             "play_diagnostics",
             tr("me3 diagnostics"),
-            tr("Ask me3 for extra diagnostics on this launch (slower start, bigger log)."),
-            tr("Passes --diagnostics; me3's output is kept with that launch in the logs folder."),
+            tr("Extra detail for troubleshooting, with a slower start and a bigger log."),
+            tr("Passes --diagnostics. me3's output is kept with that launch in the logs folder."),
             "launch",
         ),
         SwitchSpec(
             "play_backup_before",
             tr("Back up saves before launch"),
-            tr("A backup of every save before each session, listed under Backups on the Saves page."),
+            tr("Backs up every save before each session. Listed under Backups on Saves."),
             tr(
-                "Off by default: the game keeps its own .bak, and each repair makes a copy anyway. Turn it on for a "
-                "copy before every session. When a backup fails, the game waits: you choose Retry, Launch without "
-                "backup or Cancel (a Steam shortcut stops unless it has --allow-without-backup)."
+                "Off by default: the game keeps its own backup and each repair makes a copy anyway. If a backup "
+                "fails, Launch asks: Retry, Launch without backup or Cancel. A Steam shortcut stops unless it has "
+                "--allow-without-backup."
             ),
             "launch",
         ),
         SwitchSpec(
             "play_clear_before",
             tr("Clear leftover processes before launch"),
-            tr("Closes copies of the game that are stuck in the background so Steam agrees to start it."),
-            tr(
-                "A leftover game process is a copy of the game with no window. Steam refuses to launch while one exists."
-            ),
+            tr("Closes hidden copies of the game still running, so Steam agrees to start it."),
+            "",
             "launch",
         ),
         SwitchSpec(
@@ -145,61 +136,57 @@ def switches(overhaul_text: str = "", game_key: str = "eldenring") -> tuple[Swit
             repair_blurb(game_key),
             tr(
                 "Each game keeps its own setting. Elden Ring copies regulation.bin into the save so editors can "
-                "read it; Nightreign never writes Game\\regulation.bin into the save (that file is a different "
-                "encoding)."
+                "read it. Nightreign never does: its Game\regulation.bin is a different encoding."
             ),
             "launch",
         ),
         SwitchSpec(
             "play_clear_after",
             tr("Clear leftover processes after quitting"),
-            tr("Closes stuck copies of the game so Discord and Steam stop showing it as running."),
-            tr("Needs admin once. Turn it off if you prefer to handle processes yourself."),
+            tr("Closes hidden copies of the game so Discord and Steam stop showing it as running."),
+            tr("Needs admin once."),
             "launch",
         ),
         SwitchSpec(
             "warn_dead_shells",
             tr("Warn about leftover processes"),
-            tr("A bar at the top of the window when a leftover game process is found."),
-            tr("Clearing them by hand still works with the warning off."),
+            tr("Shows a bar at the top of the window when one is found."),
+            "",
             "launch",
         ),
         SwitchSpec(
             "check_launcher_updates",
             tr("Check for updates on start"),
-            tr("At most once an hour, from this project's GitHub releases. A notice only; you choose when to install."),
-            tr(
-                "Update now downloads the release, checks its signature and checksum, installs it and restarts. "
-                "Skip hides one version."
-            ),
+            tr("Checks GitHub at most once an hour. You choose when to install."),
+            "",
             "updates",
         ),
         SwitchSpec(
             "check_me3_updates",
             tr("Check for me3 updates"),
-            tr("Once a day, from me3's GitHub releases. A notice only; nothing is installed."),
-            tr("Roundtable Souls never replaces me3 itself: the overhaul profiles ship their own copy."),
+            tr("Checks once a day. You are told; nothing is installed."),
+            tr("the overhaul profiles ship their own copy of me3, which the launcher never replaces."),
             "me3",
         ),
         SwitchSpec(
             "offline_strip_overhaul",
             tr("Skip the overhaul too"),
-            tr("Leave the overhaul (an Elden Ring mod) off for this launch."),
-            tr("Turns the overhaul packages and natives off in a temporary copy. Your real profile is not changed."),
+            tr("Leaves the overhaul, an Elden Ring mod, off for this launch."),
+            tr("Works on a temporary copy of the profile. Your real profile is not changed."),
             "offline",
         ),
         SwitchSpec(
             "offline_start_steam",
             tr("Start Steam if needed"),
-            tr("Open Steam before launch if it is not running."),
-            tr("Turn this off if Steam is already open. Seamless still stays off."),
+            tr("Opens Steam before launch if it is not running."),
+            "",
             "offline",
         ),
         SwitchSpec(
             "offline_skip_confirm",
             tr("Skip the confirmation"),
-            tr("Go straight to launch next time."),
-            tr("Stops the Launch Offline prompt. You can turn this back off here."),
+            tr("Launch Offline starts straight away, without the prompt."),
+            "",
             "offline",
         ),
     )
@@ -211,12 +198,12 @@ def switch(key: str, game_key: str = "eldenring") -> SwitchSpec:
 
 OFFLINE_TITLE = tr("Offline play")
 OFFLINE_BLURB = tr(
-    "Starts this profile without Seamless Co-op and with online play off, so the game uses its standard save (.sl2) "
-    "instead of Seamless's (.co2)."
+    "Launch Offline starts this profile without Seamless Co-op and with online play off. The game then uses its "
+    "standard save (.sl2), not Seamless's (.co2)."
 )
 OFFLINE_HELP = tr(
-    "Steam still needs to be running; pick Start in Offline Mode if it asks. Co-op needs Steam online. A me3 "
-    "savefile setting or Seamless's ersc_settings.ini can change the save names; the launcher follows them."
+    "Steam must be running; pick Start in Offline Mode if it asks. Co-op needs Steam online. The launcher follows a "
+    "me3 savefile setting or ersc_settings.ini if they change the save names."
 )
 
 
@@ -375,29 +362,27 @@ def offer_notice(info: dict, frozen: bool | None = None) -> UpdateNotice:
             "update",
             tr("Update now"),
             True,
-            tr("Download it, check its signature and checksum, install it and restart."),
+            tr("Checks the signature and checksum, installs it and restarts."),
         )
     else:
         signed = updates.can_self_update(info)
         tip = (
-            tr("Open the releases page in the browser.")
+            tr("Opens the releases page.")
             if signed or not frozen
-            else tr(
-                "This copy cannot update itself (or the release has no signed feed): install it from the releases page."
-            )
+            else tr("This copy cannot update itself here. Install it from the releases page.")
         )
         go = NoticeAction("download", tr("Download"), False, tip, info.get("url") or RELEASES_URL)
     notes = NoticeAction(
-        "notes", tr("Notes"), False, tr("The full release notes, on GitHub."), info.get("url") or RELEASES_URL
+        "notes", tr("Notes"), False, tr("Opens the full notes on GitHub."), info.get("url") or RELEASES_URL
     )
     skip = NoticeAction(
-        "skip", tr("Skip this version"), False, tr("Do not mention this version again; the next one will show.")
+        "skip", tr("Skip this version"), False, tr("Stops mentioning this version. The next one still shows.")
     )
     summary = feed.release_notes(info.get("notes", ""), lines=4)
     how = (
-        tr("One click, then a restart. Settings stay.")
+        tr("One click, then a restart. Your settings stay.")
         if apply_ok
-        else tr("Get it from the releases page. Settings stay.")
+        else tr("Get it from the releases page. Your settings stay.")
     )
     kind = tr("pre-release") + " " if info.get("prerelease") else ""
     return UpdateNotice(
@@ -430,8 +415,7 @@ def ready_notice(version: str, delta: bool) -> UpdateNotice:
         "success",
         tr("{title} {version} is ready").format(title=TITLE, version=version),
         tr(
-            "Checked: signature and {kind} package. Restart to finish; if it does not start, this version comes "
-            "back by itself."
+            "Signature and {kind} package checked. Restart to finish. If it does not start, this version comes back."
         ).format(kind=kind),
         (
             NoticeAction("restart", tr("Restart now"), True),
@@ -439,7 +423,7 @@ def ready_notice(version: str, delta: bool) -> UpdateNotice:
                 "later",
                 tr("Later"),
                 False,
-                tr("Keep using this version; the download is kept and the notice returns next time."),
+                tr("The download is kept and this notice returns next start."),
             ),
         ),
     )

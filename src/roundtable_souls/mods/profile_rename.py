@@ -4,10 +4,11 @@ me3 knows a profile by its file name only, so nothing inside the file changes, b
 the profile's path or name. A rename moves them together:
 
     in the journal    the .me3, its <name>.offline.me3 and .me3.bak (beside it, or in .roundtable/backups), the
-                      profile's entry in .roundtable/settings.json, and (a library profile) the folders under
-                      builds/<what>/<name>/ with the paths in the .me3 that point into them. Files are written under
-                      the new name and removed from the old (their bytes are kept in the journal); folders are moved
+                      profile's entry in .roundtable/settings.json. Files are written under the new name and removed
+                      from the old (their bytes are kept in the journal); then the profile's own folder
+                      (profiles/<name>/, with its mods, builds and state) is moved to the new name as the last step
                       (merging.build.Operation.move_folder: nothing is ever deleted by an older launcher's rollback).
+                      That journal is kept in the profiles folder, outside the folder that moves.
     after the commit  launcher_settings.json (the remembered profile of the game, the parameter overlay marks) and
                       the profile's history copies, which are copied, not moved. Re-keyed by a mapping that can be
                       applied twice (a recovery after an interruption does, finish_state), and mapped back by an undo.
@@ -29,12 +30,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from roundtable_souls.config import settings as launcher_settings
-from roundtable_souls.formats import me3_profile
 from roundtable_souls.merging import build
 from roundtable_souls.mods import history, library, naming, operations
 from roundtable_souls.mods import profile_settings as ps
 from roundtable_souls.mods.profile_edit import ModError
-from roundtable_souls.mods.profile_writer import ProfileWriter
 
 if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
@@ -59,7 +58,8 @@ class ProfileRenamePreview:
     new_name: str = ""
     case_only: bool = False
     moves: list[tuple[Path, Path]] = field(default_factory=list)  # (old, new) files moved as they are, .me3 first
-    builds: list[tuple[Path, Path]] = field(default_factory=list)  # build folders renamed with the profile
+    builds: list[tuple[Path, Path]] = field(default_factory=list)  # a loose profile's builds, renamed with it
+    folder: tuple[Path, Path] | None = None  # the profile's own folder and where it goes (moved last)
     profile_bytes: bytes = b""  # the .me3 as it is now
     new_bytes: bytes = b""  # and as it is under the new name
     settings: tuple[Path, bytes, bytes] | None = None  # (settings.json, its bytes now, its bytes re-keyed)
@@ -98,6 +98,8 @@ def name_problem(profile: Path, name: str) -> str | None:
     if name.lower() in naming.RESERVED or name.lower().endswith(GENERATED):
         return f"{name} is a name the launcher or me3 uses itself."
     target = profile.with_name(name + ".me3")
+    if library.own_folder(profile) and profile.parent.with_name(name).exists() and name.lower() != profile.stem.lower():
+        return f"There is already a profile called {name}."
     if name.lower() != profile.stem.lower():
         try:
             taken = any(p.name.lower() == target.name.lower() for p in profile.parent.iterdir())
@@ -108,18 +110,25 @@ def name_problem(profile: Path, name: str) -> str | None:
     return naming.path_problem(target, 0)
 
 
-def _build_folders(profile: Path) -> list[Path]:
-    lib = library.library_of(profile)
-    if lib is None or not lib.builds.is_dir():
-        return []
-    return [
-        lib.builds / w / profile.stem for w in library._folders(lib.builds) if (lib.builds / w / profile.stem).is_dir()
-    ]
+def folder_move(profile: Path, new_name: str, loc: Locations) -> tuple[Path, Path] | None:
+    """(profiles/<name>, profiles/<new name>) for a profile in a folder of its own in me3's profiles folder, else None
+    (a profile loose in a folder keeps its folder)."""
+    profile = Path(profile)
+    home = loc.me3_profiles_dir()
+    if home is None or not library.own_folder(profile) or _canon(profile.parent.parent) != _canon(home):
+        return None
+    return profile.parent, profile.parent.with_name(new_name)
 
 
-def _inside(inner: Path, outer: Path) -> bool:
-    a, b = _canon(inner), _canon(outer)
-    return a == b or a.startswith(b + os.sep)
+def _shift(path: Path, folder: tuple[Path, Path] | None, back: bool = False) -> Path:
+    """path as it is once the profile's folder has moved (or, back, before it)."""
+    if folder is None:
+        return path
+    src, dst = (folder[1], folder[0]) if back else folder
+    try:
+        return dst / Path(path).relative_to(src)
+    except ValueError:
+        return path
 
 
 def _siblings(profile: Path, new: Path) -> list[tuple[Path, Path]]:
@@ -169,15 +178,18 @@ def preview(profile: Path, new_name: str, *, loc: Locations) -> ProfileRenamePre
     for _old, dest in out.moves[1:]:
         if dest.exists() and not out.case_only:
             refuse(f"{dest.name} is already there, so the launcher does not overwrite it.")
-    # the folders named after the profile, and the paths in the .me3 that point into them
-    lib = library.library_of(profile)
     out.new_bytes = out.profile_bytes
-    found = _build_folders(profile)
-    if found and lib is not None:
-        try:
-            out.new_bytes = _repoint(profile, found, out, lib)
-        except ModError as e:
-            refuse(str(e))
+    out.folder = folder_move(profile, out.new_name, loc)
+    if out.folder is not None:
+        target_folder = out.folder[1]
+        if target_folder.exists() and not out.case_only:
+            refuse(f"A folder called {target_folder.name} is already there, so the launcher does not overwrite it.")
+        if why := naming.path_problem(target_folder / (out.new_name + ".me3"), 0):
+            refuse(why)
+    elif not library.own_folder(profile):
+        mine, theirs = library.ProfileFolder.of(profile).root, library.ProfileFolder.of(new).root
+        if mine.is_dir():
+            out.builds.append((mine, theirs))
     # the profile's own settings (settings.json is shared by the folder's profiles, keyed by file name)
     try:
         file = ps._current(profile)
@@ -193,41 +205,11 @@ def preview(profile: Path, new_name: str, *, loc: Locations) -> ProfileRenamePre
             out.settings = (file, file.read_bytes(), _dump(_rekeyed(data, profile.name, new.name)))
     out.lines = [
         f"{profile.name} is renamed to {new.name}",
-        "Its settings, backup copy and version history follow it; the mods are not moved or copied",
+        "Its settings, backup copy and version history follow it"
+        + (", and its folder is renamed" if out.folder else ""),
     ]
-    if out.builds:
-        out.lines.append(f"{len(out.builds)} build folder{'s' if len(out.builds) != 1 else ''} named after it follow")
     out.lines.append("Undo puts everything back")
     return out
-
-
-def _repoint(profile: Path, found: list[Path], out: ProfileRenamePreview, lib: library.ModLibrary) -> bytes:
-    """The .me3's bytes with each entry that points into a build folder named after the profile pointing at the folder
-    under the new name (a package keeps the id it had). Fills out.builds."""
-    new_stem = out.new_name
-    writer = ProfileWriter(profile)
-    before = {r.message for r in writer.plan("before").refusals}
-    for folder in found:
-        out.builds.append((folder, folder.with_name(new_stem)))
-        if folder.with_name(new_stem).exists() and _canon(folder.with_name(new_stem)) != _canon(folder):
-            raise ModError(f"{folder.with_name(new_stem)} is already there, so the launcher does not overwrite it.")
-    for e in writer.entries():
-        if not e["path"]:
-            continue
-        where = Path(os.path.abspath(me3_profile.resolve(profile, e["path"])))
-        hit = next((f for f in found if _inside(where, f)), None)
-        if hit is None:
-            continue
-        if e["kind"] == "package" and not e["id"]:
-            writer.set_options(e["index"], {"id": me3_profile.entry_ref(e)})
-        rel = where.relative_to(hit)
-        writer.set_path(e["index"], os.path.relpath(hit.with_name(new_stem) / rel, profile.parent).replace("\\", "/"))
-    plan = writer.plan(f"before renaming {profile.name}")
-    # the folder moves only when the operation commits: "folder is missing" is not a reason to refuse
-    left = [r.message for r in plan.refusals if r.message not in before and "whose folder is missing" not in r.message]
-    if left:
-        raise ModError("; ".join(left))
-    return plan.bytes_to_write
 
 
 # ----------------------------------------------------------------------------- the file moves
@@ -246,6 +228,31 @@ def _move(op: build.Operation, old: Path, new: Path, data: bytes, case_only: boo
         op.write_file(old, None, expect=sha)
 
 
+# ----------------------------------------------------------------------------- the journal
+def _lock(profile: Path, folder: tuple[Path, Path] | None):
+    """The lock for an operation on the profile. One that moves the profile's folder holds the profiles folder's
+    instead: Windows does not move a folder that holds an open lock file."""
+    return build.ops_lock(folder[0].parent, 30.0) if folder else operations.lock(profile)
+
+
+def _start(profile: Path, what: str, folder: tuple[Path, Path] | None) -> build.Operation:
+    """An operation on the profile; when its folder moves, its journal lives in the profiles folder beside it."""
+    if folder is None:
+        return operations.start(profile, what)
+    op = build.Operation(folder[0].parent, what)
+    op.note(profile=str(profile))
+    return op
+
+
+def _move_folder(op: build.Operation, src: Path, dst: Path, case_only: bool) -> None:
+    if case_only:
+        aside = src.with_name(f".{src.name}.rename-{op.id}")
+        op.move_folder(src, aside)
+        op.move_folder(aside, dst)
+    else:
+        op.move_folder(src, dst)
+
+
 # ----------------------------------------------------------------------------- apply
 def apply(p: ProfileRenamePreview, *, loc: Locations, log: Callable[[str], None] = lambda s: None) -> dict:
     """Rename as previewed, as one operation. Returns {operation, profile, name, new, notes}. Raises ProfileRenameError
@@ -261,13 +268,13 @@ def apply(p: ProfileRenamePreview, *, loc: Locations, log: Callable[[str], None]
             return "A file with the new name appeared meanwhile."
         return None
 
-    with operations.lock(old):
-        operations.recover(old)
+    operations.recover(old)
+    with _lock(old, p.folder):
         if (why := operations.problem(old)) is not None:
             raise ProfileRenameError(f"Another change to this profile is not finished: {why}")
         if not old.is_file() or old.read_bytes() != p.profile_bytes:
             raise ProfileRenameError(f"{old.name} changed since the preview; try again.")
-        op = operations.start(old, f"rename of profile {p.old_name} to {p.new_name}")
+        op = _start(old, f"rename of profile {p.old_name} to {p.new_name}", p.folder)
         try:
             for src, dest in p.moves:
                 _move(op, src, dest, p.new_bytes if src == old else src.read_bytes(), p.case_only)
@@ -281,12 +288,16 @@ def apply(p: ProfileRenamePreview, *, loc: Locations, log: Callable[[str], None]
                     op.move_folder(aside, dest)
                 else:
                     op.move_folder(src, dest)
+            if p.folder is not None:
+                _move_folder(op, *p.folder, p.case_only)
+                new = _shift(new, p.folder)
             op.note(
                 kind=KIND,
                 name=p.old_name,
                 new=p.new_name,
                 profile=str(new),
                 old_profile=str(old),
+                folder=[str(p.folder[0]), str(p.folder[1])] if p.folder else None,
                 game=loc.game.key,
                 moves=[{"old": str(a), "new": str(b)} for a, b in p.moves],
                 builds=[{"old": str(a), "new": str(b)} for a, b in p.builds],
@@ -366,34 +377,41 @@ def undo_rename(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> st
         raise ProfileRenameError("This rename can no longer be taken back.")
     old, new = Path(info["old_profile"]), Path(info["profile"])
     case_only = _canon(old) == _canon(new)
-    moves = [(Path(m["new"]), Path(m["old"])) for m in info["moves"]]
+    folder = (Path(info["folder"][0]), Path(info["folder"][1])) if info.get("folder") else None
+    # the files are put back inside the folder where it is now; the folder goes back last
+    moves = [(_shift(Path(m["new"]), folder), _shift(Path(m["old"]), folder)) for m in info["moves"]]
     builds = [(Path(m["new"]), Path(m["old"])) for m in info["builds"]]
-    with operations.lock(new):
+    with _lock(new, (folder[1], folder[0]) if folder else None):
         if not new.is_file():
             raise ProfileRenameError(f"{new.name} is not there any more, so the rename can't be taken back.")
-        if builds and _sha(new.read_bytes()) != info["new_sha"]:
-            raise ProfileRenameError(
-                f"{new.name} changed after it was renamed, and it points at the renamed build folders. Undoing would "
-                "break it, so everything is left as it is."
-            )
         for src, dest in moves:
             if src.exists() and dest.exists() and not case_only:
                 raise ProfileRenameError(f"{dest.name} is there again; undoing would overwrite it.")
         for src, dest in builds:
             if not src.is_dir() or (dest.exists() and not case_only):
                 raise ProfileRenameError(f"{dest.name} is not where the rename left it, so nothing was changed.")
-        back = operations.start(new, f"undo of the rename of profile {info.get('name', '')}")
+        if folder is not None and folder[0].exists() and not case_only:
+            if any(x.is_file() for x in folder[0].rglob("*")):
+                raise ProfileRenameError(f"{folder[0].name} is there again; undoing would overwrite it.")
+            shutil.rmtree(folder[0])  # only empty folders (a record looked up under the old name made them)
+        back = _start(
+            new, f"undo of the rename of profile {info.get('name', '')}", (folder[1], folder[0]) if folder else None
+        )
         try:
             for i, (src, dest) in enumerate(moves):
                 if not src.is_file():
                     continue
                 data = src.read_bytes()
                 if i == 0 and _sha(data) == info["new_sha"]:  # not changed since: its exact earlier bytes
-                    step = next(s for s in op.steps if s["type"] == "file" and s["live"] == str(dest) and s["before"])
+                    step = next(
+                        s
+                        for s in op.steps
+                        if s["type"] == "file" and s["live"] == str(_shift(dest, folder, back=True)) and s["before"]
+                    )
                     data = (op.dir / step["before"]).read_bytes()
                 _move(back, src, dest, data, case_only)
             if info.get("settings"):
-                _settings_back(op, back, Path(info["settings"]), old.name, new.name)
+                _settings_back(op, back, Path(info["settings"]), folder, old.name, new.name)
             for src, dest in builds:
                 if case_only:
                     aside = src.with_name(f".{src.name}.rename-{back.id}")
@@ -401,6 +419,8 @@ def undo_rename(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> st
                     back.move_folder(aside, dest)
                 else:
                     back.move_folder(src, dest)
+            if folder is not None:
+                _move_folder(back, folder[1], folder[0], case_only)
         except BaseException:
             back.discard()
             raise
@@ -412,10 +432,13 @@ def undo_rename(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> st
     return f"took back the rename of {info.get('name', 'the profile')}: it is called {old.stem} again"
 
 
-def _settings_back(op: build.Operation, back: build.Operation, file: Path, old: str, new: str) -> None:
+def _settings_back(
+    op: build.Operation, back: build.Operation, was: Path, folder: tuple[Path, Path] | None, old: str, new: str
+) -> None:
     """The settings file with the profile's entry under its old name: the exact earlier bytes when the file is as the
     rename left it, else the same re-keying of what it holds now."""
-    step = next((s for s in op.steps if s["type"] == "file" and s["live"] == str(file) and s["after"]), None)
+    file = _shift(was, folder)  # where the settings file is now; the journal names it where it was
+    step = next((s for s in op.steps if s["type"] == "file" and s["live"] == str(was) and s["after"]), None)
     now = file.read_bytes()
     if step is not None and step["before"] and now == (op.dir / step["after"]).read_bytes():
         data = (op.dir / step["before"]).read_bytes()
@@ -428,7 +451,12 @@ def _settings_back(op: build.Operation, back: build.Operation, file: Path, old: 
 def copy_name(profile: Path) -> str:
     """ "<name> copy", then "<name> copy 2", ... not taken (case aside) in the profile's folder."""
     profile = Path(profile)
-    taken = {p.name.lower() for p in profile.parent.iterdir()} if profile.parent.is_dir() else set()
+    where = profile.parent.parent if library.own_folder(profile) else profile.parent
+    taken = (
+        {p.name.lower() + ".me3" if p.is_dir() else p.name.lower() for p in where.iterdir()}
+        if where.is_dir()
+        else set()
+    )
     base = re.sub(r"( copy( \d+)?)$", "", profile.stem) + " copy"
     name, n = base, 2
     while name.lower() + ".me3" in taken:
@@ -437,8 +465,9 @@ def copy_name(profile: Path) -> str:
 
 
 def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[str], None] = lambda s: None) -> dict:
-    """Copy the .me3 as `name` (default: copy_name), one operation. The mod folders are not copied: the copy points at
-    the same ones (a library profile's own build folders stay with the original). Returns {operation, profile, name}."""
+    """Copy the profile as `name`, one operation: a profile with a folder of its own gets a new folder with copies of
+    its mod and natives folders (its builds and state are not copied); a loose profile only its .me3. Returns
+    {operation, profile, name}."""
     profile = Path(profile)
     name = _clean(name) or copy_name(profile)
     if loc.game_running():
@@ -449,21 +478,39 @@ def duplicate(profile: Path, *, loc: Locations, name: str = "", log: Callable[[s
         raise ProfileRenameError(f"{profile.name} is made by me3 itself, so it can't be duplicated.")
     if (why := name_problem(profile, name)) is not None:
         raise ProfileRenameError(why)
-    if _build_folders(profile):  # shortcut: a copy would share them; copying them too comes later
+    own = folder_move(profile, name, loc)
+    mine = library.ProfileFolder.of(profile)
+    if mine.builds.is_dir() and any(
+        mine.builds.iterdir()
+    ):  # shortcut: a copy would share them; copying them comes later
         raise ProfileRenameError(
             f"{profile.stem} has build folders of its own (Combine, an overhaul), so it can't be duplicated yet."
         )
-    new = profile.with_name(name + ".me3")
-    with operations.lock(profile):
+    new = profile.with_name(name + ".me3") if own is None else own[1] / (name + ".me3")
+    with _lock(profile, own):
         operations.recover(profile)
         if (why := operations.problem(profile)) is not None:
             raise ProfileRenameError(f"Another change to this profile is not finished: {why}")
         data = profile.read_bytes()
-        op = operations.start(profile, f"duplicate of profile {profile.stem} as {name}")
+        op = _start(profile, f"duplicate of profile {profile.stem} as {name}", own)
         try:
-            op.write_file(new, data, expect="missing")
+            if own is None:
+                op.write_file(new, data, expect="missing")
+            else:
+                staged = own[1].with_name(f".{name}.copy-{op.id}")
+                staged.mkdir()
+                for sub_name in ("mod", "natives"):
+                    if (own[0] / sub_name).is_dir():
+                        shutil.copytree(own[0] / sub_name, staged / sub_name)
+                (staged / (name + ".me3")).write_bytes(data)
+                op.replace_folder(own[1], staged)
             op.note(
-                kind="profile-duplicate", name=profile.stem, new=name, profile=str(new), made={str(new): _sha(data)}
+                kind="profile-duplicate",
+                name=profile.stem,
+                new=name,
+                profile=str(new),
+                folder=str(own[1]) if own else "",
+                made={str(new): _sha(data)},
             )
         except BaseException:
             op.discard()
@@ -483,6 +530,17 @@ def undo_duplicate(op_dir: Path, log: Callable[[str], None] = lambda s: None) ->
     if info.get("kind") != "profile-duplicate" or op.state != build.ACTIVE:
         raise ProfileRenameError("This copy can no longer be taken back.")
     new = Path(info["profile"])
+    if info.get("folder"):  # the copy's folder goes to the Recycle Bin, unless the copy was changed since
+        from roundtable_souls.platform import trash
+
+        if new.is_file():
+            if _sha(new.read_bytes()) != info["made"][str(new)]:
+                raise ProfileRenameError(f"{new.name} was changed after it was copied, so it is left as it is.")
+            if not trash.available():
+                raise ProfileRenameError("There is no Recycle Bin to put the copy's folder in, so it is left as it is.")
+            trash.send(Path(info["folder"]))
+        op.release()
+        return f"took back the copy {info.get('new', '')}"
     with operations.lock(new):
         if new.is_file():
             if _sha(new.read_bytes()) != info["made"][str(new)]:

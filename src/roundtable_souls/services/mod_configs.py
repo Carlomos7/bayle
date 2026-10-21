@@ -124,13 +124,12 @@ def _overhaul_node(profile: Path, loc: Locations) -> ModNode | None:
         return None
     config = setup["config"]
     files = [ConfigFile(Path(setup["path"]), "overhaul", True, OVERHAUL)]
-    lib = library.ModLibrary.for_game(loc)
+    lib = library.ProfileFolder.of(profile)
     kept = [s.to for b in config.builds for s in b.steps if s.do == "config"]
-    if lib is not None:
-        for name in dict.fromkeys(kept):
-            f = lib.overhaul(config.id) / name
-            if f.is_file():
-                files.append(ConfigFile(f, "found", True, _kind(f, loc.game.coop_ini)))
+    for name in dict.fromkeys(kept):
+        f = lib.overhaul(config.id) / name
+        if f.is_file():
+            files.append(ConfigFile(f, "found", True, _kind(f, loc.game.coop_ini)))
     return ModNode(OVERHAUL, config.label, OVERHAUL, True, True, None, tuple(files), setup)
 
 

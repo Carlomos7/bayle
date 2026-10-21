@@ -342,15 +342,6 @@ Item {
 
                     onTriggered: header.adapter.addExisting("package")
                 }
-                MenuEntry {
-                    height: visible ? implicitHeight : 0
-                    icon_: "Folder"
-                    objectName: "adoptIntoLibrary"
-                    text: header.words.adoptMenu
-                    visible: header.adapter.canAdopt
-
-                    onTriggered: header.adapter.adoptIntoLibrary()
-                }
                 MenuSep {  // overhauls installed with the launcher (a preview, shown while its switch is on)
                     height: visible ? implicitHeight : 0
                     visible: header.adapter.overhaul.visible === true

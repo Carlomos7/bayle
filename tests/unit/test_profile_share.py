@@ -358,27 +358,3 @@ def test_use_the_incoming_copy_replaces_the_folder_in_the_current_profile_and_un
         assert tree(flora) == before and dst.read_bytes() == profile_before
     finally:
         pt.discard(inc)
-
-
-def test_a_folder_another_profile_lists_is_never_replaced_and_this_profile_gets_name_2(tmp_path):
-    zipped = _pack(tmp_path, 7)
-    dst = make(tmp_path / "b", 5)
-    (tmp_path / "b/friend.me3").write_text("[[packages]]\nid = \"flora\"\npath = 'mod/flora'\n", encoding="utf-8")
-    flora = tmp_path / "b/mod/flora"
-    before = tree(flora)
-    profile_before = dst.read_bytes()
-    inc = pt.read(zipped, loc=er())
-    try:
-        pre = pt.preview(inc, dst, loc=er(), settings=load_settings(), choices={"flora": "incoming"})
-        assert not pre.refusals, pre.refusals
-        assert pre.zip_preview.clashes[0].shared and pre.zip_preview.undecided == []
-        res = pt.apply(pre)
-        paths = _folders(dst)
-        assert paths.count("mod/flora") == 1 and paths.count("mod/flora-2") == 1  # one entry per folder
-        assert tree(flora) == before  # the other profile's mod is untouched
-        assert b"volume = 7" in (tmp_path / "b/mod/flora-2/flora.ini").read_bytes()
-        rec = {"type": "profile-import", "profile": res["profile"], "name": "my.me3", "operation": res["operation"]}
-        undo.run(rec, lambda s: None, loc=er())
-        assert dst.read_bytes() == profile_before and not (tmp_path / "b/mod/flora-2").exists()
-    finally:
-        pt.discard(inc)

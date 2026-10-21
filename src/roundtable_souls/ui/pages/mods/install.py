@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from roundtable_souls.mods import library
 from roundtable_souls.ui.text import tr
 
 
@@ -375,9 +374,8 @@ class InstallDraft:
         p = self.plan
         package = p["kind"] == "package"
         mode = self.overhaul_mode
-        lib = library.library_of(self.profile)
         try:
-            where = str(Path(p["dest"]).relative_to(lib.root if lib is not None else self.profile.parent))
+            where = str(Path(p["dest"]).relative_to(self.profile.parent))
         except KeyError, ValueError, TypeError:
             where = str(p.get("dest") or "")
         groups = group_text()
@@ -410,11 +408,7 @@ class InstallDraft:
             "name": self.name_text,
             "id": self.id_text,
             "nameLabel": tr("Name") if mode == "setup" else tr("Folder name"),
-            "where": ""
-            if mode
-            else (tr("Goes into the library: {where}") if lib is not None else tr("Goes into {where}")).format(
-                where=where
-            ),
+            "where": "" if mode else tr("Goes into this profile's folder: {where}").format(where=where),
             "idShown": package and not mode,
             "idNote": tr("'{id}' is already used by another package; me3 needs each id once.").format(id=p.get("id"))
             if id_taken

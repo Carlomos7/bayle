@@ -41,7 +41,6 @@ class ProfileTransferPresenter:
             "version": tr("Version (optional)"),
             "author": tr("Author"),
             "mods": tr("Mods in the export"),
-            "outside": tr("Outside your Library: tick it to include it anyway."),
             "readme": tr("README"),
             "readmePreview": tr("Preview"),
             "readmeEdit": tr("Edit"),
@@ -76,7 +75,7 @@ class ProfileTransferPresenter:
             "whichProfile": tr("Which profile to import"),
             "bundledTitle": tr("This download has a profile"),
             "bundledAbout": tr(
-                "Nothing in the download runs. Only the mods the profile points at are copied into your Library."
+                "Nothing in the download runs. Only the mods the profile points at are copied into this profile's folder."
             ),
             "newFile": tr("New file"),
             "openZipFolder": tr("Open the zip's folder"),
@@ -153,9 +152,6 @@ class ProfileTransferPresenter:
     def total(self, picked: int, size: int) -> str:
         return plural("{n} mod · {size}", "{n} mods · {size}", picked).format(n=picked, size=size_text(size))
 
-    def mod_note(self, item: pt.Item) -> str:
-        return "" if item.inside else tr("Outside your Library")
-
     def exported(self, path: Path) -> str:
         return tr("Exported {name}").format(name=path.name)
 
@@ -219,14 +215,8 @@ class ProfileTransferPresenter:
                     "diff": " · ".join(parts),
                     "incoming": tr("Version {v}").format(v=c.label_in) if c.label_in else none,
                     "mine": " · ".join([tr("Version {v}").format(v=c.label_mine) if c.label_mine else none, date]),
-                    "usedBy": tr("Used by {names}").format(names=", ".join(c.users)) if c.users else "",
                     "choice": c.choice or "",
                     "suggested": c.default == "incoming",
-                    "sharedNote": tr(
-                        "Other profiles use your copy, so it is not replaced: this profile gets its own copy beside it."
-                    )
-                    if c.shared and c.choice == "incoming"
-                    else "",
                     "canBoth": not new_profile,
                 }
             )

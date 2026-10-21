@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from roundtable_souls.game import catalog as games
+from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import play as core
+from roundtable_souls.services.mods import migrate_profile_folders
 from roundtable_souls.services.settings import load_settings, save_settings
 
 
@@ -24,6 +26,9 @@ class Context(Protocol):
     def note_profile_saves(self, names) -> Any: ...
     def reload_settings(self) -> Any: ...
     def start_imports(self) -> Any: ...
+
+
+_MIGRATED: set[str] = set()
 
 
 class LauncherState:
@@ -54,6 +59,12 @@ class LauncherState:
     def reload_profiles(self, select: str | None = None) -> None:
         """Find the game's setups again and pick `select`, else the one Launch used last, else the first."""
         g = self.game
+        if g.ready and g.key not in _MIGRATED:  # once per game a session: the shared library's profiles move out first
+            _MIGRATED.add(g.key)
+            try:
+                migrate_profile_folders(self.locations)
+            except Exception as e:  # nothing changed; it tries again at the next start
+                run_logging.log(f"warning: profiles not moved into their own folders yet: {e}")
         remembered = core.remembered_profile(self.settings, g)
         self.launch_profiles = core.discover(select or remembered, self.locations) if g.ready else []
         pick = select or remembered

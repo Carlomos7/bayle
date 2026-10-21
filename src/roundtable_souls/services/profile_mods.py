@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
-from roundtable_souls.mods import library, profile_edit, profile_writer
 from roundtable_souls.mods import order as mod_order
+from roundtable_souls.mods import profile_edit, profile_writer
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
 from roundtable_souls.mods import rename as mod_rename
@@ -69,9 +69,6 @@ def removal(profile, entry: dict, *, loc: Locations, scan: dict | None = None) -
             path = profile_edit.resolve(prof, other["path"])
             if path == folder or folder in path.parents:
                 users.append(other["name"])
-        lib = library.library_of(prof)
-        if lib is not None:  # a library mod is shared: another profile listing it keeps the folder
-            users += [f"profile {n}" for n in lib.folder_users(folder, besides=prof)]
     merged = merged_from(prof, entry, loc=loc, scan=scan)
     return Removal(
         kind=entry["kind"],
@@ -355,8 +352,6 @@ class PageFacts:
     display: dict[str, tuple[int, ...]]  # kind -> indexes in the order the page shows (mods.order.display_order)
     problems: dict[int, tuple[str, ...]]  # what makes me3 refuse or skip an entry (mods.checks.entry_problems)
     loads_nothing: tuple[int, ...]  # entries for a folder of mods or the profile folder (shown as a line, not a row)
-    outside: tuple[int, ...]  # entries of a library profile pointing outside the library
-    shared: dict[int, int]  # entries other profiles of the library also use: how many profiles use it
     stays_last: tuple[int, ...]  # the locked rows
     missing: tuple[int, ...]  # the folder or DLL is not there
     empty: dict[int, str]  # package folders with no game files of their own: "empty" or "no-game-folders"
@@ -371,10 +366,9 @@ class PageFacts:
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     """The page's facts for profile. settings: the launcher settings (attached config files); None reads them."""
     from roundtable_souls.mods import configs as mod_configs
-    from roundtable_souls.mods.library import ModLibrary
 
     prof = Path(profile)
-    empty_facts = PageFacts(prof, (), {"package": (), "native": ()}, {}, (), (), {}, (), (), {}, {}, {})
+    empty_facts = PageFacts(prof, (), {"package": (), "native": ()}, {}, (), (), (), {}, {}, {})
     try:
         text = profile_edit.read_text(prof)
         entries = profile_entries(prof)
@@ -386,19 +380,6 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     display = {
         kind: tuple(r["index"] for r in mod_order.display_order(prof, text, kind)) for kind in ("package", "native")
     }
-    library = ModLibrary.for_game(loc)
-    shared: dict[int, int] = {}
-    if library is not None and mod_checks.same_folder(prof.parent, library.profiles):  # only a library profile
-        try:
-            contents = library.scan()
-            for e in entries:
-                place = library.place_of(profile_edit.resolve(prof, e["path"])) if e.get("path") else None
-                if place is not None:
-                    users = len(contents.used_by(*place))
-                    if users > 1:
-                        shared[e["index"]] = users
-        except OSError:
-            shared = {}
     try:
         tgt = mod_order.target(prof, loc)
     except Exception:
@@ -427,8 +408,6 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
         display=display,
         problems={i: tuple(p) for i, p in problems.items() if p},
         loads_nothing=tuple(mod_checks.loads_nothing(prof, entries, tree)),
-        outside=tuple(mod_checks.outside_library(prof, entries, library.root if library else None)),
-        shared=shared,
         stays_last=tuple(sorted(mod_order.stays_last_entries(prof, text, tgt))),
         missing=tuple(missing),
         empty=empty,

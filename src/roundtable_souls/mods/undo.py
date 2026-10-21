@@ -39,10 +39,10 @@ LABEL = {
     "overhaul-remove": "Restore",
     "overhaul-turn-off": "Undo turn off",
     "profile-import": "Undo import",
-    "library-adopt": "Undo adoption",
     "rename": "Undo rename",
     "profile-rename": "Undo rename",
     "profile-duplicate": "Undo copy",
+    "profile-folders": "Undo move",
     "save-restore": "Undo",
 }
 OPERATIONS = ("install", "update", "rollback")
@@ -101,13 +101,8 @@ def available(undo: dict | None) -> bool:
         op = Path(str(undo.get("operation") or ""))
         if not undo.get("operation") or build._state(op) != build.ACTIVE:
             return False
-        # a profile adopted into the library (mods.adopt) is no longer at the place this was recorded for
         return not undo.get("profile") or Path(undo["profile"]).is_file()
-    if undo.get("type") in ("profile-rename", "profile-duplicate"):
-        from roundtable_souls.merging import build
-
-        return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
-    if undo.get("type") == "library-adopt":
+    if undo.get("type") in ("profile-rename", "profile-duplicate", "profile-folders"):
         from roundtable_souls.merging import build
 
         return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
@@ -164,14 +159,14 @@ def run(undo: dict, log, *, loc: Locations) -> str:
             return profile_rename.undo_duplicate(Path(undo["operation"]), log)
         except (profile_rename.ProfileRenameError, ps.Unreadable) as e:
             raise UndoError(str(e)) from e
-    if undo.get("type") == "library-adopt":
-        from roundtable_souls.mods import adopt
+    if undo.get("type") == "profile-folders":
+        from roundtable_souls.mods import migrate
 
         if not available(undo):
-            raise UndoError(f"{undo.get('name') or 'The adoption'} can no longer be taken back.")
+            raise UndoError("The move into profile folders can no longer be taken back.")
         try:
-            return adopt.undo_adopt(Path(undo["operation"]), log)
-        except adopt.AdoptError as e:
+            return migrate.undo_migration(Path(undo["operation"]), log)
+        except migrate.MigrateError as e:
             raise UndoError(str(e)) from e
     raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
 

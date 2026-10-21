@@ -98,8 +98,13 @@ def name_problem(profile: Path, name: str) -> str | None:
     if name.lower() in naming.RESERVED or name.lower().endswith(GENERATED):
         return f"{name} is a name the launcher or me3 uses itself."
     target = profile.with_name(name + ".me3")
-    if library.own_folder(profile) and profile.parent.with_name(name).exists() and name.lower() != profile.stem.lower():
-        return f"There is already a profile called {name}."
+    if library.own_folder(profile) and name.lower() != profile.stem.lower():
+        try:  # case-insensitive on every system: the folder must still work when it reaches Windows
+            folder_taken = any(p.name.lower() == name.lower() for p in profile.parent.parent.iterdir())
+        except OSError:
+            folder_taken = profile.parent.with_name(name).exists()
+        if folder_taken:
+            return f"There is already a profile called {name}."
     if name.lower() != profile.stem.lower():
         try:
             taken = any(p.name.lower() == target.name.lower() for p in profile.parent.iterdir())

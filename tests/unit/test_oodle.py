@@ -2,7 +2,6 @@
 record their arguments, and the tests that need a real file on Windows use a placeholder file, not the game's."""
 
 import ctypes
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -72,7 +71,7 @@ def test_a_folder_without_the_library_finds_nothing(windows, tmp_path, no_cached
 
 
 def test_a_placeholder_file_that_is_not_a_library_is_skipped(windows, tmp_path, no_cached_compressor):
-    if sys.platform != "win32":
+    if not hasattr(ctypes, "WinDLL"):  # the windows fixture fakes sys.platform, not ctypes
         pytest.skip("loading a DLL needs Windows; the placeholder is only read there")
     (tmp_path / "oo2core_8_win64.dll").write_bytes(b"not a library")
     assert oodle.find_oodle(tmp_path) is None

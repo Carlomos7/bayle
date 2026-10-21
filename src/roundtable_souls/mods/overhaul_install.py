@@ -304,10 +304,18 @@ def _find(writer: ProfileWriter, kind: str, key: str) -> dict | None:
     return None
 
 
-def _entry_named(writer: ProfileWriter, name: str) -> dict | None:
-    """An entry by the name a requirement or a side effect uses: a package's id, a DLL's file name (case aside)."""
+def _entry_named(writer: ProfileWriter, name: str, kind: str | None = None) -> dict | None:
+    """An entry by the name a requirement or a side effect uses: a package's id, a DLL's file name (case aside); of
+    the kind given when the caller knows it (a DLL and a package can share a name)."""
     low = name.lower()
-    return next((e for e in writer.entries() if requirements.entry_name(e["kind"], e).lower() == low), None)
+    return next(
+        (
+            e
+            for e in writer.entries()
+            if requirements.entry_name(e["kind"], e).lower() == low and kind in (None, e["kind"])
+        ),
+        None,
+    )
 
 
 def _value(row: dict | None, setting: str) -> tuple[bool, Any]:
@@ -434,7 +442,11 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
     effects: list[records.SideEffect] = []
     removes = [c for c in plan.changes if c.action == "remove"]
     found = [_find(writer, c.kind, c.key) for c in removes]
-    off = {requirements.entry_name(e["kind"], e) for e in found if e is not None and e["row"].get("enabled") is False}
+    off = {
+        (e["kind"], requirements.entry_name(e["kind"], e))
+        for e in found
+        if e is not None and e["row"].get("enabled") is False
+    }
     for e in sorted((e for e in found if e is not None), key=lambda e: e["index"], reverse=True):
         writer.remove_entry(e["index"])
     for c in plan.changes:
@@ -452,7 +464,7 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 value = _relative(writer.profile, str(v)) if k == "path" else v
                 effects.append(records.SideEffect(entry=name, setting=k, before=was, before_set=present, after=value))
                 _set_entry(writer, e["index"], k, value)
-                e = _entry_named(writer, name) or e
+                e = _entry_named(writer, name, e["kind"]) or e
         elif c.action == "add":
             row = dict(c.values)
             writer.add_entry(c.kind, row)
@@ -461,8 +473,8 @@ def _apply(writer: ProfileWriter, plan: install_plan.Plan, before: dict) -> list
                 effects.append(
                     records.SideEffect(entry=name, setting="added", before=None, before_set=False, after=True)
                 )
-    for name in sorted(off):  # an entry the player had switched off stays off when it is added again
-        e = _entry_named(writer, name)
+    for kind, name in sorted(off):  # an entry the player had switched off stays off when it is added again
+        e = _entry_named(writer, name, kind)
         if e is not None:
             _set_entry(writer, e["index"], "enabled", False)
     return effects

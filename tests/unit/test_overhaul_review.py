@@ -139,3 +139,20 @@ def test_undo_restores_the_other_profiles_exact_bytes_first_even_when_the_main_t
     with pytest.raises(operations.OperationError):
         undo._overhaul_back(record, lambda s: None)
     assert other.read_bytes() == raw
+
+
+# ----------------------------------------------------------------------------- a DLL and a package with one name
+def test_an_entry_is_found_by_kind_so_a_dll_and_a_package_named_alike_stay_apart():
+    from roundtable_souls.mods import overhaul_install
+
+    class W:
+        def entries(self):
+            return [
+                {"kind": "native", "path": "natives/Same.dll", "row": {}},
+                {"kind": "package", "id": "Same", "path": "packages/Same", "row": {}},
+            ]
+
+    w = W()
+    assert overhaul_install._entry_named(w, "same", "package")["kind"] == "package"
+    assert overhaul_install._entry_named(w, "Same.dll", "native")["kind"] == "native"
+    assert overhaul_install._entry_named(w, "Same.dll", "package") is None

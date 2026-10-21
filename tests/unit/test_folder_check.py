@@ -108,30 +108,43 @@ def test_rename_folder_refuses_a_taken_name_a_running_game_and_a_good_folder(wor
 def test_split_copies_shared_moves_private_and_rewrites_paths(world):
     loc, _home, profiles = world
     pre = fs.preview(profiles / "Mine" / "other.me3", loc)
-    assert pre.ok and (pre.profiles, pre.copies, pre.moves) == (2, 1, 1)  # flora copied; hair moved
+    assert pre.ok and (pre.profiles, pre.copies, pre.moves) == (
+        2,
+        1,
+        3,
+    )  # flora copied; hair moved; flora and solo of the keeper go to packages/
     out = fs.split(profiles / "Mine" / "other.me3", loc)
-    assert (out["profiles"], out["copies"], out["moves"]) == (2, 1, 1)
+    assert (out["profiles"], out["copies"], out["moves"]) == (2, 1, 3)
     other = profiles / "other"
     assert Path(out["profile"]) == other / "other.me3"
-    assert (other / "mod" / "flora" / "f.dcx").read_bytes() == b"flora"  # copy
-    assert (other / "mod" / "hair" / "h.dcx").read_bytes() == b"hair"  # moved
-    assert not (profiles / "Mine" / "mod" / "hair").exists()
-    assert (profiles / "Mine" / "mod" / "flora" / "f.dcx").is_file()  # the keeper keeps the original
-    assert (profiles / "Mine" / "mod" / "solo" / "s.dcx").is_file()
+    assert (other / "packages" / "flora" / "f.dcx").read_bytes() == b"flora"  # copy
+    assert (other / "packages" / "hair" / "h.dcx").read_bytes() == b"hair"  # moved
+    assert not (profiles / "Mine" / "mod" / "hair").exists() and not (profiles / "Mine" / "packages" / "hair").exists()
+    assert (profiles / "Mine" / "packages" / "flora" / "f.dcx").is_file()  # the keeper keeps the original, as packages/
+    assert (profiles / "Mine" / "packages" / "solo" / "s.dcx").is_file()
     assert not (profiles / "Mine" / "other.me3").exists() and (profiles / "Mine" / "Mine.me3").is_file()
     body = (other / "other.me3").read_text()
-    assert "path = 'mod/flora'" in body and "path = 'mod/hair'" in body
+    assert "path = 'packages/flora'" in body and "path = 'packages/hair'" in body
     assert fc.check(other / "other.me3", loc).kind == fc.OK
     assert fc.check(profiles / "Mine" / "Mine.me3", loc).kind == fc.OK
+
+
+def test_split_follows_absolute_entry_paths_as_relative_ones(world):
+    loc, _home, profiles = world
+    mine = profiles / "Mine"
+    (mine / "other.me3").write_bytes(text((mine / "mod" / "hair").as_posix(), (mine / "mod" / "flora").as_posix()))
+    fs.split(mine / "other.me3", loc)
+    body = (profiles / "other" / "other.me3").read_text()
+    assert "path = 'packages/hair'" in body and "path = 'packages/flora'" in body and "Mine" not in body
 
 
 def test_split_without_a_keeper_gives_every_profile_a_folder(world):
     loc, _home, profiles = world
     fs.split(profiles / "pack" / "a.me3", loc)
     # x is shared: a (first) gets a copy, b (last) takes the original; y is only b's
-    assert (profiles / "a" / "mod" / "x" / "x.dcx").read_bytes() == b"x"
-    assert (profiles / "b" / "mod" / "x" / "x.dcx").read_bytes() == b"x"
-    assert (profiles / "b" / "mod" / "y" / "y.dcx").read_bytes() == b"y"
+    assert (profiles / "a" / "packages" / "x" / "x.dcx").read_bytes() == b"x"
+    assert (profiles / "b" / "packages" / "x" / "x.dcx").read_bytes() == b"x"
+    assert (profiles / "b" / "packages" / "y" / "y.dcx").read_bytes() == b"y"
     assert not (profiles / "pack" / "a.me3").exists() and not (profiles / "pack" / "mod" / "x").exists()
 
 

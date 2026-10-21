@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from roundtable_souls.config import settings as launcher_settings
 from roundtable_souls.merging import build
-from roundtable_souls.mods import history, library, naming, operations
+from roundtable_souls.mods import history, library, migrate, naming, operations
 from roundtable_souls.mods import profile_settings as ps
 from roundtable_souls.mods.profile_edit import ModError
 
@@ -62,6 +62,7 @@ class ProfileRenamePreview:
     folder: tuple[Path, Path] | None = None  # the profile's own folder and where it goes (moved last)
     profile_bytes: bytes = b""  # the .me3 as it is now
     new_bytes: bytes = b""  # and as it is under the new name
+    offline_bytes: bytes | None = None  # the offline copy's text under the new name, when its paths needed following
     settings: tuple[Path, bytes, bytes] | None = None  # (settings.json, its bytes now, its bytes re-keyed)
     lines: list[str] = field(default_factory=list)
     refusals: list[str] = field(default_factory=list)
@@ -190,6 +191,10 @@ def preview(profile: Path, new_name: str, *, loc: Locations) -> ProfileRenamePre
     out.new_bytes = out.profile_bytes
     out.folder = folder_move(profile, out.new_name, loc)
     if out.folder is not None:
+        try:  # entry paths into the old folder follow it (an absolute one becomes relative)
+            out.new_bytes, out.offline_bytes = _followed(profile, out.profile_bytes, out.folder[1])
+        except (OSError, ValueError) as e:
+            raise ProfileRenameError(f"{profile.name} could not be read ({e}).") from e
         target_folder = out.folder[1]
         if target_folder.exists() and not out.case_only:
             refuse(f"A folder called {target_folder.name} is already there, so the launcher does not overwrite it.")
@@ -219,6 +224,22 @@ def preview(profile: Path, new_name: str, *, loc: Locations) -> ProfileRenamePre
     ]
     out.lines.append("Undo puts everything back")
     return out
+
+
+def _followed(profile: Path, raw: bytes, dst: Path) -> tuple[bytes, bytes | None]:
+    """The profile's text (and its offline copy's) once its folder is dst: paths inside the old folder follow it."""
+    item = migrate.Item(profile, dst.name, dst, Path(), units=[migrate.Unit(profile.parent, ".", [profile.stem])])
+    item.old_bytes = raw
+    offline = profile.with_name(profile.stem + OFFLINE)
+    extra = None
+    if offline.is_file():
+        old = offline.read_bytes()
+        try:
+            got = migrate._rewrite(item, offline, old)
+            extra = got if got != old else None
+        except OSError, ValueError, ModError:  # a copy that can't be read as a profile moves as it is
+            pass
+    return migrate._rewrite(item), extra
 
 
 # ----------------------------------------------------------------------------- the file moves
@@ -286,7 +307,10 @@ def apply(p: ProfileRenamePreview, *, loc: Locations, log: Callable[[str], None]
         op = _start(old, f"rename of profile {p.old_name} to {p.new_name}", p.folder)
         try:
             for src, dest in p.moves:
-                _move(op, src, dest, p.new_bytes if src == old else src.read_bytes(), p.case_only)
+                data = p.new_bytes if src == old else src.read_bytes()
+                if p.offline_bytes is not None and src.name.lower().endswith(OFFLINE):
+                    data = p.offline_bytes
+                _move(op, src, dest, data, p.case_only)
             if p.settings is not None:
                 file, now, rekeyed = p.settings
                 op.write_file(file, rekeyed, expect=_sha(now))
@@ -312,6 +336,7 @@ def apply(p: ProfileRenamePreview, *, loc: Locations, log: Callable[[str], None]
                 builds=[{"old": str(a), "new": str(b)} for a, b in p.builds],
                 settings=str(p.settings[0]) if p.settings else "",
                 new_sha=_sha(p.new_bytes),
+                offline_sha=_sha(p.offline_bytes) if p.offline_bytes is not None else "",
                 state_done=False,
             )
         except BaseException:
@@ -411,7 +436,14 @@ def undo_rename(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> st
                 if not src.is_file():
                     continue
                 data = src.read_bytes()
-                if i == 0 and _sha(data) == info["new_sha"]:  # not changed since: its exact earlier bytes
+                want = (
+                    info["new_sha"]
+                    if i == 0
+                    else info.get("offline_sha")
+                    if src.name.lower().endswith(OFFLINE)
+                    else None
+                )
+                if want and _sha(data) == want:  # not changed since: its exact earlier bytes
                     step = next(
                         s
                         for s in op.steps

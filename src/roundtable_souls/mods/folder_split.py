@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 
 KIND = "folder-split"
 MODS = ("mod", "packages", "natives")  # folders whose children are one mod each
+RENAMED = {"mod": "packages"}  # a hand-made folder's name for the launcher's own
 
 
 @dataclass
@@ -106,7 +107,7 @@ def preview(profile: Path, loc: Locations) -> SplitPlan:
             if not parts or parts[0] == library.STATE or parts[0].lower().endswith(".me3"):
                 continue
             if parts[0] in MODS and len(parts) >= 2:
-                unit(folder / parts[0] / parts[1], f"{parts[0]}/{parts[1]}")
+                unit(folder / parts[0] / parts[1], f"{RENAMED.get(parts[0], parts[0])}/{parts[1]}")
             else:
                 unit(folder / parts[0], parts[0])
         mine = library.ProfileFolder.of(p).root  # a loose profile's builds and the like, kept apart per profile
@@ -114,6 +115,9 @@ def preview(profile: Path, loc: Locations) -> SplitPlan:
             unit(child, child.name)
     for item in out.items:
         item.new_bytes = migrate._rewrite(item)
+        dests = [migrate._n(item.folder / u.dest_rel) for u in item.units]
+        if len(set(dests)) != len(dests):
+            out.refusals.append(f"{item.name} has two mods that would share a folder, so nothing was split.")
         for u in item.units:
             last = u.users[-1] == item.old.stem
             where = item.folder / u.dest_rel

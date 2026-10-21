@@ -93,6 +93,27 @@ def test_rename_then_undo_is_byte_exact(world):
     assert now["setup"] == had["setup"] and now["marks"] == had["marks"] and now["history"] == had["history"]
 
 
+def test_absolute_entry_paths_into_the_folder_follow_it_as_relative_ones(world, tmp_path):
+    loc, root, lib, a, _b = world
+    outside = (tmp_path / "elsewhere" / "mod").as_posix()
+    flora = (lib.packages / "flora").as_posix()
+    text = (
+        'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n\n'
+        f"[[packages]]\nid = \"flora\"\npath = '{flora}'\n\n"
+        f"[[packages]]\nid = \"far\"\npath = '{outside}'\n"
+    )
+    a.write_bytes(text.encode())
+    a.with_name("a.offline.me3").write_bytes(text.encode())
+    before = tree(root)
+    out = profile_rename.apply(profile_rename.preview(a, "Run", loc=loc), loc=loc)
+    new = root / "Run" / "Run.me3"
+    for f in (new, new.with_name("Run.offline.me3")):
+        body = f.read_text()
+        assert "path = 'packages/flora'" in body and f"path = '{outside}'" in body and flora not in body
+    assert profile_rename.undo_rename(Path(out["operation"])).startswith("took back")
+    assert tree(root) == before
+
+
 def test_case_only_rename_and_undo(world):
     loc, root, lib, a, _b = world
     before = tree(root)

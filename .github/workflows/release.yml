@@ -270,7 +270,9 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         path: repo
-        sparse-checkout: src/roundtable_souls/data/release-signing.pub
+        sparse-checkout: |
+          src/roundtable_souls/data/release-signing.pub
+          CHANGELOG.md
         sparse-checkout-cone-mode: false
 
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -308,14 +310,20 @@ jobs:
         minisign -S -s "$key" -m SHA256SUMS.txt -t "roundtable-souls $version" </dev/null
         for f in releases.win.json releases.linux.json SHA256SUMS.txt; do minisign -V -p "../$PUBLIC_KEY" -m "$f"; done
 
+    - name: Release notes from this version's changelog section
+      run: |
+        v="${GITHUB_REF_NAME#v}"
+        awk -v h="## [$v]" 'index($0, h) == 1 { f = 1; next } /^## \[/ { if (f) exit } f' repo/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+        grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || echo "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md)." > "$RUNNER_TEMP/notes.md"
+        cat "$RUNNER_TEMP/notes.md"
+
     # Uploaded as a draft first, so nobody (and no update check) sees a half-uploaded release.
     - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:
         name: Roundtable Souls ${{ github.ref_name }}
         draft: true
         prerelease: true
-        # the notes come from release-please's draft (its changelog section); a manual tag gets GitHub's generated ones
-        generate_release_notes: ${{ github.event_name == 'push' }}
+        body_path: ${{ runner.temp }}/notes.md  # the readable notes players see: this version's CHANGELOG section
         files: assets/*
 
     - name: Download the draft back and check every file against its checksum and every signature

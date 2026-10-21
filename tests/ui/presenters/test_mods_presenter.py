@@ -49,8 +49,6 @@ def facts(**over) -> PageFacts:
         display={"package": (0, 2, 1, 3), "native": (4, 5)},
         problems={5: ("DLL missing",)},
         loads_nothing=(1,),
-        outside=(),  # drop with the field when services/ loses it
-        shared={},
         stays_last=(3,),
         missing=(5,),
         empty={},

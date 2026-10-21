@@ -71,7 +71,7 @@ class ModsHost(Protocol):
     def settings(self) -> Any: ...
     @property
     def game(self) -> Any: ...
-    def run_job(self, job, status: str) -> None: ...
+    def run_job(self, job, status: str, on_done=None) -> None: ...
     def run_in_background(self, work, on_result) -> None: ...
     def profile_changed(self, note: str) -> None:
         """The page changed the profile: the host's other views read it again (and log the note)."""
@@ -365,7 +365,7 @@ class ModsAdapter(QObject):
         plan = profile_mods.removal(profile, entry, loc=self.host.locations, scan=self._scan)
         words = self.presenter.removal(profile, plan)
 
-        def answered(ok: bool, recycle: bool) -> None:
+        def answered(ok: bool, recycle: bool, quiet: bool = False) -> None:
             if not ok or self.host.busy:
                 return
             fresh = self._entry(index)
@@ -379,11 +379,36 @@ class ModsAdapter(QObject):
                 from roundtable_souls.platform import logging as run_logging
 
                 run_logging.start_log(f"launcher: remove {name}", loc.game.key)
-                profile_mods.remove_entry(profile, index, plan, delete_folder=recycle, loc=self.host.locations)
+                out = profile_mods.remove_entry(profile, index, plan, delete_folder=recycle, loc=self.host.locations)
+                undone.append(out["undo"])
 
-            self.host.run_job(job, tr("Removing {name}...").format(name=name))
+            def finished(ok: bool) -> None:
+                if not (ok and undone):
+                    return
+                self.notifier.toast_action(
+                    tr("Removed {name}").format(name=name), self._words["undo"], lambda: self._undo_removal(undone[0])
+                )
 
-        self.notifier.ask(words, answered, destructive=True)
+            undone: list[dict] = []
+            if quiet:
+                self.host.run_job(job, tr("Removing {name}...").format(name=name), on_done=finished)
+            else:
+                self.host.run_job(job, tr("Removing {name}...").format(name=name))
+
+        if profile_mods.removal_undoable(profile, plan, loc=self.host.locations):
+            answered(True, plan.can_recycle, True)  # Undo brings it all back: no confirm
+        else:
+            self.notifier.ask(words, answered, destructive=True)
+
+    def _undo_removal(self, undo: dict) -> None:
+        try:
+            profile_mods.undo_removal(undo, loc=self.host.locations)
+        except Exception as e:
+            self.notifier.toast(tr("Could not undo: {why}").format(why=e), error=True)
+            return
+        self.host.profile_changed(f"profile: restored {undo.get('name')}")
+        self.refresh()
+        self.notifier.toast(tr("Undone"))
 
     @Slot(int)
     def removeHolder(self, index: int) -> None:

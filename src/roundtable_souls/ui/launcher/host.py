@@ -190,8 +190,9 @@ class ShellHost(QObject):
         return self.state.game
 
     # ---------------------------------------------------------------- the host contract: work
-    def run_job(self, job, status: str) -> None:
-        self.start(job, status, "other")
+    def run_job(self, job, status: str, on_done: Callable[[bool], None] | None = None) -> None:
+        # on_done: the page speaks for itself (its own toast), so the generic "done" toast is skipped
+        self.start(job, status, "other" if on_done is None else "page", on_done)
 
     def run_in_background(self, work, on_result) -> None:
         self.jobs.start(lambda _progress: work(), on_result=on_result)

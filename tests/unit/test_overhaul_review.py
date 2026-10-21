@@ -58,3 +58,18 @@ def test_saving_without_the_mods_folder_keeps_the_old_lists_and_files():
     kept = mod_configs.with_basic(config, natives=[{"file": "M.dll"}], files=None).basic
     assert (kept.keep, kept.place, kept.skip, kept.files) == (old.keep, old.place, old.skip, old.files)
     assert [n.file for n in kept.natives] == ["M.dll"]
+
+
+# ----------------------------------------------------------------------------- reserved folder names
+def test_an_overhaul_cannot_take_the_name_of_the_players_own_packages_folder(tmp_path, monkeypatch):
+    from roundtable_souls.config import layout
+    from roundtable_souls.overhauls import basic
+
+    folder = make_folder(tmp_path / "dl", ["M.dll"])
+    kw = {"label": "M", "game": "eldenring", "basic": basic.propose(folder), "folder": folder}
+    basic.make(id="MyPkgs", **kw)  # fine until the player names a folder so
+    monkeypatch.setattr(layout, "layout", lambda: layout.Layout(packages="MyPkgs", natives="Dlls"))
+    names = layout.reserved_names()
+    for name in ("mypkgs", "Dlls", ".roundtable", ".previous"):
+        with pytest.raises(ValueError, match="uses for its own folders"):
+            basic.make(id=name, reserved=names, **kw)

@@ -466,8 +466,15 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
 
     ident = overhaul_id or naming.mod_id(name)
     game = loc.game.key
+    from roundtable_souls.config import layout
+
     return basic.make(
-        id=ident, label=name, game=game, basic=basic.propose(Path(folder), game=game), folder=Path(folder)
+        reserved=layout.reserved_names(),
+        id=ident,
+        label=name,
+        game=game,
+        basic=basic.propose(Path(folder), game=game),
+        folder=Path(folder),
     )
 
 

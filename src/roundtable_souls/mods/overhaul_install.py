@@ -1163,7 +1163,10 @@ def setup_config(config: OverhaulConfig, folder: Path) -> OverhaulConfig:
     the steps follow the form), at the advanced level as it is."""
     if config.basic is None:
         return config
+    from roundtable_souls.config import layout
+
     return overhauls.basic.make(
+        reserved=layout.reserved_names(),
         id=config.id,
         label=config.label,
         game=config.game,

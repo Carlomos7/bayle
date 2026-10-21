@@ -33,8 +33,17 @@ if TYPE_CHECKING:
     from roundtable_souls.game.locate import Locations
 
 KIND = "folder-split"
-MODS = ("mod", "packages", "natives")  # folders whose children are one mod each
-RENAMED = {"mod": "packages"}  # a hand-made folder's name for the launcher's own
+
+
+def mods_folders() -> tuple[str, ...]:
+    """Folders whose children are one mod each: the launcher's own, as Settings names them, and a hand-made mod/."""
+    lay = library.layout()
+    return ("mod", lay.packages, lay.natives)
+
+
+def renamed(name: str) -> str:
+    """A hand-made folder's name for the launcher's own."""
+    return library.layout().packages if name == "mod" else name
 
 
 @dataclass
@@ -106,8 +115,8 @@ def preview(profile: Path, loc: Locations) -> SplitPlan:
             parts = migrate._rel(Path(os.path.abspath(me3_profile.resolve(p, e["path"]))), folder)
             if not parts or parts[0] == library.STATE or parts[0].lower().endswith(".me3"):
                 continue
-            if parts[0] in MODS and len(parts) >= 2:
-                unit(folder / parts[0] / parts[1], f"{RENAMED.get(parts[0], parts[0])}/{parts[1]}")
+            if parts[0] in mods_folders() and len(parts) >= 2:
+                unit(folder / parts[0] / parts[1], f"{renamed(parts[0])}/{parts[1]}")
             else:
                 unit(folder / parts[0], parts[0])
         mine = library.ProfileFolder.of(p).root  # a loose profile's builds and the like, kept apart per profile

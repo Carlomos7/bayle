@@ -423,7 +423,7 @@ def folder_problem(dest: Path, inside: int | None = None) -> str | None:
     why = naming.unsafe(dest.name)
     if why:
         return f"Pick another folder name: {why}."
-    if dest.name.lower() in naming.RESERVED:
+    if dest.name.lower() in naming.reserved():
         return f"Pick another folder name: {dest.name} is a name the launcher uses for its own folders."
     return naming.path_problem(dest, inside)
 

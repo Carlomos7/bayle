@@ -6,6 +6,7 @@ All notable changes to Roundtable Souls. The version is shown in the window titl
 
 - Mods: the notices at the top of the page (adopt into the library, Seamless in the game folder, online with parameters) show their text again; it was empty since a delegate role named like the bar's own property bound to itself.
 - Mods: the pencil beside the profile name is always visible, a real focusable button (Tab, named "Rename profile"); clicking it or the name starts the rename.
+- Mods: Remove no longer asks when Undo brings everything back. The mod goes out of the profile (its folder to the Recycle Bin) and a toast offers Undo, which puts back the entry where it was, with any later edit to the profile kept, and the folder. Undo says why when the folder is no longer in the Recycle Bin or the mod is already back. Remove still asks when another entry or profile loads from the folder, or the profile has an overhaul.
 
 ## [4.0.0] - 2026-10-20
 

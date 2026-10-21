@@ -40,9 +40,11 @@ class Host:
         self.jobs: list[str] = []
         self.changes: list[str] = []
         self.installs: list = []
+        self.ran = None
 
-    def run_job(self, job, status):
+    def run_job(self, job, status, on_done=None):
         self.jobs.append(status)
+        self.ran = (job, on_done)
 
     def mark_seen(self):
         pass
@@ -311,7 +313,9 @@ def test_a_move_the_dependencies_would_undo_is_refused_with_the_reason(qt_app, p
         closed(w)
 
 
-def test_removing_asks_first_then_runs_as_a_job(qt_app, profile):
+def test_removing_a_folder_another_entry_uses_still_asks_first(qt_app, profile):
+    profile.write_text(PROFILE + "[[natives]]\npath = 'natives/b.dll'\n", encoding="utf-8")
+    (profile.parent / "natives" / "b.dll").write_bytes(b"d")
     host = Host(profile)
     w = opened(host)
     try:
@@ -322,6 +326,70 @@ def test_removing_asks_first_then_runs_as_a_job(qt_app, profile):
         assert host.jobs == []
         w.notifier.answerWith(asked[0][0], True, False)
         assert host.jobs == ["Removing a.dll..."]
+    finally:
+        closed(w)
+
+
+def _removed_with_toast(w, host):
+    """Click Remove on a.dll (no confirm), run the job it started, and give back the toast's Undo token."""
+    asked, toasts = [], []
+    w.notifier.confirmFullRequested.connect(lambda token, words: asked.append(words))
+    w.notifier.toastActionRequested.connect(lambda text, error, action, token: toasts.append((text, action, token)))
+    click(w, find(w, "remove_a.dll"))
+    assert asked == [] and host.jobs == ["Removing a.dll..."]
+    job, on_done = host.ran
+    job(None, host.locations)
+    on_done(True)
+    assert [t[:2] for t in toasts] == [("Removed a.dll", "Undo")]
+    return toasts[0][2]
+
+
+def test_removing_without_a_confirm_then_the_toast_undo_is_byte_exact(qt_app, profile):
+    before = profile.read_bytes()
+    folder = profile.parent / "natives"
+    host = Host(profile)
+    w = opened(host)
+    try:
+        token = _removed_with_toast(w, host)
+        assert profile.read_bytes() != before and not folder.exists()
+        w.notifier.toastAction(token)
+        assert profile.read_bytes() == before and (folder / "a.dll").read_bytes() == b"d"
+    finally:
+        closed(w)
+
+
+def test_the_toast_undo_keeps_a_later_unrelated_edit(qt_app, profile):
+    host = Host(profile)
+    w = opened(host)
+    try:
+        token = _removed_with_toast(w, host)
+        profile.write_text(
+            profile.read_text(encoding="utf-8").replace('id = "flora"', 'id = "flora2"'), encoding="utf-8"
+        )
+        w.notifier.toastAction(token)
+        text = profile.read_text(encoding="utf-8")
+        assert 'id = "flora2"' in text and "natives/a.dll" in text
+        assert (profile.parent / "natives" / "a.dll").is_file()
+    finally:
+        closed(w)
+
+
+def test_the_toast_undo_refuses_when_the_bin_item_is_gone(qt_app, profile, monkeypatch):
+    from roundtable_souls.platform import trash
+
+    sent, real = [], trash.send
+    monkeypatch.setattr(trash, "send", lambda path: sent.append(real(path)) or sent[-1])
+    host = Host(profile)
+    w = opened(host)
+    try:
+        errors = []
+        w.notifier.toastRequested.connect(lambda text, error: errors.append(text) if error else None)
+        token = _removed_with_toast(w, host)
+        trash.purge(sent[0])
+        after = profile.read_bytes()
+        w.notifier.toastAction(token)
+        assert errors and "no longer in the Recycle Bin" in errors[-1]
+        assert profile.read_bytes() == after and not (profile.parent / "natives").exists()
     finally:
         closed(w)
 

@@ -60,7 +60,7 @@ def test_the_launch_profile_keeps_the_file_key_setup():
 
 
 def test_settings_an_older_build_wrote_for_overhauls_still_load():
-    """offline_strip_overhaul (before 4.1) is read as offline_strip_overhaul; build_merges is retired and dropped."""
+    """build_merges is retired: an older file with it still loads and the key is dropped on save."""
     settings.settings_path().write_text(
         json.dumps({"offline_strip_overhaul": True, "build_merges": True, "theme": "light"}), encoding="utf-8"
     )
@@ -68,4 +68,3 @@ def test_settings_an_older_build_wrote_for_overhauls_still_load():
     settings.save_settings(theme="dark")
     written = json.loads(settings.settings_path().read_text(encoding="utf-8"))
     assert written["offline_strip_overhaul"] is True and "build_merges" not in written
-    assert "offline_strip_overhaul" not in written

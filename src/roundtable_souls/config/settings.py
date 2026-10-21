@@ -21,7 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from roundtable_souls.config import identity
 from roundtable_souls.platform import filelock
@@ -172,11 +172,8 @@ class LauncherSettings(BaseModel):
     rail_collapsed: bool = False  # the shell's navigation rail folded to icons (the top bar's menu button)
     launch_mode: str | None = None  # Elden Ring's Launch mode ("profile" | "offline" | "vanilla"); others under `games`
 
-    # Leave an overhaul the launcher has a config for off in an offline launch. Files before 4.1 call it
-    # offline_strip_overhaul: still read.
-    offline_strip_overhaul: bool = Field(
-        default=False, validation_alias=AliasChoices("offline_strip_overhaul", "offline_strip_overhaul")
-    )
+    # Leave an overhaul the launcher has a config for off in an offline launch.
+    offline_strip_overhaul: bool = False
     offline_start_steam: bool = True
     offline_skip_confirm: bool = False
 

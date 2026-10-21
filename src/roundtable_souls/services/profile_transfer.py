@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from roundtable_souls.formats import config_model, me3_profile
-from roundtable_souls.mods import configs, naming, operations, profile_edit, profile_import, profile_share
+from roundtable_souls.mods import configs, naming, operations, profile_edit, profile_import, profile_share, shared_mods
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import profile as profile_tools
 from roundtable_souls.mods.profile_edit import ModError
@@ -105,8 +105,11 @@ def items(profile: Path, *, full: bool) -> list[Item]:
     for n, e in enumerate(found):
         where = profile_edit.resolve(profile, e["path"])
         shared = e["kind"] == "native" and (where.parent == nt_root or by_parent.get(where.parent, 0) > 1)
+        stored = e["kind"] == "package" and shared_mods.record_of(
+            where
+        )  # a Shared mod: named for the mod, not its version
         if e["kind"] == "package":
-            name, copy, only = where.name, where, None
+            name, copy, only = (stored.name if stored else where.name), where, None
         elif shared:
             name, copy, only = where.stem, where.parent, [where, *configs.found(where)]
         else:
@@ -118,7 +121,7 @@ def items(profile: Path, *, full: bool) -> list[Item]:
             sum(p.stat().st_size for p in only if p.is_file()) if only else (_folder_size(copy) if copy.exists() else 0)
         )
         root = pk_root if e["kind"] == "package" else nt_root
-        inside = where == root or root in where.parents
+        inside = where == root or root in where.parents or bool(stored)
         row: dict[str, Any] = {"kind": e["kind"], "folder": name, "enabled": e["enabled"]}
         if e["kind"] == "package":
             row["id"] = e["id"]

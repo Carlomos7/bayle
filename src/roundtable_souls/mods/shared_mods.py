@@ -511,6 +511,7 @@ def share(profile: Path, indexes: list[int], *, loc: Locations, label: str = "")
     profile = Path(profile)
     names: list[str] = []
     reused: list[str] = []
+    versions: list[str] = []
     with _Job(loc, [profile], "library-share", f"sharing {len(indexes)} mod(s) of {profile.stem}") as job:
         for i in indexes:
             _o, folder = job.own_package(profile, i)
@@ -519,10 +520,11 @@ def share(profile: Path, indexes: list[int], *, loc: Locations, label: str = "")
             job.link(profile, i, mod_id, digest)
             job.put_aside(folder, mod_id, digest)
             names.append(folder.name)
+            versions.append(digest)
             if was:
                 reused.append(folder.name)
         out = job.finish({"names": names, "name": profile.stem})
-    return {**out, "shared": names, "reused": reused}
+    return {**out, "shared": names, "versions": versions, "reused": reused}
 
 
 def use_in(mod_id: str, version: str, targets: dict[Path, bool], *, loc: Locations) -> dict:
@@ -907,3 +909,44 @@ def shared_count(loc: Locations, profile: Path, index: int) -> int:
     if hit is None:
         return 0
     return len({_canon(u.profile) for u in usage(library.profiles_root(home, loc.game.key), root).of(*hit)})
+
+
+def record_of(folder: Path) -> SharedMod | None:
+    """The mod a library version folder belongs to (None for any other folder)."""
+    folder = Path(folder)
+    return read_mod(folder.parent.parent, folder.parent.name) if (folder.parent / RECORD).is_file() else None
+
+
+def install_facts(loc: Locations, profile: Path, plan: dict, known: dict | None = None) -> dict:
+    """What the Library adds to an install plan: {"shared": {index, name, profiles}} when the download is a new version
+    of a mod the profile has Shared; {"identical": [profile names]} when other profiles have a Separate copy of exactly
+    these files; {} otherwise (also for a profile that can't share). known: the facts of the plan before a rename, whose
+    (slow) comparison of files is not done again."""
+    profile = Path(profile)
+    home = loc.me3_profiles_dir()
+    if home is None or plan.get("kind") != "package" or not plan.get("root") or not plan.get("dest"):
+        return {}
+    if not (library.in_game_root(profile, home, loc.game.key) and library.own_folder(profile)):
+        return {}
+    root = library.library_root(home, loc.game.key)
+    name, ident = Path(plan["dest"]).name.lower(), str(plan.get("id") or "").lower()
+    try:
+        found = me3_profile.entries(profile.read_bytes().decode("utf-8"))
+    except OSError, ValueError:
+        return {}
+    for e in found:
+        hit = link_target(profile, root, e["path"]) if e["kind"] == "package" and e["path"] else None
+        if hit and (hit[0] == name or str(e["id"]).lower() == ident):
+            rec = read_mod(root, hit[0])
+            users = {_canon(u.profile) for u in usage(library.profiles_root(home, loc.game.key), root).of(hit[0])}
+            return {"shared": {"index": e["index"], "name": rec.name if rec else hit[0], "profiles": len(users)}}
+    if known is not None and "checked" in known:
+        return known
+    twins = identical_elsewhere(loc, Path(plan["root"]), profile)
+    return {"identical": sorted({c.profile.stem for c in twins}, key=str.lower), "checked": True}
+
+
+def share_everything(profile: Path, *, loc: Locations) -> dict | None:
+    """Share every Separate package of the profile (None when it has none)."""
+    job_less = [c.index for c in separate_copies(loc, only=Path(profile))]
+    return share(Path(profile), job_less, loc=loc) if job_less else None

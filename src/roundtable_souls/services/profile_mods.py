@@ -10,6 +10,7 @@ services/mods.py keeps install and the plain profile operations; this module onl
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from roundtable_souls.game import catalog as games
 from roundtable_souls.mods import checks as mod_checks
 from roundtable_souls.mods import conflicts as mod_overview
-from roundtable_souls.mods import folder_check, profile_edit, profile_writer
+from roundtable_souls.mods import folder_check, profile_edit, profile_writer, shared_mods
 from roundtable_souls.mods import order as mod_order
 from roundtable_souls.mods import rebuild as mod_merge
 from roundtable_souls.mods import remove as mod_remove
@@ -207,7 +208,29 @@ def remove_holder(profile, index: int, entry: dict, needs: list[str], *, loc: Lo
 # ----------------------------------------------------------------------------- install
 def install_and_record(profile, plan: dict, *, loc: Locations) -> dict:
     """Install the planned mod (run inside a logged job) and leave the undo record Activity offers ("install" for a
-    new mod, "update" for one replaced; mods.undo)."""
+    new mod, "update" for one replaced; mods.undo). A new version of a Shared mod goes into the Library instead
+    (plan["library_choice"] "here" or "everywhere"); "share" shares the new package with the identical copies in
+    other profiles."""
+    facts = plan.get("library") or {}
+    choice = plan.get("library_choice") or ""
+    if facts.get("shared"):
+        try:
+            out = shared_mods.update(
+                Path(profile),
+                facts["shared"]["index"],
+                Path(plan["root"]),
+                everywhere=choice == "everywhere",
+                loc=loc,
+            )
+            run_logging.log(f"updated Shared mod {facts['shared']['name']} in {', '.join(out['profiles'])}")
+        finally:
+            if plan.get("staging"):
+                shutil.rmtree(plan["staging"], ignore_errors=True)
+        out = {**out, "update": True}
+        run_logging.set_undo(
+            {"type": "library-update", "profile": str(profile), "name": plan["name"], "operation": out["operation"]}
+        )
+        return out
     out = install_mod(Path(profile), plan, overwrite=bool(plan.get("exists")), rebuild=bool(plan.get("merge")), loc=loc)
     run_logging.set_undo(
         {
@@ -218,7 +241,31 @@ def install_and_record(profile, plan: dict, *, loc: Locations) -> dict:
             "rebuild": bool(plan.get("merge")),
         }
     )
+    if choice == "share" and facts.get("identical"):
+        _share_with_twins(Path(profile), plan, facts["identical"], loc=loc)
     return out
+
+
+def _share_with_twins(profile: Path, plan: dict, others: list[str], *, loc: Locations) -> None:
+    """The mod just installed becomes Shared, and the other profiles' identical Separate copies are switched to it. A
+    failure here leaves the install as it is (Separate), and is logged."""
+    try:
+        index = next(
+            e["index"]
+            for e in profile_edit.entries(profile)
+            if e["kind"] == "package" and e["path"] and Path(e["path"]).name.lower() == Path(plan["dest"]).name.lower()
+        )
+        done = shared_mods.share(profile, [index], loc=loc)
+        name = done["shared"][0].lower()
+        twins = {
+            c.profile: True
+            for c in shared_mods.separate_copies(loc)
+            if c.profile.stem in others and c.name.lower() == name
+        }
+        if twins:
+            shared_mods.use_in(name, done["versions"][0], twins, loc=loc)
+    except Exception as e:  # the install itself succeeded
+        run_logging.log(f"warning: could not share {plan['name']} with the other profiles: {e}")
 
 
 # ----------------------------------------------------------------------------- rebuild tools

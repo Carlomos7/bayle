@@ -10,7 +10,7 @@ from pathlib import Path
 from roundtable_souls.config.settings import load_settings, save_settings
 from roundtable_souls.formats import me3_profile
 from roundtable_souls.game.locate import Locations
-from roundtable_souls.mods import install, models, profile_writer, remove
+from roundtable_souls.mods import install, models, profile_writer, remove, shared_mods
 from roundtable_souls.mods import profile as profile_tools
 from roundtable_souls.mods import profile_edit as mod_manage
 from roundtable_souls.platform import logging as run_logging
@@ -146,17 +146,27 @@ def profile_entries(profile) -> list:
         return []
 
 
+def _with_library(plan: dict, profile, loc: Locations, before: dict | None = None) -> dict:
+    """The Library's part of a plan: a new version of a mod the profile has Shared (installing updates it, so its id
+    is not "taken"), or identical Separate copies in other profiles (the dialog offers to share)."""
+    plan["library"] = facts = shared_mods.install_facts(loc, Path(profile), plan, known=before)
+    if facts.get("shared"):
+        plan["id_taken"] = False
+        plan["exists"] = False
+    return plan
+
+
 def plan_mod_install(profile, source, name=None, pkg_id=None, variant=None, *, loc: Locations) -> dict:
     plan = install.plan_install(Path(profile), Path(source), name, pkg_id, variant, loc=loc)
     models.ModPlan.model_validate(plan)
-    return plan
+    return _with_library(plan, profile, loc)
 
 
 def replan_mod_install(profile, plan, name=None, pkg_id=None, variant=None, *, loc: Locations) -> dict:
     """The same unpacked mod with another folder name, id or variant (nothing is unpacked again)."""
     new = install.replan(Path(profile), plan, name, pkg_id, variant, loc=loc)
     models.ModPlan.model_validate(new)
-    return new
+    return _with_library(new, profile, loc, plan.get("library") if variant == plan.get("variant") else None)
 
 
 def install_mod(profile, plan, overwrite=False, rebuild=False, *, loc: Locations) -> dict:

@@ -451,3 +451,65 @@ def test_listings_find_identical_copies_and_say_who_uses_what(world, tmp_path):
     assert [(m.mod.id, m.versions[0].used_by, m.versions[0].unused) for m in info] == [("grass", ["a", "b"], False)]
     assert shared_mods.shared_count(loc, a, index_of(a, "grass")) == 2
     assert shared_mods.shared_count(loc, a, index_of(a, "sky")) == 0
+
+
+def download(tmp_path: Path, folder: str, data: bytes) -> Path:
+    src = tmp_path / "dl" / folder
+    (src / "parts").mkdir(parents=True, exist_ok=True)
+    (src / "parts" / "p.dcx").write_bytes(data)
+    return src
+
+
+def test_install_hook_updates_a_shared_mod_here_or_everywhere(world, tmp_path):
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.services import profile_mods
+
+    loc, home, root, lib, a, b, c = world
+    for p in (a, b):
+        (root / p.stem / "packages" / "grass" / "parts").mkdir(parents=True)
+        (root / p.stem / "packages" / "grass" / "parts" / "p.dcx").write_bytes(b"v1")
+        shutil.rmtree(root / p.stem / "packages" / "grass" / "sub", ignore_errors=True)
+        (root / p.stem / "packages" / "grass" / "g.dcx").unlink(missing_ok=True)
+        shared_mods.share(p, [index_of(p, "grass")], loc=loc)
+    old = version_of(a, "grass").name
+    plan = mod_service.plan_mod_install(a, download(tmp_path, "grass", b"v2"), loc=loc)
+    assert plan["library"]["shared"]["profiles"] == 2 and not plan["id_taken"]
+    out = profile_mods.install_and_record(a, {**plan, "library_choice": "here"}, loc=loc)
+    assert out["update"] and version_of(a, "grass").name != old and version_of(b, "grass").name == old
+    plan = mod_service.plan_mod_install(b, download(tmp_path, "grass", b"v2"), loc=loc)
+    profile_mods.install_and_record(b, {**plan, "library_choice": "everywhere"}, loc=loc)
+    assert version_of(a, "grass") == version_of(b, "grass")
+
+
+def test_install_hook_offers_to_share_identical_copies_and_shares_them(world, tmp_path):
+    from roundtable_souls.services import mods as mod_service
+    from roundtable_souls.services import profile_mods
+
+    loc, home, root, lib, a, b, c = world
+    for p in (a, b):
+        shutil.rmtree(root / p.stem / "packages" / "grass")
+        (root / p.stem / "packages" / "grass" / "parts").mkdir(parents=True)
+        (root / p.stem / "packages" / "grass" / "parts" / "p.dcx").write_bytes(b"same")
+    plan = mod_service.plan_mod_install(c, download(tmp_path, "grass", b"same"), loc=loc)
+    assert plan["library"]["identical"] == ["a", "b"]
+    kept = profile_mods.install_and_record(c, dict(plan), loc=loc)
+    assert kept["update"] is False and link(c, "grass") == "packages/grass" and not lib.exists()
+    shutil.rmtree(root / "c" / "packages" / "grass")
+    c.write_text(c.read_text().replace("\n[[packages]]\nid = 'grass'\npath = 'packages/grass'\n", ""))
+    plan = mod_service.plan_mod_install(c, download(tmp_path, "grass", b"same"), loc=loc)
+    profile_mods.install_and_record(c, {**plan, "library_choice": "share"}, loc=loc)
+    assert version_of(a, "grass") == version_of(b, "grass") == version_of(c, "grass")
+    assert shared_mods.duplicates(loc) == []
+
+
+def test_duplicate_can_share_with_the_original_and_an_export_names_shared_mods_by_name(world, tmp_path):
+    from roundtable_souls.services import profile_rename as rename_service
+    from roundtable_souls.services import profile_transfer
+
+    loc, home, root, lib, a, b, c = world
+    out = rename_service.duplicate(a, loc=loc, share=True)
+    copy = Path(out["profile"])
+    assert version_of(a, "grass") == version_of(copy, "grass") and not (copy.parent / "packages" / "grass").exists()
+    assert (copy.parent / "packages").exists() is False or not list((copy.parent / "packages").glob("grass"))
+    names = {it.folder for it in profile_transfer.items(copy, full=True)}
+    assert {"grass", "sky"} <= names and not any(len(n) == shared_mods.ID_LENGTH for n in names)

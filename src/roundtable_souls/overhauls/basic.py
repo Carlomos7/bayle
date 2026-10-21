@@ -9,11 +9,13 @@ What each of the mod's files becomes (make):
                                         whole when none does (the form can untick one: then copied whole)
     any other file in a game folder     copied into its package (mod/<path>)
     a settings file the form keeps      config: the player's copy kept on updates, new keys added
+    a file the form places              a file outside the game folders meant for a game path (Basic.place): merged
+                                        there like a binder in a game folder, or copied (the form can untick it)
     anything else                       copied into its own folder at the same path (its DLLs, their data)
     installers, .me3, empty files       left out: nothing of the mod's runs, and a profile is the player's
 
 A download whose game files sit in one top folder (payload/mod/..., whatever the folder is called) is read with that
-folder as the package root: its paths are the game's own paths.
+folder as the package root: its paths are the game's own paths. Files listed in Basic.skip are left out.
 
 The derived parts ([recognise] and the one [[builds]], whose id is the config's id) are written into the TOML with
 [basic] when the form saves it, so everything else reads it like any config. A config whose derived parts no longer
@@ -95,9 +97,39 @@ def package_root(files: list[str], folders: set[str], regulation: str) -> str:
     return min(found.values())[2] if found else ""
 
 
+def _mirrors(files: list[str], folders: set[str], root: str) -> tuple[dict[str, str], list[str]]:
+    """Copies of the game's own files a download carries outside its game folders (a folder of base copies, laid out
+    like the game): a loose binder with the name of exactly one file in such a folder is meant for that game path.
+    Returns ({loose file: game path}, the copy folders, which nothing needs)."""
+    mirrored: dict[str, dict[str, list[str]]] = {}  # folder -> file name -> game paths
+    for f in files:
+        if root and _under(f, root):
+            continue
+        parts = f.split("/")
+        for i in range(1, len(parts) - 1):
+            if parts[i].lower() in folders:
+                mirrored.setdefault("/".join(parts[:i]), {}).setdefault(parts[-1].lower(), []).append(
+                    "/".join(parts[i:])
+                )
+                break
+    place: dict[str, str] = {}
+    skip: list[str] = []
+    for f in files:
+        name, top = f.rsplit("/", 1)[-1].lower(), f.split("/")[0].lower()
+        if not f.lower().endswith(MERGED_ENDING) or top in folders or (root and _under(f, root)):
+            continue
+        for folder, names in mirrored.items():
+            if not _under(f, folder) and len(names.get(name, [])) == 1:
+                place[f] = names[name][0]
+                if folder not in skip:
+                    skip.append(folder)
+    return place, sorted(skip, key=str.lower)
+
+
 def propose(folder: Path, version: str | None = None, game: str = "eldenring") -> Basic:
     """The form's starting values for a mod folder: its top-level DLLs with no special options, loading after the
-    other DLLs; the settings files beside them kept on updates."""
+    other DLLs; the settings files beside them kept on updates; a binder meant for a game path placed there (and the
+    folder of game copies it was matched in left out)."""
     folder = Path(folder)
     gc = game_config.load(game)
     ignored = set(gc.ignored_dlls)
@@ -107,7 +139,14 @@ def propose(folder: Path, version: str | None = None, game: str = "eldenring") -
     )
     files = files_of(folder)
     keep = [] if not dlls else [f for f in files if "/" not in f and Path(f).suffix.lower() in SETTINGS_SUFFIXES]
-    return Basic(version=version, natives=[BasicNative(file=p.name) for p in dlls], keep=keep)
+    regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
+    folders = set(gc.mod_folders)
+    place, skip = _mirrors(files, folders, package_root(files, folders, regulation))
+    return Basic(version=version, natives=[BasicNative(file=p.name) for p in dlls], keep=keep, place=place, skip=skip)
+
+
+def leaves(f: str, skip: list[str]) -> bool:
+    return any(f.lower() == s.lower() or _under(f, s) for s in skip)
 
 
 def _step(f: str, basic: Basic, folders: set[str], regulation: str, root: str) -> Step:
@@ -129,6 +168,12 @@ def _step(f: str, basic: Basic, folders: set[str], regulation: str, root: str) -
     return Copy(do="copy", **{"from": f}, to=f)
 
 
+def _placed(f: str, to: str, basic: Basic) -> Step:
+    if to.lower().endswith(MERGED_ENDING) and f.lower() not in {n.lower() for n in basic.not_merged}:
+        return Merge(do="merge", file=to, patch=f)
+    return Copy(do="copy", **{"from": f}, to=f"{PACKAGE}/{to}")
+
+
 def make(
     *, id: str, label: str, game: str, basic: Basic, folder: Path, short_label: str | None = None
 ) -> OverhaulConfig:
@@ -137,15 +182,24 @@ def make(
     gc = game_config.load(game)
     regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
     folders = set(gc.mod_folders)
-    files = [f for f in files_of(folder)]
+    files = [f for f in files_of(folder) if not leaves(f, basic.skip)]
     have = {f.lower() for f in files}
-    for named in [
-        *(n.file for n in basic.natives),
-    ]:
+    for named in [*(n.file for n in basic.natives), *basic.place]:
         if named.lower() not in have:
             raise ValueError(f"{named} is not in the mod's folder.")
+    taken: dict[str, str] = {}
+    for src, to in basic.place.items():
+        if to.lower() != regulation and not ("/" in to and to.lower().split("/")[0] in folders):
+            raise ValueError(f"{src} is placed at {to}, which is not in one of the game's folders.")
+        if to.lower() in taken:
+            raise ValueError(f"{src} and {taken[to.lower()]} are both placed at {to}.")
+        taken[to.lower()] = src
+    placed = {k.lower(): v for k, v in basic.place.items()}
     root = package_root(files, folders, regulation)
-    steps = [_step(f, basic, folders, regulation, root) for f in files]
+    steps = [
+        _placed(f, placed[f.lower()], basic) if f.lower() in placed else _step(f, basic, folders, regulation, root)
+        for f in files
+    ]
     if not steps:
         raise ValueError("The mod's folder has no files to set up.")
     in_package = any(s.do in ("params", "merge") or (s.do == "copy" and s.to.startswith(f"{PACKAGE}/")) for s in steps)

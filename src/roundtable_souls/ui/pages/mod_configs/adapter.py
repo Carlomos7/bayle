@@ -531,6 +531,7 @@ class ModConfigsAdapter(QObject):
             "natives": choices["natives"],
             "keep": {f for f, on in choices["keep"] if on},
             "off": {f for f, on in choices["merged"] if not on},
+            "place": dict(choices["place"]),
         }
         return {
             "setup": setup,
@@ -566,6 +567,8 @@ class ModConfigsAdapter(QObject):
             native["initializer"] = value.strip() or None
         elif kind == "keep":
             values["keep"].add(name) if value == "true" else values["keep"].discard(name)
+        elif kind == "place":
+            values["place"][name] = value.strip()
         elif kind == "merge":
             values["off"].discard(name) if value == "true" else values["off"].add(name)
         ov["dirty"] = True
@@ -580,6 +583,7 @@ class ModConfigsAdapter(QObject):
             natives=values["natives"],
             keep=sorted(values["keep"]),
             not_merged=sorted(values["off"]),
+            place={k: v for k, v in values["place"].items() if v},
         )
 
     def _saved(self, node_key: str, said: str) -> None:
@@ -602,6 +606,25 @@ class ModConfigsAdapter(QObject):
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         self._saved(self._node.key, self.presenter.saved_text(setup["path"].name))
+        self._reapply()
+
+    def _reapply(self) -> None:
+        """The saved setup, installed again in the profiles using it (their entries are the install's, not the file's)."""
+        profile = self._profile
+        if profile is None or self.host.busy:
+            return
+
+        def job(_launch, loc):
+            from roundtable_souls.platform import logging as run_logging
+
+            run_logging.start_log("launcher: apply the saved overhaul setup", loc.game.key)
+            try:
+                mod_service.reapply_overhaul_setup(profile, loc=loc)
+            except Exception as e:
+                run_logging.log(f"error: {e}")
+                raise SystemExit(1) from e
+
+        self.host.run_job(job, tr("Applying the overhaul setup to the profiles using it..."))
 
     def _save_overhaul_text(self, opened: mod_configs.Opened) -> None:
         try:
@@ -611,6 +634,7 @@ class ModConfigsAdapter(QObject):
             self._refuse(self.presenter.could_not_save(str(e)))
             return
         self._saved(self._node.key if self._node else "overhaul", self.presenter.saved_text(opened.path.name))
+        self._reapply()
 
     def _start_new(self, config, mod: dict) -> None:
         """Show the proposal for a mod as a new setup (nothing is written until Save is confirmed)."""

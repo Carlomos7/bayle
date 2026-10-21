@@ -274,6 +274,10 @@ class Basic(_Strict):
     natives: list[BasicNative] = Field(default_factory=list)
     keep: list[str] = Field(default_factory=list)  # settings files the player keeps on updates
     not_merged: list[str] = Field(default_factory=list)  # binders used whole instead of merged
+    # Files outside the game folders meant for a game path: file in the mod's folder -> the game path it is merged
+    # at (copied there when it is in not_merged or is not a binder).
+    place: dict[str, str] = Field(default_factory=dict)
+    skip: list[str] = Field(default_factory=list)  # files or folders of the download left out
 
 
 # ----------------------------------------------------------------------------- the config

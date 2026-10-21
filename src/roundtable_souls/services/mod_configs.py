@@ -226,27 +226,34 @@ def reset_value(setting: config_model.Setting) -> tuple[str, str]:
 
 # ----------------------------------------------------------------------------- the Overhaul setup form
 def overhaul_choices(setup: dict) -> dict:
-    """What the basic form offers: {natives: the DLLs as set, keep: [(file, ticked)], merged: [(file, ticked)]}. Empty
-    lists without the mod's folder (the launcher's copy of its download)."""
+    """What the basic form offers: {natives: the DLLs as set, keep: [(file, ticked)], merged: [(file, ticked)], place:
+    [(file, game path)]}. Empty lists without the mod's folder (the launcher's copy of its download)."""
     from roundtable_souls.overhauls import basic
 
     config, folder = setup["config"], setup["folder"]
     b = config.basic
     if b is None or folder is None:
-        return {"natives": [], "keep": [], "merged": []}
-    files = basic.files_of(folder)
+        return {"natives": [], "keep": [], "merged": [], "place": []}
+    files = [f for f in basic.files_of(folder) if not basic.leaves(f, b.skip)]
     keep = [f for f in files if Path(f).suffix.lower() in basic.SETTINGS_SUFFIXES]
     low_keep = {k.lower() for k in b.keep}
-    binders = sorted({f for f in files if f.lower().endswith(basic.MERGED_ENDING) and "/" in f}, key=str.lower)
+    placed = {k.lower() for k in b.place}
+    binders = sorted(
+        {f for f in files if f.lower().endswith(basic.MERGED_ENDING) and ("/" in f or f.lower() in placed)},
+        key=str.lower,
+    )
     low_off = {k.lower() for k in b.not_merged}
     return {
         "natives": [n.model_dump() for n in b.natives],
         "keep": [(f, f.lower() in low_keep) for f in keep],
         "merged": [(f, f.lower() not in low_off) for f in binders],
+        "place": sorted(b.place.items(), key=lambda kv: kv[0].lower()),
     }
 
 
-def with_basic(config, *, natives: list[dict], keep: list[str], not_merged: list[str]):
+def with_basic(
+    config, *, natives: list[dict], keep: list[str], not_merged: list[str], place: dict[str, str] | None = None
+):
     """The config with the form's values (overhauls.config.Basic) in place of its basic part."""
     from roundtable_souls.overhauls.config import Basic, BasicNative
 
@@ -256,6 +263,8 @@ def with_basic(config, *, natives: list[dict], keep: list[str], not_merged: list
         natives=[BasicNative(**n) for n in natives],
         keep=keep,
         not_merged=not_merged,
+        place=old.place if old is not None and place is None else place or {},
+        skip=old.skip if old is not None else [],
     )
     return config.model_copy(update={"basic": new})
 

@@ -241,6 +241,9 @@ version = "1.2"                  # the label shown; nothing depends on it
 keep = ["MyMod.ini"]             # settings files the player keeps on updates (new keys added)
 not_merged = []                  # binders to use whole instead of merging
 natives = [{ file = "MyMod.dll", load_early = false, after_others = true }]  # initializer = "Fn" when needed
+skip = ["settings/vanilla"]      # files or folders of the download left out
+[basic.place]                    # a file outside the game folders meant for a game path (merged there)
+"settings/m00.talkesdbnd.dcx" = "script/talk/m00.talkesdbnd.dcx"
 ```
 
 What each of the mod's files becomes:
@@ -250,6 +253,9 @@ What each of the mod's files becomes:
   the last package before it that ships the same file, or used whole when none does (unless listed in `not_merged`:
   then copied whole);
 - any other file in a game folder: copied into its package (`mod/<path>`);
+- a file listed in `place`: `merge` at that game path (or copied there when it is in `not_merged` or not a binder);
+  the form proposes one for a loose binder named like a file in a folder of copies of the game's files, and leaves
+  that folder out (`skip`);
 - a download whose game files all sit in one top folder (`payload/mod/...`, whatever it is called) is read with that
   folder as the package root, so its paths are the game's own;
 - a settings file listed in `keep`: `config`;

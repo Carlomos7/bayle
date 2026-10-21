@@ -80,6 +80,20 @@
      },
      "title": "Not Merged",
      "type": "array"
+    },
+    "place": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Place",
+     "type": "object"
+    },
+    "skip": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Skip",
+     "type": "array"
     }
    },
    "title": "Basic",

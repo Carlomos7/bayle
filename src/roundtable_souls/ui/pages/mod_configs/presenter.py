@@ -329,6 +329,15 @@ class ModConfigsPresenter:
                         ],
                     }
                 )
+            if values["place"]:
+                sections.append(
+                    {
+                        "title": tr("Files placed at a game path (empty: not placed)"),
+                        "rows": [
+                            self._ov_row("place", "place:" + f, f, "text", to) for f, to in values["place"].items()
+                        ],
+                    }
+                )
             if choices["merged"]:
                 sections.append(
                     {

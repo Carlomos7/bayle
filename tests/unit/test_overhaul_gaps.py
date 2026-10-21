@@ -52,3 +52,71 @@ def test_a_mod_folder_with_no_game_files_is_not_a_root(tmp_path):
 def test_a_folder_of_the_games_own_copies_deeper_down_is_not_the_root(tmp_path):
     folder = make_folder(tmp_path / "dl", ["mod/chr/a.anibnd.dcx", "settings/base/msg/engus/x.msgbnd.dcx"])
     assert {"do": "merge", "file": "chr/a.anibnd.dcx", "patch": "mod/chr/a.anibnd.dcx"} in steps_of(folder)
+
+
+# ----------------------------------------------------------------------------- gap 2: a file placed at a game path
+TALK = "script/talk/m00.talkesdbnd.dcx"
+
+
+def placed_folder(root: Path) -> Path:
+    return make_folder(
+        root,
+        [
+            "mod/chr/a.anibnd.dcx",
+            "settings/m00.talkesdbnd.dcx",
+            f"settings/base/{TALK}",
+            "settings/base/msg/engus/t.msgbnd.dcx",
+            "M.dll",
+        ],
+    )
+
+
+def test_a_loose_binder_named_like_a_copy_of_a_game_file_is_placed_there_and_the_copies_are_left_out(tmp_path):
+    folder = placed_folder(tmp_path / "dl")
+    b = basic.propose(folder, game="eldenring")
+    assert b.place == {"settings/m00.talkesdbnd.dcx": TALK} and b.skip == ["settings/base"]
+    steps = steps_of(folder)
+    assert {"do": "merge", "file": TALK, "patch": "settings/m00.talkesdbnd.dcx"} in steps
+    assert not any("base" in str(s) for s in steps)
+
+
+def test_a_placed_binder_the_player_unticks_or_that_is_no_binder_is_copied_never_merged(tmp_path):
+    folder = placed_folder(tmp_path / "dl")
+    (folder / "settings/extra.bin").write_bytes(b"x")
+    b = basic.propose(folder, game="eldenring")
+    b = b.model_copy(
+        update={
+            "not_merged": ["settings/m00.talkesdbnd.dcx"],
+            "place": {**b.place, "settings/extra.bin": "param/e.bin"},
+        }
+    )
+    config = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder)
+    copies = {s.from_: s.to for s in config.builds[0].steps if s.do == "copy"}
+    assert copies["settings/m00.talkesdbnd.dcx"] == f"mod/{TALK}" and copies["settings/extra.bin"] == "mod/param/e.bin"
+
+
+def test_a_placement_to_something_that_is_no_game_folder_or_twice_to_one_path_is_refused(tmp_path):
+    folder = placed_folder(tmp_path / "dl")
+    (folder / "settings/b.dcx").write_bytes(b"x")
+    b = basic.propose(folder, game="eldenring")
+    for place, why in (
+        ({"settings/b.dcx": "nowhere/b.dcx"}, "not in one of the game's folders"),
+        ({"settings/b.dcx": TALK, "settings/m00.talkesdbnd.dcx": TALK}, "both placed at"),
+        ({"settings/gone.dcx": TALK}, "gone.dcx is not in the mod's folder"),  # the source moved or vanished
+    ):
+        with pytest.raises(ValueError, match=why):
+            basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"place": place}), folder=folder)
+
+
+def test_the_form_lists_placed_files_and_saving_it_keeps_them(tmp_path):
+    from roundtable_souls.services import mod_configs
+
+    folder = placed_folder(tmp_path / "dl")
+    b = basic.propose(folder, game="eldenring")
+    config = basic.make(id="m", label="M", game="eldenring", basic=b, folder=folder)
+    choices = mod_configs.overhaul_choices({"config": config, "folder": folder})
+    assert choices["place"] == [("settings/m00.talkesdbnd.dcx", TALK)]
+    assert ("settings/m00.talkesdbnd.dcx", True) in choices["merged"]
+    assert not any("base" in f for f, _on in choices["merged"] + choices["keep"])
+    saved = mod_configs.with_basic(config, natives=[], keep=[], not_merged=[], place=dict(choices["place"]))
+    assert saved.basic.place == b.place and saved.basic.skip == b.skip

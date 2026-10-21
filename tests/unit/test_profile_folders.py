@@ -262,3 +262,22 @@ def test_the_launchers_files_for_a_profile_are_inside_its_folder(tmp_path):
     loose = tmp_path / "profiles" / "eldenring-mods" / "mine.me3"  # kept in a shared folder: its own builds apart
     assert library.ProfileFolder.of(loose).root == loose.parent / ".roundtable" / "profiles" / "mine"
     assert not (tmp_path / "profiles" / "main").exists()  # nothing is made until asked
+
+
+def test_a_folder_holding_several_profiles_is_nobodys_own(tmp_path):
+    folder = tmp_path / "Mine"
+    folder.mkdir()
+    mine = folder / "Mine.me3"
+    mine.write_bytes(NEW.encode())
+    assert library.own_folder(mine) and library.named_folder(mine)
+    (folder / "Mine.offline.me3").write_bytes(b"x")  # an offline copy and me3's default are not profiles
+    (folder / "eldenring-default.me3").write_bytes(b"x")
+    assert library.own_folder(mine)
+    (folder / "other.me3").write_bytes(NEW.encode())
+    assert not library.own_folder(mine) and library.named_folder(mine)
+    assert not library.own_folder(folder / "other.me3")
+    assert library.ProfileFolder.of(mine).root != folder  # its builds are kept apart, not in the shared folder
+    renamed = tmp_path / "Wrong" / "right.me3"
+    renamed.parent.mkdir()
+    renamed.write_bytes(NEW.encode())
+    assert not library.own_folder(renamed) and not library.named_folder(renamed)

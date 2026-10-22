@@ -38,7 +38,8 @@ import shutil
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -766,6 +767,15 @@ def start_log(title: str, game: str) -> None:
 
 
 # ----------------------------------------------------------------------------- the window
+def _sink_args(record: logging.LogRecord) -> tuple[str, str]:
+    """(text, level word) of a record for a window or client sink."""
+    level = "error" if record.levelno >= logging.ERROR else "warning" if record.levelno >= logging.WARNING else "info"
+    text = record.getMessage()
+    if record.exc_info:
+        text += "\n" + logging.Formatter().formatException(record.exc_info)
+    return text, level
+
+
 class _SinkHandler(logging.Handler):
     """Lines for the window: the current job's, and warnings and errors from anywhere."""
 
@@ -778,20 +788,54 @@ class _SinkHandler(logging.Handler):
             return  # the window wrote it itself (see log_shown)
         if _current.get() is None and record.levelno < logging.WARNING:
             return
-        level = (
-            "error" if record.levelno >= logging.ERROR else "warning" if record.levelno >= logging.WARNING else "info"
-        )
         try:
-            text = record.getMessage()
-            if record.exc_info:
-                text += "\n" + logging.Formatter().formatException(record.exc_info)
-            self.sink(text, level)
+            self.sink(*_sink_args(record))
         except Exception:  # noqa: BLE001 - a broken sink must never stop a job
             pass
 
 
+_scope_sink: contextvars.ContextVar[Callable[[str, str], None] | None] = contextvars.ContextVar(
+    "roundtable_log_scope", default=None
+)
+_scope_handler: logging.Handler | None = None
+
+
+class _ScopeHandler(logging.Handler):
+    """Lines emitted inside a job_log_scope go to that scope's sink (and to no one else's)."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.INFO)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        sink = _scope_sink.get()
+        if sink is None or getattr(record, "shown", False):
+            return
+        try:
+            sink(*_sink_args(record))
+        except Exception:  # noqa: BLE001 - a broken sink must never stop a job
+            pass
+
+
+@contextmanager
+def job_log_scope(sink: Callable[[str, str], None]) -> Iterator[None]:
+    """For the code run inside (this thread and context): every log line also goes to sink(message, level). Unlike
+    attach_sink there is no process-wide slot to replace, so each job (or test) has its own subscriber. Lines from
+    threads the job starts are not seen (a new thread has a new context), as with the current job."""
+    global _scope_handler
+    with _lock:
+        if _scope_handler is None:
+            _scope_handler = _ScopeHandler()
+            get_logger().addHandler(_scope_handler)
+    token = _scope_sink.set(sink)
+    try:
+        yield
+    finally:
+        _scope_sink.reset(token)
+
+
 def attach_sink(sink: Callable[[str, str], None]) -> None:
-    """Send lines to a callable (message, level) as well: the window's log pane. Replaces any earlier sink."""
+    """Send lines to a callable (message, level) as well: the window's log pane. Replaces any earlier sink. Compat
+    for the Qt window; new code uses job_log_scope."""
     global _sink_handler
     root = get_logger()
     if _sink_handler is not None:

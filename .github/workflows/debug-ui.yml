@@ -1,0 +1,45 @@
+name: Debug UI crash
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+env:
+  UV_PYTHON_PREFERENCE: only-managed
+
+jobs:
+  ui:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: A-dnd-mods-alone-cov, cov: "1", sel: "tests/ui/views/test_dnd_mods.py" }
+          - { name: B-dnd-mods-alone-nocov, cov: "0", sel: "tests/ui/views/test_dnd_mods.py" }
+          - { name: C-components-then-dnd-mods-cov, cov: "1", sel: "tests/ui/views/test_components.py tests/ui/views/test_dnd_mods.py" }
+          - { name: D-ui-all-cov, cov: "1", sel: "tests/ui" }
+          - { name: E-ui-all-nocov, cov: "0", sel: "tests/ui" }
+          - { name: F-mods-view-alone-cov, cov: "1", sel: "tests/ui/views/test_mods_view.py" }
+    name: ${{ matrix.name }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+      RS_UI_STALL_MS: 1500
+      PYTHONFAULTHANDLER: "1"
+      QT_LOGGING_RULES: "qt.qml*=true;qt.quick*=true"
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+    - run: uv sync --locked
+    - name: Run
+      shell: bash
+      run: |
+        if [ "${{ matrix.cov }}" = "1" ]; then
+          uv run coverage run -m pytest -v -p no:cacheprovider ${{ matrix.sel }}
+        else
+          uv run python -X faulthandler -m pytest -v -p no:cacheprovider ${{ matrix.sel }}
+        fi

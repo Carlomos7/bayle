@@ -116,8 +116,9 @@ def test_openapi_snapshot_is_current():
     assert r.returncode == 0, r.stderr
 
 
-def _spawn(env_extra):
-    env = {k: v for k, v in os.environ.items() if k != "BAYLE_API_TOKEN"} | env_extra
+def _spawn(env_extra, data):
+    env = {k: v for k, v in os.environ.items() if k != "BAYLE_API_TOKEN"} | {"ROUNDTABLE_SOULS_DATA": str(data)}
+    env |= env_extra  # the backend sets up its data folder and logs; keep them out of the repo
     return subprocess.Popen(
         [sys.executable, "-m", "bayle", "--backend"],
         stdin=subprocess.PIPE,
@@ -128,8 +129,8 @@ def _spawn(env_extra):
     )
 
 
-def test_backend_handshake_and_stdin_eof_exit():
-    proc = _spawn({"BAYLE_API_TOKEN": TOKEN})
+def test_backend_handshake_and_stdin_eof_exit(tmp_path):
+    proc = _spawn({"BAYLE_API_TOKEN": TOKEN}, tmp_path)
     try:
         hs = json.loads(proc.stdout.readline())
         assert hs["version"] == __version__ and hs["contract"] == CONTRACT_VERSION and hs["port"] > 0
@@ -146,8 +147,8 @@ def test_backend_handshake_and_stdin_eof_exit():
             f.close()
 
 
-def test_backend_without_token_fails_fast():
-    proc = _spawn({})
+def test_backend_without_token_fails_fast(tmp_path):
+    proc = _spawn({}, tmp_path)
     out, _ = proc.communicate(timeout=30)
     assert proc.returncode != 0 and out == b""
 

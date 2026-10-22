@@ -490,6 +490,9 @@ def test_the_overhaul_entries_follow_the_preview_switch(qt_app, profile, monkeyp
 
 def test_removing_an_installer_made_overhaul_asks_what_to_put_back_then_confirms(qt_app, profile, monkeypatch):
     calls = overhaul_services(monkeypatch)
+    from bayle.services import mods as mod_service
+
+    monkeypatch.setattr(mod_service, "remove_overhaul", lambda p: calls["removed"].append(p))
     host = Host(profile)
     w = opened(host)
     try:
@@ -508,6 +511,7 @@ def test_removing_an_installer_made_overhaul_asks_what_to_put_back_then_confirms
         assert words["option"] == "Also switch ersc.dll back off, as it was before the install"
         w.notifier.answerWith(token, True, True)  # the switch-back ticked: previewed again with it
         assert calls["previews"][-1] == (True, ["E"]) and host.jobs == ["Removing Toy..."]
+        assert len(calls["removed"]) == 1  # what was previewed with the switch-back is what ran
     finally:
         closed(w)
 
@@ -630,7 +634,6 @@ def test_the_profile_menu_commands_reach_the_page(qt_app, profile):
 def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_install_again(
     qt_app, profile, monkeypatch
 ):
-    from bayle.services import jobs as job_service
     from bayle.services import mods as mod_service
 
     overhaul_services(monkeypatch)
@@ -671,10 +674,8 @@ def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_ins
         [(token, words)] = asked
         assert words["title"] == "Take over Toy in main.me3" and words["apply"] == "Take over"
         w.notifier.answerWith(token, True, False)
-        assert host.jobs == ["Taking over Toy..."]
-        assert host.ran is not None and host.ran[1] is not None
-        host.ran[1](job_service.Outcome(True, "Finished"))  # the job is done: asks about installing again
-        settle()
+        assert host.jobs == ["Taking over Toy..."] and len(chosen) == 1  # the session ran the job at once
+        settle()  # the job is done: asks about installing again
         assert asked[-1][1]["title"] == "Install Toy with the launcher now?" and host.installs == []
         w.notifier.answerWith(asked[-1][0], True, False)
         assert host.installs == [True]  # opens Install mod; nothing installs by itself
@@ -705,5 +706,38 @@ def test_take_over_ticks_the_entries_the_installer_copied(qt_app, profile, monke
         settle()
         [(ticked, rows)] = picks
         assert ticked == [1] and "copied by the installer" in rows[1] and "not in the profile" in rows[0]
+    finally:
+        closed(w)
+
+
+def test_cleaning_installer_leftovers_picks_the_folders_then_asks_about_each_backup(qt_app, profile, monkeypatch):
+    from types import SimpleNamespace
+
+    from bayle.services import mods as mod_service
+
+    overhaul_services(monkeypatch)
+    left = [
+        SimpleNamespace(path=Path("C:/x/Old Mod"), label="Old Mod (3 MB)", backups=False),
+        SimpleNamespace(path=Path("C:/x/Old Backups"), label="Old Backups (2 MB)", backups=True),
+    ]
+    monkeypatch.setattr(mod_service, "overhaul_leftovers", lambda p, loc: left)
+    removed: list = []
+    monkeypatch.setattr(mod_service, "remove_overhaul_leftovers", lambda paths: removed.append(list(paths)) or [])
+    host = Host(profile)
+    w = opened(host)
+    try:
+        picks, asked = [], []
+        w.adapter.pickRequested.connect(lambda key, words, rows: picks.append((key, words["title"], rows)))
+        w.notifier.confirmFullRequested.connect(lambda token, words: asked.append((token, words["title"])))
+        w.adapter.cleanLeftovers()
+        settle()
+        [(key, title, rows)] = picks
+        assert (title, rows) == ("Clean up installer leftovers", ["Old Mod (3 MB)"])
+        w.adapter.picked(key, [0])  # the folder ticked: the backups are asked last
+        settle()
+        assert [t for _tok, t in asked] == ["Also remove Old Backups?"] and removed == []
+        w.notifier.answerWith(asked[0][0], True, False)
+        assert host.jobs == ["Moving leftovers to the Recycle Bin..."]
+        assert removed == [[Path("C:/x/Old Mod"), Path("C:/x/Old Backups")]]
     finally:
         closed(w)

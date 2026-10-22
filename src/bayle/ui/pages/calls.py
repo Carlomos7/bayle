@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from bayle.platform.text import tr
+from bayle.platform.threads import as_worker
 from bayle.services.errors import OperationError
 from bayle.ui.notifications import Notifier
 from bayle.views.common import Confirm, Pick, Refusal
@@ -58,7 +59,8 @@ class Calls:
 
         def work() -> Any:
             try:
-                return session.run(op, params)
+                with as_worker():  # a test host runs this inline
+                    return session.run(op, params)
             except OperationError as e:
                 return e
 
@@ -138,6 +140,24 @@ class Calls:
 
         self.run(op, params, offered)
 
+    def ask_each(self, prompts: list[dict], then: Callable[[list[int]], None], destructive: bool = False) -> None:
+        """Ask the Confirm prompts (as the session sent them) one at a time, in order; then(indexes answered yes)."""
+        yes: list[int] = []
+
+        def next_one(i: int) -> None:
+            if i >= len(prompts):
+                then(yes)
+                return
+
+            def answered(ok: bool, _option: bool) -> None:
+                if ok:
+                    yes.append(i)
+                next_one(i + 1)
+
+            self.notifier.ask(confirm_from(prompts[i]), answered, destructive=destructive)
+
+        next_one(0)
+
     def answer(
         self,
         plan_id: str,
@@ -152,7 +172,8 @@ class Calls:
 
         def work() -> Any:
             try:
-                return session.answer(plan_id, {"ok": ok, "option": option, "ticked": list(ticked)})
+                with as_worker():
+                    return session.answer(plan_id, {"ok": ok, "option": option, "ticked": list(ticked)})
             except OperationError as e:  # busy, expired, or changed since
                 return e
 

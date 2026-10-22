@@ -17,6 +17,7 @@ from bayle.services.profile_mods import PageFacts, Removal
 from bayle.views import load_order
 from bayle.views.common import Confirm, Pick, Refusal
 
+BUSY = profile_mods.DELETE_BUSY  # rename_block's code for "a job is running"
 MAX_TAGS = 2  # tags shown on a row; the rest are in its tooltip
 MAX_DEPS = 3  # dependencies named in the status line before "N others"
 
@@ -1176,3 +1177,36 @@ class ModsPresenter:
 
     def leftovers_moving(self) -> str:
         return tr("Moving leftovers to the Recycle Bin...")
+
+    # ---- Take over: an overhaul its own installer set up becomes the launcher's to manage
+    @staticmethod
+    def takeover_pick(label: str) -> Pick:
+        return Pick(
+            title=tr("Take over {label}: what to put back?").format(label=label),
+            body=tr(
+                "Its installer changed these in your profile (compared with its oldest backup of it), and kept backups of "
+                "your profile. Tick what to put back or move to the Recycle Bin; the rest stays as it is now."
+            ),
+            apply=tr("Continue"),
+            none=tr("Leave them"),
+        )
+
+    @staticmethod
+    def takeover_failed(label: str, why: str) -> Refusal:
+        return Refusal(tr("Can't take over {label}").format(label=label), why)
+
+    def takeover_confirm(self, profile, label: str, preview) -> Confirm | Refusal:
+        if not preview.ok:
+            return self.takeover_failed(label, " ".join(preview.refusals))
+        asked = ", ".join(str(e.entry) for e in preview.asked)
+        return Confirm(
+            title=tr("Take over {label} in {profile}").format(label=label, profile=Path(profile).name),
+            changes=tuple(preview.lines),
+            apply=tr("Take over"),
+            safety=tr(
+                "Your other mods' files are not touched. Undo in Activity puts it all back. Folders go to the Recycle Bin."
+            ),
+            option=tr("Also switch {names} back off, as it was before the install").format(names=asked)
+            if asked
+            else "",
+        )

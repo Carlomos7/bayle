@@ -53,9 +53,7 @@ def run_ask(w, host, act):
     w.notifier.confirmFullRequested.connect(lambda token, words: asked.append((token, words)))
     act()
     token, words = asked[-1]
-    w.notifier.answerWith(token, True, False)
-    job, _done = host.ran
-    job(None, host.locations)
+    w.notifier.answerWith(token, True, False)  # the session ran the job at once
     return words
 
 
@@ -85,9 +83,7 @@ def test_share_use_and_separate_from_the_page(qt_app, world, shots):
         w.adapter.useInOthers(index_of(a, "grass"))
         key, pick_words, pick_rows = picks[-1]
         assert pick_rows == ["b (has its own copy; ticking replaces it)"]
-        w.adapter.picked(key, [0])
-        job, _ = host.ran
-        job(None, loc)
+        w.adapter.picked(key, [0])  # the session ran the job at once
         assert shared_mods.shared_count(loc, b, index_of(b, "grass")) == 2
         w.adapter.refresh()
         settle()
@@ -182,8 +178,11 @@ def test_the_install_dialog_offers_keep_separate_or_share_for_identical_files(qt
         assert draft.finish()["library_choice"] == "separate"
         draft.library_choice = "share"
         assert draft.finish()["library_choice"] == "share"
+        from bayle.session.ops.mods_install import DraftState, drafts
+
         installer = w.adapter.installer
-        installer._draft = draft
+        installer._draft = drafts(host.session).add(DraftState(draft, c))  # the session holds the draft
+        installer._view = draft.view()
         installer.viewChanged.emit()
         installer.openRequested.emit()
         settle(400)

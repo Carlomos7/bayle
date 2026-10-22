@@ -197,17 +197,34 @@
         "title": "ClashFile",
         "type": "object"
       },
-      "Closed": {
+      "CleanParams": {
+        "additionalProperties": false,
         "properties": {
-          "key": {
-            "title": "Key",
+          "backups": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Backups",
+            "type": "array"
+          },
+          "folders": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Folders",
+            "type": "array"
+          },
+          "profile": {
+            "title": "Profile",
             "type": "string"
           }
         },
         "required": [
-          "key"
+          "profile"
         ],
-        "title": "Closed",
+        "title": "CleanParams",
         "type": "object"
       },
       "CopyParams": {
@@ -301,6 +318,20 @@
           }
         },
         "title": "Done",
+        "type": "object"
+      },
+      "DraftRef": {
+        "additionalProperties": false,
+        "properties": {
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_id"
+        ],
+        "title": "DraftRef",
         "type": "object"
       },
       "DragTable": {
@@ -599,6 +630,136 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Handoff": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "staging": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staging"
+          },
+          "unpacked": {
+            "title": "Unpacked",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unpacked",
+          "profiles",
+          "staging"
+        ],
+        "title": "Handoff",
+        "type": "object"
+      },
+      "InstallEdit": {
+        "additionalProperties": false,
+        "description": "One edit. field: name | id | variant | overhaul | tick | place_last | rebuild | after_last | library | native |\ntable | file. key: the file or tick; text: the new text or choice; on: the check; kind: early | after | init.",
+        "properties": {
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "name",
+              "id",
+              "variant",
+              "overhaul",
+              "tick",
+              "place_last",
+              "rebuild",
+              "after_last",
+              "library",
+              "native",
+              "table",
+              "file"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "key": {
+            "default": "",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "default": false,
+            "title": "On",
+            "type": "boolean"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_id",
+          "field"
+        ],
+        "title": "InstallEdit",
+        "type": "object"
+      },
+      "InstallFolder": {
+        "additionalProperties": false,
+        "properties": {
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "folder"
+        ],
+        "title": "InstallFolder",
+        "type": "object"
+      },
+      "InstallView": {
+        "properties": {
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          },
+          "pending": {
+            "default": false,
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "view": {
+            "additionalProperties": true,
+            "title": "View",
+            "type": "object"
+          }
+        },
+        "required": [
+          "draft_id",
+          "view"
+        ],
+        "title": "InstallView",
+        "type": "object"
+      },
       "Job": {
         "properties": {
           "error": {
@@ -801,6 +962,36 @@
         "title": "LaunchRef",
         "type": "object"
       },
+      "Leftovers": {
+        "properties": {
+          "backups": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Backups",
+            "type": "array"
+          },
+          "folders": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folders"
+          }
+        },
+        "required": [
+          "folders",
+          "backups"
+        ],
+        "title": "Leftovers",
+        "type": "object"
+      },
       "LibraryHint": {
         "properties": {
           "mods": {
@@ -828,6 +1019,23 @@
           "notice"
         ],
         "title": "LibraryHint",
+        "type": "object"
+      },
+      "LibraryRows": {
+        "properties": {
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "LibraryRows",
         "type": "object"
       },
       "Line": {
@@ -1361,6 +1569,25 @@
         "title": "NoticeRef",
         "type": "object"
       },
+      "OpenParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "source"
+        ],
+        "title": "OpenParams",
+        "type": "object"
+      },
       "OptionsInput": {
         "additionalProperties": false,
         "properties": {
@@ -1677,6 +1904,30 @@
         "title": "Parameters",
         "type": "object"
       },
+      "PickOffer": {
+        "description": "A tick list to show: its words and rows (kind \"pick\"), or None when there is nothing to choose.",
+        "properties": {
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          }
+        },
+        "title": "PickOffer",
+        "type": "object"
+      },
       "PlanAnswer": {
         "properties": {
           "choice": {
@@ -1964,6 +2215,28 @@
           "why"
         ],
         "title": "Refused",
+        "type": "object"
+      },
+      "RemoveChosen": {
+        "additionalProperties": false,
+        "properties": {
+          "chosen": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Chosen",
+            "type": "array"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "RemoveChosen",
         "type": "object"
       },
       "RemoveParams": {
@@ -2395,6 +2668,47 @@
         "title": "SettingsView",
         "type": "object"
       },
+      "Sources": {
+        "properties": {
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "usable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Usable",
+            "type": "array"
+          }
+        },
+        "required": [
+          "usable",
+          "skipped"
+        ],
+        "title": "Sources",
+        "type": "object"
+      },
+      "SourcesParams": {
+        "additionalProperties": false,
+        "properties": {
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "title": "SourcesParams",
+        "type": "object"
+      },
       "StartedData": {
         "properties": {
           "quiet": {
@@ -2604,6 +2918,33 @@
         "title": "Unseen",
         "type": "object"
       },
+      "UseParams": {
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile",
+          "index",
+          "targets"
+        ],
+        "title": "UseParams",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2704,6 +3045,32 @@
           "contract_version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "bayle__session__ops__mods__Closed": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "Closed",
+        "type": "object"
+      },
+      "bayle__session__ops__mods_install__Closed": {
+        "properties": {
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_id"
+        ],
+        "title": "Closed",
         "type": "object"
       },
       "bayle__views__mods__Health": {
@@ -3355,7 +3722,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Closed"
+                  "$ref": "#/components/schemas/bayle__session__ops__mods__Closed"
                 }
               }
             },
@@ -3613,6 +3980,512 @@
         ]
       }
     },
+    "/v1/ops/mods.install_close": {
+      "post": {
+        "operationId": "op_mods_install_close",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bayle__session__ops__mods_install__Closed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_close (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_edit": {
+      "post": {
+        "operationId": "op_mods_install_edit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_edit (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_finish": {
+      "post": {
+        "operationId": "op_mods_install_finish",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_finish (job, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_import": {
+      "post": {
+        "operationId": "op_mods_install_import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handoff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_import (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_open": {
+      "post": {
+        "operationId": "op_mods_install_open",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_open (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_preview": {
+      "post": {
+        "operationId": "op_mods_install_preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_preview (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_replan": {
+      "post": {
+        "operationId": "op_mods_install_replan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_replan (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.install_sources": {
+      "post": {
+        "operationId": "op_mods_install_sources",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourcesParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sources"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.install_sources (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.leftovers": {
+      "post": {
+        "operationId": "op_mods_leftovers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Leftovers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.leftovers (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.leftovers_clean": {
+      "post": {
+        "operationId": "op_mods_leftovers_clean",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.leftovers_clean (job, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.library": {
+      "post": {
+        "operationId": "op_mods_library",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryRows"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.library (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
     "/v1/ops/mods.library_hint": {
       "post": {
         "operationId": "op_mods_library_hint",
@@ -3654,6 +4527,98 @@
           }
         ],
         "summary": "mods.library_hint (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.library_use": {
+      "post": {
+        "operationId": "op_mods_library_use",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.library_use (job, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.library_use_choices": {
+      "post": {
+        "operationId": "op_mods_library_use_choices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.library_use_choices (read)",
         "tags": [
           "mods"
         ]
@@ -3792,6 +4757,144 @@
           }
         ],
         "summary": "mods.options (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.overhaul_install": {
+      "post": {
+        "operationId": "op_mods_overhaul_install",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallFolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.overhaul_install (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.overhaul_remove": {
+      "post": {
+        "operationId": "op_mods_overhaul_remove",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveChosen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.overhaul_remove (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.overhaul_remove_choices": {
+      "post": {
+        "operationId": "op_mods_overhaul_remove_choices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.overhaul_remove_choices (read)",
         "tags": [
           "mods"
         ]
@@ -4068,6 +5171,52 @@
           }
         ],
         "summary": "mods.remove_holder (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.remove_unused": {
+      "post": {
+        "operationId": "op_mods_remove_unused",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.remove_unused (plan, writes)",
         "tags": [
           "mods"
         ]
@@ -4487,6 +5636,52 @@
         ]
       }
     },
+    "/v1/ops/mods.separate": {
+      "post": {
+        "operationId": "op_mods_separate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.separate (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
     "/v1/ops/mods.set_enabled": {
       "post": {
         "operationId": "op_mods_set_enabled",
@@ -4625,6 +5820,52 @@
         ]
       }
     },
+    "/v1/ops/mods.share": {
+      "post": {
+        "operationId": "op_mods_share",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.share (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
     "/v1/ops/mods.split_folder": {
       "post": {
         "operationId": "op_mods_split_folder",
@@ -4666,6 +5907,98 @@
           }
         ],
         "summary": "mods.split_folder (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.takeover": {
+      "post": {
+        "operationId": "op_mods_takeover",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveChosen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.takeover (plan, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.takeover_choices": {
+      "post": {
+        "operationId": "op_mods_takeover_choices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.takeover_choices (read)",
         "tags": [
           "mods"
         ]

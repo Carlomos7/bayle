@@ -1,8 +1,8 @@
 """The Mods page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). It holds no
-decisions: what to show comes from the presenter, what a change does from services/profile_mods.py. Reading the
-profile and the Load order scan runs on the job runner's worker thread and only the presenter's output reaches QML,
-on the GUI thread; rebuilds and removals run as logged jobs of the host (the window that owns the job runner);
-results reach the user through the Notifier."""
+decisions: the page is the session's snapshot (mods), and every change is one of its operations (mods.*), asked of
+the session on the host's worker thread; what needs the player's answer comes back as a plan or a "needs
+confirmation" error and is shown through the Notifier, and a job the session runs is followed on the host. Only
+what the session sends reaches QML, on the GUI thread."""
 
 from __future__ import annotations
 
@@ -12,11 +12,7 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
-from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
-from bayle.services import mods as mod_service
-from bayle.services import profile_mods
-from bayle.services import shared_mods as library_service
 from bayle.services.errors import OperationError
 from bayle.session import Session
 from bayle.session.ops.mods import ModsView
@@ -28,7 +24,7 @@ from bayle.ui.pages.mods.install_adapter import InstallAdapter
 from bayle.ui.pages.undo import ask_undo
 from bayle.ui.refresh import Refresher, stat_key
 from bayle.views import load_order
-from bayle.views.mods import ModsPresenter, ModsState, Pick, Refusal
+from bayle.views.mods import BUSY, ModsPresenter, ModsState
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",
@@ -75,8 +71,10 @@ class ModsHost(Protocol):
     def settings(self) -> Any: ...
     @property
     def game(self) -> Any: ...
-    def run_job(self, job, status: str, on_done=None) -> None: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def follow_job(self, job_id: str, on_done) -> None:
+        """A session job's end, for the page that started it: on_done(ok, data) on the UI thread."""
+
     def profile_changed(self, note: str) -> None:
         """The page changed the profile: the host's other views read it again (and log the note)."""
 
@@ -313,118 +311,38 @@ class ModsAdapter(QObject):
     # ---- the Library (opt-in sharing of game-file mods between profiles)
     @Slot(int)
     def share(self, index: int) -> None:
-        profile, entry = self._ready(), self._entry(index)
-        if profile is None or entry is None:
+        if self._ready() is None or self._entry(index) is None:
             return
-        name = entry["name"]
-
-        def answered(ok: bool, _option: bool) -> None:
-            if ok and not self.host.busy:
-                self._library_job(
-                    tr("Sharing {name}...").format(name=name),
-                    f"share {name}",
-                    lambda loc: library_service.share(profile, [index], loc=loc),
-                )
-
-        self.notifier.ask(self.presenter.share_confirm([name]), answered)
+        self._calls.plan("mods.share", self._ref(index=index))
 
     @Slot(int)
     def separate(self, index: int) -> None:
-        profile, entry = self._ready(), self._entry(index)
-        if profile is None or entry is None:
+        if self._ready() is None or self._entry(index) is None:
             return
-        loc = self.host.locations
-        ref = library_service.shared_ref(profile, entry, loc=loc)
-        if ref is None:
-            return
-        name = library_service.display_name(ref[0], loc=loc)
-
-        def answered(ok: bool, _option: bool) -> None:
-            if ok and not self.host.busy:
-                self._library_job(
-                    tr("Copying {name}...").format(name=name),
-                    f"separate copy of {name}",
-                    lambda job_loc: library_service.separate(profile, [index], loc=job_loc),
-                )
-
-        size = library_service.version_size(*ref, loc=loc)
-        self.notifier.ask(self.presenter.separate_confirm(name, size), answered)
+        self._calls.plan("mods.separate", self._ref(index=index))
 
     @Slot(int)
     def useInOthers(self, index: int) -> None:
-        profile, entry = self._ready(), self._entry(index)
-        if profile is None or entry is None:
+        if self._ready() is None or self._entry(index) is None:
             return
-        loc = self.host.locations
-        ref = library_service.shared_ref(profile, entry, loc=loc)
-        if ref is None:
-            return
-        found = library_service.candidates(profile, ref[0], loc=loc)
-        if not found:
-            self.notifier.toast(tr("There are no other profiles."), error=True)
-            return
-        name = library_service.display_name(ref[0], loc=loc)
-        rows = [self.presenter.use_row(c.profile.stem, c.has_copy, c.uses) for c in found]
 
-        def chosen(indexes: list[int]) -> None:
-            targets = {found[i].profile: True for i in indexes}
-            if targets and not self.host.busy:
-                self._library_job(
-                    tr("Linking {name}...").format(name=name),
-                    f"use {name} in other profiles",
-                    lambda job_loc: library_service.use_in(ref[0], ref[1], targets, loc=job_loc),
-                )
+        def chosen(ticked: list[int]) -> None:
+            if ticked and not self.host.busy:
+                self._calls.job("mods.library_use", self._ref(index=index, targets=ticked))
 
-        self._pick(self.presenter.use_pick(name), rows, chosen)
-
-    def _library_job(self, status: str, what: str, work) -> None:
-        def job(_launch, loc):
-            run_logging.start_log(f"launcher: {what}", loc.game.key)
-            try:
-                work(loc)
-                run_logging.log(f"done: {what}")
-            except Exception as e:  # the Library refuses with its reason and changes nothing
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-
-        self.host.run_job(job, status)
+        self._calls.run(
+            "mods.library_use_choices", self._ref(index=index), lambda got: self._show_pick(got.prompt, chosen)
+        )
 
     @Slot(result=list)
     def libraryList(self) -> list:
-        try:
-            return self.presenter.library(library_service.listing(self.host.locations))
-        except Exception:
-            return []
+        return self.host.session.run("mods.library", self._ref()).rows
 
     @Slot()
     def removeUnused(self) -> None:
         if self._ready() is None:
             return
-        loc = self.host.locations
-
-        def work():
-            return library_service.unused(loc)
-
-        def got(result) -> None:
-            found, why = result
-            if why:
-                self.notifier.toast(why, error=True)
-            elif not found:
-                self.notifier.toast(tr("Every shared version is in use."))
-            else:
-                size = sum(v.size for _m, v in found)
-
-                def answered(ok: bool, _option: bool) -> None:
-                    if ok and not self.host.busy:
-                        self._library_job(
-                            tr("Removing unused versions..."),
-                            "remove unused library versions",
-                            lambda job_loc: library_service.remove_unused(loc=job_loc),
-                        )
-
-                self.notifier.ask(self.presenter.clean_confirm(len(found), size), answered, destructive=True)
-
-        self.host.run_in_background(work, got)
+        self._calls.plan("mods.remove_unused", self._ref(), destructive=True)
 
     # ---- small helpers for changes
     def _profile(self) -> Path | None:
@@ -750,10 +668,7 @@ class ModsAdapter(QObject):
         self.notifier.toast(tr("Fingerprint copied"))
 
     # ---- overhauls installed with the launcher (preview; owner, D4 A: shown while the switch is on)
-    pickRequested = Signal(str, dict, list)  # a tick list: its key, its words (presenter.Pick), the rows' labels
-
-    def _refuse(self, refusal: Refusal) -> None:
-        self.notifier.toast(f"{refusal.title}. {refusal.body}", error=True)
+    pickRequested = Signal(str, dict, list)  # a tick list: its key, its words (the Pick), the rows' labels
 
     def _ready(self) -> Path | None:
         """The profile to change, or None (with the reason said) while a job runs."""
@@ -762,10 +677,13 @@ class ModsAdapter(QObject):
             return None
         return self._profile()
 
-    def _pick(self, words: Pick, rows: list[str], then) -> None:
+    def _show_pick(self, prompt: dict, then) -> None:
+        """A tick list the session sent (a Pick prompt with its rows): the page shows it; then(ticked indexes) runs
+        with what the player ticked."""
         key = f"pick-{len(self._picks) + 1}"
         self._picks[key] = then
-        self.pickRequested.emit(key, plain(words), rows)
+        words = {k: v for k, v in prompt.items() if k not in ("kind", "rows")}
+        self.pickRequested.emit(key, words, list(prompt["rows"]))
 
     @Slot(str, list)
     def picked(self, key: str, indexes: list) -> None:
@@ -779,99 +697,37 @@ class ModsAdapter(QObject):
 
     @Slot()
     def installOverhaul(self) -> None:
-        profile = self._ready()
-        if profile is None:
+        if self._ready() is None:
             return
         folder = self.host.pick_folder(self.presenter.overhaul_folder_title())
         if folder is None:
             return
-        loc = self.host.locations
-
-        def work():
-            try:
-                return mod_service.preview_overhaul_install(profile, folder, loc=loc), ""
-            except Exception as e:  # not a download the launcher installs: said, nothing written
-                return None, str(e)
-
-        def got(result) -> None:
-            preview, why = result
-            if preview is None:
-                self._refuse(self.presenter.overhaul_unreadable(folder, why))
-                return
-            words = self.presenter.overhaul_install(profile, preview)
-            if isinstance(words, Refusal):
-                self._refuse(words)
-                return
-
-            def answered(ok: bool, _option: bool) -> None:
-                if not ok or self.host.busy:
-                    return
-
-                def job(_launch, loc):
-                    from bayle.platform import logging as run_logging
-
-                    verb = "update" if preview.update else "install"
-                    run_logging.start_log(f"launcher: {verb} overhaul {preview.label}", loc.game.key)
-                    mod_service.install_overhaul(preview, loc=loc)
-
-                self.host.run_job(job, self.presenter.overhaul_installing(preview))
-
-            self.notifier.ask(words, answered)
-
-        self.host.run_in_background(work, got)
+        self._calls.plan("mods.overhaul_install", self._ref(folder=str(folder)))
 
     @Slot()
     def removeOverhaul(self) -> None:
         profile, has = self._ready(), self._view.overhaul_info if self._view else None
         if profile is None or not has:
             return
-        loc, label = self.host.locations, has.label
+        label, legacy = has.label, has.legacy
 
-        def preview_and_ask(chosen: list) -> None:
-            try:
-                preview = mod_service.preview_overhaul_removal(profile, loc=loc, legacy_choices=chosen)
-            except Exception as e:
-                self._refuse(self.presenter.overhaul_remove_failed(label, str(e)))
-                return
-            words = self.presenter.overhaul_remove(profile, label, preview)
-            if isinstance(words, Refusal):
-                self._refuse(words)
-                return
+        def later(_got) -> None:
+            if legacy:  # what its installer left is cleaned up once the removal is done
+                note = self.presenter.overhaul_leftovers_later(label)
+                self.notifier.toast(f"{note.title}. {note.body}")
 
-            def answered(ok: bool, switch_back: bool) -> None:
-                if not ok or self.host.busy:
-                    return
-                final = preview
-                if switch_back:
-                    final = mod_service.preview_overhaul_removal(
-                        profile, loc=loc, revert_asked=True, legacy_choices=chosen
-                    )
-                    if not final.ok:
-                        self._refuse(self.presenter.overhaul_remove_failed(label, " ".join(final.refusals)))
-                        return
+        def ask(chosen: list) -> None:
+            self._calls.plan("mods.overhaul_remove", self._ref(chosen=chosen), destructive=True, after=later)
 
-                def job(_launch, loc):
-                    from bayle.platform import logging as run_logging
-
-                    run_logging.start_log(f"launcher: remove overhaul {label}", loc.game.key)
-                    mod_service.remove_overhaul(final)
-
-                self.host.run_job(job, self.presenter.overhaul_removing(label))
-                if has.legacy:
-                    later = self.presenter.overhaul_leftovers_later(label)
-                    self.notifier.toast(f"{later.title}. {later.body}")
-
-            self.notifier.ask(words, answered, destructive=True)
-
-        choices = mod_service.legacy_overhaul_choices(profile, loc=loc) if has.legacy else []
-        if choices:  # what its installer changed: offered unticked (owner, 3.22-A)
-            self._pick(
-                self.presenter.overhaul_put_back(label),
-                [text for text, _ in choices],
-                lambda ticked: preview_and_ask([choices[i][1] for i in ticked]),
-            )
-        else:
-            preview_and_ask([])
+        if not legacy:
+            ask([])
+            return
+        # what its installer changed is offered unticked (owner, 3.22-A)
+        self._calls.run(
+            "mods.overhaul_remove_choices",
+            self._ref(),
+            lambda got: self._show_pick(got.prompt, ask) if got.prompt else ask([]),
+        )
 
     @Slot()
     def takeOverOverhaul(self) -> None:
@@ -879,41 +735,23 @@ class ModsAdapter(QObject):
 
     @Slot()
     def cleanLeftovers(self) -> None:
-        profile = self._ready()
-        if profile is None:
+        if self._ready() is None:
             return
-        left = mod_service.overhaul_leftovers(profile, loc=self.host.locations)
-        folders = [x for x in left if not x.backups]
-        backups = [x for x in left if x.backups]
 
-        def ask_backups(picked: list, rest: list) -> None:
-            if rest:  # last, and one at a time: the only copy of the profile from before the overhaul
-                x = rest[0]
-                self.notifier.ask(
-                    self.presenter.leftover_backups(x),
-                    lambda ok, _o: ask_backups([*picked, x.path] if ok else picked, rest[1:]),
-                    destructive=True,
-                )
-                return
-            if not picked or self.host.busy:
-                return
+        def offered(got) -> None:
+            def clean(folders: list, confirmed: list) -> None:
+                if (folders or confirmed) and not self.host.busy:
+                    self._calls.job("mods.leftovers_clean", self._ref(folders=folders, backups=confirmed))
 
-            def job(_launch, loc):
-                from bayle.platform import logging as run_logging
+            def ask_backups(folders: list) -> None:  # last, and one at a time: the only copy from before the overhaul
+                self._calls.ask_each(got.backups, lambda confirmed: clean(folders, confirmed), destructive=True)
 
-                run_logging.start_log("launcher: clean up overhaul installer leftovers", loc.game.key)
-                mod_service.remove_overhaul_leftovers(picked)
+            if got.folders:
+                self._show_pick(got.folders, ask_backups)
+            else:
+                ask_backups([])
 
-            self.host.run_job(job, self.presenter.leftovers_moving())
-
-        if folders:
-            self._pick(
-                self.presenter.leftovers(bool(backups)),
-                [x.label for x in folders],
-                lambda ticked: ask_backups([folders[i].path for i in ticked], backups),
-            )
-        else:
-            ask_backups([], backups)
+        self._calls.run("mods.leftovers", self._ref(), offered)
 
     # ---- the header
     @Slot()
@@ -1200,7 +1038,7 @@ class ModsAdapter(QObject):
         profile = self.host.profile
         if profile is None or self._view is None or not self._view.has_profile:
             return tr("Pick a profile first.")
-        code = self._view.rename_code or (profile_mods.DELETE_BUSY if self.host.busy else None)
+        code = self._view.rename_code or (BUSY if self.host.busy else None)
         return self.presenter.rename_block(code, Path(profile).stem, self.host.game_running)
 
     @Slot(str, result=str)

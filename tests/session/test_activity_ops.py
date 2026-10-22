@@ -2,7 +2,7 @@
 
 import pytest
 
-from bayle.config.settings import data_dir
+from bayle.config.settings import DATA_ENV, data_dir
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.services.errors import OperationError
@@ -78,7 +78,8 @@ def _tree():
     return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for p in [root, *root.rglob("*")]}
 
 
-def test_reading_the_page_writes_nothing():
+def test_reading_the_page_writes_nothing(tmp_path, monkeypatch):
+    monkeypatch.setenv(DATA_ENV, str(tmp_path))  # scan only this test's data, not the repository a source run uses
     job = run_logging.begin_job("install mod GM", game="eldenring")
     run_logging.log("hello")
     run_logging.end_job(job, "failed")

@@ -253,7 +253,6 @@ export function ModConfigsPage() {
           </div>
         </div>
       ) : null}
-      {dialogs.node}
     </section>
   );
 }

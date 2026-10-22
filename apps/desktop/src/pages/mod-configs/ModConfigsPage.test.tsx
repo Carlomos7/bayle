@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { BackendProvider } from "@/api/backend";
+import { PromptHost } from "@/components/PromptHost";
 import { sonnerToasts } from "@/components/toasts";
 import { backend, BASE, server } from "@/test/server";
 import { ModConfigsPage } from "./ModConfigsPage";
@@ -201,7 +202,9 @@ function mount(opts: { nodes?: object[]; profile?: string; reads?: Record<string
   render(
     <QueryClientProvider client={client}>
       <BackendProvider backend={backend}>
-        <RouterProvider router={router} />
+        <PromptHost>
+          <RouterProvider router={router} />
+        </PromptHost>
       </BackendProvider>
     </QueryClientProvider>,
   );
@@ -244,7 +247,9 @@ describe("Mod Configs page", () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <BackendProvider backend={backend}>
-          <RouterProvider router={router} />
+          <PromptHost>
+            <RouterProvider router={router} />
+          </PromptHost>
         </BackendProvider>
       </QueryClientProvider>,
     );

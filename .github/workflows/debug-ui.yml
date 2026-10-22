@@ -17,12 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: A-dnd-mods-alone-cov, cov: "1", sel: "tests/ui/views/test_dnd_mods.py" }
-          - { name: B-dnd-mods-alone-nocov, cov: "0", sel: "tests/ui/views/test_dnd_mods.py" }
-          - { name: C-components-then-dnd-mods-cov, cov: "1", sel: "tests/ui/views/test_components.py tests/ui/views/test_dnd_mods.py" }
-          - { name: D-ui-all-cov, cov: "1", sel: "tests/ui" }
-          - { name: E-ui-all-nocov, cov: "0", sel: "tests/ui" }
-          - { name: F-mods-view-alone-cov, cov: "1", sel: "tests/ui/views/test_mods_view.py" }
+          - { name: G-api-then-ui, cov: "1", sel: "tests/api tests/ui" }
+          - { name: H-session-then-ui, cov: "1", sel: "tests/session tests/ui" }
+          - { name: I-integration-then-ui, cov: "1", sel: "tests/integration tests/ui" }
+          - { name: J-api-session-integration-then-ui, cov: "1", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: K-same-nocov, cov: "0", sel: "tests/api tests/integration tests/session tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen

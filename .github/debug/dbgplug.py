@@ -12,3 +12,9 @@ if os.environ.get("DBG_FAKETRASH") == "1":
         return {"kind": "gone", "item": "", "info": "", "original": str(path), "deleted": time.time()}
 
     trash._send_windows = fake
+
+if os.environ.get("DBG_QAPP_FIRST") == "1":
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    from PySide6.QtGui import QGuiApplication
+
+    _app = QGuiApplication([])

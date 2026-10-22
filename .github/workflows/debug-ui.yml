@@ -17,16 +17,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: W1-send-alone, nofix: "1", fake: "0", sel: "tests/session/test_dbg_trash.py tests/ui" }
-          - { name: W2-T2-fake-trash, nofix: "1", fake: "1", sel: "tests/session/test_mods_entry_ops.py::test_removing_an_entry_undo_brings_back_runs_at_once_and_its_record_undoes_it_byte_exact tests/ui" }
-          - { name: W3-T2-control, nofix: "1", fake: "0", sel: "tests/session/test_mods_entry_ops.py::test_removing_an_entry_undo_brings_back_runs_at_once_and_its_record_undoes_it_byte_exact tests/ui" }
-          - { name: W4-send-alone-twice, nofix: "1", fake: "0", sel: "tests/session/test_dbg_trash.py tests/ui" }
-          - { name: W5-T2-fake-trash-again, nofix: "1", fake: "1", sel: "tests/session/test_mods_entry_ops.py::test_removing_an_entry_undo_brings_back_runs_at_once_and_its_record_undoes_it_byte_exact tests/ui" }
+          - { name: Y1-ui-then-send-then-mods, nofix: "1", fake: "0", qapp: "0", sel: "tests/ui/views/test_activity_view.py tests/session/test_dbg_trash.py tests/ui/views/test_dnd_mods.py tests/ui/views/test_mods_view.py" }
+          - { name: Y2-qapp-first-send-then-ui, nofix: "1", fake: "0", qapp: "1", sel: "tests/session/test_dbg_trash.py tests/ui" }
+          - { name: Y3-send-then-ui-control, nofix: "1", fake: "0", qapp: "0", sel: "tests/session/test_dbg_trash.py tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen
       RS_UI_STALL_MS: 1500
       PYTHONFAULTHANDLER: "1"
+      DBG_QAPP_FIRST: ${{ matrix.qapp }}
       DBG_FAKETRASH: ${{ matrix.fake }}
       PYTHONPATH: .github/debug
       QT_LOGGING_RULES: "qt.qml*=true;qt.quick*=true"

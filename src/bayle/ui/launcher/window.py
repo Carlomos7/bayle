@@ -20,10 +20,10 @@ from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from bayle.platform import instance
+from bayle.platform import cpu_pool, instance
 from bayle.resources import ASSETS_DIR
 from bayle.services.play import TITLE, app_icon_path
-from bayle.ui import cpu_pool, stall
+from bayle.ui import stall
 from bayle.ui.launcher.adapter import ShellAdapter
 from bayle.ui.launcher.host import ShellHost
 from bayle.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
@@ -235,7 +235,8 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
     threading.excepthook = lambda a: report_exception(
         a.exc_type, a.exc_value, a.exc_traceback, f"thread {a.thread.name}"
     )
-    cpu_pool.install()  # CPU-bound work runs in worker processes (platform/cpu.py)
+    pool = cpu_pool.install(threading.get_ident())  # CPU-bound work runs in worker processes (platform/cpu.py)
+    QGuiApplication.instance().aboutToQuit.connect(pool.shutdown)
     host = ShellHost(ctx)
     window = ShellWindow(host)
     window.adapter.forwardRequested.connect(window.bring_forward)

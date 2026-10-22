@@ -1,6 +1,6 @@
 """CPU work in worker processes (platform/cpu.py): tasks run inline without a backend, a real worker process answers
 over the line protocol without loading Qt, errors keep their kind, and the tasks moved off the window's thread give
-the same results as before. The window's QProcess pool is tested in tests/ui/test_cpu_pool.py."""
+the same results as before. The subprocess pool is tested in tests/unit/test_cpu_pool.py."""
 
 import hashlib
 import json

@@ -107,6 +107,10 @@ class EventBus:
             self._subs.add(sub)
         return sub
 
+    @property
+    def subscribers(self) -> int:
+        return len(self._subs)
+
     def _drop(self, sub: Subscription) -> None:
         with self._lock:
             self._subs.discard(sub)

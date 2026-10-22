@@ -10,12 +10,14 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from bayle import __version__
+from bayle.api import routes
 from bayle.api.deps import require_token
 from bayle.api.models import CONTRACT_VERSION, Health, Problem
 from bayle.api.settings import ApiSettings
 from bayle.services.errors import OperationError
+from bayle.session import JobManager
 
-_STATUS = {"busy": 409, "not_found": 404, "cancelled": 409}
+_STATUS = {"busy": 409, "not_found": 404, "cancelled": 409, "too_many_subscribers": 429}
 
 
 async def _operation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -33,9 +35,13 @@ def _unique_id(route) -> str:
 def create_app(settings: ApiSettings | None = None) -> FastAPI:
     settings = settings or ApiSettings()  # type: ignore[call-arg]  # fails fast when the token is missing
 
+    # shortcut: no game_running gate yet (needs a selected game's Locations); wire it with the first writing endpoint
+    jobs = JobManager()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.settings = settings
+        app.state.jobs = jobs
         yield
 
     # The generated /docs and /openapi.json routes sit outside app-level dependencies: off; the spec is exported offline.
@@ -66,7 +72,9 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     async def health() -> Health:
         return Health(app_version=__version__, contract_version=CONTRACT_VERSION)
 
+    v1.include_router(routes.router)
     app.include_router(v1)
     # state is also set here so tests and the offline export work without running the lifespan
     app.state.settings = settings
+    app.state.jobs = jobs
     return app

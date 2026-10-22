@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from bayle.api.settings import ApiSettings
+from bayle.session import JobManager
 
 _bearer = HTTPBearer(auto_error=False)  # stateless scheme; auto_error=False makes a missing header a 401, not 403
 
@@ -24,3 +25,10 @@ def require_token(
     # bytes: compare_digest raises TypeError on non-ASCII str
     if cred is None or not hmac.compare_digest(cred.credentials.encode(), settings.token.encode()):
         raise HTTPException(401, "Missing or wrong token.", headers={"WWW-Authenticate": "Bearer"})
+
+
+def get_jobs(request: Request) -> JobManager:
+    return request.app.state.jobs
+
+
+JobsDep = Annotated[JobManager, Depends(get_jobs)]

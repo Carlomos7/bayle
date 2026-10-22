@@ -9,7 +9,7 @@ from bayle.saves import layout as L
 from bayle.services import saves as service
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.saves.adapter import SavesAdapter, apply_repairs
-from bayle.ui.pages.saves.presenter import SavesPresenter
+from bayle.views.saves import SavesPresenter
 from support import copy_live_save, er
 
 

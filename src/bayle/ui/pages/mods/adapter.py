@@ -24,12 +24,13 @@ from bayle.services import profile_rename as rename_service
 from bayle.services import shared_mods as library_service
 from bayle.ui.models import RowsModel, plain
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.activity.presenter import ActivityPresenter
-from bayle.ui.pages.activity.presenter import Refusal as UndoRefusal
-from bayle.ui.pages.mods import load_order, take_over
+from bayle.ui.pages.mods import take_over
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
-from bayle.ui.pages.mods.presenter import ModsPresenter, ModsState, Pick, Refusal
 from bayle.ui.refresh import Refresher, stat_key
+from bayle.views import load_order
+from bayle.views.activity import ActivityPresenter
+from bayle.views.activity import Refusal as UndoRefusal
+from bayle.views.mods import ModsPresenter, ModsState, Pick, Refusal
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",

@@ -18,10 +18,10 @@ from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import mod_configs, profile_mods
 from bayle.services import mods as mod_service
-from bayle.ui.file_actions import shown_path
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.mods.install import InstallDraft
-from bayle.ui.pages.mods.install import words as install_words
+from bayle.views.file_actions import shown_path
+from bayle.views.mod_install import InstallDraft
+from bayle.views.mod_install import words as install_words
 
 
 def setup_notes(config, folder: Path) -> list[str]:

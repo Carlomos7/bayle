@@ -4,7 +4,7 @@ many rebuild backups are kept, whether a rebuild tool still needs the user's per
 profile and changing its me3 options.
 
 Both the Widgets Mods page and the Qt Quick Mods page call these, so the two never disagree. They return facts, not
-sentences: the words are the presenter's (ui/pages/mods/presenter.py) and, until it replaces it, the Widgets view's.
+sentences: the words are the presenter's (views/mods.py) and, until it replaces it, the Widgets view's.
 services/mods.py keeps install and the plain profile operations; this module only adds the page's decisions."""
 
 from __future__ import annotations

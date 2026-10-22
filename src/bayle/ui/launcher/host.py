@@ -31,7 +31,7 @@ from bayle.services.mods import me3_facts
 from bayle.services.settings import load_settings, save_game_settings, save_settings
 from bayle.ui.host import Host
 from bayle.ui.jobs import Jobs, run_async
-from bayle.ui.launcher import launch, topbar
+from bayle.ui.launcher import launch
 from bayle.ui.launcher.instance import InstanceServer
 from bayle.ui.launcher.state import Context, LauncherState
 from bayle.ui.launcher.updates import UpdateFlow
@@ -40,6 +40,7 @@ from bayle.ui.notifications import Notifier
 from bayle.updates import apply as updates
 from bayle.updates import inno as migration
 from bayle.updates import retitle
+from bayle.views import topbar
 
 # A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.
 PROGRESS_LINES = (

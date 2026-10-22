@@ -10,7 +10,7 @@ from bayle.game import catalog
 from bayle.services import play as core
 from bayle.ui.launcher import launch
 from bayle.ui.launcher.launch import Ask, LaunchFlow, Services
-from bayle.ui.launcher.topbar import OFFLINE, PROFILE, VANILLA
+from bayle.views.topbar import OFFLINE, PROFILE, VANILLA
 
 
 class LaunchProfile:

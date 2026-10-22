@@ -232,8 +232,8 @@ def test_a_copy_of_the_installers_folder_is_a_leftover_while_the_setup_is_live(w
 
 
 def test_the_ui_menu_entry_and_the_reinstall_question(world):
-    from bayle.ui.pages.mods.presenter import ModsPresenter
     from bayle.ui.pages.mods.take_over import reinstall_words
+    from bayle.views.mods import ModsPresenter
 
     menu = ModsPresenter().overhaul_menu
     assert menu(True, {"label": "X", "takeover": True}, False).can_take_over

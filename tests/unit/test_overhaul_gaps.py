@@ -147,7 +147,7 @@ def test_a_files_choice_that_the_file_cannot_have_is_refused(tmp_path):
 
 def test_the_files_table_rows_are_choices_with_a_game_path_for_a_placed_file(tmp_path):
     from bayle.services import mod_configs
-    from bayle.ui.pages.mod_configs.presenter import ModConfigsPresenter
+    from bayle.views.mod_configs import ModConfigsPresenter
 
     folder = placed_folder(tmp_path / "dl")
     config = basic.make(
@@ -423,8 +423,8 @@ def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_i
 
     from bayle import overhauls
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install import InstallDraft
     from bayle.ui.pages.mods.install_adapter import InstallAdapter
+    from bayle.views.mod_install import InstallDraft
 
     app = QCoreApplication.instance() or QCoreApplication([])
     folder, toml, _out = set_up(world)
@@ -522,8 +522,8 @@ def test_the_files_table_is_read_off_the_ui_thread_and_a_fresh_config_forgets_ea
     from test_overhaul_install import set_up
 
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install import InstallDraft
     from bayle.ui.pages.mods.install_adapter import InstallAdapter
+    from bayle.views.mod_install import InstallDraft
 
     QCoreApplication.instance() or QCoreApplication([])
     folder, _toml, _out = set_up(world)
@@ -571,8 +571,8 @@ def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen
     from test_overhaul_texts_propose import download
 
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install import InstallDraft
     from bayle.ui.pages.mods.install_adapter import InstallAdapter
+    from bayle.views.mod_install import InstallDraft
 
     QCoreApplication.instance() or QCoreApplication([])
     folder = download(world.tmp / "dl" / "Texty", {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
@@ -612,7 +612,7 @@ def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
 
 def test_a_saved_setup_with_flat_paths_carries_over_to_a_download_with_a_package_root(tmp_path):
     from bayle.overhauls.config import Basic, BasicNative
-    from bayle.ui.file_actions import shown_path
+    from bayle.views.file_actions import shown_path
 
     folder = make_folder(tmp_path, ["A.dll", "B.dll", "mod/regulation.bin", "mod/chr/c0000.anibnd.dcx", "cfg/a.ini"])
     saved = Basic(

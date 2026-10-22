@@ -14,9 +14,9 @@ from collections.abc import Callable
 from bayle.config.settings import FROZEN, LauncherSettings
 from bayle.platform.text import tr
 from bayle.ui.jobs import Jobs
-from bayle.ui.pages.settings import presenter as sp
 from bayle.updates import apply as updates
 from bayle.updates import feed
+from bayle.views import settings as sp
 
 
 class UpdateFlow:

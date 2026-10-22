@@ -1,8 +1,8 @@
 """The Settings presenter's update words (safety): Update now only for a packaged copy with a signed release,
 Restart now only after a download was prepared, and nothing replaces the program while the game or a job runs."""
 
-from bayle.ui.pages.settings import presenter as sp
 from bayle.updates import apply as updates
+from bayle.views import settings as sp
 
 OFFER = {"version": "9.9.9", "url": "https://example.invalid", "notes": "", "assets": {}}
 

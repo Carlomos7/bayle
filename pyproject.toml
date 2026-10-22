@@ -106,6 +106,7 @@ layers = [
     "bayle.app",
     "bayle.ui | bayle.api",
     "bayle.session",
+    "bayle.views",
     "bayle.services",
     "bayle.mods | bayle.saves | bayle.coop | bayle.updates",
     "bayle.overhauls",
@@ -140,4 +141,10 @@ forbidden_modules = ["PySide6", "shiboken6"]
 name = "The API has no Qt"
 type = "forbidden"
 source_modules = ["bayle.api"]
+forbidden_modules = ["PySide6", "shiboken6", "bayle.ui"]
+
+[[tool.importlinter.contracts]]
+name = "Views are Qt-free and know nothing of the UI"
+type = "forbidden"
+source_modules = ["bayle.views"]
 forbidden_modules = ["PySide6", "shiboken6", "bayle.ui"]

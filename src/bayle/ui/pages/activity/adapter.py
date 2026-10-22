@@ -13,7 +13,7 @@ from PySide6.QtGui import QGuiApplication
 from bayle.platform.text import tr
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.activity.presenter import ActivityPresenter, ActivityState, LogText, Refusal
+from bayle.views.activity import ActivityPresenter, ActivityState, LogText, Refusal
 
 
 class ActivityHost(Protocol):

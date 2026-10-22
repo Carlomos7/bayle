@@ -70,6 +70,7 @@ class OperationSpec:
     result: type[BaseModel]
     kind: Kind
     writes: bool
+    title: str = ""  # a job's title in the top bar and Activity; the operation's name when empty
 
     @property
     def page(self) -> str:
@@ -90,6 +91,7 @@ class OperationRegistry:
         result: type[BaseModel],
         kind: Kind = "read",
         writes: bool = False,
+        title: str = "",
     ) -> Callable[[Callable[[Call, Any], Any]], Callable[[Call, Any], Any]]:
         """Register fn(call, params) -> result. A duplicate name, an unknown kind, or a read that writes raises
         ValueError at once (a wiring mistake, not a runtime condition)."""
@@ -101,7 +103,7 @@ class OperationRegistry:
         def register(fn: Callable[[Call, Any], Any]) -> Callable[[Call, Any], Any]:
             if name in self._ops:
                 raise ValueError(f"operation {name} is already registered")
-            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes)
+            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes, title)
             return fn
 
         return register
@@ -234,7 +236,9 @@ class Session:
         if spec.kind != "job":
             return spec.result.model_validate(spec.fn(Call(self), p))
         return self.start(
-            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)), title=name, writes=spec.writes
+            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)),
+            title=spec.title or name,
+            writes=spec.writes,
         )
 
     def _offer(self, got: Proposal | Refusal) -> Plan | Refusal:

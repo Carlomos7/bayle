@@ -35,6 +35,61 @@
         "title": "ActivityState",
         "type": "object"
       },
+      "ApplyParams": {
+        "additionalProperties": false,
+        "properties": {
+          "overhaul_id": {
+            "title": "Overhaul Id",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "overhaul_id"
+        ],
+        "title": "ApplyParams",
+        "type": "object"
+      },
+      "BasicNative": {
+        "additionalProperties": false,
+        "description": "One of the mod's DLLs, as the Overhaul setup form sets it.",
+        "properties": {
+          "after_others": {
+            "default": true,
+            "title": "After Others",
+            "type": "boolean"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "initializer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initializer"
+          },
+          "load_early": {
+            "default": false,
+            "title": "Load Early",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "BasicNative",
+        "type": "object"
+      },
       "CancelledEvent": {
         "properties": {
           "data": {
@@ -67,6 +122,45 @@
           "data"
         ],
         "title": "CancelledEvent",
+        "type": "object"
+      },
+      "Candidate": {
+        "properties": {
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "folder"
+        ],
+        "title": "Candidate",
+        "type": "object"
+      },
+      "Candidates": {
+        "properties": {
+          "mods": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "title": "Mods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mods"
+        ],
+        "title": "Candidates",
         "type": "object"
       },
       "Changed": {
@@ -149,6 +243,35 @@
         "title": "ChoiceRow",
         "type": "object"
       },
+      "ConfigFile": {
+        "properties": {
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "how": {
+            "title": "How",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "path": {
+            "format": "path",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "how",
+          "exists",
+          "kind"
+        ],
+        "title": "ConfigFile",
+        "type": "object"
+      },
       "CopyParams": {
         "additionalProperties": false,
         "properties": {
@@ -212,6 +335,41 @@
         "title": "Day",
         "type": "object"
       },
+      "Done": {
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "Done",
+        "type": "object"
+      },
+      "Edit": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "section": {
+            "default": "",
+            "title": "Section",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "Edit",
+        "type": "object"
+      },
       "ErrorData": {
         "properties": {
           "code": {
@@ -234,6 +392,25 @@
           "message"
         ],
         "title": "ErrorData",
+        "type": "object"
+      },
+      "ExportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "ini": {
+            "title": "Ini",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ini",
+          "to"
+        ],
+        "title": "ExportParams",
         "type": "object"
       },
       "FailedData": {
@@ -285,6 +462,82 @@
           "data"
         ],
         "title": "FailedEvent",
+        "type": "object"
+      },
+      "FileRead": {
+        "description": "A file as read: the text exactly (line breaks as \\n) and what writing it back needs. The client builds the\nform from the text (services.mod_configs.parse_doc).",
+        "properties": {
+          "crlf": {
+            "title": "Crlf",
+            "type": "boolean"
+          },
+          "encoding": {
+            "title": "Encoding",
+            "type": "string"
+          },
+          "fingerprint": {
+            "default": "",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "fingerprint_note": {
+            "default": "",
+            "title": "Fingerprint Note",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "seamless": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Seamless"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "text",
+          "encoding",
+          "crlf",
+          "sha",
+          "stamp"
+        ],
+        "title": "FileRead",
         "type": "object"
       },
       "FinishedData": {
@@ -376,6 +629,35 @@
         "title": "FolderPath",
         "type": "object"
       },
+      "FormParams": {
+        "additionalProperties": false,
+        "properties": {
+          "folder": {
+            "default": "",
+            "title": "Folder",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "overhaul_id": {
+            "default": "",
+            "title": "Overhaul Id",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "FormParams",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -410,6 +692,53 @@
           "contract_version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "IniParams": {
+        "additionalProperties": false,
+        "properties": {
+          "ini": {
+            "title": "Ini",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ini"
+        ],
+        "title": "IniParams",
+        "type": "object"
+      },
+      "InstallSetupParams": {
+        "additionalProperties": false,
+        "properties": {
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/SetupForm"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "overhaul_id": {
+            "default": "",
+            "title": "Overhaul Id",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "folder",
+          "name",
+          "form"
+        ],
+        "title": "InstallSetupParams",
         "type": "object"
       },
       "Job": {
@@ -784,6 +1113,95 @@
         "title": "LogView",
         "type": "object"
       },
+      "ModConfigsState": {
+        "description": "The page's snapshot: the profile it was read for (\"\" when there is none) and its mods with settings files.",
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/ModNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "nodes"
+        ],
+        "title": "ModConfigsState",
+        "type": "object"
+      },
+      "ModNode": {
+        "description": "One mod with settings files. key: stable across reads (seamless, or kind:path); target: what a file is attached\nto (a DLL, or a package's folder); loaded: Seamless only: the profile loads it.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "files": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ConfigFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "loaded": {
+            "title": "Loaded",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "setup": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setup"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "enabled",
+          "loaded",
+          "target"
+        ],
+        "title": "ModNode",
+        "type": "object"
+      },
       "Names": {
         "additionalProperties": false,
         "description": "The four folder names; None leaves one as it is.",
@@ -834,6 +1252,94 @@
           }
         },
         "title": "Names",
+        "type": "object"
+      },
+      "OpenParams": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "profile": {
+            "default": "",
+            "title": "Profile",
+            "type": "string"
+          },
+          "seamless": {
+            "default": false,
+            "title": "Seamless",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "OpenParams",
+        "type": "object"
+      },
+      "OverhaulForm": {
+        "properties": {
+          "choices": {
+            "additionalProperties": true,
+            "title": "Choices",
+            "type": "object"
+          },
+          "new": {
+            "title": "New",
+            "type": "boolean"
+          },
+          "setup": {
+            "additionalProperties": true,
+            "title": "Setup",
+            "type": "object"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "setup",
+          "choices",
+          "values",
+          "new"
+        ],
+        "title": "OverhaulForm",
+        "type": "object"
+      },
+      "PasteParams": {
+        "additionalProperties": false,
+        "properties": {
+          "ini": {
+            "title": "Ini",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ini",
+          "text"
+        ],
+        "title": "PasteParams",
+        "type": "object"
+      },
+      "PathParams": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "PathParams",
         "type": "object"
       },
       "PlanAnswer": {
@@ -906,6 +1412,20 @@
           "prompt"
         ],
         "title": "PlanOffer",
+        "type": "object"
+      },
+      "ProfileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ProfileParams",
         "type": "object"
       },
       "ProgressData": {
@@ -1080,6 +1600,230 @@
           "data"
         ],
         "title": "ResyncEvent",
+        "type": "object"
+      },
+      "SaveParams": {
+        "additionalProperties": false,
+        "properties": {
+          "edits": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Edit"
+            },
+            "title": "Edits",
+            "type": "array"
+          },
+          "expect": {
+            "title": "Expect",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "values",
+              "seamless"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "expect",
+          "kind"
+        ],
+        "title": "SaveParams",
+        "type": "object"
+      },
+      "SaveSetupParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "title": "Expect",
+            "type": "string"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupForm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "profile",
+          "path",
+          "expect"
+        ],
+        "title": "SaveSetupParams",
+        "type": "object"
+      },
+      "Saved": {
+        "properties": {
+          "missing": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "saved": {
+            "title": "Saved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "saved"
+        ],
+        "title": "Saved",
+        "type": "object"
+      },
+      "ScalingSpec": {
+        "description": "The difficulty keys one Seamless Co-op flavour uses, their labels, and the presets offered for them.",
+        "properties": {
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "presets": {
+            "additionalProperties": true,
+            "title": "Presets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "keys",
+          "labels",
+          "presets",
+          "hint"
+        ],
+        "title": "ScalingSpec",
+        "type": "object"
+      },
+      "Seamless": {
+        "properties": {
+          "ini": {
+            "format": "path",
+            "title": "Ini",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Languages",
+            "type": "array"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "preset": {
+            "title": "Preset",
+            "type": "string"
+          },
+          "scaling": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaling"
+          },
+          "settings": {
+            "items": {},
+            "title": "Settings",
+            "type": "array"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScalingSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ini",
+          "password",
+          "spec",
+          "scaling",
+          "preset",
+          "languages",
+          "language"
+        ],
+        "title": "Seamless",
         "type": "object"
       },
       "Seen": {
@@ -1343,6 +2087,114 @@
         "title": "SettingsState",
         "type": "object"
       },
+      "SetupForm": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "object"
+          },
+          "health": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health"
+          },
+          "natives": {
+            "items": {
+              "$ref": "#/components/schemas/BasicNative"
+            },
+            "title": "Natives",
+            "type": "array"
+          },
+          "tables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tables",
+            "type": "object"
+          }
+        },
+        "required": [
+          "natives",
+          "files",
+          "tables"
+        ],
+        "title": "SetupForm",
+        "type": "object"
+      },
+      "SetupSaved": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "overhaul_id": {
+            "title": "Overhaul Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "overhaul_id"
+        ],
+        "title": "SetupSaved",
+        "type": "object"
+      },
+      "ShareText": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ShareText",
+        "type": "object"
+      },
+      "Stamp": {
+        "properties": {
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "stamp"
+        ],
+        "title": "Stamp",
+        "type": "object"
+      },
       "StartedData": {
         "properties": {
           "title": {
@@ -1454,6 +2306,25 @@
           "shown"
         ],
         "title": "SwitchRow",
+        "type": "object"
+      },
+      "TieParams": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "file"
+        ],
+        "title": "TieParams",
         "type": "object"
       },
       "Unseen": {
@@ -1984,6 +2855,650 @@
         ]
       }
     },
+    "/v1/ops/mod_configs.apply_setup": {
+      "post": {
+        "operationId": "op_mod_configs_apply_setup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.apply_setup (job, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.attach": {
+      "post": {
+        "operationId": "op_mod_configs_attach",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TieParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.attach (command, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.detach": {
+      "post": {
+        "operationId": "op_mod_configs_detach",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TieParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.detach (command, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.export_share": {
+      "post": {
+        "operationId": "op_mod_configs_export_share",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.export_share (command, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.install_setup": {
+      "post": {
+        "operationId": "op_mod_configs_install_setup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallSetupParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.install_setup (plan, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.open": {
+      "post": {
+        "operationId": "op_mod_configs_open",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.open (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.overhaul_form": {
+      "post": {
+        "operationId": "op_mod_configs_overhaul_form",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverhaulForm"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.overhaul_form (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.paste": {
+      "post": {
+        "operationId": "op_mod_configs_paste",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.paste (plan, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.save": {
+      "post": {
+        "operationId": "op_mod_configs_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Saved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.save (command, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.save_setup": {
+      "post": {
+        "operationId": "op_mod_configs_save_setup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSetupParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.save_setup (command, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.setup_candidates": {
+      "post": {
+        "operationId": "op_mod_configs_setup_candidates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidates"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.setup_candidates (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.share": {
+      "post": {
+        "operationId": "op_mod_configs_share",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareText"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.share (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.stamp": {
+      "post": {
+        "operationId": "op_mod_configs_stamp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stamp"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.stamp (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.turn_off": {
+      "post": {
+        "operationId": "op_mod_configs_turn_off",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.turn_off (plan, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
     "/v1/ops/settings.clear_leftovers": {
       "post": {
         "operationId": "op_settings_clear_leftovers",
@@ -2329,6 +3844,54 @@
           }
         ],
         "summary": "Page Activity",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/mod_configs": {
+      "get": {
+        "operationId": "page_mod_configs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Profile",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModConfigsState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Page Mod Configs",
         "tags": [
           "pages"
         ]

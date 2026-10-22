@@ -10,9 +10,10 @@ E1 A)."""
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, get_args
 
 from bayle.coop import ini as coop_ini
 from bayle.coop import scaling as coop_scaling
@@ -20,7 +21,8 @@ from bayle.coop import share as coop_share
 from bayle.formats import config_model
 from bayle.mods import configs, profile_edit
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.services.errors import OperationError
+from bayle.services.errors import Cancelled, OperationError
+from bayle.services.jobs import run_job_result, run_logged
 from bayle.services.mods import overhaul_setup_of, profile_entries
 
 if TYPE_CHECKING:
@@ -32,6 +34,31 @@ README = "readme"  # a mod's README: shown as formatted text, Edit as text opens
 OVERHAUL = (
     "overhaul"  # the node of the profile's overhaul setup; its first file is the setup itself (how == "overhaul")
 )
+
+
+def stamp(path: Path) -> tuple[int, int] | None:
+    """Modification time and size: what tells that a file changed under the page (None when it is gone)."""
+    try:
+        st = Path(path).stat()
+    except OSError:
+        return None
+    return st.st_mtime_ns, st.st_size
+
+
+def logged[T](title: str, loc: Locations, work: Callable[[], T]) -> T:
+    """work() as a logged job of its own (log file, jobs-index record, Undo record), on this worker thread. Raises
+    OperationError when it failed (a plain failure is code "failed"), Cancelled when it was stopped."""
+
+    def job(_launch, loc: Locations) -> T:
+        with run_logged(title, loc.game.key):
+            return work()
+
+    done = run_job_result(job, None, loc, title)
+    if done.state == "done":
+        return done.result
+    if done.state == "cancelled":
+        raise Cancelled()
+    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
 
 
 @dataclass(frozen=True)
@@ -198,6 +225,12 @@ def open_file(path: Path, form: bool = True) -> Opened:
     return Opened(Path(path), got["text"], got["encoding"], got["crlf"], got["sha"], doc)
 
 
+def parse_doc(name: str, text: str) -> config_model.Document | None:
+    """The form of a settings file's text (None for a file the form does not read)."""
+    lang = config_model.lang_of(name)
+    return config_model.parse(text, lang) if lang else None
+
+
 def merged_text(opened: Opened, changes: dict[tuple[str | None, str], str]) -> str:
     """The file's text with these values ((section, key) -> value) changed, nothing else. Raises ValueError for a
     setting the file no longer has or only text can change."""
@@ -277,6 +310,68 @@ def overhaul_choices(setup: dict, game_dir=None) -> dict:
         "files": file_rows(b, folder, config.game),
         "texts": texts,
     }
+
+
+def initial_values(choices: dict, config) -> dict[str, Any]:
+    """The form's working values for a setup: the choices the mod's files give, as the config has them."""
+    from bayle.overhauls import basic
+
+    return {
+        "natives": choices["natives"],
+        "files": {r["file"]: basic.encode_action(r["action"], r["target"]) for r in choices["files"]},
+        "tables": {t["file"]: t["table"] for t in choices["texts"]},
+        "health": health_form(config),
+    }
+
+
+PatchKind = Literal["early", "after", "init", "file", "target", "table", "health"]
+
+
+@dataclass(frozen=True)
+class FormPatch:
+    """One edit of the Overhaul setup form: kind (early | after | init: a DLL's option; file: a Files table
+    action; target: the game path of a placed file; table: a texts entry's table; health: one of the log check's
+    texts), name (the DLL, file or field it is about) and the new value (a bool as "true"/"false")."""
+
+    kind: PatchKind
+    name: str
+    value: str
+
+    @staticmethod
+    def of(key: str, value: str) -> FormPatch | None:
+        """The patch for the page's "kind:name" key; None for a kind the form does not have."""
+        kind, _, name = key.partition(":")
+        return FormPatch(kind, name, value) if kind in get_args(PatchKind) else None  # type: ignore[arg-type]
+
+
+def patch_values(values: dict[str, Any], patch: FormPatch) -> bool:
+    """Apply one edit to the form's working values (initial_values) in place; False when it names nothing there."""
+    from bayle.overhauls import basic
+
+    name, value = patch.name, patch.value
+    native = next((n for n in values["natives"] if n["file"] == name), None)
+    if patch.kind in ("early", "after", "init"):
+        if native is None:
+            return False
+        if patch.kind == "early":
+            native["load_early"] = value == "true"
+        elif patch.kind == "after":
+            native["after_others"] = value == "true"
+        else:
+            native["initializer"] = value.strip() or None
+    elif patch.kind == "file":  # a choice of the Files table; placing keeps the path typed before
+        target = basic.decode_action(values["files"].get(name, ""))[1]
+        values["files"][name] = basic.encode_action(value, target)
+    elif patch.kind == "table":
+        values["tables"][name] = value
+    elif patch.kind == "target":
+        values["files"][name] = basic.encode_action("place", value.strip())
+    elif patch.kind == "health":
+        if name not in values["health"]:
+            return False
+        values["health"][name] = value
+        values["health_touched"] = True
+    return True
 
 
 def files_to_store(rows: list[dict], values: dict[str, str]) -> dict[str, str] | None:

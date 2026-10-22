@@ -8,7 +8,6 @@ repos:
         args: ["--maxkb=2000"]
       - id: check-toml
       - id: check-yaml
-        exclude: ^pnpm-lock\.yaml$  # pnpm 12 writes two YAML documents
       - id: end-of-file-fixer
       - id: trailing-whitespace
         exclude: ^docs/

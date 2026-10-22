@@ -8,7 +8,6 @@ geometry and the atmosphere ceilings. Everything else is generated from it.
 | --- | --- |
 | `tokens.json` | The source. W3C design-tokens shape; colours in hex or OKLCH, references, and `$extensions.roundtable` (`alpha`, `dL`, `composite`) |
 | `gen_theme.py` | Writes `src/bayle/ui/theme_tokens.py` (the same roles as plain Python data) and `src/bayle/ui/qml/Theme/Theme.qml` with its `qmldir` |
-| `gen_tokens.py` | Writes `apps/desktop/src/theme/tokens.css` (the React app's CSS variables) from `theme_tokens.py`; run it after `gen_theme.py`. `--check` is a CI gate in the web job |
 | `colour.py` | The sRGB / OKLCH and contrast maths, shared by the generator and the contrast test |
 | `gen_atmosphere.py` | Renders the bloom and vignette PNGs into `src/bayle/ui/assets/atmosphere/` (Pillow) |
 | `gen_grain.py` | Renders the blue-noise grain tiles into the same folder (Pillow and NumPy) |

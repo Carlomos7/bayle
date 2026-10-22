@@ -7,13 +7,16 @@ import { sonnerToasts, type Toasts } from "./toasts";
 interface Request {
   words: PromptWords;
   send: (answer: Answer) => Promise<unknown>;
+  /** Runs after an OK answer was accepted (a page refreshes, or goes on to the next step). */
+  done?: (result: unknown) => void;
 }
 
 interface Host {
   /** Show a backend prompt event; the answer goes to POST /v1/prompts/{prompt_id}. */
   askPrompt(prompt: PromptEventData): void;
-  /** Show a plan offer; the answer goes to POST /v1/plans/{plan_id}. A refusal (no plan_id) is only told. */
-  offerPlan(offer: PlanOffer): void;
+  /** Show a plan offer; the answer goes to POST /v1/plans/{plan_id}. A refusal (no plan_id) is only told. `done` runs
+   * after an OK answer was accepted, with the POST's result (a confirm with no plan_id posts nothing and just calls it). */
+  offerPlan(offer: PlanOffer, done?: (result: unknown) => void): void;
 }
 
 const HostContext = createContext<Host | null>(null);
@@ -37,10 +40,11 @@ export function PromptHost({ children, toasts = sonnerToasts }: { children: Reac
           words: words as PromptWords,
           send: (a) => api.post(`/v1/prompts/${prompt_id}`, { choice: a.choice }),
         }),
-      offerPlan: ({ plan_id, prompt }) =>
+      offerPlan: ({ plan_id, prompt }, done) =>
         push({
           words: prompt,
           send: (a) => (plan_id ? api.post(`/v1/plans/${plan_id}`, a) : Promise.resolve()),
+          done,
         }),
     }),
     [api, push],
@@ -59,7 +63,7 @@ export function PromptHost({ children, toasts = sonnerToasts }: { children: Reac
             setQueue((q) => q.slice(1));
             // a cancelled plan is never posted: the offer simply expires
             if (head.words.kind === "refusal" || (head.words.kind !== "choose" && !answer.ok)) return;
-            head.send(answer).catch(toasts.error);
+            head.send(answer).then((r) => head.done?.(r), toasts.error);
           }}
         />
       ) : null}

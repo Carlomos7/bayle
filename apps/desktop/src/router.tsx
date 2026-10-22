@@ -5,10 +5,12 @@ import { PAGES } from "@/shell/pages";
 import { Shell } from "@/shell/Shell";
 import { ActivityPage } from "@/pages/activity/ActivityPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { SavesPage } from "@/pages/saves/SavesPage";
 
 /** The pages that are built, by key; the rest show a placeholder. One line per page keeps page merges apart. */
 const BUILT: Record<string, () => React.JSX.Element> = {
   activity: ActivityPage,
+  saves: SavesPage,
   settings: SettingsPage,
 };
 

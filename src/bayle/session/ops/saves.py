@@ -8,17 +8,19 @@ checks the same gate first so the player is told why before being asked. Errors 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from bayle.platform import desktop
 from bayle.platform.text import tr
+from bayle.services import play as play_service
 from bayle.services import saves as saves_service
 from bayle.services import saves_page as svc
 from bayle.services.errors import Busy, OperationError
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
 from bayle.session.plans import Answer, Proposal
-from bayle.views.common import Refusal
+from bayle.views.common import Refusal, prompt_dict
 from bayle.views.saves import SavesPresenter
 
 
@@ -30,6 +32,9 @@ class SavesState:
     infos: list[dict[str, Any]]
     libraries: dict[str, dict[str, Any]]
     backups: list[dict[str, Any]]
+    # What a client without the presenter shows: the page's words and cards, the Library rows, the Backups by day
+    # (views.saves, wording included).
+    view: dict[str, Any] = field(default_factory=dict)
 
 
 class Written(Result):
@@ -53,6 +58,7 @@ class CopyEntry(Result):
     name: str
     path: str
     changed_outside: bool
+    outside: dict[str, Any] | None = None  # when changed_outside: the question to ask before using it (a confirm)
 
 
 class Folder(Result):
@@ -148,6 +154,26 @@ class UndoParams(Params):
     backup: str
 
 
+class RepairViewParams(PathParams):
+    slot: int | None = None  # 0-based character; None or negative: the whole file
+    ticked: list[str] | None = None  # the boxes ticked now, by key; None: the ones ticked by default
+
+
+class RepairView(Result):
+    data: dict[str, Any]  # views.saves: card, groups, damaged, tuples, ticked, summary, button
+
+
+class DropParams(Params):
+    source: dict[str, Any]  # {type: character|live|copy|backup|copychar, path, slot, folder, id, missing}
+    target: dict[str, Any]  # {type: slot|card|library|backups, path, slot, free}
+
+
+class Dropped(Result):
+    reason: str = ""  # why the spot refuses this drag, in words; "" when it takes it
+    call: str = ""  # the action the drop means (copyCharacter, copyFromLibrary, replaceFromLibrary, restoreBackup,
+    args: list[Any] = []  # backUpNow, askName) and its arguments
+
+
 # ----------------------------------------------------------------------------- helpers
 def _presenter() -> SavesPresenter:
     return SavesPresenter()
@@ -193,11 +219,69 @@ def _plan_failed(e: Exception) -> Refusal:
     return Refusal(tr("This cannot be done"), str(e))
 
 
+def _no_shell() -> Any:
+    raise OperationError("no_shell", "This session has no shell.")
+
+
+def _in_use(session: Session) -> dict[str, Any]:
+    """The save files the profile in use plays on by name ({} without a shell or a profile)."""
+    try:
+        state = session.service("shell", _no_shell).state
+        return play_service.profile_saves(state.launch_profile, state.game)
+    except Exception:
+        return {}
+
+
+def _role(used: dict[str, Any], name: str) -> str:
+    if name.lower() == str(used.get("active") or "").lower():
+        return tr("Launch Profile uses this")
+    if used.get("coop") and name.lower() == str(used.get("standard") or "").lower():
+        return tr("Launch Vanilla and Launch Offline use this")
+    return ""
+
+
+def _copy_targets(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Where a character can go: every slot of every live save (an empty slot, or one it replaces)."""
+    out = []
+    for c in cards:
+        by_slot = {ch["slot"]: ch for ch in c["characters"]}
+        for n in range(1, 11):
+            old = by_slot.get(n)
+            label = (
+                tr("{kind}  \u00b7  slot {n}  \u00b7  replaces {name}").format(kind=c["kind"], n=n, name=old["name"])
+                if old
+                else tr("{kind}  \u00b7  slot {n}  \u00b7  empty").format(kind=c["kind"], n=n)
+            )
+            out.append({"path": c["path"], "slot": n, "danger": old is not None, "label": label})
+    return out
+
+
+def _view(session: Session, facts: svc.SavesFacts) -> dict[str, Any]:
+    pres, game = _presenter(), session.locations().game
+    running, used = bool(session.jobs.game_running), _in_use(session)
+    ordered = sorted(facts.infos, key=lambda i: 0 if i["kind"] == "Standard" else 1)  # Standard first
+    cards = [pres.card(i, _role(used, i["name"]), running) for i in ordered]
+    rows, problems = pres.library_rows(facts.libraries)
+    return {
+        "words": pres.words(),
+        "game_name": game.name,
+        "running": running,
+        "encrypted": game.save_reader != "eldenring",
+        "running_bar": pres.running_bar(game.name),
+        "cards": cards,
+        "copy_targets": _copy_targets(cards),
+        "library_rows": rows,
+        "library_problems": problems,
+        "backup_days": pres.backup_days(facts.backups),
+        "retention": pres.retention(*svc.retention_limits()),
+    }
+
+
 # ----------------------------------------------------------------------------- the page and its reads
 @registry.page("saves", view=SavesState)
 def snapshot(session: Session) -> SavesState:
     facts = svc.read_facts(session.locations())
-    return SavesState(facts.infos, facts.libraries, facts.backups)
+    return SavesState(facts.infos, facts.libraries, facts.backups, _view(session, facts))
 
 
 @operation("saves.adopt_legacy", result=Adopted, kind="command", writes=True)
@@ -217,11 +301,73 @@ def sheet(call: Call, p: SheetParams) -> Sheet:
     return Sheet(data=_presenter().sheet(info, p.slot))
 
 
+@operation("saves.repair_view", params=RepairViewParams, result=RepairView)
+def repair_view(call: Call, p: RepairViewParams) -> RepairView:
+    """Check & repair for one save: the finding cards for the whole file or one character, what is ticked and what the
+    ticked boxes do. The ticks are the client's: it sends them back (None: the ones ticked by default)."""
+    session, pres = call.session, _presenter()
+    info = saves_service.save_info(Path(p.path), loc=session.locations())
+    whole = pres.repair_groups(info)
+    every = {i["key"]: i["tuple"] for g in whole for i in g["items"]}
+    ticked = pres.default_ticks(whole) if p.ticked is None else sorted(k for k in p.ticked if k in every)
+    slot = None if p.slot is None or p.slot < 0 else p.slot
+    groups = [
+        {
+            **g,
+            "items": [
+                {k: v for k, v in i.items() if k != "tuple"} | {"checked": i["key"] in ticked} for i in g["items"]
+            ],
+        }
+        for g in pres.repair_groups(info, slot)
+    ]
+    keys = [every[k] for k in ticked]
+    return RepairView(
+        data={
+            "card": pres.card(info, "", bool(session.jobs.game_running)),
+            "groups": groups,
+            "damaged": pres.damaged(info),
+            "tuples": {k: list(v) for k, v in every.items()},
+            "ticked": ticked,
+            "summary": pres.summary(keys),
+            "button": pres.repair_button(len(keys)),
+        }
+    )
+
+
+@operation("saves.drop", params=DropParams, result=Dropped)
+def drop(call: Call, p: DropParams) -> Dropped:
+    """What dropping a source on a target means (the presenter's one rule set): the action to take, or why not."""
+    session = call.session
+    game, jobs = session.locations().game, session.jobs
+    got = _presenter().drop(
+        p.source,
+        p.target,
+        game=game.name,
+        running=bool(jobs.game_running),
+        busy=bool(jobs.busy),
+        encrypted=game.save_reader != "eldenring",
+    )
+    if isinstance(got, Refusal):
+        return Dropped(reason=f"{got.title}. {got.body}")
+    return Dropped(call=got.call, args=list(got.args))
+
+
+@operation("saves.open_folder", params=PathParams, result=Said, kind="command")
+def open_folder(call: Call, p: PathParams) -> Said:
+    """Show a folder in the desktop's file manager (a folder only: a file would be run)."""
+    path = Path(p.path)
+    if not path.is_dir():
+        raise OperationError("not_found", tr("That folder does not exist."), {"path": p.path})
+    desktop.open_path(path)
+    return Said(text=str(path))
+
+
 @operation("saves.copy_entry", params=CopyRef, result=CopyEntry)
 def copy_entry(call: Call, p: CopyRef) -> CopyEntry:
     """One Library copy, for a client to ask about it first (it was changed outside the launcher)."""
     e = svc.library_entry(Path(p.folder), p.entry_id)
-    return CopyEntry(name=e["name"], path=str(e["path"]), changed_outside=e["changed_outside"])
+    outside = prompt_dict(_presenter().changed_outside(e["name"])) if e["changed_outside"] else None
+    return CopyEntry(name=e["name"], path=str(e["path"]), changed_outside=e["changed_outside"], outside=outside)
 
 
 @operation("saves.folder", params=FolderParams, result=Folder, kind="command", writes=True)

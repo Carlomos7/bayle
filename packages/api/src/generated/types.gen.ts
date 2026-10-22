@@ -376,6 +376,12 @@ export type CopyEntry = {
      */
     name: string;
     /**
+     * Outside
+     */
+    outside?: {
+        [key: string]: unknown;
+    } | null;
+    /**
      * Path
      */
     path: string;
@@ -489,6 +495,42 @@ export type DragTable = {
     reasons: {
         [key: string]: string;
     };
+};
+
+/**
+ * DropParams
+ */
+export type DropParams = {
+    /**
+     * Source
+     */
+    source: {
+        [key: string]: unknown;
+    };
+    /**
+     * Target
+     */
+    target: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Dropped
+ */
+export type Dropped = {
+    /**
+     * Args
+     */
+    args?: Array<unknown>;
+    /**
+     * Call
+     */
+    call?: string;
+    /**
+     * Reason
+     */
+    reason?: string;
 };
 
 /**
@@ -2841,6 +2883,36 @@ export type RepairParams = {
 };
 
 /**
+ * RepairView
+ */
+export type RepairView = {
+    /**
+     * Data
+     */
+    data: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * RepairViewParams
+ */
+export type RepairViewParams = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Slot
+     */
+    slot?: number | null;
+    /**
+     * Ticked
+     */
+    ticked?: Array<string> | null;
+};
+
+/**
  * ReplaceCopyParams
  */
 export type ReplaceCopyParams = {
@@ -3139,6 +3211,12 @@ export type SavesState = {
         [key: string]: {
             [key: string]: unknown;
         };
+    };
+    /**
+     * View
+     */
+    view?: {
+        [key: string]: unknown;
     };
 };
 
@@ -6710,6 +6788,31 @@ export type OpSavesDeleteBackupResponses = {
 
 export type OpSavesDeleteBackupResponse = OpSavesDeleteBackupResponses[keyof OpSavesDeleteBackupResponses];
 
+export type OpSavesDropData = {
+    body: DropParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/saves.drop';
+};
+
+export type OpSavesDropErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpSavesDropError = OpSavesDropErrors[keyof OpSavesDropErrors];
+
+export type OpSavesDropResponses = {
+    /**
+     * Successful Response
+     */
+    200: Dropped;
+};
+
+export type OpSavesDropResponse = OpSavesDropResponses[keyof OpSavesDropResponses];
+
 export type OpSavesFinishStrandedData = {
     body: StrandedParams;
     path?: never;
@@ -6860,6 +6963,31 @@ export type OpSavesKeepBackupResponses = {
 
 export type OpSavesKeepBackupResponse = OpSavesKeepBackupResponses[keyof OpSavesKeepBackupResponses];
 
+export type OpSavesOpenFolderData = {
+    body: PathParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/saves.open_folder';
+};
+
+export type OpSavesOpenFolderErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpSavesOpenFolderError = OpSavesOpenFolderErrors[keyof OpSavesOpenFolderErrors];
+
+export type OpSavesOpenFolderResponses = {
+    /**
+     * Successful Response
+     */
+    200: Said;
+};
+
+export type OpSavesOpenFolderResponse = OpSavesOpenFolderResponses[keyof OpSavesOpenFolderResponses];
+
 export type OpSavesPostSessionRepairData = {
     body?: never;
     path?: never;
@@ -6950,6 +7078,31 @@ export type OpSavesRepairResponses = {
 };
 
 export type OpSavesRepairResponse = OpSavesRepairResponses[keyof OpSavesRepairResponses];
+
+export type OpSavesRepairViewData = {
+    body: RepairViewParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/saves.repair_view';
+};
+
+export type OpSavesRepairViewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpSavesRepairViewError = OpSavesRepairViewErrors[keyof OpSavesRepairViewErrors];
+
+export type OpSavesRepairViewResponses = {
+    /**
+     * Successful Response
+     */
+    200: RepairView;
+};
+
+export type OpSavesRepairViewResponse = OpSavesRepairViewResponses[keyof OpSavesRepairViewResponses];
 
 export type OpSavesReplaceFromFileData = {
     body: ReplaceFileParams;

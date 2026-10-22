@@ -27,6 +27,38 @@ export type ActivityState = {
 };
 
 /**
+ * AddParams
+ */
+export type AddParams = {
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Paths
+     */
+    paths: Array<string>;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * Added
+ */
+export type Added = {
+    /**
+     * Loose Dlls
+     */
+    loose_dlls: boolean;
+    /**
+     * Names
+     */
+    names: Array<string>;
+};
+
+/**
  * Adopted
  */
 export type Adopted = {
@@ -204,32 +236,6 @@ export type Candidates = {
 };
 
 /**
- * Changed
- */
-export type Changed = {
-    /**
-     * Follow
-     */
-    follow: string;
-    /**
-     * Key
-     */
-    key: string;
-    /**
-     * Said
-     */
-    said?: string;
-    /**
-     * Stored As
-     */
-    stored_as: string;
-    /**
-     * Value
-     */
-    value: boolean | number | string;
-};
-
-/**
  * CharacterParams
  */
 export type CharacterParams = {
@@ -249,16 +255,6 @@ export type CharacterParams = {
      * Target
      */
     target: string;
-};
-
-/**
- * CheckParams
- */
-export type CheckParams = {
-    /**
-     * Force
-     */
-    force?: boolean;
 };
 
 /**
@@ -289,6 +285,46 @@ export type ChoiceRow = {
      * Label
      */
     label: string;
+};
+
+/**
+ * ClashFile
+ */
+export type ClashFile = {
+    /**
+     * Losers
+     */
+    losers: string;
+    /**
+     * Lost
+     */
+    lost: boolean;
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Winner
+     */
+    winner: string;
+};
+
+/**
+ * CleanParams
+ */
+export type CleanParams = {
+    /**
+     * Backups
+     */
+    backups?: Array<number>;
+    /**
+     * Folders
+     */
+    folders?: Array<number>;
+    /**
+     * Profile
+     */
+    profile: string;
 };
 
 /**
@@ -392,6 +428,20 @@ export type Day = {
 };
 
 /**
+ * Dependency
+ */
+export type Dependency = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+};
+
+/**
  * Discarded
  */
 export type Discarded = {
@@ -402,13 +452,55 @@ export type Discarded = {
 };
 
 /**
- * Done
+ * DraftRef
  */
-export type Done = {
+export type DraftRef = {
     /**
-     * Ok
+     * Draft Id
      */
-    ok?: boolean;
+    draft_id: string;
+};
+
+/**
+ * DragTable
+ */
+export type DragTable = {
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Reasons
+     */
+    reasons: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * DuplicateParams
+ */
+export type DuplicateParams = {
+    /**
+     * Confirmed
+     */
+    confirmed?: boolean;
+    /**
+     * Kind
+     */
+    kind?: string;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Share
+     */
+    share?: boolean | null;
+    /**
+     * Source
+     */
+    source?: string;
 };
 
 /**
@@ -427,6 +519,38 @@ export type Edit = {
      * Value
      */
     value: string;
+};
+
+/**
+ * EnabledParams
+ */
+export type EnabledParams = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * EntryRef
+ */
+export type EntryRef = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Profile
+     */
+    profile: string;
 };
 
 /**
@@ -536,6 +660,20 @@ export type FileRead = {
      * Text
      */
     text: string;
+};
+
+/**
+ * FinishParams
+ */
+export type FinishParams = {
+    /**
+     * Draft Id
+     */
+    draft_id: string;
+    /**
+     * Name
+     */
+    name?: string;
 };
 
 /**
@@ -711,6 +849,40 @@ export type GameStateEvent = {
 };
 
 /**
+ * Group
+ */
+export type Group = {
+    /**
+     * Count
+     */
+    count: string;
+    /**
+     * Empty
+     */
+    empty: string;
+    /**
+     * Icon
+     */
+    icon: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Lines
+     */
+    lines: Array<Line>;
+    /**
+     * Rows
+     */
+    rows: Array<Row>;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -721,21 +893,21 @@ export type HttpValidationError = {
 };
 
 /**
- * Health
+ * Handoff
  */
-export type Health = {
+export type Handoff = {
     /**
-     * App Version
+     * Profiles
      */
-    app_version: string;
+    profiles: Array<string>;
     /**
-     * Contract Version
+     * Staging
      */
-    contract_version: string;
+    staging: string | null;
     /**
-     * Ready
+     * Unpacked
      */
-    ready?: boolean;
+    unpacked: string;
 };
 
 /**
@@ -759,6 +931,53 @@ export type IniParams = {
 };
 
 /**
+ * InstallEdit
+ *
+ * One edit. field: name | id | variant | overhaul | tick | place_last | rebuild | after_last | library | native |
+ * table | file. key: the file or tick; text: the new text or choice; on: the check; kind: early | after | init.
+ */
+export type InstallEdit = {
+    /**
+     * Draft Id
+     */
+    draft_id: string;
+    /**
+     * Field
+     */
+    field: 'name' | 'id' | 'variant' | 'overhaul' | 'tick' | 'place_last' | 'rebuild' | 'after_last' | 'library' | 'native' | 'table' | 'file';
+    /**
+     * Key
+     */
+    key?: string;
+    /**
+     * Kind
+     */
+    kind?: string;
+    /**
+     * On
+     */
+    on?: boolean;
+    /**
+     * Text
+     */
+    text?: string;
+};
+
+/**
+ * InstallFolder
+ */
+export type InstallFolder = {
+    /**
+     * Folder
+     */
+    folder: string;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
  * InstallSetupParams
  */
 export type InstallSetupParams = {
@@ -779,6 +998,26 @@ export type InstallSetupParams = {
      * Profile
      */
     profile: string;
+};
+
+/**
+ * InstallView
+ */
+export type InstallView = {
+    /**
+     * Draft Id
+     */
+    draft_id: string;
+    /**
+     * Pending
+     */
+    pending?: boolean;
+    /**
+     * View
+     */
+    view: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -941,6 +1180,20 @@ export type KeepParams = {
 };
 
 /**
+ * KindParams
+ */
+export type KindParams = {
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
  * LaunchParams
  */
 export type LaunchParams = {
@@ -952,6 +1205,26 @@ export type LaunchParams = {
      * Mode
      */
     mode?: 'profile' | 'offline' | 'vanilla' | null;
+};
+
+/**
+ * LaunchRef
+ *
+ * The profile as the setup the shell launches: kind "me3" or "manifest" (an overhaul installer's), and its source.
+ */
+export type LaunchRef = {
+    /**
+     * Kind
+     */
+    kind?: string;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Source
+     */
+    source?: string;
 };
 
 /**
@@ -981,6 +1254,71 @@ export type LayoutCheck = {
 };
 
 /**
+ * Leftovers
+ */
+export type Leftovers = {
+    /**
+     * Backups
+     */
+    backups: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Folders
+     */
+    folders: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * LibraryHint
+ */
+export type LibraryHint = {
+    /**
+     * Mods
+     */
+    mods: number;
+    notice: Notice | null;
+    /**
+     * Size
+     */
+    size: number;
+};
+
+/**
+ * LibraryRows
+ */
+export type LibraryRows = {
+    /**
+     * Rows
+     */
+    rows: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
+ * Line
+ *
+ * A muted line under a group header: "2 folders ... are not loaded · Add..." or "<entry> loads nothing".
+ */
+export type Line = {
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Index
+     */
+    index?: number;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * Link
  */
 export type Link = {
@@ -992,6 +1330,37 @@ export type Link = {
      * Text
      */
     text: string;
+};
+
+/**
+ * LoadOrderPanel
+ */
+export type LoadOrderPanel = {
+    /**
+     * Clash Note
+     */
+    clash_note: string;
+    /**
+     * Clash Total
+     */
+    clash_total: number;
+    /**
+     * Clashes
+     */
+    clashes: Array<ClashFile>;
+    /**
+     * Error
+     */
+    error?: string;
+    /**
+     * Refused
+     */
+    refused: Array<Refused>;
+    stays_last: StaysLast | null;
+    /**
+     * Title
+     */
+    title: string;
 };
 
 /**
@@ -1243,6 +1612,162 @@ export type ModeSet = {
 };
 
 /**
+ * ModsState
+ */
+export type ModsState = {
+    /**
+     * Counts
+     */
+    counts: string;
+    /**
+     * Empty
+     */
+    empty?: string;
+    /**
+     * Groups
+     */
+    groups: Array<Group>;
+    health: BayleViewsModsHealth | null;
+    /**
+     * Notices
+     */
+    notices: Array<Notice>;
+    parameters: Parameters;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * ModsView
+ *
+ * The Mods page for one profile: what the presenter shows, the Load order panel (every clash; a client cuts the
+ * list), the entries (for the options and rename dialogs) and what the header menu needs.
+ */
+export type ModsView = {
+    /**
+     * Configs
+     */
+    configs: {
+        [key: string]: Array<string>;
+    };
+    /**
+     * Entries
+     */
+    entries: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Folder Kind
+     */
+    folder_kind?: string;
+    /**
+     * Folders
+     */
+    folders: {
+        [key: string]: string;
+    };
+    /**
+     * Has Profile
+     */
+    has_profile: boolean;
+    load_order: LoadOrderPanel;
+    /**
+     * Outside
+     */
+    outside: boolean;
+    overhaul: OverhaulMenu;
+    overhaul_info: OverhaulInfo | null;
+    /**
+     * Profile
+     */
+    profile: string;
+    rebuild_undo: RebuildUndo | null;
+    /**
+     * Rename Code
+     */
+    rename_code?: string;
+    state: ModsState;
+    /**
+     * Tool Label
+     */
+    tool_label?: string;
+};
+
+/**
+ * MoveParams
+ */
+export type MoveParams = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * To
+     */
+    to: number;
+};
+
+/**
+ * MoveResult
+ */
+export type MoveResult = {
+    /**
+     * Decided By
+     */
+    decided_by?: number;
+    /**
+     * Moved
+     */
+    moved: boolean;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Problem
+     */
+    problem?: string;
+};
+
+/**
+ * NameCheck
+ */
+export type NameCheck = {
+    /**
+     * Problem
+     */
+    problem: string;
+};
+
+/**
+ * NameParams
+ */
+export type NameParams = {
+    /**
+     * Kind
+     */
+    kind?: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Source
+     */
+    source?: string;
+};
+
+/**
  * Names
  *
  * The four folder names; None leaves one as it is.
@@ -1307,6 +1832,35 @@ export type NewProfileParams = {
      * Name
      */
     name?: string;
+};
+
+/**
+ * Notice
+ *
+ * One InfoBar: key says what it is (online, stale, allow-tool, recovered), so the adapter knows what its action
+ * does.
+ */
+export type Notice = {
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Closable
+     */
+    closable: boolean;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Severity
+     */
+    severity: string;
+    /**
+     * Text
+     */
+    text: string;
 };
 
 /**
@@ -1400,6 +1954,20 @@ export type NoticeParams = {
 };
 
 /**
+ * NoticeRef
+ */
+export type NoticeRef = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
  * OpenBundled
  */
 export type OpenBundled = {
@@ -1425,24 +1993,6 @@ export type OpenFile = {
      * Path
      */
     path: string;
-};
-
-/**
- * OpenParams
- */
-export type OpenParams = {
-    /**
-     * Path
-     */
-    path: string;
-    /**
-     * Profile
-     */
-    profile?: string;
-    /**
-     * Seamless
-     */
-    seamless?: boolean;
 };
 
 /**
@@ -1484,6 +2034,133 @@ export type Opened = {
 };
 
 /**
+ * OptionsInput
+ */
+export type OptionsInput = {
+    /**
+     * Enabled
+     */
+    enabled?: boolean;
+    /**
+     * Finalizer
+     */
+    finalizer?: string;
+    /**
+     * Id
+     */
+    id?: string;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Init Kind
+     */
+    init_kind?: number;
+    /**
+     * Init Value
+     */
+    init_value?: string;
+    /**
+     * Load After
+     */
+    load_after?: Array<Dependency>;
+    /**
+     * Load Before
+     */
+    load_before?: Array<Dependency>;
+    /**
+     * Load Early
+     */
+    load_early?: boolean;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Overlay
+     */
+    overlay?: number;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Rebuild File
+     */
+    rebuild_file?: string;
+};
+
+/**
+ * OptionsView
+ *
+ * What the Mod options dialog shows for one entry. init_kind: 0 none, 1 call a function, 2 wait (ms); overlay: -1
+ * when it does not apply, else 0/1 (the parameter overlay set by hand).
+ */
+export type OptionsView = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Finalizer
+     */
+    finalizer: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Init Kind
+     */
+    init_kind: number;
+    /**
+     * Init Value
+     */
+    init_value: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Load After
+     */
+    load_after: Array<Dependency>;
+    /**
+     * Load Before
+     */
+    load_before: Array<Dependency>;
+    /**
+     * Load Early
+     */
+    load_early: boolean;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Optional
+     */
+    optional: boolean;
+    /**
+     * Others
+     */
+    others: Array<string>;
+    /**
+     * Overlay
+     */
+    overlay: number;
+    /**
+     * Rebuild File
+     */
+    rebuild_file: string;
+};
+
+/**
  * OverhaulForm
  */
 export type OverhaulForm = {
@@ -1512,6 +2189,119 @@ export type OverhaulForm = {
 };
 
 /**
+ * OverhaulInfo
+ */
+export type OverhaulInfo = {
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Legacy
+     */
+    legacy: boolean;
+    /**
+     * Removable
+     */
+    removable: boolean;
+    /**
+     * Short Label
+     */
+    short_label: string;
+    /**
+     * Takeover
+     */
+    takeover: boolean;
+};
+
+/**
+ * OverhaulMenu
+ *
+ * The header overflow's overhaul entries (an overhaul installed with the launcher, a preview): shown while the
+ * switch is on and the game has an overhaul the launcher can install (owner, D4 A).
+ */
+export type OverhaulMenu = {
+    /**
+     * Can Clean
+     */
+    can_clean: boolean;
+    /**
+     * Can Remove
+     */
+    can_remove: boolean;
+    /**
+     * Can Take Over
+     */
+    can_take_over?: boolean;
+    /**
+     * Clean
+     */
+    clean: string;
+    /**
+     * Install
+     */
+    install: string;
+    /**
+     * Remove
+     */
+    remove: string;
+    /**
+     * Take Over
+     */
+    take_over?: string;
+    /**
+     * Visible
+     */
+    visible: boolean;
+};
+
+/**
+ * Parameters
+ */
+export type Parameters = {
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Blocked
+     */
+    blocked: string;
+    /**
+     * Fingerprint
+     */
+    fingerprint?: string;
+    /**
+     * Fingerprint Note
+     */
+    fingerprint_note?: string;
+    /**
+     * Level
+     */
+    level: string;
+    /**
+     * Packs
+     */
+    packs: string;
+    /**
+     * Pill
+     */
+    pill: string;
+    /**
+     * Reasons
+     */
+    reasons: Array<string>;
+    /**
+     * State
+     */
+    state: string;
+    /**
+     * Visible
+     */
+    visible: boolean;
+};
+
+/**
  * PasteParams
  */
 export type PasteParams = {
@@ -1533,6 +2323,24 @@ export type PathParams = {
      * Path
      */
     path: string;
+};
+
+/**
+ * PickOffer
+ *
+ * A tick list to show: its words and rows (kind "pick"), or None when there is nothing to choose.
+ */
+export type PickOffer = {
+    /**
+     * Label
+     */
+    label?: string;
+    /**
+     * Prompt
+     */
+    prompt?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -1710,9 +2518,29 @@ export type PreviewView = {
 };
 
 /**
+ * ProfileBlock
+ */
+export type ProfileBlock = {
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
  * ProfileParams
  */
 export type ProfileParams = {
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * ProfileRef
+ */
+export type ProfileRef = {
     /**
      * Profile
      */
@@ -1801,6 +2629,56 @@ export type PromptEvent = {
 };
 
 /**
+ * RebuildParams
+ */
+export type RebuildParams = {
+    /**
+     * Allow
+     */
+    allow?: boolean;
+    /**
+     * Combine
+     */
+    combine?: boolean | null;
+    /**
+     * Confirmed
+     */
+    confirmed?: boolean;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * RebuildUndo
+ */
+export type RebuildUndo = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+};
+
+/**
+ * Refused
+ */
+export type Refused = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Why
+     */
+    why: string;
+};
+
+/**
  * RelocateParams
  */
 export type RelocateParams = {
@@ -1811,17 +2689,67 @@ export type RelocateParams = {
 };
 
 /**
- * RenameParams
+ * RemoveChosen
  */
-export type RenameParams = {
+export type RemoveChosen = {
     /**
-     * Entry Id
+     * Chosen
      */
-    entry_id: string;
+    chosen?: Array<number>;
     /**
-     * Folder
+     * Profile
      */
-    folder: string;
+    profile: string;
+};
+
+/**
+ * RemoveParams
+ */
+export type RemoveParams = {
+    /**
+     * Confirmed
+     */
+    confirmed?: boolean;
+    /**
+     * Delete Folder
+     */
+    delete_folder?: boolean | null;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * RenamePreview
+ */
+export type RenamePreview = {
+    /**
+     * Lines
+     */
+    lines: Array<string>;
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Refusals
+     */
+    refusals: Array<string>;
+};
+
+/**
+ * RenameStart
+ */
+export type RenameStart = {
     /**
      * Name
      */
@@ -1885,17 +2813,13 @@ export type ResourceRef = {
 };
 
 /**
- * RestoreParams
+ * Restored
  */
-export type RestoreParams = {
+export type Restored = {
     /**
-     * Backup
+     * Before
      */
-    backup: string;
-    /**
-     * Target
-     */
-    target: string;
+    before: string | null;
 };
 
 /**
@@ -1933,6 +2857,72 @@ export type ResyncEvent = {
      * Type
      */
     type?: 'resync';
+};
+
+/**
+ * Row
+ */
+export type Row = {
+    /**
+     * Can Share
+     */
+    can_share?: boolean;
+    /**
+     * Configs Tip
+     */
+    configs_tip: string;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Has Configs
+     */
+    has_configs: boolean;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Locked
+     */
+    locked: boolean;
+    /**
+     * More
+     */
+    more: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Shared
+     */
+    shared?: number;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Status Error
+     */
+    status_error: boolean;
+    /**
+     * Tags
+     */
+    tags: Array<Tag>;
 };
 
 /**
@@ -2006,6 +2996,24 @@ export type SaveSetupParams = {
      * Text
      */
     text?: string | null;
+};
+
+/**
+ * SaveTextParams
+ */
+export type SaveTextParams = {
+    /**
+     * Crlf
+     */
+    crlf?: boolean;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Text
+     */
+    text: string;
 };
 
 /**
@@ -2150,6 +3158,46 @@ export type SetParams = {
 };
 
 /**
+ * SettingParams
+ */
+export type SettingParams = {
+    /**
+     * Confirmed
+     */
+    confirmed?: boolean;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Value
+     */
+    value?: number | string | null;
+};
+
+/**
+ * SettingResult
+ */
+export type SettingResult = {
+    /**
+     * Changed
+     */
+    changed: boolean;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Note
+     */
+    note?: string;
+};
+
+/**
  * SettingSpec
  *
  * One setting a client may change: its kind decides which values are allowed, its scope where it is stored.
@@ -2287,6 +3335,40 @@ export type SettingsState = {
      * Theme
      */
     theme: string;
+};
+
+/**
+ * SettingsView
+ */
+export type SettingsView = {
+    /**
+     * Disable Arxan
+     */
+    disable_arxan: number;
+    /**
+     * Heap Applies
+     */
+    heap_applies: boolean;
+    /**
+     * Heap Shown
+     */
+    heap_shown: boolean;
+    /**
+     * Mem Patch
+     */
+    mem_patch: number;
+    /**
+     * Mem Patch Heap Size
+     */
+    mem_patch_heap_size: number;
+    /**
+     * Savefile
+     */
+    savefile: string;
+    /**
+     * Start Online
+     */
+    start_online: number;
 };
 
 /**
@@ -2429,6 +3511,30 @@ export type Shortcuts = {
 };
 
 /**
+ * Sources
+ */
+export type Sources = {
+    /**
+     * Skipped
+     */
+    skipped: Array<string>;
+    /**
+     * Usable
+     */
+    usable: Array<string>;
+};
+
+/**
+ * SourcesParams
+ */
+export type SourcesParams = {
+    /**
+     * Paths
+     */
+    paths: Array<string>;
+};
+
+/**
  * Stamp
  */
 export type Stamp = {
@@ -2455,6 +3561,10 @@ export type Started = {
  * StartedData
  */
 export type StartedData = {
+    /**
+     * Quiet
+     */
+    quiet?: boolean;
     /**
      * Title
      */
@@ -2501,6 +3611,28 @@ export type Status = {
      * Tone
      */
     tone?: string;
+};
+
+/**
+ * StaysLast
+ */
+export type StaysLast = {
+    /**
+     * Can Fix
+     */
+    can_fix: boolean;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Problem
+     */
+    problem: string;
+    /**
+     * Text
+     */
+    text: string;
 };
 
 /**
@@ -2574,6 +3706,52 @@ export type SwitchRow = {
 };
 
 /**
+ * Tag
+ */
+export type Tag = {
+    /**
+     * Icon
+     */
+    icon?: string;
+    /**
+     * Level
+     */
+    level: string;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Tip
+     */
+    tip?: string;
+};
+
+/**
+ * TextCheck
+ */
+export type TextCheck = {
+    /**
+     * Problem
+     */
+    problem: string;
+};
+
+/**
+ * TextView
+ */
+export type TextView = {
+    /**
+     * Crlf
+     */
+    crlf: boolean;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * TieParams
  */
 export type TieParams = {
@@ -2588,17 +3766,15 @@ export type TieParams = {
 };
 
 /**
- * UndoParams
+ * Unlisted
  */
-export type UndoParams = {
+export type Unlisted = {
     /**
-     * Backup
+     * Folders
      */
-    backup: string;
-    /**
-     * Save
-     */
-    save: string;
+    folders: Array<{
+        [key: string]: string;
+    }>;
 };
 
 /**
@@ -2664,6 +3840,28 @@ export type UpdatesState = {
 };
 
 /**
+ * UseParams
+ */
+export type UseParams = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Targets
+     */
+    targets: Array<number>;
+};
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -2692,6 +3890,34 @@ export type ValidationError = {
 };
 
 /**
+ * VersionList
+ */
+export type VersionList = {
+    /**
+     * Versions
+     */
+    versions: Array<VersionRow>;
+};
+
+/**
+ * VersionRow
+ */
+export type VersionRow = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * When
+     */
+    when: string;
+    /**
+     * Why
+     */
+    why: string;
+};
+
+/**
  * Warned
  */
 export type Warned = {
@@ -2699,6 +3925,34 @@ export type Warned = {
      * Warning
      */
     warning?: string;
+};
+
+/**
+ * Health
+ */
+export type BayleApiModelsHealth = {
+    /**
+     * App Version
+     */
+    app_version: string;
+    /**
+     * Contract Version
+     */
+    contract_version: string;
+    /**
+     * Ready
+     */
+    ready?: boolean;
+};
+
+/**
+ * Done
+ */
+export type BayleSessionOpsModConfigsDone = {
+    /**
+     * Ok
+     */
+    ok?: boolean;
 };
 
 /**
@@ -2713,6 +3967,138 @@ export type BayleSessionOpsModConfigsExportParams = {
      * To
      */
     to: string;
+};
+
+/**
+ * OpenParams
+ */
+export type BayleSessionOpsModConfigsOpenParams = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Profile
+     */
+    profile?: string;
+    /**
+     * Seamless
+     */
+    seamless?: boolean;
+};
+
+/**
+ * Changed
+ *
+ * A command that wrote the profile: the host's other views read it again, and Undo restores the version before.
+ */
+export type BayleSessionOpsModsChanged = {
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Note
+     */
+    note: string;
+};
+
+/**
+ * Closed
+ */
+export type BayleSessionOpsModsClosed = {
+    /**
+     * Key
+     */
+    key: string;
+};
+
+/**
+ * Done
+ */
+export type BayleSessionOpsModsDone = {
+    /**
+     * Note
+     */
+    note?: string;
+};
+
+/**
+ * CheckParams
+ */
+export type BayleSessionOpsModsEntriesCheckParams = {
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * RenameParams
+ */
+export type BayleSessionOpsModsEntriesRenameParams = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * RestoreParams
+ */
+export type BayleSessionOpsModsEntriesRestoreParams = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Profile
+     */
+    profile: string;
+};
+
+/**
+ * UndoParams
+ */
+export type BayleSessionOpsModsEntriesUndoParams = {
+    /**
+     * Undo
+     */
+    undo: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Closed
+ */
+export type BayleSessionOpsModsInstallClosed = {
+    /**
+     * Draft Id
+     */
+    draft_id: string;
+};
+
+/**
+ * OpenParams
+ */
+export type BayleSessionOpsModsInstallOpenParams = {
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Source
+     */
+    source: string;
 };
 
 /**
@@ -2808,6 +4194,78 @@ export type BayleSessionOpsSavesImportParams = {
 };
 
 /**
+ * RenameParams
+ */
+export type BayleSessionOpsSavesRenameParams = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Folder
+     */
+    folder: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * RestoreParams
+ */
+export type BayleSessionOpsSavesRestoreParams = {
+    /**
+     * Backup
+     */
+    backup: string;
+    /**
+     * Target
+     */
+    target: string;
+};
+
+/**
+ * UndoParams
+ */
+export type BayleSessionOpsSavesUndoParams = {
+    /**
+     * Backup
+     */
+    backup: string;
+    /**
+     * Save
+     */
+    save: string;
+};
+
+/**
+ * Changed
+ */
+export type BayleSessionOpsSettingsChanged = {
+    /**
+     * Follow
+     */
+    follow: string;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Said
+     */
+    said?: string;
+    /**
+     * Stored As
+     */
+    stored_as: string;
+    /**
+     * Value
+     */
+    value: boolean | number | string;
+};
+
+/**
  * FolderParams
  */
 export type BayleSessionOpsSettingsFolderParams = {
@@ -2818,6 +4276,26 @@ export type BayleSessionOpsSettingsFolderParams = {
 };
 
 /**
+ * CheckParams
+ */
+export type BayleSessionOpsShellCheckParams = {
+    /**
+     * Force
+     */
+    force?: boolean;
+};
+
+/**
+ * Done
+ */
+export type BayleSessionOpsShellDone = {
+    /**
+     * Ok
+     */
+    ok?: boolean;
+};
+
+/**
  * FolderParams
  */
 export type BayleSessionOpsShellFolderParams = {
@@ -2825,6 +4303,20 @@ export type BayleSessionOpsShellFolderParams = {
      * Folder
      */
     folder: string;
+};
+
+/**
+ * Health
+ */
+export type BayleViewsModsHealth = {
+    /**
+     * Level
+     */
+    level: string;
+    /**
+     * Text
+     */
+    text: string;
 };
 
 export type EventsData = {
@@ -2867,7 +4359,7 @@ export type HealthResponses = {
     /**
      * Successful Response
      */
-    200: Health;
+    200: BayleApiModelsHealth;
 };
 
 export type HealthResponse = HealthResponses[keyof HealthResponses];
@@ -3109,7 +4601,7 @@ export type OpModConfigsAttachResponses = {
     /**
      * Successful Response
      */
-    200: Done;
+    200: BayleSessionOpsModConfigsDone;
 };
 
 export type OpModConfigsAttachResponse = OpModConfigsAttachResponses[keyof OpModConfigsAttachResponses];
@@ -3134,7 +4626,7 @@ export type OpModConfigsDetachResponses = {
     /**
      * Successful Response
      */
-    200: Done;
+    200: BayleSessionOpsModConfigsDone;
 };
 
 export type OpModConfigsDetachResponse = OpModConfigsDetachResponses[keyof OpModConfigsDetachResponses];
@@ -3159,7 +4651,7 @@ export type OpModConfigsExportShareResponses = {
     /**
      * Successful Response
      */
-    200: Done;
+    200: BayleSessionOpsModConfigsDone;
 };
 
 export type OpModConfigsExportShareResponse = OpModConfigsExportShareResponses[keyof OpModConfigsExportShareResponses];
@@ -3190,7 +4682,7 @@ export type OpModConfigsInstallSetupResponses = {
 export type OpModConfigsInstallSetupResponse = OpModConfigsInstallSetupResponses[keyof OpModConfigsInstallSetupResponses];
 
 export type OpModConfigsOpenData = {
-    body: OpenParams;
+    body: BayleSessionOpsModConfigsOpenParams;
     path?: never;
     query?: never;
     url: '/v1/ops/mod_configs.open';
@@ -3413,6 +4905,1456 @@ export type OpModConfigsTurnOffResponses = {
 };
 
 export type OpModConfigsTurnOffResponse = OpModConfigsTurnOffResponses[keyof OpModConfigsTurnOffResponses];
+
+export type OpModsAddExistingData = {
+    body: AddParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.add_existing';
+};
+
+export type OpModsAddExistingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsAddExistingError = OpModsAddExistingErrors[keyof OpModsAddExistingErrors];
+
+export type OpModsAddExistingResponses = {
+    /**
+     * Successful Response
+     */
+    200: Added;
+};
+
+export type OpModsAddExistingResponse = OpModsAddExistingResponses[keyof OpModsAddExistingResponses];
+
+export type OpModsAllowToolData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.allow_tool';
+};
+
+export type OpModsAllowToolErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsAllowToolError = OpModsAllowToolErrors[keyof OpModsAllowToolErrors];
+
+export type OpModsAllowToolResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsAllowToolResponse = OpModsAllowToolResponses[keyof OpModsAllowToolResponses];
+
+export type OpModsCheckTextData = {
+    body: BayleSessionOpsModsEntriesCheckParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.check_text';
+};
+
+export type OpModsCheckTextErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsCheckTextError = OpModsCheckTextErrors[keyof OpModsCheckTextErrors];
+
+export type OpModsCheckTextResponses = {
+    /**
+     * Successful Response
+     */
+    200: TextCheck;
+};
+
+export type OpModsCheckTextResponse = OpModsCheckTextResponses[keyof OpModsCheckTextResponses];
+
+export type OpModsCloseNoticeData = {
+    body: NoticeRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.close_notice';
+};
+
+export type OpModsCloseNoticeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsCloseNoticeError = OpModsCloseNoticeErrors[keyof OpModsCloseNoticeErrors];
+
+export type OpModsCloseNoticeResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsClosed;
+};
+
+export type OpModsCloseNoticeResponse = OpModsCloseNoticeResponses[keyof OpModsCloseNoticeResponses];
+
+export type OpModsDeleteProfileData = {
+    body: LaunchRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.delete_profile';
+};
+
+export type OpModsDeleteProfileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsDeleteProfileError = OpModsDeleteProfileErrors[keyof OpModsDeleteProfileErrors];
+
+export type OpModsDeleteProfileResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsDeleteProfileResponse = OpModsDeleteProfileResponses[keyof OpModsDeleteProfileResponses];
+
+export type OpModsDllFoldersData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.dll_folders';
+};
+
+export type OpModsDllFoldersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsDllFoldersError = OpModsDllFoldersErrors[keyof OpModsDllFoldersErrors];
+
+export type OpModsDllFoldersResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsDllFoldersResponse = OpModsDllFoldersResponses[keyof OpModsDllFoldersResponses];
+
+export type OpModsDragData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.drag';
+};
+
+export type OpModsDragErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsDragError = OpModsDragErrors[keyof OpModsDragErrors];
+
+export type OpModsDragResponses = {
+    /**
+     * Successful Response
+     */
+    200: DragTable;
+};
+
+export type OpModsDragResponse = OpModsDragResponses[keyof OpModsDragResponses];
+
+export type OpModsDuplicateProfileData = {
+    body: DuplicateParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.duplicate_profile';
+};
+
+export type OpModsDuplicateProfileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsDuplicateProfileError = OpModsDuplicateProfileErrors[keyof OpModsDuplicateProfileErrors];
+
+export type OpModsDuplicateProfileResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsDuplicateProfileResponse = OpModsDuplicateProfileResponses[keyof OpModsDuplicateProfileResponses];
+
+export type OpModsFixOrderData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.fix_order';
+};
+
+export type OpModsFixOrderErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsFixOrderError = OpModsFixOrderErrors[keyof OpModsFixOrderErrors];
+
+export type OpModsFixOrderResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsChanged;
+};
+
+export type OpModsFixOrderResponse = OpModsFixOrderResponses[keyof OpModsFixOrderResponses];
+
+export type OpModsInstallCloseData = {
+    body: DraftRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_close';
+};
+
+export type OpModsInstallCloseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallCloseError = OpModsInstallCloseErrors[keyof OpModsInstallCloseErrors];
+
+export type OpModsInstallCloseResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsInstallClosed;
+};
+
+export type OpModsInstallCloseResponse = OpModsInstallCloseResponses[keyof OpModsInstallCloseResponses];
+
+export type OpModsInstallEditData = {
+    body: InstallEdit;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_edit';
+};
+
+export type OpModsInstallEditErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallEditError = OpModsInstallEditErrors[keyof OpModsInstallEditErrors];
+
+export type OpModsInstallEditResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallView;
+};
+
+export type OpModsInstallEditResponse = OpModsInstallEditResponses[keyof OpModsInstallEditResponses];
+
+export type OpModsInstallFinishData = {
+    body: FinishParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_finish';
+};
+
+export type OpModsInstallFinishErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallFinishError = OpModsInstallFinishErrors[keyof OpModsInstallFinishErrors];
+
+export type OpModsInstallFinishResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsInstallFinishResponse = OpModsInstallFinishResponses[keyof OpModsInstallFinishResponses];
+
+export type OpModsInstallImportData = {
+    body: DraftRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_import';
+};
+
+export type OpModsInstallImportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallImportError = OpModsInstallImportErrors[keyof OpModsInstallImportErrors];
+
+export type OpModsInstallImportResponses = {
+    /**
+     * Successful Response
+     */
+    200: Handoff;
+};
+
+export type OpModsInstallImportResponse = OpModsInstallImportResponses[keyof OpModsInstallImportResponses];
+
+export type OpModsInstallOpenData = {
+    body: BayleSessionOpsModsInstallOpenParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_open';
+};
+
+export type OpModsInstallOpenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallOpenError = OpModsInstallOpenErrors[keyof OpModsInstallOpenErrors];
+
+export type OpModsInstallOpenResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallView;
+};
+
+export type OpModsInstallOpenResponse = OpModsInstallOpenResponses[keyof OpModsInstallOpenResponses];
+
+export type OpModsInstallPreviewData = {
+    body: DraftRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_preview';
+};
+
+export type OpModsInstallPreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallPreviewError = OpModsInstallPreviewErrors[keyof OpModsInstallPreviewErrors];
+
+export type OpModsInstallPreviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallView;
+};
+
+export type OpModsInstallPreviewResponse = OpModsInstallPreviewResponses[keyof OpModsInstallPreviewResponses];
+
+export type OpModsInstallReplanData = {
+    body: DraftRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_replan';
+};
+
+export type OpModsInstallReplanErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallReplanError = OpModsInstallReplanErrors[keyof OpModsInstallReplanErrors];
+
+export type OpModsInstallReplanResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallView;
+};
+
+export type OpModsInstallReplanResponse = OpModsInstallReplanResponses[keyof OpModsInstallReplanResponses];
+
+export type OpModsInstallSourcesData = {
+    body: SourcesParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.install_sources';
+};
+
+export type OpModsInstallSourcesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsInstallSourcesError = OpModsInstallSourcesErrors[keyof OpModsInstallSourcesErrors];
+
+export type OpModsInstallSourcesResponses = {
+    /**
+     * Successful Response
+     */
+    200: Sources;
+};
+
+export type OpModsInstallSourcesResponse = OpModsInstallSourcesResponses[keyof OpModsInstallSourcesResponses];
+
+export type OpModsLeftoversData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.leftovers';
+};
+
+export type OpModsLeftoversErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsLeftoversError = OpModsLeftoversErrors[keyof OpModsLeftoversErrors];
+
+export type OpModsLeftoversResponses = {
+    /**
+     * Successful Response
+     */
+    200: Leftovers;
+};
+
+export type OpModsLeftoversResponse = OpModsLeftoversResponses[keyof OpModsLeftoversResponses];
+
+export type OpModsLeftoversCleanData = {
+    body: CleanParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.leftovers_clean';
+};
+
+export type OpModsLeftoversCleanErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsLeftoversCleanError = OpModsLeftoversCleanErrors[keyof OpModsLeftoversCleanErrors];
+
+export type OpModsLeftoversCleanResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsLeftoversCleanResponse = OpModsLeftoversCleanResponses[keyof OpModsLeftoversCleanResponses];
+
+export type OpModsLibraryData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.library';
+};
+
+export type OpModsLibraryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsLibraryError = OpModsLibraryErrors[keyof OpModsLibraryErrors];
+
+export type OpModsLibraryResponses = {
+    /**
+     * Successful Response
+     */
+    200: LibraryRows;
+};
+
+export type OpModsLibraryResponse = OpModsLibraryResponses[keyof OpModsLibraryResponses];
+
+export type OpModsLibraryHintData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.library_hint';
+};
+
+export type OpModsLibraryHintErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsLibraryHintError = OpModsLibraryHintErrors[keyof OpModsLibraryHintErrors];
+
+export type OpModsLibraryHintResponses = {
+    /**
+     * Successful Response
+     */
+    200: LibraryHint;
+};
+
+export type OpModsLibraryHintResponse = OpModsLibraryHintResponses[keyof OpModsLibraryHintResponses];
+
+export type OpModsLibraryUseData = {
+    body: UseParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.library_use';
+};
+
+export type OpModsLibraryUseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsLibraryUseError = OpModsLibraryUseErrors[keyof OpModsLibraryUseErrors];
+
+export type OpModsLibraryUseResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsLibraryUseResponse = OpModsLibraryUseResponses[keyof OpModsLibraryUseResponses];
+
+export type OpModsLibraryUseChoicesData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.library_use_choices';
+};
+
+export type OpModsLibraryUseChoicesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsLibraryUseChoicesError = OpModsLibraryUseChoicesErrors[keyof OpModsLibraryUseChoicesErrors];
+
+export type OpModsLibraryUseChoicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PickOffer;
+};
+
+export type OpModsLibraryUseChoicesResponse = OpModsLibraryUseChoicesResponses[keyof OpModsLibraryUseChoicesResponses];
+
+export type OpModsMoveData = {
+    body: MoveParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.move';
+};
+
+export type OpModsMoveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsMoveError = OpModsMoveErrors[keyof OpModsMoveErrors];
+
+export type OpModsMoveResponses = {
+    /**
+     * Successful Response
+     */
+    200: MoveResult;
+};
+
+export type OpModsMoveResponse = OpModsMoveResponses[keyof OpModsMoveResponses];
+
+export type OpModsMoveInData = {
+    body: LaunchRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.move_in';
+};
+
+export type OpModsMoveInErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsMoveInError = OpModsMoveInErrors[keyof OpModsMoveInErrors];
+
+export type OpModsMoveInResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsMoveInResponse = OpModsMoveInResponses[keyof OpModsMoveInResponses];
+
+export type OpModsOptionsData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.options';
+};
+
+export type OpModsOptionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsOptionsError = OpModsOptionsErrors[keyof OpModsOptionsErrors];
+
+export type OpModsOptionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: OptionsView;
+};
+
+export type OpModsOptionsResponse = OpModsOptionsResponses[keyof OpModsOptionsResponses];
+
+export type OpModsOverhaulInstallData = {
+    body: InstallFolder;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.overhaul_install';
+};
+
+export type OpModsOverhaulInstallErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsOverhaulInstallError = OpModsOverhaulInstallErrors[keyof OpModsOverhaulInstallErrors];
+
+export type OpModsOverhaulInstallResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsOverhaulInstallResponse = OpModsOverhaulInstallResponses[keyof OpModsOverhaulInstallResponses];
+
+export type OpModsOverhaulRemoveData = {
+    body: RemoveChosen;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.overhaul_remove';
+};
+
+export type OpModsOverhaulRemoveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsOverhaulRemoveError = OpModsOverhaulRemoveErrors[keyof OpModsOverhaulRemoveErrors];
+
+export type OpModsOverhaulRemoveResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsOverhaulRemoveResponse = OpModsOverhaulRemoveResponses[keyof OpModsOverhaulRemoveResponses];
+
+export type OpModsOverhaulRemoveChoicesData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.overhaul_remove_choices';
+};
+
+export type OpModsOverhaulRemoveChoicesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsOverhaulRemoveChoicesError = OpModsOverhaulRemoveChoicesErrors[keyof OpModsOverhaulRemoveChoicesErrors];
+
+export type OpModsOverhaulRemoveChoicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PickOffer;
+};
+
+export type OpModsOverhaulRemoveChoicesResponse = OpModsOverhaulRemoveChoicesResponses[keyof OpModsOverhaulRemoveChoicesResponses];
+
+export type OpModsProfileBlockData = {
+    body: LaunchRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.profile_block';
+};
+
+export type OpModsProfileBlockErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsProfileBlockError = OpModsProfileBlockErrors[keyof OpModsProfileBlockErrors];
+
+export type OpModsProfileBlockResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProfileBlock;
+};
+
+export type OpModsProfileBlockResponse = OpModsProfileBlockResponses[keyof OpModsProfileBlockResponses];
+
+export type OpModsProfileNameCheckData = {
+    body: NameParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.profile_name_check';
+};
+
+export type OpModsProfileNameCheckErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsProfileNameCheckError = OpModsProfileNameCheckErrors[keyof OpModsProfileNameCheckErrors];
+
+export type OpModsProfileNameCheckResponses = {
+    /**
+     * Successful Response
+     */
+    200: NameCheck;
+};
+
+export type OpModsProfileNameCheckResponse = OpModsProfileNameCheckResponses[keyof OpModsProfileNameCheckResponses];
+
+export type OpModsRebuildData = {
+    body: RebuildParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.rebuild';
+};
+
+export type OpModsRebuildErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRebuildError = OpModsRebuildErrors[keyof OpModsRebuildErrors];
+
+export type OpModsRebuildResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsRebuildResponse = OpModsRebuildResponses[keyof OpModsRebuildResponses];
+
+export type OpModsRemoveData = {
+    body: RemoveParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.remove';
+};
+
+export type OpModsRemoveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRemoveError = OpModsRemoveErrors[keyof OpModsRemoveErrors];
+
+export type OpModsRemoveResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsRemoveResponse = OpModsRemoveResponses[keyof OpModsRemoveResponses];
+
+export type OpModsRemoveHolderData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.remove_holder';
+};
+
+export type OpModsRemoveHolderErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRemoveHolderError = OpModsRemoveHolderErrors[keyof OpModsRemoveHolderErrors];
+
+export type OpModsRemoveHolderResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsRemoveHolderResponse = OpModsRemoveHolderResponses[keyof OpModsRemoveHolderResponses];
+
+export type OpModsRemoveUnusedData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.remove_unused';
+};
+
+export type OpModsRemoveUnusedErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRemoveUnusedError = OpModsRemoveUnusedErrors[keyof OpModsRemoveUnusedErrors];
+
+export type OpModsRemoveUnusedResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsRemoveUnusedResponse = OpModsRemoveUnusedResponses[keyof OpModsRemoveUnusedResponses];
+
+export type OpModsRenameData = {
+    body: BayleSessionOpsModsEntriesRenameParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.rename';
+};
+
+export type OpModsRenameErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRenameError = OpModsRenameErrors[keyof OpModsRenameErrors];
+
+export type OpModsRenameResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsRenameResponse = OpModsRenameResponses[keyof OpModsRenameResponses];
+
+export type OpModsRenameFolderData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.rename_folder';
+};
+
+export type OpModsRenameFolderErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRenameFolderError = OpModsRenameFolderErrors[keyof OpModsRenameFolderErrors];
+
+export type OpModsRenameFolderResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsRenameFolderResponse = OpModsRenameFolderResponses[keyof OpModsRenameFolderResponses];
+
+export type OpModsRenamePreviewData = {
+    body: BayleSessionOpsModsEntriesRenameParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.rename_preview';
+};
+
+export type OpModsRenamePreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRenamePreviewError = OpModsRenamePreviewErrors[keyof OpModsRenamePreviewErrors];
+
+export type OpModsRenamePreviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: RenamePreview;
+};
+
+export type OpModsRenamePreviewResponse = OpModsRenamePreviewResponses[keyof OpModsRenamePreviewResponses];
+
+export type OpModsRenameProfileData = {
+    body: NameParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.rename_profile';
+};
+
+export type OpModsRenameProfileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRenameProfileError = OpModsRenameProfileErrors[keyof OpModsRenameProfileErrors];
+
+export type OpModsRenameProfileResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStarted;
+};
+
+export type OpModsRenameProfileResponse = OpModsRenameProfileResponses[keyof OpModsRenameProfileResponses];
+
+export type OpModsRenameStartData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.rename_start';
+};
+
+export type OpModsRenameStartErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRenameStartError = OpModsRenameStartErrors[keyof OpModsRenameStartErrors];
+
+export type OpModsRenameStartResponses = {
+    /**
+     * Successful Response
+     */
+    200: RenameStart;
+};
+
+export type OpModsRenameStartResponse = OpModsRenameStartResponses[keyof OpModsRenameStartResponses];
+
+export type OpModsRestoreVersionData = {
+    body: BayleSessionOpsModsEntriesRestoreParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.restore_version';
+};
+
+export type OpModsRestoreVersionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsRestoreVersionError = OpModsRestoreVersionErrors[keyof OpModsRestoreVersionErrors];
+
+export type OpModsRestoreVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: Restored;
+};
+
+export type OpModsRestoreVersionResponse = OpModsRestoreVersionResponses[keyof OpModsRestoreVersionResponses];
+
+export type OpModsSaveOptionsData = {
+    body: OptionsInput;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.save_options';
+};
+
+export type OpModsSaveOptionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSaveOptionsError = OpModsSaveOptionsErrors[keyof OpModsSaveOptionsErrors];
+
+export type OpModsSaveOptionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsChanged;
+};
+
+export type OpModsSaveOptionsResponse = OpModsSaveOptionsResponses[keyof OpModsSaveOptionsResponses];
+
+export type OpModsSaveTextData = {
+    body: SaveTextParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.save_text';
+};
+
+export type OpModsSaveTextErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSaveTextError = OpModsSaveTextErrors[keyof OpModsSaveTextErrors];
+
+export type OpModsSaveTextResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsChanged;
+};
+
+export type OpModsSaveTextResponse = OpModsSaveTextResponses[keyof OpModsSaveTextResponses];
+
+export type OpModsSeamlessData = {
+    body: LaunchRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.seamless';
+};
+
+export type OpModsSeamlessErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSeamlessError = OpModsSeamlessErrors[keyof OpModsSeamlessErrors];
+
+export type OpModsSeamlessResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsSeamlessResponse = OpModsSeamlessResponses[keyof OpModsSeamlessResponses];
+
+export type OpModsSeparateData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.separate';
+};
+
+export type OpModsSeparateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSeparateError = OpModsSeparateErrors[keyof OpModsSeparateErrors];
+
+export type OpModsSeparateResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsSeparateResponse = OpModsSeparateResponses[keyof OpModsSeparateResponses];
+
+export type OpModsSetEnabledData = {
+    body: EnabledParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.set_enabled';
+};
+
+export type OpModsSetEnabledErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSetEnabledError = OpModsSetEnabledErrors[keyof OpModsSetEnabledErrors];
+
+export type OpModsSetEnabledResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsChanged;
+};
+
+export type OpModsSetEnabledResponse = OpModsSetEnabledResponses[keyof OpModsSetEnabledResponses];
+
+export type OpModsSetSettingData = {
+    body: SettingParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.set_setting';
+};
+
+export type OpModsSetSettingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSetSettingError = OpModsSetSettingErrors[keyof OpModsSetSettingErrors];
+
+export type OpModsSetSettingResponses = {
+    /**
+     * Successful Response
+     */
+    200: SettingResult;
+};
+
+export type OpModsSetSettingResponse = OpModsSetSettingResponses[keyof OpModsSetSettingResponses];
+
+export type OpModsSettingsData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.settings';
+};
+
+export type OpModsSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSettingsError = OpModsSettingsErrors[keyof OpModsSettingsErrors];
+
+export type OpModsSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SettingsView;
+};
+
+export type OpModsSettingsResponse = OpModsSettingsResponses[keyof OpModsSettingsResponses];
+
+export type OpModsShareData = {
+    body: EntryRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.share';
+};
+
+export type OpModsShareErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsShareError = OpModsShareErrors[keyof OpModsShareErrors];
+
+export type OpModsShareResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsShareResponse = OpModsShareResponses[keyof OpModsShareResponses];
+
+export type OpModsSplitFolderData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.split_folder';
+};
+
+export type OpModsSplitFolderErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsSplitFolderError = OpModsSplitFolderErrors[keyof OpModsSplitFolderErrors];
+
+export type OpModsSplitFolderResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsSplitFolderResponse = OpModsSplitFolderResponses[keyof OpModsSplitFolderResponses];
+
+export type OpModsTakeoverData = {
+    body: RemoveChosen;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.takeover';
+};
+
+export type OpModsTakeoverErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsTakeoverError = OpModsTakeoverErrors[keyof OpModsTakeoverErrors];
+
+export type OpModsTakeoverResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsTakeoverResponse = OpModsTakeoverResponses[keyof OpModsTakeoverResponses];
+
+export type OpModsTakeoverChoicesData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.takeover_choices';
+};
+
+export type OpModsTakeoverChoicesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsTakeoverChoicesError = OpModsTakeoverChoicesErrors[keyof OpModsTakeoverChoicesErrors];
+
+export type OpModsTakeoverChoicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PickOffer;
+};
+
+export type OpModsTakeoverChoicesResponse = OpModsTakeoverChoicesResponses[keyof OpModsTakeoverChoicesResponses];
+
+export type OpModsTextData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.text';
+};
+
+export type OpModsTextErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsTextError = OpModsTextErrors[keyof OpModsTextErrors];
+
+export type OpModsTextResponses = {
+    /**
+     * Successful Response
+     */
+    200: TextView;
+};
+
+export type OpModsTextResponse = OpModsTextResponses[keyof OpModsTextResponses];
+
+export type OpModsTrimBackupsData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.trim_backups';
+};
+
+export type OpModsTrimBackupsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsTrimBackupsError = OpModsTrimBackupsErrors[keyof OpModsTrimBackupsErrors];
+
+export type OpModsTrimBackupsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlanOffer;
+};
+
+export type OpModsTrimBackupsResponse = OpModsTrimBackupsResponses[keyof OpModsTrimBackupsResponses];
+
+export type OpModsUndoChangeData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.undo_change';
+};
+
+export type OpModsUndoChangeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsUndoChangeError = OpModsUndoChangeErrors[keyof OpModsUndoChangeErrors];
+
+export type OpModsUndoChangeResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsDone;
+};
+
+export type OpModsUndoChangeResponse = OpModsUndoChangeResponses[keyof OpModsUndoChangeResponses];
+
+export type OpModsUndoRemovalData = {
+    body: BayleSessionOpsModsEntriesUndoParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.undo_removal';
+};
+
+export type OpModsUndoRemovalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsUndoRemovalError = OpModsUndoRemovalErrors[keyof OpModsUndoRemovalErrors];
+
+export type OpModsUndoRemovalResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsModsChanged;
+};
+
+export type OpModsUndoRemovalResponse = OpModsUndoRemovalResponses[keyof OpModsUndoRemovalResponses];
+
+export type OpModsUnlistedData = {
+    body: KindParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.unlisted';
+};
+
+export type OpModsUnlistedErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsUnlistedError = OpModsUnlistedErrors[keyof OpModsUnlistedErrors];
+
+export type OpModsUnlistedResponses = {
+    /**
+     * Successful Response
+     */
+    200: Unlisted;
+};
+
+export type OpModsUnlistedResponse = OpModsUnlistedResponses[keyof OpModsUnlistedResponses];
+
+export type OpModsVersionsData = {
+    body: ProfileRef;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mods.versions';
+};
+
+export type OpModsVersionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModsVersionsError = OpModsVersionsErrors[keyof OpModsVersionsErrors];
+
+export type OpModsVersionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: VersionList;
+};
+
+export type OpModsVersionsResponse = OpModsVersionsResponses[keyof OpModsVersionsResponses];
 
 export type OpProfileTransferConfirmExportData = {
     body: BigExportParams;
@@ -3922,7 +6864,7 @@ export type OpSavesRemoveCopyResponses = {
 export type OpSavesRemoveCopyResponse = OpSavesRemoveCopyResponses[keyof OpSavesRemoveCopyResponses];
 
 export type OpSavesRenameCopyData = {
-    body: RenameParams;
+    body: BayleSessionOpsSavesRenameParams;
     path?: never;
     query?: never;
     url: '/v1/ops/saves.rename_copy';
@@ -4022,7 +6964,7 @@ export type OpSavesReplaceFromLibraryResponses = {
 export type OpSavesReplaceFromLibraryResponse = OpSavesReplaceFromLibraryResponses[keyof OpSavesReplaceFromLibraryResponses];
 
 export type OpSavesRestoreBackupData = {
-    body: RestoreParams;
+    body: BayleSessionOpsSavesRestoreParams;
     path?: never;
     query?: never;
     url: '/v1/ops/saves.restore_backup';
@@ -4097,7 +7039,7 @@ export type OpSavesSheetResponses = {
 export type OpSavesSheetResponse = OpSavesSheetResponses[keyof OpSavesSheetResponses];
 
 export type OpSavesUndoChangeData = {
-    body: UndoParams;
+    body: BayleSessionOpsSavesUndoParams;
     path?: never;
     query?: never;
     url: '/v1/ops/saves.undo_change';
@@ -4273,7 +7215,7 @@ export type OpSettingsSetResponses = {
     /**
      * Successful Response
      */
-    200: Changed;
+    200: BayleSessionOpsSettingsChanged;
 };
 
 export type OpSettingsSetResponse = OpSettingsSetResponses[keyof OpSettingsSetResponses];
@@ -4304,7 +7246,7 @@ export type OpShellAddProfileResponses = {
 export type OpShellAddProfileResponse = OpShellAddProfileResponses[keyof OpShellAddProfileResponses];
 
 export type OpShellCheckUpdatesData = {
-    body: CheckParams;
+    body: BayleSessionOpsShellCheckParams;
     path?: never;
     query?: never;
     url: '/v1/ops/shell.check_updates';
@@ -4323,7 +7265,7 @@ export type OpShellCheckUpdatesResponses = {
     /**
      * Successful Response
      */
-    200: Done;
+    200: BayleSessionOpsShellDone;
 };
 
 export type OpShellCheckUpdatesResponse = OpShellCheckUpdatesResponses[keyof OpShellCheckUpdatesResponses];
@@ -4364,7 +7306,7 @@ export type OpShellDismissNoticeResponses = {
     /**
      * Successful Response
      */
-    200: Done;
+    200: BayleSessionOpsShellDone;
 };
 
 export type OpShellDismissNoticeResponse = OpShellDismissNoticeResponses[keyof OpShellDismissNoticeResponses];
@@ -4571,7 +7513,7 @@ export type OpShellUpdateActionResponses = {
     /**
      * Successful Response
      */
-    200: Done;
+    200: BayleSessionOpsShellDone;
 };
 
 export type OpShellUpdateActionResponse = OpShellUpdateActionResponses[keyof OpShellUpdateActionResponses];
@@ -4643,6 +7585,48 @@ export type PageModConfigsResponses = {
 };
 
 export type PageModConfigsResponse = PageModConfigsResponses[keyof PageModConfigsResponses];
+
+export type PageModsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Profile
+         */
+        profile?: string;
+        /**
+         * Kind
+         */
+        kind?: string;
+        /**
+         * Source
+         */
+        source?: string;
+        /**
+         * No Profiles
+         */
+        no_profiles?: boolean;
+    };
+    url: '/v1/pages/mods';
+};
+
+export type PageModsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PageModsError = PageModsErrors[keyof PageModsErrors];
+
+export type PageModsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModsView;
+};
+
+export type PageModsResponse = PageModsResponses[keyof PageModsResponses];
 
 export type PageProfileTransferData = {
     body?: never;

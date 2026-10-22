@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AnswerPlanData, AnswerPlanErrors, AnswerPlanResponses, AnswerPromptData, AnswerPromptErrors, AnswerPromptResponses, CancelJobData, CancelJobErrors, CancelJobResponses, EventsData, EventsErrors, EventsResponses, GetJobData, GetJobErrors, GetJobResponses, HealthData, HealthResponses, OpActivityCopyData, OpActivityCopyErrors, OpActivityCopyResponses, OpActivityLogData, OpActivityLogErrors, OpActivityLogFileData, OpActivityLogFileErrors, OpActivityLogFileResponses, OpActivityLogResponses, OpActivityMarkSeenData, OpActivityMarkSeenResponses, OpActivityUndoData, OpActivityUndoErrors, OpActivityUndoResponses, OpActivityUnseenData, OpActivityUnseenResponses, OpModConfigsApplySetupData, OpModConfigsApplySetupErrors, OpModConfigsApplySetupResponses, OpModConfigsAttachData, OpModConfigsAttachErrors, OpModConfigsAttachResponses, OpModConfigsDetachData, OpModConfigsDetachErrors, OpModConfigsDetachResponses, OpModConfigsExportShareData, OpModConfigsExportShareErrors, OpModConfigsExportShareResponses, OpModConfigsInstallSetupData, OpModConfigsInstallSetupErrors, OpModConfigsInstallSetupResponses, OpModConfigsOpenData, OpModConfigsOpenErrors, OpModConfigsOpenResponses, OpModConfigsOverhaulFormData, OpModConfigsOverhaulFormErrors, OpModConfigsOverhaulFormResponses, OpModConfigsPasteData, OpModConfigsPasteErrors, OpModConfigsPasteResponses, OpModConfigsSaveData, OpModConfigsSaveErrors, OpModConfigsSaveResponses, OpModConfigsSaveSetupData, OpModConfigsSaveSetupErrors, OpModConfigsSaveSetupResponses, OpModConfigsSetupCandidatesData, OpModConfigsSetupCandidatesErrors, OpModConfigsSetupCandidatesResponses, OpModConfigsShareData, OpModConfigsShareErrors, OpModConfigsShareResponses, OpModConfigsStampData, OpModConfigsStampErrors, OpModConfigsStampResponses, OpModConfigsTurnOffData, OpModConfigsTurnOffErrors, OpModConfigsTurnOffResponses, OpProfileTransferConfirmExportData, OpProfileTransferConfirmExportErrors, OpProfileTransferConfirmExportResponses, OpProfileTransferDiscardData, OpProfileTransferDiscardErrors, OpProfileTransferDiscardResponses, OpProfileTransferExportData, OpProfileTransferExportErrors, OpProfileTransferExportResponses, OpProfileTransferImportData, OpProfileTransferImportErrors, OpProfileTransferImportResponses, OpProfileTransferOpenBundledData, OpProfileTransferOpenBundledErrors, OpProfileTransferOpenBundledResponses, OpProfileTransferOpenFileData, OpProfileTransferOpenFileErrors, OpProfileTransferOpenFileResponses, OpProfileTransferPreviewData, OpProfileTransferPreviewErrors, OpProfileTransferPreviewResponses, OpSavesAdoptLegacyData, OpSavesAdoptLegacyResponses, OpSavesBackUpData, OpSavesBackUpErrors, OpSavesBackUpResponses, OpSavesCopyCharacterData, OpSavesCopyCharacterErrors, OpSavesCopyCharacterResponses, OpSavesCopyEntryData, OpSavesCopyEntryErrors, OpSavesCopyEntryResponses, OpSavesDefaultNameData, OpSavesDefaultNameErrors, OpSavesDefaultNameResponses, OpSavesDeleteBackupData, OpSavesDeleteBackupErrors, OpSavesDeleteBackupResponses, OpSavesFinishStrandedData, OpSavesFinishStrandedErrors, OpSavesFinishStrandedResponses, OpSavesFolderData, OpSavesFolderErrors, OpSavesFolderResponses, OpSavesHealthReportData, OpSavesHealthReportErrors, OpSavesHealthReportResponses, OpSavesImportFilesData, OpSavesImportFilesErrors, OpSavesImportFilesResponses, OpSavesKeepAsData, OpSavesKeepAsErrors, OpSavesKeepAsResponses, OpSavesKeepBackupData, OpSavesKeepBackupErrors, OpSavesKeepBackupResponses, OpSavesPostSessionRepairData, OpSavesPostSessionRepairResponses, OpSavesRemoveCopyData, OpSavesRemoveCopyErrors, OpSavesRemoveCopyResponses, OpSavesRenameCopyData, OpSavesRenameCopyErrors, OpSavesRenameCopyResponses, OpSavesRepairData, OpSavesRepairErrors, OpSavesRepairResponses, OpSavesReplaceFromFileData, OpSavesReplaceFromFileErrors, OpSavesReplaceFromFileResponses, OpSavesReplaceFromLibraryData, OpSavesReplaceFromLibraryErrors, OpSavesReplaceFromLibraryResponses, OpSavesRestoreBackupData, OpSavesRestoreBackupErrors, OpSavesRestoreBackupResponses, OpSavesSaveCopyData, OpSavesSaveCopyErrors, OpSavesSaveCopyResponses, OpSavesSheetData, OpSavesSheetErrors, OpSavesSheetResponses, OpSavesUndoChangeData, OpSavesUndoChangeErrors, OpSavesUndoChangeResponses, OpSettingsClearLeftoversData, OpSettingsClearLeftoversResponses, OpSettingsFolderData, OpSettingsFolderErrors, OpSettingsFolderResponses, OpSettingsLayoutCheckData, OpSettingsLayoutCheckErrors, OpSettingsLayoutCheckResponses, OpSettingsMoveAllData, OpSettingsMoveAllResponses, OpSettingsRelocateData, OpSettingsRelocateErrors, OpSettingsRelocateResponses, OpSettingsRenameLayoutData, OpSettingsRenameLayoutErrors, OpSettingsRenameLayoutResponses, OpSettingsSetData, OpSettingsSetErrors, OpSettingsSetResponses, OpShellAddProfileData, OpShellAddProfileErrors, OpShellAddProfileResponses, OpShellCheckUpdatesData, OpShellCheckUpdatesErrors, OpShellCheckUpdatesResponses, OpShellClearDeadProcessesData, OpShellClearDeadProcessesResponses, OpShellDismissNoticeData, OpShellDismissNoticeErrors, OpShellDismissNoticeResponses, OpShellLaunchData, OpShellLaunchErrors, OpShellLaunchResponses, OpShellMe3Data, OpShellMe3Responses, OpShellNewProfileData, OpShellNewProfileErrors, OpShellNewProfileResponses, OpShellPickProfileData, OpShellPickProfileErrors, OpShellPickProfileResponses, OpShellSaveLogsData, OpShellSaveLogsErrors, OpShellSaveLogsResponses, OpShellSetGameData, OpShellSetGameErrors, OpShellSetGameResponses, OpShellSetModeData, OpShellSetModeErrors, OpShellSetModeResponses, OpShellSteamShortcutsData, OpShellSteamShortcutsResponses, OpShellUpdateActionData, OpShellUpdateActionErrors, OpShellUpdateActionResponses, PageActivityData, PageActivityErrors, PageActivityResponses, PageModConfigsData, PageModConfigsErrors, PageModConfigsResponses, PageProfileTransferData, PageProfileTransferErrors, PageProfileTransferResponses, PageSavesData, PageSavesResponses, PageSettingsData, PageSettingsResponses, PageShellData, PageShellResponses } from './types.gen';
+import type { AnswerPlanData, AnswerPlanErrors, AnswerPlanResponses, AnswerPromptData, AnswerPromptErrors, AnswerPromptResponses, CancelJobData, CancelJobErrors, CancelJobResponses, EventsData, EventsErrors, EventsResponses, GetJobData, GetJobErrors, GetJobResponses, HealthData, HealthResponses, OpActivityCopyData, OpActivityCopyErrors, OpActivityCopyResponses, OpActivityLogData, OpActivityLogErrors, OpActivityLogFileData, OpActivityLogFileErrors, OpActivityLogFileResponses, OpActivityLogResponses, OpActivityMarkSeenData, OpActivityMarkSeenResponses, OpActivityUndoData, OpActivityUndoErrors, OpActivityUndoResponses, OpActivityUnseenData, OpActivityUnseenResponses, OpModConfigsApplySetupData, OpModConfigsApplySetupErrors, OpModConfigsApplySetupResponses, OpModConfigsAttachData, OpModConfigsAttachErrors, OpModConfigsAttachResponses, OpModConfigsDetachData, OpModConfigsDetachErrors, OpModConfigsDetachResponses, OpModConfigsExportShareData, OpModConfigsExportShareErrors, OpModConfigsExportShareResponses, OpModConfigsInstallSetupData, OpModConfigsInstallSetupErrors, OpModConfigsInstallSetupResponses, OpModConfigsOpenData, OpModConfigsOpenErrors, OpModConfigsOpenResponses, OpModConfigsOverhaulFormData, OpModConfigsOverhaulFormErrors, OpModConfigsOverhaulFormResponses, OpModConfigsPasteData, OpModConfigsPasteErrors, OpModConfigsPasteResponses, OpModConfigsSaveData, OpModConfigsSaveErrors, OpModConfigsSaveResponses, OpModConfigsSaveSetupData, OpModConfigsSaveSetupErrors, OpModConfigsSaveSetupResponses, OpModConfigsSetupCandidatesData, OpModConfigsSetupCandidatesErrors, OpModConfigsSetupCandidatesResponses, OpModConfigsShareData, OpModConfigsShareErrors, OpModConfigsShareResponses, OpModConfigsStampData, OpModConfigsStampErrors, OpModConfigsStampResponses, OpModConfigsTurnOffData, OpModConfigsTurnOffErrors, OpModConfigsTurnOffResponses, OpModsAddExistingData, OpModsAddExistingErrors, OpModsAddExistingResponses, OpModsAllowToolData, OpModsAllowToolErrors, OpModsAllowToolResponses, OpModsCheckTextData, OpModsCheckTextErrors, OpModsCheckTextResponses, OpModsCloseNoticeData, OpModsCloseNoticeErrors, OpModsCloseNoticeResponses, OpModsDeleteProfileData, OpModsDeleteProfileErrors, OpModsDeleteProfileResponses, OpModsDllFoldersData, OpModsDllFoldersErrors, OpModsDllFoldersResponses, OpModsDragData, OpModsDragErrors, OpModsDragResponses, OpModsDuplicateProfileData, OpModsDuplicateProfileErrors, OpModsDuplicateProfileResponses, OpModsFixOrderData, OpModsFixOrderErrors, OpModsFixOrderResponses, OpModsInstallCloseData, OpModsInstallCloseErrors, OpModsInstallCloseResponses, OpModsInstallEditData, OpModsInstallEditErrors, OpModsInstallEditResponses, OpModsInstallFinishData, OpModsInstallFinishErrors, OpModsInstallFinishResponses, OpModsInstallImportData, OpModsInstallImportErrors, OpModsInstallImportResponses, OpModsInstallOpenData, OpModsInstallOpenErrors, OpModsInstallOpenResponses, OpModsInstallPreviewData, OpModsInstallPreviewErrors, OpModsInstallPreviewResponses, OpModsInstallReplanData, OpModsInstallReplanErrors, OpModsInstallReplanResponses, OpModsInstallSourcesData, OpModsInstallSourcesErrors, OpModsInstallSourcesResponses, OpModsLeftoversCleanData, OpModsLeftoversCleanErrors, OpModsLeftoversCleanResponses, OpModsLeftoversData, OpModsLeftoversErrors, OpModsLeftoversResponses, OpModsLibraryData, OpModsLibraryErrors, OpModsLibraryHintData, OpModsLibraryHintErrors, OpModsLibraryHintResponses, OpModsLibraryResponses, OpModsLibraryUseChoicesData, OpModsLibraryUseChoicesErrors, OpModsLibraryUseChoicesResponses, OpModsLibraryUseData, OpModsLibraryUseErrors, OpModsLibraryUseResponses, OpModsMoveData, OpModsMoveErrors, OpModsMoveInData, OpModsMoveInErrors, OpModsMoveInResponses, OpModsMoveResponses, OpModsOptionsData, OpModsOptionsErrors, OpModsOptionsResponses, OpModsOverhaulInstallData, OpModsOverhaulInstallErrors, OpModsOverhaulInstallResponses, OpModsOverhaulRemoveChoicesData, OpModsOverhaulRemoveChoicesErrors, OpModsOverhaulRemoveChoicesResponses, OpModsOverhaulRemoveData, OpModsOverhaulRemoveErrors, OpModsOverhaulRemoveResponses, OpModsProfileBlockData, OpModsProfileBlockErrors, OpModsProfileBlockResponses, OpModsProfileNameCheckData, OpModsProfileNameCheckErrors, OpModsProfileNameCheckResponses, OpModsRebuildData, OpModsRebuildErrors, OpModsRebuildResponses, OpModsRemoveData, OpModsRemoveErrors, OpModsRemoveHolderData, OpModsRemoveHolderErrors, OpModsRemoveHolderResponses, OpModsRemoveResponses, OpModsRemoveUnusedData, OpModsRemoveUnusedErrors, OpModsRemoveUnusedResponses, OpModsRenameData, OpModsRenameErrors, OpModsRenameFolderData, OpModsRenameFolderErrors, OpModsRenameFolderResponses, OpModsRenamePreviewData, OpModsRenamePreviewErrors, OpModsRenamePreviewResponses, OpModsRenameProfileData, OpModsRenameProfileErrors, OpModsRenameProfileResponses, OpModsRenameResponses, OpModsRenameStartData, OpModsRenameStartErrors, OpModsRenameStartResponses, OpModsRestoreVersionData, OpModsRestoreVersionErrors, OpModsRestoreVersionResponses, OpModsSaveOptionsData, OpModsSaveOptionsErrors, OpModsSaveOptionsResponses, OpModsSaveTextData, OpModsSaveTextErrors, OpModsSaveTextResponses, OpModsSeamlessData, OpModsSeamlessErrors, OpModsSeamlessResponses, OpModsSeparateData, OpModsSeparateErrors, OpModsSeparateResponses, OpModsSetEnabledData, OpModsSetEnabledErrors, OpModsSetEnabledResponses, OpModsSetSettingData, OpModsSetSettingErrors, OpModsSetSettingResponses, OpModsSettingsData, OpModsSettingsErrors, OpModsSettingsResponses, OpModsShareData, OpModsShareErrors, OpModsShareResponses, OpModsSplitFolderData, OpModsSplitFolderErrors, OpModsSplitFolderResponses, OpModsTakeoverChoicesData, OpModsTakeoverChoicesErrors, OpModsTakeoverChoicesResponses, OpModsTakeoverData, OpModsTakeoverErrors, OpModsTakeoverResponses, OpModsTextData, OpModsTextErrors, OpModsTextResponses, OpModsTrimBackupsData, OpModsTrimBackupsErrors, OpModsTrimBackupsResponses, OpModsUndoChangeData, OpModsUndoChangeErrors, OpModsUndoChangeResponses, OpModsUndoRemovalData, OpModsUndoRemovalErrors, OpModsUndoRemovalResponses, OpModsUnlistedData, OpModsUnlistedErrors, OpModsUnlistedResponses, OpModsVersionsData, OpModsVersionsErrors, OpModsVersionsResponses, OpProfileTransferConfirmExportData, OpProfileTransferConfirmExportErrors, OpProfileTransferConfirmExportResponses, OpProfileTransferDiscardData, OpProfileTransferDiscardErrors, OpProfileTransferDiscardResponses, OpProfileTransferExportData, OpProfileTransferExportErrors, OpProfileTransferExportResponses, OpProfileTransferImportData, OpProfileTransferImportErrors, OpProfileTransferImportResponses, OpProfileTransferOpenBundledData, OpProfileTransferOpenBundledErrors, OpProfileTransferOpenBundledResponses, OpProfileTransferOpenFileData, OpProfileTransferOpenFileErrors, OpProfileTransferOpenFileResponses, OpProfileTransferPreviewData, OpProfileTransferPreviewErrors, OpProfileTransferPreviewResponses, OpSavesAdoptLegacyData, OpSavesAdoptLegacyResponses, OpSavesBackUpData, OpSavesBackUpErrors, OpSavesBackUpResponses, OpSavesCopyCharacterData, OpSavesCopyCharacterErrors, OpSavesCopyCharacterResponses, OpSavesCopyEntryData, OpSavesCopyEntryErrors, OpSavesCopyEntryResponses, OpSavesDefaultNameData, OpSavesDefaultNameErrors, OpSavesDefaultNameResponses, OpSavesDeleteBackupData, OpSavesDeleteBackupErrors, OpSavesDeleteBackupResponses, OpSavesFinishStrandedData, OpSavesFinishStrandedErrors, OpSavesFinishStrandedResponses, OpSavesFolderData, OpSavesFolderErrors, OpSavesFolderResponses, OpSavesHealthReportData, OpSavesHealthReportErrors, OpSavesHealthReportResponses, OpSavesImportFilesData, OpSavesImportFilesErrors, OpSavesImportFilesResponses, OpSavesKeepAsData, OpSavesKeepAsErrors, OpSavesKeepAsResponses, OpSavesKeepBackupData, OpSavesKeepBackupErrors, OpSavesKeepBackupResponses, OpSavesPostSessionRepairData, OpSavesPostSessionRepairResponses, OpSavesRemoveCopyData, OpSavesRemoveCopyErrors, OpSavesRemoveCopyResponses, OpSavesRenameCopyData, OpSavesRenameCopyErrors, OpSavesRenameCopyResponses, OpSavesRepairData, OpSavesRepairErrors, OpSavesRepairResponses, OpSavesReplaceFromFileData, OpSavesReplaceFromFileErrors, OpSavesReplaceFromFileResponses, OpSavesReplaceFromLibraryData, OpSavesReplaceFromLibraryErrors, OpSavesReplaceFromLibraryResponses, OpSavesRestoreBackupData, OpSavesRestoreBackupErrors, OpSavesRestoreBackupResponses, OpSavesSaveCopyData, OpSavesSaveCopyErrors, OpSavesSaveCopyResponses, OpSavesSheetData, OpSavesSheetErrors, OpSavesSheetResponses, OpSavesUndoChangeData, OpSavesUndoChangeErrors, OpSavesUndoChangeResponses, OpSettingsClearLeftoversData, OpSettingsClearLeftoversResponses, OpSettingsFolderData, OpSettingsFolderErrors, OpSettingsFolderResponses, OpSettingsLayoutCheckData, OpSettingsLayoutCheckErrors, OpSettingsLayoutCheckResponses, OpSettingsMoveAllData, OpSettingsMoveAllResponses, OpSettingsRelocateData, OpSettingsRelocateErrors, OpSettingsRelocateResponses, OpSettingsRenameLayoutData, OpSettingsRenameLayoutErrors, OpSettingsRenameLayoutResponses, OpSettingsSetData, OpSettingsSetErrors, OpSettingsSetResponses, OpShellAddProfileData, OpShellAddProfileErrors, OpShellAddProfileResponses, OpShellCheckUpdatesData, OpShellCheckUpdatesErrors, OpShellCheckUpdatesResponses, OpShellClearDeadProcessesData, OpShellClearDeadProcessesResponses, OpShellDismissNoticeData, OpShellDismissNoticeErrors, OpShellDismissNoticeResponses, OpShellLaunchData, OpShellLaunchErrors, OpShellLaunchResponses, OpShellMe3Data, OpShellMe3Responses, OpShellNewProfileData, OpShellNewProfileErrors, OpShellNewProfileResponses, OpShellPickProfileData, OpShellPickProfileErrors, OpShellPickProfileResponses, OpShellSaveLogsData, OpShellSaveLogsErrors, OpShellSaveLogsResponses, OpShellSetGameData, OpShellSetGameErrors, OpShellSetGameResponses, OpShellSetModeData, OpShellSetModeErrors, OpShellSetModeResponses, OpShellSteamShortcutsData, OpShellSteamShortcutsResponses, OpShellUpdateActionData, OpShellUpdateActionErrors, OpShellUpdateActionResponses, PageActivityData, PageActivityErrors, PageActivityResponses, PageModConfigsData, PageModConfigsErrors, PageModConfigsResponses, PageModsData, PageModsErrors, PageModsResponses, PageProfileTransferData, PageProfileTransferErrors, PageProfileTransferResponses, PageSavesData, PageSavesResponses, PageSettingsData, PageSettingsResponses, PageShellData, PageShellResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -303,6 +303,760 @@ export const opModConfigsStamp = <ThrowOnError extends boolean = false>(options:
 export const opModConfigsTurnOff = <ThrowOnError extends boolean = false>(options: Options<OpModConfigsTurnOffData, ThrowOnError>): RequestResult<OpModConfigsTurnOffResponses, OpModConfigsTurnOffErrors, ThrowOnError> => (options.client ?? client).post<OpModConfigsTurnOffResponses, OpModConfigsTurnOffErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/ops/mod_configs.turn_off',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.add_existing (command, writes)
+ */
+export const opModsAddExisting = <ThrowOnError extends boolean = false>(options: Options<OpModsAddExistingData, ThrowOnError>): RequestResult<OpModsAddExistingResponses, OpModsAddExistingErrors, ThrowOnError> => (options.client ?? client).post<OpModsAddExistingResponses, OpModsAddExistingErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.add_existing',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.allow_tool (plan, writes)
+ */
+export const opModsAllowTool = <ThrowOnError extends boolean = false>(options: Options<OpModsAllowToolData, ThrowOnError>): RequestResult<OpModsAllowToolResponses, OpModsAllowToolErrors, ThrowOnError> => (options.client ?? client).post<OpModsAllowToolResponses, OpModsAllowToolErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.allow_tool',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.check_text (read)
+ */
+export const opModsCheckText = <ThrowOnError extends boolean = false>(options: Options<OpModsCheckTextData, ThrowOnError>): RequestResult<OpModsCheckTextResponses, OpModsCheckTextErrors, ThrowOnError> => (options.client ?? client).post<OpModsCheckTextResponses, OpModsCheckTextErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.check_text',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.close_notice (command)
+ */
+export const opModsCloseNotice = <ThrowOnError extends boolean = false>(options: Options<OpModsCloseNoticeData, ThrowOnError>): RequestResult<OpModsCloseNoticeResponses, OpModsCloseNoticeErrors, ThrowOnError> => (options.client ?? client).post<OpModsCloseNoticeResponses, OpModsCloseNoticeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.close_notice',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.delete_profile (plan, writes)
+ */
+export const opModsDeleteProfile = <ThrowOnError extends boolean = false>(options: Options<OpModsDeleteProfileData, ThrowOnError>): RequestResult<OpModsDeleteProfileResponses, OpModsDeleteProfileErrors, ThrowOnError> => (options.client ?? client).post<OpModsDeleteProfileResponses, OpModsDeleteProfileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.delete_profile',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.dll_folders (plan, writes)
+ */
+export const opModsDllFolders = <ThrowOnError extends boolean = false>(options: Options<OpModsDllFoldersData, ThrowOnError>): RequestResult<OpModsDllFoldersResponses, OpModsDllFoldersErrors, ThrowOnError> => (options.client ?? client).post<OpModsDllFoldersResponses, OpModsDllFoldersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.dll_folders',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.drag (read)
+ */
+export const opModsDrag = <ThrowOnError extends boolean = false>(options: Options<OpModsDragData, ThrowOnError>): RequestResult<OpModsDragResponses, OpModsDragErrors, ThrowOnError> => (options.client ?? client).post<OpModsDragResponses, OpModsDragErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.drag',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.duplicate_profile (job, writes)
+ */
+export const opModsDuplicateProfile = <ThrowOnError extends boolean = false>(options: Options<OpModsDuplicateProfileData, ThrowOnError>): RequestResult<OpModsDuplicateProfileResponses, OpModsDuplicateProfileErrors, ThrowOnError> => (options.client ?? client).post<OpModsDuplicateProfileResponses, OpModsDuplicateProfileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.duplicate_profile',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.fix_order (command, writes)
+ */
+export const opModsFixOrder = <ThrowOnError extends boolean = false>(options: Options<OpModsFixOrderData, ThrowOnError>): RequestResult<OpModsFixOrderResponses, OpModsFixOrderErrors, ThrowOnError> => (options.client ?? client).post<OpModsFixOrderResponses, OpModsFixOrderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.fix_order',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_close (command, writes)
+ */
+export const opModsInstallClose = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallCloseData, ThrowOnError>): RequestResult<OpModsInstallCloseResponses, OpModsInstallCloseErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallCloseResponses, OpModsInstallCloseErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_close',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_edit (command, writes)
+ */
+export const opModsInstallEdit = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallEditData, ThrowOnError>): RequestResult<OpModsInstallEditResponses, OpModsInstallEditErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallEditResponses, OpModsInstallEditErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_edit',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_finish (job, writes)
+ */
+export const opModsInstallFinish = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallFinishData, ThrowOnError>): RequestResult<OpModsInstallFinishResponses, OpModsInstallFinishErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallFinishResponses, OpModsInstallFinishErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_finish',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_import (command, writes)
+ */
+export const opModsInstallImport = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallImportData, ThrowOnError>): RequestResult<OpModsInstallImportResponses, OpModsInstallImportErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallImportResponses, OpModsInstallImportErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_import',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_open (command, writes)
+ */
+export const opModsInstallOpen = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallOpenData, ThrowOnError>): RequestResult<OpModsInstallOpenResponses, OpModsInstallOpenErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallOpenResponses, OpModsInstallOpenErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_open',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_preview (command, writes)
+ */
+export const opModsInstallPreview = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallPreviewData, ThrowOnError>): RequestResult<OpModsInstallPreviewResponses, OpModsInstallPreviewErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallPreviewResponses, OpModsInstallPreviewErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_replan (command, writes)
+ */
+export const opModsInstallReplan = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallReplanData, ThrowOnError>): RequestResult<OpModsInstallReplanResponses, OpModsInstallReplanErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallReplanResponses, OpModsInstallReplanErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_replan',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.install_sources (read)
+ */
+export const opModsInstallSources = <ThrowOnError extends boolean = false>(options: Options<OpModsInstallSourcesData, ThrowOnError>): RequestResult<OpModsInstallSourcesResponses, OpModsInstallSourcesErrors, ThrowOnError> => (options.client ?? client).post<OpModsInstallSourcesResponses, OpModsInstallSourcesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.install_sources',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.leftovers (read)
+ */
+export const opModsLeftovers = <ThrowOnError extends boolean = false>(options: Options<OpModsLeftoversData, ThrowOnError>): RequestResult<OpModsLeftoversResponses, OpModsLeftoversErrors, ThrowOnError> => (options.client ?? client).post<OpModsLeftoversResponses, OpModsLeftoversErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.leftovers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.leftovers_clean (job, writes)
+ */
+export const opModsLeftoversClean = <ThrowOnError extends boolean = false>(options: Options<OpModsLeftoversCleanData, ThrowOnError>): RequestResult<OpModsLeftoversCleanResponses, OpModsLeftoversCleanErrors, ThrowOnError> => (options.client ?? client).post<OpModsLeftoversCleanResponses, OpModsLeftoversCleanErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.leftovers_clean',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.library (read)
+ */
+export const opModsLibrary = <ThrowOnError extends boolean = false>(options: Options<OpModsLibraryData, ThrowOnError>): RequestResult<OpModsLibraryResponses, OpModsLibraryErrors, ThrowOnError> => (options.client ?? client).post<OpModsLibraryResponses, OpModsLibraryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.library',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.library_hint (read)
+ */
+export const opModsLibraryHint = <ThrowOnError extends boolean = false>(options: Options<OpModsLibraryHintData, ThrowOnError>): RequestResult<OpModsLibraryHintResponses, OpModsLibraryHintErrors, ThrowOnError> => (options.client ?? client).post<OpModsLibraryHintResponses, OpModsLibraryHintErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.library_hint',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.library_use (job, writes)
+ */
+export const opModsLibraryUse = <ThrowOnError extends boolean = false>(options: Options<OpModsLibraryUseData, ThrowOnError>): RequestResult<OpModsLibraryUseResponses, OpModsLibraryUseErrors, ThrowOnError> => (options.client ?? client).post<OpModsLibraryUseResponses, OpModsLibraryUseErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.library_use',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.library_use_choices (read)
+ */
+export const opModsLibraryUseChoices = <ThrowOnError extends boolean = false>(options: Options<OpModsLibraryUseChoicesData, ThrowOnError>): RequestResult<OpModsLibraryUseChoicesResponses, OpModsLibraryUseChoicesErrors, ThrowOnError> => (options.client ?? client).post<OpModsLibraryUseChoicesResponses, OpModsLibraryUseChoicesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.library_use_choices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.move (command, writes)
+ */
+export const opModsMove = <ThrowOnError extends boolean = false>(options: Options<OpModsMoveData, ThrowOnError>): RequestResult<OpModsMoveResponses, OpModsMoveErrors, ThrowOnError> => (options.client ?? client).post<OpModsMoveResponses, OpModsMoveErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.move',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.move_in (plan, writes)
+ */
+export const opModsMoveIn = <ThrowOnError extends boolean = false>(options: Options<OpModsMoveInData, ThrowOnError>): RequestResult<OpModsMoveInResponses, OpModsMoveInErrors, ThrowOnError> => (options.client ?? client).post<OpModsMoveInResponses, OpModsMoveInErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.move_in',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.options (read)
+ */
+export const opModsOptions = <ThrowOnError extends boolean = false>(options: Options<OpModsOptionsData, ThrowOnError>): RequestResult<OpModsOptionsResponses, OpModsOptionsErrors, ThrowOnError> => (options.client ?? client).post<OpModsOptionsResponses, OpModsOptionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.options',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.overhaul_install (plan, writes)
+ */
+export const opModsOverhaulInstall = <ThrowOnError extends boolean = false>(options: Options<OpModsOverhaulInstallData, ThrowOnError>): RequestResult<OpModsOverhaulInstallResponses, OpModsOverhaulInstallErrors, ThrowOnError> => (options.client ?? client).post<OpModsOverhaulInstallResponses, OpModsOverhaulInstallErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.overhaul_install',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.overhaul_remove (plan, writes)
+ */
+export const opModsOverhaulRemove = <ThrowOnError extends boolean = false>(options: Options<OpModsOverhaulRemoveData, ThrowOnError>): RequestResult<OpModsOverhaulRemoveResponses, OpModsOverhaulRemoveErrors, ThrowOnError> => (options.client ?? client).post<OpModsOverhaulRemoveResponses, OpModsOverhaulRemoveErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.overhaul_remove',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.overhaul_remove_choices (read)
+ */
+export const opModsOverhaulRemoveChoices = <ThrowOnError extends boolean = false>(options: Options<OpModsOverhaulRemoveChoicesData, ThrowOnError>): RequestResult<OpModsOverhaulRemoveChoicesResponses, OpModsOverhaulRemoveChoicesErrors, ThrowOnError> => (options.client ?? client).post<OpModsOverhaulRemoveChoicesResponses, OpModsOverhaulRemoveChoicesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.overhaul_remove_choices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.profile_block (read)
+ */
+export const opModsProfileBlock = <ThrowOnError extends boolean = false>(options: Options<OpModsProfileBlockData, ThrowOnError>): RequestResult<OpModsProfileBlockResponses, OpModsProfileBlockErrors, ThrowOnError> => (options.client ?? client).post<OpModsProfileBlockResponses, OpModsProfileBlockErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.profile_block',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.profile_name_check (read)
+ */
+export const opModsProfileNameCheck = <ThrowOnError extends boolean = false>(options: Options<OpModsProfileNameCheckData, ThrowOnError>): RequestResult<OpModsProfileNameCheckResponses, OpModsProfileNameCheckErrors, ThrowOnError> => (options.client ?? client).post<OpModsProfileNameCheckResponses, OpModsProfileNameCheckErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.profile_name_check',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.rebuild (job, writes)
+ */
+export const opModsRebuild = <ThrowOnError extends boolean = false>(options: Options<OpModsRebuildData, ThrowOnError>): RequestResult<OpModsRebuildResponses, OpModsRebuildErrors, ThrowOnError> => (options.client ?? client).post<OpModsRebuildResponses, OpModsRebuildErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.rebuild',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.remove (job, writes)
+ */
+export const opModsRemove = <ThrowOnError extends boolean = false>(options: Options<OpModsRemoveData, ThrowOnError>): RequestResult<OpModsRemoveResponses, OpModsRemoveErrors, ThrowOnError> => (options.client ?? client).post<OpModsRemoveResponses, OpModsRemoveErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.remove',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.remove_holder (plan, writes)
+ */
+export const opModsRemoveHolder = <ThrowOnError extends boolean = false>(options: Options<OpModsRemoveHolderData, ThrowOnError>): RequestResult<OpModsRemoveHolderResponses, OpModsRemoveHolderErrors, ThrowOnError> => (options.client ?? client).post<OpModsRemoveHolderResponses, OpModsRemoveHolderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.remove_holder',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.remove_unused (plan, writes)
+ */
+export const opModsRemoveUnused = <ThrowOnError extends boolean = false>(options: Options<OpModsRemoveUnusedData, ThrowOnError>): RequestResult<OpModsRemoveUnusedResponses, OpModsRemoveUnusedErrors, ThrowOnError> => (options.client ?? client).post<OpModsRemoveUnusedResponses, OpModsRemoveUnusedErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.remove_unused',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.rename (job, writes)
+ */
+export const opModsRename = <ThrowOnError extends boolean = false>(options: Options<OpModsRenameData, ThrowOnError>): RequestResult<OpModsRenameResponses, OpModsRenameErrors, ThrowOnError> => (options.client ?? client).post<OpModsRenameResponses, OpModsRenameErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.rename',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.rename_folder (job, writes)
+ */
+export const opModsRenameFolder = <ThrowOnError extends boolean = false>(options: Options<OpModsRenameFolderData, ThrowOnError>): RequestResult<OpModsRenameFolderResponses, OpModsRenameFolderErrors, ThrowOnError> => (options.client ?? client).post<OpModsRenameFolderResponses, OpModsRenameFolderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.rename_folder',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.rename_preview (read)
+ */
+export const opModsRenamePreview = <ThrowOnError extends boolean = false>(options: Options<OpModsRenamePreviewData, ThrowOnError>): RequestResult<OpModsRenamePreviewResponses, OpModsRenamePreviewErrors, ThrowOnError> => (options.client ?? client).post<OpModsRenamePreviewResponses, OpModsRenamePreviewErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.rename_preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.rename_profile (job, writes)
+ */
+export const opModsRenameProfile = <ThrowOnError extends boolean = false>(options: Options<OpModsRenameProfileData, ThrowOnError>): RequestResult<OpModsRenameProfileResponses, OpModsRenameProfileErrors, ThrowOnError> => (options.client ?? client).post<OpModsRenameProfileResponses, OpModsRenameProfileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.rename_profile',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.rename_start (read)
+ */
+export const opModsRenameStart = <ThrowOnError extends boolean = false>(options: Options<OpModsRenameStartData, ThrowOnError>): RequestResult<OpModsRenameStartResponses, OpModsRenameStartErrors, ThrowOnError> => (options.client ?? client).post<OpModsRenameStartResponses, OpModsRenameStartErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.rename_start',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.restore_version (command, writes)
+ */
+export const opModsRestoreVersion = <ThrowOnError extends boolean = false>(options: Options<OpModsRestoreVersionData, ThrowOnError>): RequestResult<OpModsRestoreVersionResponses, OpModsRestoreVersionErrors, ThrowOnError> => (options.client ?? client).post<OpModsRestoreVersionResponses, OpModsRestoreVersionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.restore_version',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.save_options (command, writes)
+ */
+export const opModsSaveOptions = <ThrowOnError extends boolean = false>(options: Options<OpModsSaveOptionsData, ThrowOnError>): RequestResult<OpModsSaveOptionsResponses, OpModsSaveOptionsErrors, ThrowOnError> => (options.client ?? client).post<OpModsSaveOptionsResponses, OpModsSaveOptionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.save_options',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.save_text (command, writes)
+ */
+export const opModsSaveText = <ThrowOnError extends boolean = false>(options: Options<OpModsSaveTextData, ThrowOnError>): RequestResult<OpModsSaveTextResponses, OpModsSaveTextErrors, ThrowOnError> => (options.client ?? client).post<OpModsSaveTextResponses, OpModsSaveTextErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.save_text',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.seamless (plan, writes)
+ */
+export const opModsSeamless = <ThrowOnError extends boolean = false>(options: Options<OpModsSeamlessData, ThrowOnError>): RequestResult<OpModsSeamlessResponses, OpModsSeamlessErrors, ThrowOnError> => (options.client ?? client).post<OpModsSeamlessResponses, OpModsSeamlessErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.seamless',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.separate (plan, writes)
+ */
+export const opModsSeparate = <ThrowOnError extends boolean = false>(options: Options<OpModsSeparateData, ThrowOnError>): RequestResult<OpModsSeparateResponses, OpModsSeparateErrors, ThrowOnError> => (options.client ?? client).post<OpModsSeparateResponses, OpModsSeparateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.separate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.set_enabled (command, writes)
+ */
+export const opModsSetEnabled = <ThrowOnError extends boolean = false>(options: Options<OpModsSetEnabledData, ThrowOnError>): RequestResult<OpModsSetEnabledResponses, OpModsSetEnabledErrors, ThrowOnError> => (options.client ?? client).post<OpModsSetEnabledResponses, OpModsSetEnabledErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.set_enabled',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.set_setting (command, writes)
+ */
+export const opModsSetSetting = <ThrowOnError extends boolean = false>(options: Options<OpModsSetSettingData, ThrowOnError>): RequestResult<OpModsSetSettingResponses, OpModsSetSettingErrors, ThrowOnError> => (options.client ?? client).post<OpModsSetSettingResponses, OpModsSetSettingErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.set_setting',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.settings (read)
+ */
+export const opModsSettings = <ThrowOnError extends boolean = false>(options: Options<OpModsSettingsData, ThrowOnError>): RequestResult<OpModsSettingsResponses, OpModsSettingsErrors, ThrowOnError> => (options.client ?? client).post<OpModsSettingsResponses, OpModsSettingsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.settings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.share (plan, writes)
+ */
+export const opModsShare = <ThrowOnError extends boolean = false>(options: Options<OpModsShareData, ThrowOnError>): RequestResult<OpModsShareResponses, OpModsShareErrors, ThrowOnError> => (options.client ?? client).post<OpModsShareResponses, OpModsShareErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.share',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.split_folder (plan, writes)
+ */
+export const opModsSplitFolder = <ThrowOnError extends boolean = false>(options: Options<OpModsSplitFolderData, ThrowOnError>): RequestResult<OpModsSplitFolderResponses, OpModsSplitFolderErrors, ThrowOnError> => (options.client ?? client).post<OpModsSplitFolderResponses, OpModsSplitFolderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.split_folder',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.takeover (plan, writes)
+ */
+export const opModsTakeover = <ThrowOnError extends boolean = false>(options: Options<OpModsTakeoverData, ThrowOnError>): RequestResult<OpModsTakeoverResponses, OpModsTakeoverErrors, ThrowOnError> => (options.client ?? client).post<OpModsTakeoverResponses, OpModsTakeoverErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.takeover',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.takeover_choices (read)
+ */
+export const opModsTakeoverChoices = <ThrowOnError extends boolean = false>(options: Options<OpModsTakeoverChoicesData, ThrowOnError>): RequestResult<OpModsTakeoverChoicesResponses, OpModsTakeoverChoicesErrors, ThrowOnError> => (options.client ?? client).post<OpModsTakeoverChoicesResponses, OpModsTakeoverChoicesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.takeover_choices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.text (read)
+ */
+export const opModsText = <ThrowOnError extends boolean = false>(options: Options<OpModsTextData, ThrowOnError>): RequestResult<OpModsTextResponses, OpModsTextErrors, ThrowOnError> => (options.client ?? client).post<OpModsTextResponses, OpModsTextErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.text',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.trim_backups (plan, writes)
+ */
+export const opModsTrimBackups = <ThrowOnError extends boolean = false>(options: Options<OpModsTrimBackupsData, ThrowOnError>): RequestResult<OpModsTrimBackupsResponses, OpModsTrimBackupsErrors, ThrowOnError> => (options.client ?? client).post<OpModsTrimBackupsResponses, OpModsTrimBackupsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.trim_backups',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.undo_change (command, writes)
+ */
+export const opModsUndoChange = <ThrowOnError extends boolean = false>(options: Options<OpModsUndoChangeData, ThrowOnError>): RequestResult<OpModsUndoChangeResponses, OpModsUndoChangeErrors, ThrowOnError> => (options.client ?? client).post<OpModsUndoChangeResponses, OpModsUndoChangeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.undo_change',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.undo_removal (command, writes)
+ */
+export const opModsUndoRemoval = <ThrowOnError extends boolean = false>(options: Options<OpModsUndoRemovalData, ThrowOnError>): RequestResult<OpModsUndoRemovalResponses, OpModsUndoRemovalErrors, ThrowOnError> => (options.client ?? client).post<OpModsUndoRemovalResponses, OpModsUndoRemovalErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.undo_removal',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.unlisted (read)
+ */
+export const opModsUnlisted = <ThrowOnError extends boolean = false>(options: Options<OpModsUnlistedData, ThrowOnError>): RequestResult<OpModsUnlistedResponses, OpModsUnlistedErrors, ThrowOnError> => (options.client ?? client).post<OpModsUnlistedResponses, OpModsUnlistedErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.unlisted',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * mods.versions (read)
+ */
+export const opModsVersions = <ThrowOnError extends boolean = false>(options: Options<OpModsVersionsData, ThrowOnError>): RequestResult<OpModsVersionsResponses, OpModsVersionsErrors, ThrowOnError> => (options.client ?? client).post<OpModsVersionsResponses, OpModsVersionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/ops/mods.versions',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -934,6 +1688,15 @@ export const pageActivity = <ThrowOnError extends boolean = false>(options?: Opt
 export const pageModConfigs = <ThrowOnError extends boolean = false>(options?: Options<PageModConfigsData, ThrowOnError>): RequestResult<PageModConfigsResponses, PageModConfigsErrors, ThrowOnError> => (options?.client ?? client).get<PageModConfigsResponses, PageModConfigsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/pages/mod_configs',
+    ...options
+});
+
+/**
+ * Page Mods
+ */
+export const pageMods = <ThrowOnError extends boolean = false>(options?: Options<PageModsData, ThrowOnError>): RequestResult<PageModsResponses, PageModsErrors, ThrowOnError> => (options?.client ?? client).get<PageModsResponses, PageModsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/pages/mods',
     ...options
 });
 

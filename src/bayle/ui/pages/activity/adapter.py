@@ -218,7 +218,7 @@ class ActivityAdapter(QObject):
             if ok:
                 self.host.run_job(plan.job(self.host.locations), plan.progress)
 
-        self.notifier.confirm(plan.title, plan.changes, plan.safety, plan.apply_text, answered)
+        self.notifier.confirm(plan.confirm, answered)
 
     # ---- for tests and the self-test
     def snapshot(self) -> dict:

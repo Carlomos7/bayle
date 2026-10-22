@@ -375,8 +375,8 @@ class ProfileTransferAdapter(QObject):
         if ex["kind"] == "full":
             size = sum(it.size for it in self._items if it.key in self._picked)
             if size >= pt.LARGE_EXPORT:  # asked once, here, for a big one
-                title, lines = self.presenter.confirm_big(size)
-                self.notifier.confirm(title, lines, "", self._words["export"], lambda ok: ok and self._start_export())
+                words = self.presenter.confirm_big(size, self._words["export"])
+                self.notifier.confirm(words, lambda ok: ok and self._start_export())
                 return
         self._start_export()
 

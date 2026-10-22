@@ -16,9 +16,11 @@ from bayle.session.operations import (
     operation,
     registry,
 )
+from bayle.session.plans import Answer, Plan, PlanError, PlanStore, PromptBroker
 from bayle.session.process import reset_process_globals
 
 __all__ = [
+    "Answer",
     "Call",
     "Event",
     "EventBus",
@@ -29,7 +31,11 @@ __all__ = [
     "OperationRegistry",
     "OperationSpec",
     "Params",
+    "Plan",
     "PlanAnswers",
+    "PlanError",
+    "PlanStore",
+    "PromptBroker",
     "Result",
     "Session",
     "StartupStep",

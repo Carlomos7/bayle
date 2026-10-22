@@ -20,6 +20,7 @@ from bayle.services.play import TITLE, VERSION
 from bayle.services.updates import RELEASES_URL
 from bayle.updates import apply as updates
 from bayle.updates import feed
+from bayle.views.common import Confirm
 
 ME3_RELEASES_URL = "https://github.com/garyttierney/me3/releases"
 LICENCE_FILES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
@@ -564,33 +565,33 @@ def size_text(size: int) -> str:
     return ""
 
 
-def relocate_confirm(path: str, profiles: int, size: int, free: int | None) -> tuple[str, tuple[str, ...], str, str]:
-    """(title, changes, safety, apply) of the Profiles folder > Change confirm."""
+def relocate_confirm(path: str, profiles: int, size: int, free: int | None) -> Confirm:
+    """The Profiles folder > Change confirm."""
     count = tr("1 profile, {size}.") if profiles == 1 else tr("{n} profiles, {size}.")
-    return (
+    return Confirm(
         tr("Move your profiles and mods to {path}?").format(path=path),
         (count.format(n=profiles, size=size_text(size)), *path_warnings(path, size, free)),
-        tr("Undo in Activity."),
         tr("Move"),
+        safety=tr("Undo in Activity."),
     )
 
 
-def rename_confirm(changes: dict[str, tuple[str, str]]) -> tuple[str, tuple[str, ...], str, str]:
+def rename_confirm(changes: dict[str, tuple[str, str]]) -> Confirm:
     """changes: label -> (old, new). The confirm of Folder names > Apply."""
-    return (
+    return Confirm(
         tr("Rename folders?"),
         tuple(tr("{label}: {old} becomes {new}.").format(label=k, old=o, new=n) for k, (o, n) in changes.items()),
-        tr("Undo in Activity."),
         tr("Rename"),
+        safety=tr("Undo in Activity."),
     )
 
 
-def move_all_confirm(names: list[str]) -> tuple[str, tuple[str, ...], str, str]:
+def move_all_confirm(names: list[str]) -> Confirm:
     shown = ", ".join(names[:8]) + (tr(" and {n} more").format(n=len(names) - 8) if len(names) > 8 else "")
     count = tr("1 profile moves: {names}.") if len(names) == 1 else tr("{n} profiles move: {names}.")
-    return (
+    return Confirm(
         tr("Move all profiles into Bayle's folder?"),
         (count.format(n=len(names), names=shown),),
-        tr("Undo in Activity."),
         tr("Move all"),
+        safety=tr("Undo in Activity."),
     )

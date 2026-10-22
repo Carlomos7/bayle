@@ -8,6 +8,7 @@ from pathlib import Path
 
 from bayle.platform.text import plural, tr
 from bayle.services import profile_transfer as pt
+from bayle.views.common import Confirm
 
 
 def size_text(n: int) -> str:
@@ -121,11 +122,13 @@ class ProfileTransferPresenter:
         names = ", ".join(f"{n} ({size_text(sz)})" for n, sz in biggest)
         return tr("The biggest: {names}. Untick mods your friend already has to make it smaller.").format(names=names)
 
-    def confirm_big(self, total: int) -> tuple[str, list[str]]:
+    def confirm_big(self, total: int, apply: str) -> Confirm:
         t = self.seconds(total / (pt.EXPORT_MBPS * 1024**2))
-        return tr("Export a big file?"), [
-            tr("The zip will be about {size}. This may take around {t}.").format(size=size_text(total), t=t)
-        ]
+        return Confirm(
+            tr("Export a big file?"),
+            (tr("The zip will be about {size}. This may take around {t}.").format(size=size_text(total), t=t),),
+            apply,
+        )
 
     def progress(self, done: int, total: int, n: int, count: int, elapsed: float) -> dict:
         pct = int(100 * done / total) if total else 0

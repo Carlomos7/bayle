@@ -25,6 +25,7 @@ from bayle.services import game_checks, profile_mods
 from bayle.services import play as core
 from bayle.ui.launcher.state import LauncherState
 from bayle.views import topbar
+from bayle.views.common import Choice, Choose
 
 UPDATE_LABEL = "Updating merged mods..."  # the job that rebuilds before Launch (the status text shows it)
 
@@ -42,22 +43,7 @@ RETRY, WITHOUT_BACKUP, REBUILD, PLAY_ANYWAY, OFFLINE_INSTEAD, ONLINE_ANYWAY, DET
 )
 
 
-@dataclass(frozen=True)
-class Choice:
-    key: str
-    label: str
-    role: str = "normal"  # "primary" | "danger" | "normal"
-
-
-@dataclass(frozen=True)
-class Ask:
-    """A fork: the title is the question, the lines say what happens, the choices are verbs (Cancel last)."""
-
-    title: str
-    lines: tuple[str, ...]
-    choices: tuple[Choice, ...]
-    warning: str = ""
-    safety: str = ""
+Ask = Choose  # the flow's name for a fork; the schema lives in views.common
 
 
 class Ports(Protocol):

@@ -15,6 +15,7 @@ from bayle.platform.text import plural, tr
 from bayle.services import profile_mods
 from bayle.services.profile_mods import PageFacts, Removal
 from bayle.views import load_order
+from bayle.views.common import Confirm, Pick, Refusal
 
 MAX_TAGS = 2  # tags shown on a row; the rest are in its tooltip
 MAX_DEPS = 3  # dependencies named in the status line before "N others"
@@ -109,38 +110,6 @@ class ModsState:
     parameters: Parameters
     notices: tuple[Notice, ...]
     empty: str = ""  # the page's text when there is no profile ("" when there is one)
-
-
-@dataclass(frozen=True)
-class Confirm:
-    """A confirmation's words: the title states the action, the changes are what happens, warning and safety the
-    risk and the way back; option a check box (with its starting state); apply the button."""
-
-    title: str
-    changes: tuple[str, ...]
-    apply: str
-    warning: str = ""
-    safety: str = ""
-    detail: str = ""
-    option: str = ""
-    option_checked: bool = False
-
-
-@dataclass(frozen=True)
-class Refusal:
-    title: str
-    body: str
-
-
-@dataclass(frozen=True)
-class Pick:
-    """A tick list's words: none is the button that goes on with nothing ticked ("" when one must be ticked)."""
-
-    title: str
-    body: str
-    apply: str
-    none: str = ""
-    ticked: tuple[int, ...] = ()  # rows ticked at first
 
 
 @dataclass(frozen=True)
@@ -861,20 +830,18 @@ class ModsPresenter:
 
     # ---- confirmations and refusals (the Widgets page uses these words too)
     @staticmethod
-    def split_confirm(profiles: int, copied: int, moved: int) -> tuple[str, list[str], str, str]:
-        """(title, changes, safety, button) of the Split into folders confirmation."""
-        return (
+    def split_confirm(profiles: int, copied: int, moved: int) -> Confirm:
+        """The Split into folders confirmation."""
+        return Confirm(
             tr("Split this folder into one folder per profile?"),
-            [
-                tr("{n} profiles, {m} mods copied, {k} moved.").format(n=profiles, m=copied, k=moved),
-            ],
-            tr("Undo in Activity."),
+            (tr("{n} profiles, {m} mods copied, {k} moved.").format(n=profiles, m=copied, k=moved),),
             tr("Split"),
+            safety=tr("Undo in Activity."),
         )
 
     @staticmethod
-    def dll_folders_confirm(folders: int, moved: int, copied: int) -> tuple[str, list[str], str, str]:
-        """(title, changes, safety, button) of the Put in folders confirmation."""
+    def dll_folders_confirm(folders: int, moved: int, copied: int) -> Confirm:
+        """The Put in folders confirmation."""
         changes = [
             plural("{n} DLL gets a folder in natives.", "{n} DLLs get a folder in natives.", folders).format(n=folders),
             plural("{n} file moves with it.", "{n} files move with them.", moved).format(n=moved),
@@ -887,7 +854,12 @@ class ModsPresenter:
                     copied,
                 ).format(n=copied)
             )
-        return (tr("Put DLL mods in their own folders?"), changes, tr("Undo in Activity."), tr("Put in folders"))
+        return Confirm(
+            tr("Put DLL mods in their own folders?"),
+            tuple(changes),
+            tr("Put in folders"),
+            safety=tr("Undo in Activity."),
+        )
 
     def removal(self, profile, plan: Removal) -> Confirm:
         prof = Path(profile)
@@ -1019,8 +991,8 @@ class ModsPresenter:
             return tr("Close the game first. It has these files open.")
         return ""
 
-    def move_in_confirm(self, name: str, folder: str, moved: int, copied: int) -> tuple[str, tuple[str, ...], str, str]:
-        """(title, changes, safety, apply) of the Move into Bayle's folder confirm."""
+    def move_in_confirm(self, name: str, folder: str, moved: int, copied: int) -> Confirm:
+        """The Move into Bayle's folder confirm."""
         line = tr("{n} mods move.").format(n=moved) if moved != 1 else tr("1 mod moves.")
         if copied:
             line = (
@@ -1028,11 +1000,23 @@ class ModsPresenter:
                 if moved != 1
                 else tr("1 mod moves, {m} are copied because other profiles in {folder} use them.")
             ).format(n=moved, m=copied, folder=folder)
-        return (
+        return Confirm(
             tr("Move {name} into Bayle's folder?").format(name=name),
             (line,),
-            tr("Undo in Activity."),
             tr("Move"),
+            safety=tr("Undo in Activity."),
+        )
+
+    @staticmethod
+    def seamless_confirm(move: bool, changes: list[str]) -> Confirm:
+        """Moving Seamless Co-op into the profile (move) or cleaning it out of the game folder."""
+        return Confirm(
+            tr("Move Seamless Co-op into this profile?") if move else tr("Clean up the game folder?"),
+            tuple(changes),
+            tr("Move") if move else tr("Clean up"),
+            safety=tr("The profile is written first with a Version you can undo; if that fails, nothing moves.")
+            if move
+            else tr("Your profile's own copy is not touched."),
         )
 
     def move_refused(self, problem: str) -> Refusal:

@@ -195,11 +195,12 @@ def test_undo_is_byte_identical_and_refuses_after_edits(world):
 
 
 def test_the_confirm_words():
-    title, changes, safety, apply = ModsPresenter().move_in_confirm("a", "eldenring-mods", 2, 1)
+    c = ModsPresenter().move_in_confirm("a", "eldenring-mods", 2, 1)
+    title, changes, safety, apply = c.title, c.changes, c.safety, c.apply
     assert title == "Move a into Bayle's folder?"
     assert changes == ("2 mods move, 1 are copied because other profiles in eldenring-mods use them.",)
     assert (safety, apply) == ("Undo in Activity.", "Move")
-    assert ModsPresenter().move_in_confirm("a", "f", 3, 0)[1] == ("3 mods move.",)
+    assert ModsPresenter().move_in_confirm("a", "f", 3, 0).changes == ("3 mods move.",)
 
 
 def test_a_crash_journaled_under_the_old_name_is_still_recovered(world, monkeypatch):

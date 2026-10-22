@@ -649,7 +649,7 @@ class SettingsAdapter(QObject):
             if ok:
                 self._run(lambda loc: layout_service.rename_layout(loc, **names), tr("Renaming folders..."))
 
-        self.notifier.confirm(*sp.rename_confirm(changes), answered)
+        self.notifier.confirm(sp.rename_confirm(changes), answered)
 
     @Slot()
     def changeProfilesFolder(self) -> None:
@@ -673,7 +673,7 @@ class SettingsAdapter(QObject):
                         tr("Moving profiles and mods..."),
                     )
 
-            self.notifier.confirm(*sp.relocate_confirm(str(picked), *found), answered)
+            self.notifier.confirm(sp.relocate_confirm(str(picked), *found), answered)
 
         self.host.run_in_background(facts, ask)
 
@@ -696,7 +696,7 @@ class SettingsAdapter(QObject):
                 if ok:
                     self._run(lambda loc: layout_service.move_all(loc, found), tr("Moving profiles..."))
 
-            self.notifier.confirm(*sp.move_all_confirm([p.stem for p in found]), answered)
+            self.notifier.confirm(sp.move_all_confirm([p.stem for p in found]), answered)
 
         self.host.run_in_background(lambda: layout_service.plain_profiles(loc), ask)
 

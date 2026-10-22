@@ -28,14 +28,27 @@ def test_path_cautions():
 
 
 def test_the_confirms_say_what_moves_and_where_the_undo_is():
-    title, changes, safety, apply = sp.relocate_confirm(r"D:\Bayle", 3, 2048, 10**12)
+    c = sp.relocate_confirm(r"D:\Bayle", 3, 2048, 10**12)
+    title, changes, safety, apply = c.title, c.changes, c.safety, c.apply
     assert title == r"Move your profiles and mods to D:\Bayle?"
     assert changes == ("3 profiles, 2.0 KB.",) and safety == "Undo in Activity." and apply == "Move"
-    assert sp.relocate_confirm("D:/x", 1, 10, 10**12)[1] == ("1 profile, 10 B.",)
-    title, changes, safety, apply = sp.rename_confirm({"Game folder": ("b-{game}", "x-{game}")})
+    assert sp.relocate_confirm("D:/x", 1, 10, 10**12).changes == ("1 profile, 10 B.",)
+    c = sp.rename_confirm({"Game folder": ("b-{game}", "x-{game}")})
+    changes, safety, apply = c.changes, c.safety, c.apply
     assert (
         changes == ("Game folder: b-{game} becomes x-{game}.",) and safety == "Undo in Activity." and apply == "Rename"
     )
-    title, changes, _s, apply = sp.move_all_confirm(["a", "b"])
+    c = sp.move_all_confirm(["a", "b"])
+    changes, apply = c.changes, c.apply
     assert changes == ("2 profiles move: a, b.",) and apply == "Move all"
-    assert sp.move_all_confirm(["a"])[1] == ("1 profile moves: a.",)
+    assert sp.move_all_confirm(["a"]).changes == ("1 profile moves: a.",)
+
+
+def test_every_confirm_is_the_one_schema():
+    from bayle.views.common import Confirm
+    from bayle.views.mods import ModsPresenter
+    from bayle.views.profile_transfer import ProfileTransferPresenter
+
+    assert isinstance(sp.move_all_confirm(["a"]), Confirm)
+    assert isinstance(ModsPresenter.seamless_confirm(True, ["x"]), Confirm)
+    assert isinstance(ProfileTransferPresenter().confirm_big(10**9, "Export"), Confirm)

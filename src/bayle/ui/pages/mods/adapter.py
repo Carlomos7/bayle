@@ -751,7 +751,7 @@ class ModsAdapter(QObject):
             if ok:
                 self.host.run_job(plan.job(self.host.locations), plan.progress)
 
-        self.notifier.confirm(plan.title, plan.changes, plan.safety, plan.apply_text, answered)
+        self.notifier.confirm(plan.confirm, answered)
 
     @Slot()
     def trimBackups(self) -> None:
@@ -837,7 +837,7 @@ class ModsAdapter(QObject):
                 if ok:
                     self._folder_job(lambda l: rename_service.split_folder(old, loc=l), tr("Splitting the folder..."))
 
-            self.notifier.confirm(*self.presenter.split_confirm(plan.profiles, plan.copies, plan.moves), answered)
+            self.notifier.confirm(self.presenter.split_confirm(plan.profiles, plan.copies, plan.moves), answered)
 
     def _dll_folders_action(self) -> None:
         """Give each loose DLL mod a folder of its own, after a confirmation (a logged job, Undo in Activity)."""
@@ -855,7 +855,7 @@ class ModsAdapter(QObject):
                 self._folder_job(lambda l: profile_mods.put_dlls_in_folders(old, loc=l), tr("Moving the DLLs..."))
 
         self.notifier.confirm(
-            *self.presenter.dll_folders_confirm(len(plan.moves), plan.files_moved, plan.files_copied), answered
+            self.presenter.dll_folders_confirm(len(plan.moves), plan.files_moved, plan.files_copied), answered
         )
 
     def _folder_job(self, work, busy_text: str) -> None:
@@ -905,15 +905,7 @@ class ModsAdapter(QObject):
 
             self.host.run_job(job, tr("Moving Seamless Co-op...") if move else tr("Cleaning up the game folder..."))
 
-        self.notifier.confirm(
-            tr("Move Seamless Co-op into this profile?") if move else tr("Clean up the game folder?"),
-            changes,
-            tr("The profile is written first with a Version you can undo; if that fails, nothing moves.")
-            if move
-            else tr("Your profile's own copy is not touched."),
-            tr("Move") if move else tr("Clean up"),
-            answered,
-        )
+        self.notifier.confirm(self.presenter.seamless_confirm(move, changes), answered)
 
     @Slot()
     def copyFingerprint(self) -> None:
@@ -1516,7 +1508,7 @@ class ModsAdapter(QObject):
 
                 self.host.run_job(job, tr("Moving {name}...").format(name=old.stem))
 
-        self.notifier.confirm(*words, answered)
+        self.notifier.confirm(words, answered)
 
     def _launch_profile_like(self):
         """The host's current profile as delete_refusal reads it (profile and kind)."""

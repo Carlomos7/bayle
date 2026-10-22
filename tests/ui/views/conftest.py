@@ -17,8 +17,8 @@ from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
 from bayle.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
-from bayle.ui.pages.activity.presenter import ActivityPresenter  # noqa: E402
 from bayle.ui.pages.registry import QmlPage  # noqa: E402
+from bayle.views.activity import ActivityPresenter  # noqa: E402
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 

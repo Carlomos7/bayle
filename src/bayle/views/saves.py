@@ -15,7 +15,7 @@ from typing import Any
 
 from bayle.platform.text import plural, tr
 from bayle.services import saves as saves_service
-from bayle.ui.pages.mods.presenter import Confirm, Refusal
+from bayle.views.mods import Confirm, Refusal
 
 ATTRIBUTES = (
     ("vig", "Vigor"),

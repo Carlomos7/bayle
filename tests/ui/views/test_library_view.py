@@ -166,7 +166,7 @@ def test_duplicate_asks_and_can_share_with_the_original(qt_app, world):
 
 def test_the_install_dialog_offers_keep_separate_or_share_for_identical_files(qt_app, world, tmp_path, shots):
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install import InstallDraft
+    from bayle.views.mod_install import InstallDraft
 
     loc, a, b = world
     c = make(a.parent.parent, "c", {"sky": b"only c"})

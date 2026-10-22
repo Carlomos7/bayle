@@ -12,8 +12,8 @@ from types import SimpleNamespace
 from bayle.platform import text
 from bayle.services import profile_mods
 from bayle.services.profile_mods import PageFacts, Removal
-from bayle.ui.pages.mods import load_order
-from bayle.ui.pages.mods.presenter import ModsPresenter
+from bayle.views import load_order
+from bayle.views.mods import ModsPresenter
 
 PROFILE = Path("C:/mods/eldenring-mods/main.me3")
 
@@ -84,7 +84,7 @@ def rows(state, kind="package"):
 
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
-        "import sys; import bayle.ui.pages.mods.presenter; "
+        "import sys; import bayle.views.mods; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()

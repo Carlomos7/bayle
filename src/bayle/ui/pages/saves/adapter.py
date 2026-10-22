@@ -24,9 +24,9 @@ from bayle.saves import repair as save_repair
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.mods.presenter import Refusal
-from bayle.ui.pages.saves.presenter import SavesPresenter
 from bayle.ui.refresh import Refresher
+from bayle.views.mods import Refusal
+from bayle.views.saves import SavesPresenter
 
 
 class SavesHost(Protocol):

@@ -72,7 +72,7 @@ class Notifier(QObject):
         if call is not None:
             call()
 
-    # ---- the confirmation dialog, all its parts (ui/pages/mods/presenter.Confirm and the like)
+    # ---- the confirmation dialog, all its parts (views/mods.Confirm and the like)
     def ask(self, words, on_answer: Callable[[bool, bool], None], destructive: bool = False) -> int:
         """Ask before a change in the words given (title, changes, apply, warning, safety, detail, option,
         option_checked); on_answer(applied, option ticked)."""

@@ -20,8 +20,8 @@ from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services import profile_transfer as pt
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.profile_transfer.presenter import ProfileTransferPresenter, size_text
 from bayle.ui.refresh import Refresher
+from bayle.views.profile_transfer import ProfileTransferPresenter, size_text
 
 EXPORT, IMPORT, BUNDLED = "export", "import", "bundled"
 

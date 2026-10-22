@@ -1,6 +1,6 @@
 """The Settings > Locations layout words: field validation, the game-folder preview, the confirms and path cautions."""
 
-from bayle.ui.pages.settings import presenter as sp
+from bayle.views import settings as sp
 
 
 def test_names_are_validated_as_the_user_types():

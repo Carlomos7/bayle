@@ -7,8 +7,8 @@ from types import SimpleNamespace
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog
 from bayle.services import play as core
-from bayle.ui.launcher import menu, topbar
-from bayle.ui.launcher.topbar import Facts
+from bayle.views import menu, topbar
+from bayle.views.topbar import Facts
 
 ER = catalog.ELDEN_RING
 

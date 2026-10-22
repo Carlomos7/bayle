@@ -13,7 +13,7 @@ from bayle.merging import build as B
 from bayle.mods import library, move_in, undo
 from bayle.mods import profile_settings as ps
 from bayle.platform import trash
-from bayle.ui.pages.mods.presenter import ModsPresenter
+from bayle.views.mods import ModsPresenter
 
 NEW = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 

@@ -11,7 +11,7 @@ import pytest
 
 from bayle.platform import logging as run_logging
 from bayle.platform import text
-from bayle.ui.pages.activity import presenter as act
+from bayle.views import activity as act
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 
@@ -45,7 +45,7 @@ def presenter(jobs=JOBS, available=lambda u: bool(u)):
 
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
-        "import sys; import bayle.ui.pages.activity.presenter; "
+        "import sys; import bayle.views.activity; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()

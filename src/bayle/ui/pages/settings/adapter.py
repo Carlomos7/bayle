@@ -24,8 +24,8 @@ from bayle.services import mods as mod_service
 from bayle.services import play as play_service
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.settings import presenter as sp
 from bayle.ui.refresh import Refresher
+from bayle.views import settings as sp
 
 KEEP_RANGE = (5, 200)
 # draft field -> (settings key, layout_problems keyword, label)

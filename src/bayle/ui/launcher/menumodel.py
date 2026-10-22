@@ -8,7 +8,7 @@ from typing import Any
 
 from PySide6.QtCore import QAbstractListModel, QByteArray, QModelIndex, QObject, QPersistentModelIndex, Qt
 
-from bayle.ui.launcher.menu import Item
+from bayle.views.menu import Item
 
 ROLES = ("itemId", "label", "enabled", "checked", "shortcut", "icon", "kind", "sub")
 

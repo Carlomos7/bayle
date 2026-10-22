@@ -17,11 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: G-api-then-ui, cov: "1", sel: "tests/api tests/ui" }
-          - { name: H-session-then-ui, cov: "1", sel: "tests/session tests/ui" }
-          - { name: I-integration-then-ui, cov: "1", sel: "tests/integration tests/ui" }
-          - { name: J-api-session-integration-then-ui, cov: "1", sel: "tests/api tests/integration tests/session tests/ui" }
-          - { name: K-same-nocov, cov: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: L-collect-only-effect, cov: "0", sel: "tests/api tests/integration tests/session tests/ui --deselect tests/api --deselect tests/integration --deselect tests/session" }
+          - { name: M-api-session-ui, cov: "0", sel: "tests/api tests/session tests/ui" }
+          - { name: N-api-integration-ui, cov: "0", sel: "tests/api tests/integration tests/ui" }
+          - { name: O-integration-session-ui, cov: "0", sel: "tests/integration tests/session tests/ui" }
+          - { name: P-all-again, cov: "0", sel: "tests/api tests/integration tests/session tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen

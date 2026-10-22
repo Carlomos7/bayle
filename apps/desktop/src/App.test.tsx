@@ -21,6 +21,8 @@ const shell = {
 function boot() {
   server.use(
     http.get(`${BASE}/v1/pages/shell`, () => HttpResponse.json(shell)),
+    // the Mods page (the landing route) has its own tests; here it only has to answer
+    http.get(`${BASE}/v1/pages/mods`, () => HttpResponse.json({ code: "no_game", message: "No game.", details: {} }, { status: 409 })),
     http.get(`${BASE}/v1/events`, () => new HttpResponse(new ReadableStream(), { headers: { "Content-Type": "text/event-stream" } })),
   );
   const router = buildRouter(createMemoryHistory({ initialEntries: ["/"] }));

@@ -16,10 +16,12 @@ PermissionError, so a patch undone too early fails the test instead of touching 
   library's quiet subprocess does), __pycache__ folders, and the Recycle Bin items a test itself
   created (recycle_bin_left_clean restores and purges them). Reading is never refused."""
 
+import itertools
 import os
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import url2pathname
@@ -166,7 +168,7 @@ def run_in_a_temporary_folder(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def recycle_bin_left_clean(monkeypatch, tmp_path):
+def recycle_bin_left_clean(request, monkeypatch, tmp_path):
     """Removing a mod sends its folder to the trash. On Windows that is the real Recycle Bin: every item a test sends
     there is purged after it, so the bin is left as it was. Elsewhere the desktop trash is a folder the launcher
     writes itself, so each test gets its own in its temporary folder (the real one is never touched)."""
@@ -176,6 +178,28 @@ def recycle_bin_left_clean(monkeypatch, tmp_path):
         own = tmp_path / "Trash"
         monkeypatch.setattr(trash, "_home_trash", lambda: own)
         monkeypatch.setattr(trash, "_trash_for", lambda path: (own.mkdir(parents=True, exist_ok=True), own)[1])
+
+    if sys.platform == "win32" and request.node.get_closest_marker("real_recycle_bin") is None:
+        # The real shell call, made before Qt's first QML window exists, crashes that load on a Windows runner (access
+        # violation; CI runs the session tests first). A bin of the test's own, laid out as the real one is, instead.
+        bin_dir = tmp_path / "$Recycle.Bin" / "S-1-5-21-0"
+        ids = itertools.count(1)
+
+        def send_to_own_bin(path):
+            n = f"T{next(ids):04d}"
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            item, info = bin_dir / f"$R{n}", bin_dir / f"$I{n}"
+            os.replace(path, item)
+            info.write_bytes(b"x")
+            return {
+                "kind": "windows",
+                "item": str(item),
+                "info": str(info),
+                "original": str(path),
+                "deleted": time.time(),
+            }
+
+        monkeypatch.setattr(trash, "_send_windows", send_to_own_bin)
 
     made = []
     real = trash.send
@@ -255,3 +279,8 @@ def _no_cpu_workers_left_over():
     from bayle.platform import cpu
 
     cpu.install(None)
+
+
+def pytest_collection_modifyitems(items):
+    """The tests of the real Recycle Bin run last: the shell it loads must not come before Qt's first QML window."""
+    items.sort(key=lambda item: item.get_closest_marker("real_recycle_bin") is not None)

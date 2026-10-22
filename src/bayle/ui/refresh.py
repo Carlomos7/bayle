@@ -10,8 +10,10 @@ applied on the UI thread when they land.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import os
+import weakref
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
@@ -40,6 +42,21 @@ def stat_key(paths: Iterable[Path | str | None], children: bool = False) -> tupl
     return tuple(out)
 
 
+def _held(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """fn held without keeping its object alive: an adapter owns its Refresher, and a Refresher holding the adapter's
+    bound methods strongly is a reference cycle that frees the adapter (a QObject, with its children and timers) at
+    some later garbage collection, on whichever thread runs it, instead of when the page goes. A dead owner: None."""
+    if not inspect.ismethod(fn):
+        return fn
+    ref = weakref.WeakMethod(fn)
+
+    def call(*args: Any) -> Any:
+        method = ref()
+        return method(*args) if method is not None else None
+
+    return call
+
+
 class Refresher:
     def __init__(
         self,
@@ -51,13 +68,12 @@ class Refresher:
         busy: Callable[[bool], None] | None = None,
     ):
         """snapshot() runs on the UI thread when the read starts; build(snap) and key(snap) run on the worker."""
-        self._host, self._snapshot, self._build, self._apply, self._key, self._busy = (
-            host,
-            snapshot,
-            build,
-            apply,
-            key,
-            busy,
+        self._host, self._key = host, _held(key) if key else None
+        self._snapshot, self._build, self._apply, self._busy = (
+            _held(snapshot),
+            _held(build),
+            _held(apply),
+            _held(busy) if busy else None,
         )
         self.generation = 0
         self.running = False

@@ -144,3 +144,9 @@ class Notifier(QObject):
     def waiting(self) -> int:
         """How many confirmations are still unanswered."""
         return len(self._waiting) + len(self._full) + len(self._choosing)
+
+    def drop_pending(self) -> None:
+        """Forget every unanswered question and toast action. Their callbacks close over the page's adapter, which owns
+        this Notifier: left in place they are a reference cycle that frees the adapter at some later garbage collection."""
+        for pending in (self._waiting, self._full, self._actions, self._choosing):
+            pending.clear()

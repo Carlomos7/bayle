@@ -8,7 +8,10 @@ import pytest
 
 from bayle.platform import trash
 
-pytestmark = pytest.mark.skipif(not trash.available(), reason="no trash on this system")
+pytestmark = [
+    pytest.mark.real_recycle_bin,
+    pytest.mark.skipif(not trash.available(), reason="no trash on this system"),
+]
 
 
 @pytest.fixture

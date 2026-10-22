@@ -116,6 +116,7 @@ class PageWindow(QObject):
         if win is not None:
             win.close()
             win.deleteLater()
+        self.notifier.drop_pending()
         if self.engine is not None:
             self.engine.deleteLater()
             self.engine = None

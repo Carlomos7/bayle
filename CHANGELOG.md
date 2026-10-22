@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0-rc.3] - 2026-10-22
+
+### Added
+
+- **Appearance:** a new Bayle icon and logo. Settings > Appearance > Logo picks Follows theme (crimson on dark, ice
+  on light), Crimson, Ice or Tarnished (gold); the window and taskbar icon follow your choice.
+
 ## [4.6.0-rc.2] - 2026-10-21
 
 ### Fixed

@@ -12,7 +12,7 @@ from __future__ import annotations
 import contextlib
 import threading
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ from bayle.session.operations import Call, Params, Result, Session, operation, r
 from bayle.views import load_order
 from bayle.views.common import Confirm, prompt_dict
 from bayle.views.load_order import LoadOrderPanel
-from bayle.views.mods import ModsPresenter, ModsState, Notice, OverhaulMenu
+from bayle.views.mods import BUSY, ModsPresenter, ModsState, Notice, OverhaulMenu
 
 
 # ----------------------------------------------------------------------------- what the session remembers
@@ -115,6 +115,27 @@ class ModsView:
     tool_label: str = ""  # the rebuild tool waiting for the player's permission ("" when none)
     # the profile's folder: "misnamed" or "crowded" when it can be fixed (mods.rename_folder, mods.split_folder)
     folder_kind: str = ""
+    # the setup the page is about (the shell's current one when the client sent none): ops that act on "the profile as
+    # launched" (delete, move in, Seamless, rename) take these
+    kind: str = "me3"
+    source: str = ""
+    rename_block: str = ""  # why the profile can't be renamed or copied now, in words ("" when it can)
+    words: dict[str, str] = field(default_factory=dict)  # the page's fixed labels and toast texts (ModsPresenter.words)
+
+
+def _current_setup(session: Session) -> tuple[str, str, str]:
+    """The profile the shell has picked, as (path, kind, source); empty when the session has no shell or no profile."""
+    try:
+        got = session.service("shell", _unset).state.launch_profile
+    except OperationError:
+        return "", "me3", ""
+    if got is None:
+        return "", "me3", ""
+    return str(got.profile), str(got.kind), str(got.source or "")
+
+
+def _unset() -> Any:
+    raise OperationError("no_shell", "This session has no shell.")
 
 
 def _overhaul_info(has: dict | None) -> OverhaulInfo | None:
@@ -136,6 +157,9 @@ def snapshot(
     """Reads only. Interrupted changes are put right by the session start-up (the shell), never by a read."""
     pres = ModsPresenter()
     running = session.jobs.game_running
+    if not profile:  # none sent: the one the top bar has picked
+        profile, kind, source = _current_setup(session)
+    words = pres.words()
     if not profile or not Path(profile).is_file():
         state = pres.page(None, game_running=running, no_profiles=no_profiles)
         return ModsView(
@@ -150,6 +174,7 @@ def snapshot(
             overhaul_info=None,
             outside=False,
             folders={},
+            words=words,
         )
     loc = session.locations()
     notes = book(session)
@@ -181,6 +206,12 @@ def snapshot(
         rename_code=got.rename_code,
         tool_label=got.tool.label if got.tool is not None else "",
         folder_kind=got.facts.folder.kind,
+        kind=kind,
+        source=source,
+        rename_block=pres.rename_block(
+            got.rename_code or (BUSY if session.jobs.busy else None), Path(profile).stem, running
+        ),
+        words=words,
     )
 
 

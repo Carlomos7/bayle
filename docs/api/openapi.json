@@ -2483,6 +2483,11 @@
             "title": "Has Profile",
             "type": "boolean"
           },
+          "kind": {
+            "default": "me3",
+            "title": "Kind",
+            "type": "string"
+          },
           "load_order": {
             "$ref": "#/components/schemas/LoadOrderPanel"
           },
@@ -2517,9 +2522,19 @@
               }
             ]
           },
+          "rename_block": {
+            "default": "",
+            "title": "Rename Block",
+            "type": "string"
+          },
           "rename_code": {
             "default": "",
             "title": "Rename Code",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
             "type": "string"
           },
           "state": {
@@ -2529,6 +2544,13 @@
             "default": "",
             "title": "Tool Label",
             "type": "string"
+          },
+          "words": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Words",
+            "type": "object"
           }
         },
         "required": [

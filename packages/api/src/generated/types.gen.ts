@@ -1704,6 +1704,10 @@ export type ModsView = {
      * Has Profile
      */
     has_profile: boolean;
+    /**
+     * Kind
+     */
+    kind?: string;
     load_order: LoadOrderPanel;
     /**
      * Outside
@@ -1717,14 +1721,28 @@ export type ModsView = {
     profile: string;
     rebuild_undo: RebuildUndo | null;
     /**
+     * Rename Block
+     */
+    rename_block?: string;
+    /**
      * Rename Code
      */
     rename_code?: string;
+    /**
+     * Source
+     */
+    source?: string;
     state: ModsState;
     /**
      * Tool Label
      */
     tool_label?: string;
+    /**
+     * Words
+     */
+    words?: {
+        [key: string]: string;
+    };
 };
 
 /**

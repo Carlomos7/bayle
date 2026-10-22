@@ -23,3 +23,14 @@ __all__ = [
     "save_settings",
     "PATH_SETTINGS",
 ]
+
+
+def read() -> dict:
+    """The settings as plain JSON-able data."""
+    return load_settings().model_dump(mode="json")
+
+
+def update(**changes) -> dict:
+    """Save the changed fields and return the settings after."""
+    save_settings(**changes)
+    return read()

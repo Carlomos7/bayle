@@ -64,6 +64,7 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        .plugin(tauri_plugin_opener::init())
         .manage(slot.clone())
         .manage(Engine(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![get_backend])

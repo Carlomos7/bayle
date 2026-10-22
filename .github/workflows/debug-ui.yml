@@ -17,11 +17,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: L-collect-only-effect, cov: "0", sel: "tests/api tests/integration tests/session tests/ui --deselect tests/api --deselect tests/integration --deselect tests/session" }
-          - { name: M-api-session-ui, cov: "0", sel: "tests/api tests/session tests/ui" }
-          - { name: N-api-integration-ui, cov: "0", sel: "tests/api tests/integration tests/ui" }
-          - { name: O-integration-session-ui, cov: "0", sel: "tests/integration tests/session tests/ui" }
-          - { name: P-all-again, cov: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: S-activity_ops, cov: "0", sel: "tests/session/test_activity_ops.py tests/ui" }
+          - { name: S-events, cov: "0", sel: "tests/session/test_events.py tests/ui" }
+          - { name: S-job_manager, cov: "0", sel: "tests/session/test_job_manager.py tests/ui" }
+          - { name: S-mods_entry_ops, cov: "0", sel: "tests/session/test_mods_entry_ops.py tests/ui" }
+          - { name: S-mods_install_ops, cov: "0", sel: "tests/session/test_mods_install_ops.py tests/ui" }
+          - { name: S-mods_library_ops, cov: "0", sel: "tests/session/test_mods_library_ops.py tests/ui" }
+          - { name: S-mods_ops, cov: "0", sel: "tests/session/test_mods_ops.py tests/ui" }
+          - { name: S-mods_overhaul_ops, cov: "0", sel: "tests/session/test_mods_overhaul_ops.py tests/ui" }
+          - { name: S-mods_profile_ops, cov: "0", sel: "tests/session/test_mods_profile_ops.py tests/ui" }
+          - { name: S-operations, cov: "0", sel: "tests/session/test_operations.py tests/ui" }
+          - { name: S-plans, cov: "0", sel: "tests/session/test_plans.py tests/ui" }
+          - { name: S-profile_transfer_ops, cov: "0", sel: "tests/session/test_profile_transfer_ops.py tests/ui" }
+          - { name: S-saves_ops, cov: "0", sel: "tests/session/test_saves_ops.py tests/ui" }
+          - { name: S-settings_ops, cov: "0", sel: "tests/session/test_settings_ops.py tests/ui" }
+          - { name: S-shell_service, cov: "0", sel: "tests/session/test_shell_service.py tests/ui" }
+          - { name: S-startup, cov: "0", sel: "tests/session/test_startup.py tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen

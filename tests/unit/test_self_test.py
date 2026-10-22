@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from bayle import diagnostics
 from bayle.resources import PACKAGE_DIR
 from bayle.ui import self_test
 
@@ -50,15 +51,16 @@ def test_the_build_collects_only_the_qml_modules_the_launcher_needs():
 
 
 def test_every_listed_file_is_in_the_source_tree():
-    for spec in self_test.requirements()["files"]:
-        self_test._files(spec)
+    for need in (diagnostics.requirements(), self_test.requirements()):
+        for spec in need["files"]:
+            diagnostics._files(spec)
 
 
 def test_a_missing_file_is_a_failure_not_a_skip():
     lines = []
-    report = self_test.Report(lines.append)
-    report.check("file nope.txt", lambda: self_test._files({"path": "nope.txt"}))
-    report.check("file none/*.png", lambda: self_test._files({"glob": "none/*.png", "min": 1}))
+    report = diagnostics.Report(lines.append)
+    report.check("file nope.txt", lambda: diagnostics._files({"path": "nope.txt"}))
+    report.check("file none/*.png", lambda: diagnostics._files({"glob": "none/*.png", "min": 1}))
     assert report.failed == 2 and report.passed == 0
     assert lines[0].startswith("FAIL  file nope.txt: FileNotFoundError")
 

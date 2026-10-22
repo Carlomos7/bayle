@@ -2,6 +2,6 @@
 
 import sys
 
-from bayle.cli import main
+from bayle.entry import main
 
 sys.exit(main())

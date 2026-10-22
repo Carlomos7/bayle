@@ -12,6 +12,7 @@ from bayle.services import coop as coop_service
 from bayle.services import mods as mods_service
 from bayle.services import play as g
 from bayle.services import saves as saves_service
+from bayle.ui import branding
 from bayle.views import mod_configs as mod_configs_words
 from support import er
 
@@ -88,14 +89,14 @@ def test_share_text_roundtrip_and_validation(tmp_path):
 
 
 def test_logo_follows_theme_unless_locked():
-    assert g.logo_kind(True, "auto") == "crimson" and g.logo_kind(False, "auto") == "ice"
-    assert g.logo_kind(True, "ice") == "ice" and g.logo_kind(False, "crimson") == "crimson"
-    assert g.logo_kind(False, "gold") == "gold" and g.logo_kind(True, "nonsense") == "crimson"
-    assert g.logo_path(True, "auto").name == "logo-crimson.png"
-    assert g.logo_path(False, "auto").name == "logo-ice.png"
-    assert g.app_icon_path(False, "gold").name == "app-gold.png"
+    assert branding.logo_kind(True, "auto") == "crimson" and branding.logo_kind(False, "auto") == "ice"
+    assert branding.logo_kind(True, "ice") == "ice" and branding.logo_kind(False, "crimson") == "crimson"
+    assert branding.logo_kind(False, "gold") == "gold" and branding.logo_kind(True, "nonsense") == "crimson"
+    assert branding.logo_path(True, "auto").name == "logo-crimson.png"
+    assert branding.logo_path(False, "auto").name == "logo-ice.png"
+    assert branding.app_icon_path(False, "gold").name == "app-gold.png"
     for kind in ("crimson", "ice", "gold"):
-        assert g.logo_path(True, kind).is_file() and g.app_icon_path(True, kind).is_file()
+        assert branding.logo_path(True, kind).is_file() and branding.app_icon_path(True, kind).is_file()
     assert g.TITLE == "Bayle" and g.EXE_NAME == "RoundtableSouls"
 
 

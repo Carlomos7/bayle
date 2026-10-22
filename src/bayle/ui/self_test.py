@@ -1,140 +1,43 @@
-"""--self-test (technical specification §8.5): proves that a build, as packaged, starts and initializes: the modules,
-data and QML the bundler had to collect are there, the database opens at the current schema, and the shell loads
-with every registered page in every theme with no QML warning. It runs off-screen in a temporary data folder
-(cli.py points ROUNDTABLE_SOULS_DATA there before anything else runs) over an empty context: nothing of the user's
-is read or written, no game or me3 is started, no update feed is contacted.
-
-What it does not verify: visual correctness, behaviour against a real game, saves or me3, or native integration
-(window manager, high-DPI, file dialogs, shortcuts, the installer, the updater). It covers the QML shell (Main.qml
-with every registered page in every theme at 740 and 1100 px).
-
-One line per check, then a summary; exit code 0 only when every check passed."""
+"""The Qt half of --self-test (see bayle.diagnostics for the engine half and what the whole run covers): the QML
+modules import, and the shell loads with every registered page in every theme at 740 and 1100 px with no QML
+warning. The list of what a build must contain for the window is ui/self-test.json."""
 
 from __future__ import annotations
 
-import importlib
-import json
 import os
 from collections.abc import Callable
 from pathlib import Path
 
-from bayle.platform import cpu
-from bayle.resources import DATA_DIR, PACKAGE_DIR
+from bayle import diagnostics
+from bayle.diagnostics import Report
+from bayle.resources import PACKAGE_DIR
 
 THEMES = ("dark", "tarnished", "light")
-LIST_FILE = DATA_DIR / "self-test.json"
-
-
-class Report:
-    def __init__(self, out: Callable[[str], None] = print):
-        self.out = out
-        self.failed = 0
-        self.passed = 0
-
-    def check(self, name: str, test: Callable[[], str | None]) -> None:
-        """Run test(); it returns None (or a note) when the check passed and raises when it did not."""
-        try:
-            note = test()
-        except Exception as e:  # every failure is reported, none stops the others
-            self.failed += 1
-            self.out(f"FAIL  {name}: {type(e).__name__}: {e}")
-            return
-        self.passed += 1
-        self.out(f"ok    {name}" + (f" ({note})" if note else ""))
+LIST_FILE = PACKAGE_DIR / "ui" / "self-test.json"
 
 
 def requirements() -> dict:
-    return json.loads(LIST_FILE.read_text(encoding="utf-8"))
+    return diagnostics.requirements(LIST_FILE)
 
 
 def run(data_dir: Path, out: Callable[[str], None] = print) -> int:
-    """All checks; 0 when every one passed."""
-    report = Report(out)
-    out(f"Roundtable Souls self-test, data folder {data_dir}")
-    report.check("isolated data folder", lambda: _isolated(data_dir))
+    """The whole self-test: the engine checks, then these."""
+    return diagnostics.run(data_dir, out, qt=checks)
+
+
+def checks(report: Report, data_dir: Path) -> None:
     try:
         need = requirements()
     except (OSError, ValueError) as e:
         problem = e
-        report.check("the self-test list", lambda: _raise(problem))
+        report.check("the Qt self-test list", lambda: _raise(problem))
         need = {"python_modules": [], "qml_modules": [], "files": []}
-    for name in need["python_modules"]:
-        report.check(f"module {name}", lambda name=name: _import(name))
-    for spec in need["files"]:
-        report.check(f"file {spec.get('path') or spec.get('glob')}", lambda spec=spec: _files(spec))
-    report.check("SQLite version", _sqlite)
-    report.check("database opens at the current schema", lambda: _database(data_dir))
-    report.check("a CPU worker process starts and answers", _worker)
+    diagnostics.run_list(report, need)
     _qml(report, need["qml_modules"], data_dir)
-    out(f"{report.passed} passed, {report.failed} failed")
-    out(
-        "Limits: packaging and initialization only; not visual correctness, real games, saves or me3, native "
-        "integration, the installer or the updater."
-    )
-    return 1 if report.failed else 0
-
-
-def _worker() -> str:
-    """The build starts itself again with --worker (platform/cpu.py) and gets an answer, without Qt in the worker."""
-    import subprocess
-
-    request = json.dumps({"id": 1, "task": "bayle.platform.cpu:probe", "args": {"value": 41}}) + "\n"
-    done = subprocess.run(cpu.worker_command(), input=request.encode(), capture_output=True, timeout=120, check=False)
-    if done.returncode != 0:
-        raise RuntimeError(f"the worker exited with {done.returncode}: {done.stderr.decode(errors='replace')[-300:]}")
-    reply = json.loads(done.stdout.decode().splitlines()[-1])
-    if not reply.get("ok") or reply["result"]["value"] != 42:
-        raise RuntimeError(f"unexpected reply {reply}")
-    if reply["result"]["qt"]:
-        raise RuntimeError("the worker started a Qt application")
-    return f"pid {reply['result']['pid']}"
 
 
 def _raise(e: Exception):
     raise e
-
-
-def _isolated(data_dir: Path) -> str:
-    from bayle.config.settings import data_dir as settings_data_dir
-
-    data_dir = data_dir.resolve()
-    if Path(os.environ.get("ROUNDTABLE_SOULS_DATA", "")).resolve() != data_dir or settings_data_dir() != data_dir:
-        raise RuntimeError(f"the data folder is {settings_data_dir()}, not the temporary {data_dir}")
-    return str(data_dir)
-
-
-def _import(name: str) -> None:
-    importlib.import_module(name)
-
-
-def _files(spec: dict) -> str | None:
-    if "path" in spec:
-        path = PACKAGE_DIR / spec["path"]
-        if not path.is_file():
-            raise FileNotFoundError(path)
-        return None
-    found = list(PACKAGE_DIR.glob(spec["glob"]))
-    if len(found) < int(spec.get("min", 1)):
-        raise FileNotFoundError(f"{len(found)} found, {spec.get('min', 1)} needed")
-    return f"{len(found)}"
-
-
-def _sqlite() -> str:
-    import sqlite3
-
-    from bayle.storage.db import sqlite_problem
-
-    problem = sqlite_problem()
-    if problem:
-        raise RuntimeError(problem)
-    return sqlite3.sqlite_version
-
-
-def _database(data_dir: Path) -> None:
-    from bayle.storage import db
-
-    database = db.open_database(data_dir)
-    database.close()
 
 
 def _qml(report: Report, modules: list[str], data_dir: Path) -> None:

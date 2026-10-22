@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 from fastapi import APIRouter
@@ -14,8 +13,9 @@ from bayle.api.app import create_app
 from bayle.api.models import CONTRACT_VERSION
 from bayle.api.settings import ApiSettings
 from bayle.services.errors import Busy, OperationError
+from support import repo_root
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = repo_root()
 TOKEN = "t" * 32
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 ORIGINS = ["http://tauri.localhost", "https://tauri.localhost", "tauri://localhost"]

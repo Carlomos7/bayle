@@ -2,9 +2,10 @@
 release workflow installs, and the vpk version scripts/build.py expects."""
 
 import re
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+from support import repo_root
+
+ROOT = repo_root()
 
 
 def _one(pattern: str, text: str, where: str) -> str:

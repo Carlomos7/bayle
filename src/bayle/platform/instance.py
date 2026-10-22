@@ -24,7 +24,6 @@ from pathlib import Path
 
 WINDOW = "Window"
 PLAY = "Play"
-MIGRATE = "Migrate"  # held while the app data is migrated (storage.datamigrations)
 
 _ERROR_ALREADY_EXISTS = 183
 _SYNCHRONIZE = 0x00100000

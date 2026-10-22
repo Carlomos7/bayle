@@ -1,10 +1,8 @@
-"""What the older build would have done on its own start: finish or undo the operations it left half done.
+"""Finish or undo the operations a run left half done, once at every start (before the database opens).
 
-The app-data migration (storage.datamigrations) calls recover() before it backs anything up, because these recoveries
-change user files and no metadata backup can undo them. It calls the existing recovery code and adds none of its own:
-the move-in and layout recoveries the shell ran at start (session.shell.state.reload_profiles, per ready game) and
-the interrupted-install recovery of the remembered profile (session.startup). Delete it when the floor rises past
-the builds that wrote these journals. (The plan puts it beside the runner; the layering needs it above mods.)
+It calls the existing recovery code and adds none of its own: the move-in and layout recoveries per ready game, and
+the interrupted-install recovery of each game's remembered profile. A window that is already open owns these
+journals, so nothing is touched while it holds the instance name.
 """
 
 from __future__ import annotations
@@ -13,12 +11,15 @@ from bayle.config.settings import load_settings
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods import layout, move_in
+from bayle.platform import instance
 from bayle.platform import logging as run_logging
 from bayle.services import mods as mod_service
 from bayle.services import play as core
 
 
 def recover() -> list[str]:
+    if instance.held(instance.WINDOW):
+        return []
     settings = load_settings()
     said: list[str] = []
     ready = [g for g in catalog.GAMES if g.ready]

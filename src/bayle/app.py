@@ -29,7 +29,7 @@ from bayle.game.locate import Locations
 from bayle.mods import rebuild as mod_rebuild
 from bayle.platform import data_folder, instance, paths
 from bayle.platform import logging as run_logging
-from bayle.services import legacy_journals
+from bayle.services import startup_recovery
 from bayle.storage import datamigrations, mirror
 from bayle.storage import db as storage_db
 from bayle.storage.activity import ActivityLog
@@ -119,7 +119,7 @@ def migrate_data(open_db=None):
     Raises datamigrations.MigrationError, a storage.db.MigrationFailed, when the folder is refused or the migration
     failed; the caller must not report the version ready."""
     return datamigrations.migrate(
-        data_folder.data_root(), __version__, recover_journals=legacy_journals.recover, open_db=open_db
+        data_folder.data_root(), __version__, recover_journals=startup_recovery.recover, open_db=open_db
     )
 
 

@@ -31,9 +31,9 @@ from typing import TYPE_CHECKING
 
 from bayle.config import settings as launcher_settings
 from bayle.merging import build
-from bayle.mods import history, library, migrate, naming, operations
+from bayle.mods import history, kinds, library, migrate, naming, operations
 from bayle.mods import profile_settings as ps
-from bayle.mods.profile_edit import ModError
+from bayle.mods.models import ModError, UndoError
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -644,3 +644,20 @@ def undo_duplicate(op_dir: Path, log: Callable[[str], None] = lambda s: None) ->
             back.release()
         op.release()
     return f"took back the copy {info.get('new', '')}"
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        if undo["type"] == "profile-rename":
+            return undo_rename(Path(undo["operation"]), log)
+        return undo_duplicate(Path(undo["operation"]), log)
+    except (ProfileRenameError, ps.Unreadable) as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_finisher(
+    ("profile-rename",), finish_state, "an interrupted profile rename was finished"
+)  # the launcher's records still name the old profile
+kinds.register_undo(
+    ("profile-rename", "profile-duplicate"), kinds.operation_active, _undo_kind, kinds.named("The change")
+)

@@ -9,6 +9,7 @@ import pytest
 
 from bayle.merging import build as B
 from bayle.mods import install, operations
+from bayle.mods import models as mod_models
 from support import er
 
 PROFILE = (
@@ -603,7 +604,7 @@ def test_a_refused_rename_changes_nothing(world, monkeypatch, case):
     before = snapshot(p)
     pre = rename.preview(p, entry_index(p, name), new, loc=er())
     assert not pre.ok and pre.refusals
-    with pytest.raises(rename.ModError):
+    with pytest.raises(mod_models.ModError):
         rename.apply(pre, loc=er())
     assert snapshot(p) == before
     no_leftovers(p)
@@ -617,7 +618,7 @@ def test_a_rename_is_refused_when_the_profile_changed_since_the_preview(world):
     assert pre.ok
     _edit_profile(p, "# edited outside\r\n")
     before = snapshot(p)
-    with pytest.raises(rename.ModError):
+    with pytest.raises(mod_models.ModError):
         rename.apply(pre, loc=er())
     assert snapshot(p) == before
     no_leftovers(p)
@@ -635,7 +636,7 @@ def test_undoing_a_rename_does_not_overwrite_later_changes(world, tmp_path):
     # (b) a folder appeared at the old place: nothing moves
     (p.parent / "mod" / "Alpha").mkdir()
     after = snapshot(p)
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo.run(rec, lambda s: None, loc=er())
     assert snapshot(p) == after and (p.parent / "mod" / "flora").is_dir()
     (p.parent / "mod" / "Alpha").rmdir()

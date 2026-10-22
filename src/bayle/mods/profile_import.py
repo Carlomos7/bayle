@@ -33,9 +33,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.formats import me3_profile
-from bayle.mods import extract, library, naming, operations
+from bayle.mods import extract, kinds, library, naming, operations
 from bayle.mods import order as mod_order
-from bayle.mods.profile_edit import ModError, resolve, roots
+from bayle.mods.models import ModError
+from bayle.mods.profile_edit import resolve, roots
 from bayle.mods.profile_writer import Plan as WriterPlan
 from bayle.mods.profile_writer import ProfileWriter
 
@@ -645,3 +646,11 @@ def undo_import(op_dir: Path, log=lambda s: None) -> str:
     if op.info.get("new_profile") and profile.is_file() and not profile.read_bytes():
         profile.unlink()  # take_back gives a file it made its earlier bytes: none
     return said
+
+
+kinds.register_undo(
+    ("profile-import",),
+    kinds.operation_active_with_profile,
+    lambda undo, log, loc: undo_import(Path(undo["operation"]), log),
+    kinds.named("It"),
+)

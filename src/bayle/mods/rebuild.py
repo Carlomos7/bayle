@@ -28,8 +28,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from bayle.game import catalog as games
-from bayle.mods import backends, checks, library
+from bayle.mods import backends, checks, history, kinds, library, overhaul_manifest
+from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage
+from bayle.mods import profile_settings as ps
+from bayle.mods.models import UndoError
 from bayle.mods.profile_writer import ProfileWriter
 
 if TYPE_CHECKING:
@@ -134,7 +137,6 @@ def is_elden_ring(profile: Path) -> bool:
 
 def layers(profile: Path) -> list[dict]:
     """Enabled packages in me3's effective load order: [{index, name, id, folder}]."""
-    from bayle.mods import profile as profile_tools
 
     profile = Path(profile)
     text = mod_manage.read_text(profile)
@@ -199,7 +201,6 @@ def overlay_mark(profile: Path) -> dict | None:
     """What Options set for this profile: {package: folder, rebuild: a rebuild.json or None}, or None (the overlay
     is found from its files). Kept in the profile's settings.json (see mods.profile_settings); a mark in the
     launcher's own settings, where launchers before 3.10 kept it, is moved there the first time it is read."""
-    from bayle.mods import profile_settings as ps
 
     profile = Path(profile)
     mine = ps.load(profile)
@@ -226,7 +227,6 @@ def overlay_mark(profile: Path) -> dict | None:
 
 
 def _stored_mark(profile: Path, folder: Path, rebuild_file: Path | None) -> dict:
-    from bayle.mods import profile_settings as ps
 
     return {"package": ps.to_stored(profile, folder), "rebuild": ps.to_stored(profile, rebuild_file)}
 
@@ -234,7 +234,6 @@ def _stored_mark(profile: Path, folder: Path, rebuild_file: Path | None) -> dict
 def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path | None = None) -> str | None:
     """Set (or, with None, clear) the package that must stay last, in the profile's settings.json. When that
     file cannot be written, it goes into the launcher's own settings instead, and the reason is returned."""
-    from bayle.mods import profile_settings as ps
 
     profile = Path(profile)
     value = None if folder is None else _stored_mark(profile, Path(folder), rebuild_file)
@@ -347,7 +346,6 @@ def setup_problem(
 
 def installer_made(folder: Path) -> bool:
     """The package has a manifest (installation.json) that the launcher did not write: another installer made it."""
-    from bayle.mods import overhaul_manifest
 
     for cand in (folder, folder.parent):
         try:
@@ -718,7 +716,6 @@ def rebuild(profile: Path, log, combine: bool | None = None, *, loc: Locations) 
         raise MergeError(
             "There is nothing to combine: fewer than two packs ship parameters and there is no rebuild tool."
         )
-    from bayle.mods import history
 
     original = mod_manage.read_text(profile)
     bak = library.profile_backup(profile)
@@ -869,7 +866,6 @@ def trim_tool_backups(profile: Path, keep: int = 3) -> list[dict]:
 
 def _shape(profile: Path, text: str, own: list[Path]) -> tuple:
     """What a profile loads, ignoring layout, comments and the load order lists of the rebuild tool's own entries."""
-    from bayle.mods import profile as profile_tools
 
     if mod_manage.is_array_form(text):
         text = mod_manage.to_blocks(text)
@@ -986,3 +982,122 @@ def offer(profile: Path, root: Path, regulation_packages: list[dict], *, loc: Lo
 def _few(files: list[str], n: int = 3) -> str:
     shown = ", ".join(Path(f).name for f in files[:n])
     return shown + (f" and {len(files) - n} more" if len(files) > n else "")
+
+
+# ----------------------------------------------------------------------------- undoing a rebuild (Activity)
+def _inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return path.resolve() != root.resolve()
+
+
+def _tool_swaps(undo: dict) -> list[tuple[Path, Path]] | None:
+    """The (live, backup) pairs the tool's restore list names, when all of them are inside the profile's folder and
+    exist; else None (nothing is touched outside the profile's folder, and a half-there backup is not used)."""
+    listing = Path(str(undo.get("tool_restore") or ""))
+    profile = Path(str(undo.get("profile") or ""))
+    if not undo.get("tool_restore") or not listing.is_file() or not undo.get("profile"):
+        return None
+    try:
+        data = json.loads(listing.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return None
+    root = profile.parent
+    pairs = []
+    for key in ("files", "directories"):
+        for row in data.get(key) or []:
+            if not isinstance(row, dict) or not row.get("path") or not row.get("original"):
+                return None
+            live = Path(row["path"])
+            backup = Path(row["original"])
+            if not backup.is_absolute():
+                backup = listing.parent / backup
+            if not (_inside(live, root) and _inside(backup, root)) or not backup.exists():
+                return None
+            pairs.append((live, backup))
+    return pairs or None
+
+
+def _move(src: Path, dst: Path) -> None:
+    """A rename on the same drive (instant); a move across drives."""
+    import shutil
+
+    try:
+        os.replace(src, dst)
+    except OSError:
+        shutil.move(str(src), str(dst))
+
+
+def _swap(a: Path, b: Path) -> None:
+    """Exchange two files or folders (renames on one drive); put everything back if a step fails."""
+    if not a.exists():
+        _move(b, a)
+        return
+    tmp = a.with_name(a.name + ".undo-swap")
+    _move(a, tmp)
+    try:
+        _move(b, a)
+    except OSError:
+        _move(tmp, a)
+        raise
+    try:
+        _move(tmp, b)
+    except OSError:
+        _move(a, b)
+        _move(tmp, a)
+        raise
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    """Activity's Undo (and Redo) of a rebuild."""
+
+    profile = Path(undo["profile"])
+    said = []
+    # The profile as it is now, before anything is swapped (a tool's own backup may swap the profile file too):
+    # the copy doing it again puts back.
+    now = history.snapshot(profile, "before redoing the rebuild" if undo.get("redo") else "before undoing the rebuild")
+    pairs = _tool_swaps(undo) if undo.get("tool_restore") else None
+    if pairs:
+        for live, backup in pairs:
+            _swap(live, backup)
+        log(f"undo: the rebuild tool's output is back as it was ({len(pairs)} item(s) swapped with its backup)")
+        said.append("the rebuild tool's output")
+    combined_before = Path(str(undo.get("combined_before") or ""))
+    folder = Path(str(undo.get("combined_folder") or ""))
+    if undo.get("combined_before") and undo.get("combined_folder") and combined_before.is_dir() and folder.is_dir():
+        for f in sorted(combined_before.rglob("*")):
+            if f.is_file():
+                live = folder / f.relative_to(combined_before)
+                live.parent.mkdir(parents=True, exist_ok=True)
+                _swap(live, f)
+        log("undo: the combined files are back as they were")
+        said.append("the combined files")
+    before = Path(str(undo.get("profile_before") or ""))
+    if undo.get("profile_before") and before.is_file():
+        history.restore(profile, before)
+        undo["profile_before"] = str(now) if now else None  # so doing it again swaps back (redo)
+        log(f"undo: {profile.name} is back as it was {'after' if undo.get('redo') else 'before'} the rebuild")
+        said.append("the profile")
+    if not said:
+        raise UndoError("What the rebuild replaced is no longer kept.")
+    if undo.get("redo"):
+        return "redid the rebuild: " + ", ".join(said) + " as the rebuild left them"
+    return "undid the rebuild: " + ", ".join(said) + " back as before"
+
+
+def _undo_available(undo: dict) -> bool:
+    profile = Path(undo.get("profile") or "")
+    if not undo.get("profile") or not profile.is_file():
+        return False
+    return any(
+        [
+            bool(undo.get("profile_before")) and Path(undo["profile_before"]).is_file(),
+            bool(undo.get("combined_before")) and Path(undo["combined_before"]).is_dir(),
+            bool(undo.get("tool_restore")) and _tool_swaps(undo) is not None,
+        ]
+    )
+
+
+kinds.register_undo(("rebuild",), _undo_available, _undo_kind)

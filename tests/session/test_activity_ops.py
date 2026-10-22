@@ -3,6 +3,7 @@
 import pytest
 
 from bayle.config.settings import DATA_ENV, data_dir
+from bayle.mods import models as mod_models
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.services.errors import OperationError
@@ -115,7 +116,7 @@ def test_a_declined_undo_runs_nothing(monkeypatch):
 
 def test_a_failed_undo_is_a_failed_job_with_a_code(monkeypatch):
     def boom(u, log, loc):
-        raise mod_undo.UndoError("the files moved")
+        raise mod_models.UndoError("the files moved")
 
     monkeypatch.setattr(mod_undo, "run", boom)
     s = make()

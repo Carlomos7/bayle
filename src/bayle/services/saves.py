@@ -10,7 +10,8 @@ from pathlib import Path
 
 from bayle.game import catalog as games
 from bayle.game.locate import Locations, Overrides
-from bayle.mods import undo as mod_undo
+from bayle.mods import kinds
+from bayle.mods import models as mod_models
 from bayle.platform import cpu
 from bayle.platform import logging as run_logging
 from bayle.platform.threads import assert_not_ui_thread
@@ -780,14 +781,16 @@ def _restore_available(undo: dict) -> bool:
 
 def _restore_run(undo: dict, log, loc: Locations) -> str:
     if not _restore_available(undo):
-        raise mod_undo.UndoError(f"{undo.get('name') or 'The save'} can no longer be taken back.")
+        raise mod_models.UndoError(f"{undo.get('name') or 'The save'} can no longer be taken back.")
     if loc.game_running():
-        raise mod_undo.UndoError(f"{loc.game.name} is running. Close it before changing saves.")
+        raise mod_models.UndoError(f"{loc.game.name} is running. Close it before changing saves.")
     try:
         restore_backup(Path(undo["backup"]), Path(undo["save"]), loc=loc)
     except RuntimeError as e:
-        raise mod_undo.UndoError(str(e)) from e
+        raise mod_models.UndoError(str(e)) from e
     return f"put {Path(undo['save']).name} back as it was"
 
 
-mod_undo.EXTERNAL["save-restore"] = (_restore_available, _restore_run)  # mods sits below this layer: it registers here
+kinds.register_undo(
+    ("save-restore",), _restore_available, _restore_run
+)  # mods sits below this layer: it registers here

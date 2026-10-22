@@ -18,6 +18,7 @@ from bayle.game import catalog, locate
 from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B
 from bayle.mods import library, operations, overhaul_install, records, undo
+from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
 from bayle.mods.overhaul_install import OverhaulError
 from bayle.platform import paths as common
@@ -346,10 +347,10 @@ def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
     before = files(world.base)
 
     def broken(*a, **k):
-        raise engine.EngineError("chr/c0000.anibnd.dcx could not be merged")
+        raise mod_models.EngineError("chr/c0000.anibnd.dcx could not be merged")
 
     monkeypatch.setattr(engine, "build", broken)
-    with pytest.raises(engine.EngineError):
+    with pytest.raises(mod_models.EngineError):
         world.install()
     assert files(world.base) == before
     assert not [

@@ -98,5 +98,5 @@ def split_folder(profile: Path, *, loc: Locations) -> dict:
 
 
 def undo(record: dict, *, loc: Locations) -> str:
-    """Take back what rename or duplicate returned (mods.undo.run). Raises mods.undo.UndoError."""
+    """Take back what rename or duplicate returned (mods.undo.run). Raises mods.models.UndoError."""
     return mod_undo.run(record, run_logging.log, loc=loc)

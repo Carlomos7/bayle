@@ -41,8 +41,9 @@ from typing import TYPE_CHECKING
 
 from bayle.formats import me3_profile
 from bayle.merging import build
-from bayle.mods import library, migrate, operations
-from bayle.mods.profile_edit import ModError
+from bayle.mods import kinds, library, migrate, operations
+from bayle.mods import profile_settings as ps
+from bayle.mods.models import ModError, UndoError
 from bayle.mods.profile_writer import ProfileWriter
 from bayle.platform import cpu
 
@@ -1031,3 +1032,25 @@ def candidates(loc: Locations, profile: Path, mod_id: str) -> list[Candidate]:
         linked = mine is not None and link_target(p, root, mine["path"]) is not None
         out.append(Candidate(p, mine is not None and not linked, linked))
     return out
+
+
+def _clean_library_stages(root: Path) -> None:
+    """What an interrupted Library change staged, in a game folder that has a Library."""
+    if library.is_game_folder(root):
+        clean_stages(root / library.layout().shared)
+
+
+def _undo_kind(record: dict, log, loc) -> str:
+    try:
+        return undo(Path(record["operation"]), log)
+    except (LibraryError, ps.Unreadable) as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.STAGE_CLEANERS.append(_clean_library_stages)
+kinds.register_undo(
+    kinds.LIBRARY,
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("This change to the library can no longer be taken back."),
+)

@@ -44,13 +44,22 @@ def quiet(monkeypatch):
     return SimpleNamespace(lines=lines, levels=levels)
 
 
+def hooks(**over):
+    """The injected window program: every hook fails the test unless the test gives it."""
+
+    def unexpected(*args):
+        raise AssertionError("unexpected window hook")
+
+    return cli.WindowHooks(**{"shell_main": unexpected, "ask": unexpected, "self_test": unexpected, **over})
+
+
 def argv(monkeypatch, *args):
     monkeypatch.setattr(sys, "argv", ["roundtable-souls", *args])
 
 
 def test_self_test_flag_hands_over_before_anything_else(monkeypatch):
     argv(monkeypatch, "--self-test")
-    monkeypatch.setattr(cli, "self_test", lambda: 5)
+    monkeypatch.setattr(cli, "self_test", lambda argv, window: 5)
     assert cli.main() == 5
 
 
@@ -90,7 +99,7 @@ def test_play_flag_runs_play_from_the_shortcut(monkeypatch, quiet):
     monkeypatch.setattr(core, "game_from_args", lambda args: game)
     calls = []
     monkeypatch.setattr(
-        cli, "play_from_shortcut", lambda g, allow_without_backup: calls.append((g, allow_without_backup)) or 0
+        cli, "play_from_shortcut", lambda g, allow_without_backup, window: calls.append((g, allow_without_backup)) or 0
     )
     assert cli.main() == 0
     assert calls == [(game, True)]
@@ -124,9 +133,15 @@ def test_window_path_opens_the_window_on_the_context(monkeypatch, quiet):
     ctx = SimpleNamespace(name="ctx")
     monkeypatch.setattr(app, "create_app", lambda game: ctx)
     shown = []
-    fake_module(monkeypatch, "bayle.ui.launcher.window", main=lambda c: shown.append(c) or 3)
-    assert cli.main() == 3
+    assert cli.main(window=hooks(shell_main=lambda c: shown.append(c) or 3)) == 3
     assert shown == [ctx]
+
+
+def test_window_path_without_a_window_program_says_so(monkeypatch, quiet, capsys):
+    argv(monkeypatch)
+    monkeypatch.setattr(app, "create_app", lambda game: pytest.fail("no context without a window"))
+    assert cli.main() == 2
+    assert "No window program" in capsys.readouterr().err
 
 
 def test_window_path_reports_a_failed_upgrade_in_a_window(monkeypatch, quiet):
@@ -138,8 +153,9 @@ def test_window_path_reports_a_failed_upgrade_in_a_window(monkeypatch, quiet):
     monkeypatch.setattr(app, "create_app", failing)
     seen = []
     monkeypatch.setattr(cli, "storage_failed", lambda error, window: seen.append(window) or 1)
-    assert cli.main() == 1
-    assert seen == [True]
+    window = hooks()
+    assert cli.main(window=window) == 1
+    assert seen == [window]
 
 
 def test_frozen_build_runs_velopack_startup_first(monkeypatch, quiet):
@@ -159,8 +175,8 @@ def test_self_test_writes_the_report_and_returns_the_checks_result(monkeypatch, 
     monkeypatch.setenv("QT_QPA_PLATFORM", "")
     shutdowns = []
     monkeypatch.setattr(run_logging, "shutdown", lambda: shutdowns.append(True))
-    fake_module(monkeypatch, "bayle.ui.self_test", run=lambda data, out: out("PASS window") or 0)
-    assert cli.self_test() == 0
+    window = hooks(self_test=lambda data, out: out("PASS window") or 0)
+    assert cli.self_test(sys.argv, window) == 0
     assert report.read_text(encoding="utf-8") == "PASS window\n"
     assert shutdowns == [True]
 
@@ -174,8 +190,7 @@ def test_self_test_crash_in_the_harness_is_a_failure(monkeypatch, quiet, capsys)
     def boom(data, out):
         raise ValueError("bad state")
 
-    fake_module(monkeypatch, "bayle.ui.self_test", run=boom)
-    assert cli.self_test() == 1
+    assert cli.self_test(sys.argv, hooks(self_test=boom)) == 1
     assert "FAIL  the self-test itself: ValueError: bad state" in capsys.readouterr().out
 
 
@@ -198,22 +213,21 @@ def test_check_storage_fails_when_the_database_will_not_open(monkeypatch, quiet,
 
 
 def test_storage_failed_without_a_window_logs_and_prints(monkeypatch, quiet, capsys):
-    assert cli.storage_failed(RuntimeError("disk full"), window=False) == 1
+    assert cli.storage_failed(RuntimeError("disk full"), None) == 1
     assert quiet.lines == ["error: Bayle could not start: disk full"]
     assert "could not start: disk full" in capsys.readouterr().err
 
 
 def test_storage_failed_with_a_window_asks_and_survives_a_broken_box(monkeypatch, quiet):
     asked = []
-    fake_module(monkeypatch, "bayle.ui.message_box", ask=lambda *args: asked.append(args))
-    assert cli.storage_failed(RuntimeError("disk full"), window=True) == 1
+    window = hooks(ask=lambda *args: asked.append(args))
+    assert cli.storage_failed(RuntimeError("disk full"), window) == 1
     assert asked == [("Bayle could not start.", "disk full")]
 
     def broken(*args):
         raise OSError("no display")
 
-    fake_module(monkeypatch, "bayle.ui.message_box", ask=broken)
-    cli.storage_failed(RuntimeError("disk full"), window=True)
+    cli.storage_failed(RuntimeError("disk full"), hooks(ask=broken))
     assert quiet.lines[-1] == "the message could not be shown: no display"
 
 
@@ -275,8 +289,12 @@ def test_play_with_a_failed_upgrade_still_releases_the_hold(monkeypatch, quiet):
     assert released == [True]
 
 
+class _Asked(list):
+    window: cli.WindowHooks
+
+
 def _notice_box(monkeypatch, answer):
-    asked = []
+    asked = _Asked()
 
     def ask(heading, detail, buttons=None):
         asked.append((heading, detail))
@@ -284,7 +302,7 @@ def _notice_box(monkeypatch, answer):
             raise answer
         return answer
 
-    fake_module(monkeypatch, "bayle.ui.message_box", ask=ask)
+    asked.window = hooks(ask=ask)
     return asked
 
 
@@ -292,45 +310,76 @@ def test_notice_offers_the_launcher_and_opens_it_for_the_game(monkeypatch, quiet
     asked = _notice_box(monkeypatch, 0)
     opened = []
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args))
-    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "a mod needs a rebuild")
+    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "a mod needs a rebuild", window=asked.window)
     assert asked[0][0] == "Elden Ring was not started: your mods need a rebuild"
     assert "a mod needs a rebuild" in asked[0][1]
     assert opened == [[sys.executable, "-m", "bayle", "--game", "er"]]
 
 
 def test_notice_in_the_frozen_build_reopens_the_executable(monkeypatch, quiet):
-    _notice_box(monkeypatch, 0)
+    asked = _notice_box(monkeypatch, 0)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     opened = []
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args))
-    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why")
+    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why", window=asked.window)
     assert opened == [[sys.executable, "--game", "er"]]
 
 
 def test_notice_closed_by_the_player_opens_nothing(monkeypatch, quiet):
-    _notice_box(monkeypatch, 1)
+    asked = _notice_box(monkeypatch, 1)
     opened = []
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args))
-    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why")
+    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why", window=asked.window)
     assert opened == []
 
 
 def test_notice_with_a_headline_uses_it_as_the_heading(monkeypatch, quiet):
     asked = _notice_box(monkeypatch, 1)
-    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "the backup failed", "Backup failed")
+    cli.not_started_notice(
+        SimpleNamespace(key="er", name="Elden Ring"), "the backup failed", "Backup failed", asked.window
+    )
     assert asked == [("Backup failed", "the backup failed")]
 
 
 def test_notice_without_a_display_logs_why(monkeypatch, quiet):
-    _notice_box(monkeypatch, RuntimeError("no display"))
-    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why")
+    asked = _notice_box(monkeypatch, RuntimeError("no display"))
+    cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why", window=asked.window)
     assert quiet.lines == ["the notice could not be shown: no display"]
 
 
 def test_the_entry_module_exits_with_the_command_lines_code(monkeypatch):
     import runpy
 
-    monkeypatch.setattr(cli, "main", lambda: 9)
+    from bayle import entry
+
+    monkeypatch.setattr(entry, "main", lambda: 9)
     with pytest.raises(SystemExit) as exit_info:
         runpy.run_module("bayle.__main__", run_name="__main__")
     assert exit_info.value.code == 9
+
+
+def test_headless_paths_import_no_qt(tmp_path):
+    """--worker, --update, --check-storage and --play never load PySide6: the engine is usable without Qt (the
+    window program is injected). A fresh interpreter, because this process may already have imported Qt."""
+    import os
+    import textwrap
+
+    code = textwrap.dedent(
+        """
+        import sys
+        from unittest import mock
+        from bayle import cli
+
+        for flags in (["--worker"], ["--update"], ["--check-storage"], ["--play", "--game", "nope"]):
+            with mock.patch("bayle.platform.cpu.worker_main", return_value=0),                  mock.patch("bayle.updates.headless.update_headless", return_value=0):
+                cli.main(["bayle", *flags])
+        assert not [m for m in sys.modules if m.split(".")[0] == "PySide6"], "Qt was imported"
+        assert not [m for m in sys.modules if m.startswith("bayle.ui")], "bayle.ui was imported"
+        """
+    )
+    env = {**os.environ, **{k: str(tmp_path / k) for k in ("LOCALAPPDATA", "APPDATA", "USERPROFILE")}}
+    env["ROUNDTABLE_SOULS_DATA"] = str(tmp_path / "data")
+    done = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=120, check=False
+    )
+    assert done.returncode == 0, done.stderr[-2000:]

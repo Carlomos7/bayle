@@ -23,6 +23,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from bayle.mods.models import EngineError
+
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
 
@@ -199,8 +201,6 @@ class Tool:
         if r.problem:
             raise BackendError(r.problem)
         if r.engine is not None:
-            from bayle.mods.engine import EngineError
-
             try:
                 r.engine(log)
             except EngineError as e:

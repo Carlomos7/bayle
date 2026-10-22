@@ -9,9 +9,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from bayle.mods.profile_edit import (
-    ModError,
-)
+from bayle.mods.models import ModError
 
 ARCHIVE_EXTENSIONS = (
     ".zip",

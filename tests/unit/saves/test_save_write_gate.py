@@ -4,6 +4,7 @@ backup back after backing the current file up. Writes happen on temporary files 
 import pytest
 
 from bayle.game.locate import Locations
+from bayle.mods import models as mod_models
 from bayle.mods import undo
 from bayle.saves import backups as save_backups
 from bayle.saves import repair as save_repair
@@ -52,11 +53,11 @@ def test_undo_changes_nothing_when_the_backup_is_gone_or_the_game_runs(tmp_path,
     save, bak, record = _undo_record(tmp_path)
     now = save.read_bytes()
     monkeypatch.setattr(Locations, "game_running", lambda self: True)
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo.run(record, lambda *_: None, loc=er())
     monkeypatch.setattr(Locations, "game_running", lambda self: False)
     bak.unlink()
     assert not undo.available(record)
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo.run(record, lambda *_: None, loc=er())
     assert save.read_bytes() == now

@@ -54,16 +54,17 @@ from typing import TYPE_CHECKING, Any
 from bayle import overhauls
 from bayle.formats import me3_profile
 from bayle.game import catalog as games
-from bayle.mods import installer_leftovers, library, operations, records
+from bayle.mods import engine, installer_leftovers, kinds, library, operations, records
 from bayle.mods.checks import same_folder
 from bayle.mods.library import ProfileFolder
+from bayle.mods.models import ModError, UndoError
 from bayle.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
-from bayle.mods.profile_edit import ModError, quote
+from bayle.mods.profile_edit import quote
 from bayle.mods.profile_writer import Plan as WriterPlan
 from bayle.mods.profile_writer import ProfileWriter
 from bayle.overhauls import install_plan, requirements, sources
 from bayle.overhauls.config import Build, OverhaulConfig
-from bayle.platform import trash
+from bayle.platform import files, trash
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -186,7 +187,6 @@ def _json_value(folder: Path, file: str, key: str):
 def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | None = None) -> Found:
     """The overhaul a download folder is (the folder picked, or the one folder inside it), or OverhaulError saying
     why not in plain words."""
-    from bayle.mods import engine
 
     folder = Path(folder)
     if not folder.is_dir():
@@ -233,7 +233,6 @@ def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | N
 def _needed(download: Path, build: Build, recipe: dict) -> list[str]:
     """The download's files its build reads (the files and folders its steps name, what it matches on, what its
     layout takes, licence and notice files): what the launcher keeps a copy of. Installer programs are left out."""
-    from bayle.mods import engine
 
     all_files = sources.download_files(download)
     exact: set[str] = set(build.match.files)
@@ -579,7 +578,6 @@ def install(
     {operation, update, name}; raises OverhaulError (refused, nothing written) or the error that stopped it (the
     previous state is back)."""
     from bayle import __version__
-    from bayle.mods import engine
 
     p = preview
     if not p.ok or p.change is None or p.places is None:
@@ -862,7 +860,6 @@ def installer_made(profile: Path, *, loc: Locations, configs: Sequence[OverhaulC
 
 def _engine_previous(profile: Path, own: Path) -> Path | None:
     """The launcher's previous build of the overhaul kept for Undo rebuild (mods.engine), when it is this one's."""
-    from bayle.mods import engine
 
     work = Path(profile).parent / engine.WORK
     try:
@@ -1396,3 +1393,32 @@ def turn_off(preview: TurnOffPreview, *, log=lambda s: None) -> dict:
         log(f"warning: {name} stayed (the Recycle Bin did not take it)")
     log(f"overhaul: turned {r.config.label} off in {profile.name}; it is an ordinary mod again")
     return {"operation": str(op.dir), "trash": gone, "name": r.config.label, "kept": kept}
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    """Activity's Undo of an overhaul's install, update, removal or turning off."""
+    try:
+        if undo["type"] in ("overhaul-remove", "overhaul-turn-off"):
+            return undo_remove(undo, log)
+        said = ""
+        for other in undo.get("others") or []:  # profiles that only had their entries changed: their earlier bytes
+            path = Path(other["profile"])
+            try:
+                if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == other["after"]:
+                    before = (
+                        base64.b64decode(other["before_b64"])
+                        if "before_b64" in other
+                        else other["before"].encode("utf-8")  # a record from an older version
+                    )
+                    files.atomic_write(path, before)
+                    log(f"undo: {path.name} has its earlier entries back")
+                else:
+                    said += f"; {path.name} was changed since and is left as it is"
+            except OSError as e:  # the main one is still taken back below
+                said += f"; {path.name} could not be restored ({e})"
+        return operations.take_back(Path(undo["operation"]), log) + said
+    except OverhaulError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_undo(kinds.OVERHAUL, kinds.operation_active_with_profile, _undo_kind, kinds.named("It"))

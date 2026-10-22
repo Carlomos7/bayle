@@ -22,8 +22,9 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from bayle.platform import cpu_pool, instance
 from bayle.resources import ASSETS_DIR
-from bayle.services.play import TITLE, app_icon_path
+from bayle.services.play import TITLE
 from bayle.ui import stall
+from bayle.ui.branding import app_icon_path
 from bayle.ui.launcher.adapter import ShellAdapter
 from bayle.ui.launcher.host import ShellHost
 from bayle.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder

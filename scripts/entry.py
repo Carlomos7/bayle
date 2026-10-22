@@ -8,6 +8,6 @@ console script (pyproject.toml's [project.scripts]) does not exist inside a froz
 
 import sys
 
-from bayle.cli import main
+from bayle.entry import main
 
 sys.exit(main())

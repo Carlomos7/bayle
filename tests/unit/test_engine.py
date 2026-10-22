@@ -17,6 +17,7 @@ from bayle.formats.esd import write_esd
 from bayle.game import config as game_config
 from bayle.game import locate
 from bayle.mods import backends, engine
+from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
 from bayle.mods.backends import launcher_build
 from bayle.platform import paths as common
@@ -241,7 +242,7 @@ def test_without_a_packages_script_the_downloads_base_is_used(world):
 
 def test_a_package_that_already_contains_it_is_refused(world):
     (world.base / "mod/anims/action/script/c0000.hks").write_text("local ExOriginalUpdate = Update\n")
-    with pytest.raises(engine.EngineError, match="already contains"):
+    with pytest.raises(mod_models.EngineError, match="already contains"):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"  # the build in place is unchanged
 
@@ -333,7 +334,9 @@ def test_a_language_file_missing_from_the_game_stops_the_text_step(world, monkey
     and the build in place stays."""
     files = {k: v for k, v in game_files().items() if k != "msg/thath/menu_dlc02.msgbnd.dcx"}
     fakegame.game(monkeypatch, files)
-    with pytest.raises(engine.EngineError, match=r"msg/thath/menu_dlc02\.msgbnd\.dcx was not found in its archives"):
+    with pytest.raises(
+        mod_models.EngineError, match=r"msg/thath/menu_dlc02\.msgbnd\.dcx was not found in its archives"
+    ):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
     assert not list(world.base.glob(".ExampleOverhaul.building-*"))
@@ -341,7 +344,7 @@ def test_a_language_file_missing_from_the_game_stops_the_text_step(world, monkey
 
 def test_a_damaged_file_stops_the_build_with_its_name(world):
     (world.base / "mod/anims/chr/c0000_a00_hi.anibnd.dcx").write_bytes(b"DCX\0 broken")
-    with pytest.raises(engine.EngineError, match="c0000_a00_hi"):
+    with pytest.raises(mod_models.EngineError, match="c0000_a00_hi"):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
     assert not list(world.base.glob(".ExampleOverhaul.building-*"))
@@ -371,7 +374,7 @@ def test_a_configs_requirements_refuse_the_build_naming_them(world):
         "Example Overhaul needs Trees (trees) switched on in the profile.",
         "Example Overhaul needs ersc.dll switched on in the profile.",
     ]
-    with pytest.raises(engine.EngineError, match="needs Trees"):
+    with pytest.raises(mod_models.EngineError, match="needs Trees"):
         engine.build(world.profile, world.own / "mod", world.setup, needs, version, lambda s: None, loc=er())
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
 
@@ -517,7 +520,7 @@ def test_the_same_entry_script_in_two_packages_is_no_clash(world):
 
 def test_a_compiled_entry_script_is_refused(world):
     (world.base / "mod/anims/action/script/c0000.hks").write_bytes(b"\x1bLuaQ\x00\x01\x04compiled")
-    with pytest.raises(engine.EngineError, match="compiled"):
+    with pytest.raises(mod_models.EngineError, match="compiled"):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
 
@@ -595,7 +598,7 @@ def test_several_hook_steps_are_appended_in_order_to_the_last_packages_script(wo
 def test_a_hook_already_in_a_package_before_it_is_refused(world, tmp_path):
     setup, target, recipe, version = hooks_setup(world, tmp_path)
     (world.base / "mod/anims/action/script/c0000.hks").write_text("local SecondOriginalUpdate = Update\n")
-    with pytest.raises(engine.EngineError, match="A mod before Hooks already contains its script."):
+    with pytest.raises(mod_models.EngineError, match="A mod before Hooks already contains its script."):
         engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er())
 
 
@@ -639,7 +642,7 @@ def test_the_manifest_records_what_the_download_said_about_itself(world):
 def test_a_composed_script_that_would_not_load_is_refused_offline(world):
     """Example's fragment cut short: the build is refused naming the file, the line and the mod; nothing changes."""
     (world.setup / "installer/example.hks").write_text("local ExOriginalUpdate = Update\nfunction Update()\n")
-    with pytest.raises(engine.EngineError) as e:
+    with pytest.raises(mod_models.EngineError) as e:
         world.build()
     assert str(e.value).startswith(
         "action/script/c0000.hks would not load in game: Example Overhaul's script has a syntax error at its line 2 ("
@@ -766,7 +769,9 @@ def test_a_regulation_the_game_could_not_read_is_refused_and_the_build_kept(worl
     from bayle.merging.rules import param as param_merge
 
     monkeypatch.setattr(param_merge, "MAX_ROWS", 1)
-    with pytest.raises(engine.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"):
+    with pytest.raises(
+        mod_models.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"
+    ):
         world.build()
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
 

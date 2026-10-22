@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from bayle.mods import models as mod_models
 from bayle.mods import order
 
 CASES = json.loads((Path(__file__).parent / "order_cases.json").read_text(encoding="utf-8"))
@@ -13,7 +14,7 @@ CASES = json.loads((Path(__file__).parent / "order_cases.json").read_text(encodi
 
 def items(packages: list[dict]) -> list[order.Item]:
     def deps(raw):
-        return [order.Dependent(d["id"], d["optional"]) for d in raw]
+        return [mod_models.Dependent(d["id"], d["optional"]) for d in raw]
 
     return [order.Item(p.get("id") or p["path"], deps(p["load_after"]), deps(p["load_before"])) for p in packages]
 

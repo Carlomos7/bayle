@@ -30,7 +30,8 @@ from typing import TYPE_CHECKING, Any
 from bayle.config import settings
 from bayle.formats import me3_profile
 from bayle.merging import build
-from bayle.mods import migrate
+from bayle.mods import kinds, library, migrate
+from bayle.mods.models import UndoError
 from bayle.mods.profile_writer import ProfileWriter
 
 if TYPE_CHECKING:
@@ -138,7 +139,6 @@ def _unfinished(root: Path, folders: list[Path]) -> str | None:
     build.adopt_legacy_ops(ops_root())
     if build.pending(ops_root()):
         return "a move of the profiles folders is not finished"
-    from bayle.mods import library
 
     for g in folders:
         build.adopt_legacy_ops(g)
@@ -622,3 +622,18 @@ def undo_layout(op_dir: Path, loc: Locations) -> str:
     for done in build.active(ops_root()):
         done.release()
     return what
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return undo_layout(Path(undo["operation"]), loc)
+    except LayoutError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_undo(
+    ("layout-relocate", "layout-rename"),
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("This change to the profiles folders can no longer be taken back."),
+)

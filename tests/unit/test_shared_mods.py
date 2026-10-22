@@ -16,6 +16,7 @@ from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B
 from bayle.mods import library, operations, profile_rename, shared_mods, undo
+from bayle.mods import models as mod_models
 from bayle.platform import trash
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
@@ -161,7 +162,7 @@ def test_undo_refuses_when_the_profile_changed_since(world):
     loc, home, root, lib, a, b, c = world
     out = shared_mods.share(a, [index_of(a, "grass")], loc=loc)
     a.write_text(a.read_text() + "\n# edited\n")
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo_it(out, "library-share", loc)
     assert version_of(a, "grass").is_dir()
 
@@ -170,7 +171,7 @@ def test_undo_refuses_when_another_profile_uses_the_version_now(world):
     loc, home, root, lib, a, b, c = world
     out = shared_mods.share(a, [index_of(a, "grass")], loc=loc)
     shared_mods.use_in("grass", version_of(a, "grass").name, {c: False}, loc=loc)
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo_it(out, "library-share", loc)
 
 
@@ -202,7 +203,7 @@ def test_a_differing_copy_replaced_by_choice_comes_back_from_the_bin(world, tmp_
     assert tree(home) == before and (root / "b" / "packages" / "grass" / "g.dcx").read_bytes() == b"my edit"
     out = shared_mods.use_in("grass", ver, {b: True}, loc=loc)
     shutil.rmtree(tmp_path / "bin")  # the edited copy is gone for good: undoing would lose it, so it is refused
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo_it(out, "library-use", loc)
 
 

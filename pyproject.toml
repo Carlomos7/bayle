@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.scripts]
-bayle = "bayle.cli:main"
-roundtable-souls = "bayle.cli:main"
+bayle = "bayle.entry:main"
+roundtable-souls = "bayle.entry:main"
 
 [project.optional-dependencies]
 qt = ["PySide6>=6.11.2"]
@@ -109,6 +109,7 @@ name = "Layers"
 type = "layers"
 exhaustive = false
 layers = [
+    "bayle.entry",
     "bayle.cli",
     "bayle.app",
     "bayle.ui | bayle.api",

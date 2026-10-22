@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Protocol
 
 from bayle.game import catalog as games
+from bayle.mods import kinds
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.platform.text import plural, tr
@@ -428,7 +429,7 @@ class ActivityPresenter:
                 job_id,
                 "the rebuild",
             )
-        if u.get("type") in mod_undo.OVERHAUL:
+        if u.get("type") in kinds.OVERHAUL:
             return self._overhaul_undo_plan(u, prof, job_id, self._facts.in_trash)
         if u.get("type") == "profile-import":
             name = u.get("name") or tr("the profile")
@@ -552,7 +553,7 @@ class ActivityPresenter:
                 job_id,
                 name,
             )
-        if u.get("type") in mod_undo.OPERATIONS:
+        if u.get("type") in kinds.OPERATIONS:
             name = u.get("name") or tr("the mod")
             fresh = u.get("type") == "install"
             changes = (

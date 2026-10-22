@@ -21,8 +21,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.merging import build
-from bayle.mods import configs, naming, operations
+from bayle.mods import configs, kinds, naming, operations
 from bayle.mods.checks import _canon
+from bayle.mods.models import UndoError
 from bayle.mods.profile_edit import entries, read_text, rel, resolve, roots
 from bayle.mods.profile_writer import ProfileWriter
 
@@ -298,3 +299,18 @@ def undo_move(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> str:
         except OSError as e:
             log(f"undo: {f['target']} could not be moved to the Recycle Bin ({e})")
     return f"took back the DLL folders in {profile.name}"
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return undo_move(Path(undo["operation"]), log)
+    except DllFolderError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_undo(
+    ("dll-folders",),
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("The move of the DLL mods into folders can no longer be taken back."),
+)

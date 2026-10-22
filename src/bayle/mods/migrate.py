@@ -34,8 +34,9 @@ from typing import TYPE_CHECKING
 
 from bayle.formats import me3_profile
 from bayle.merging import build
-from bayle.mods import history, library
+from bayle.mods import history, kinds, library, profile_edit
 from bayle.mods import profile_settings as ps
+from bayle.mods.models import UndoError
 from bayle.mods.profile_writer import ProfileWriter
 from bayle.platform import files
 
@@ -332,7 +333,6 @@ def plan(home: Path, game: str) -> Plan:
 def plan_move(profiles: list[Path], root: Path, game: str) -> Plan:
     """What moving these profiles (all from one folder) into root does: each into root/<name>/, with the mod folders
     their entries point at inside that folder. The .me3 files left in the folder are checked for what they share."""
-    from bayle.mods import profile_edit
 
     source = Path(profiles[0]).parent
     movers = [Path(p) for p in profiles]
@@ -764,3 +764,21 @@ def undo_migration(op_dir: Path, log: Callable[[str], None] = lambda s: None) ->
     for n in _apply_state(info, back=True):
         log(f"undo: {n}")
     return "took back the move into profile folders: everything is where it was"
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return undo_migration(Path(undo["operation"]), log)
+    except MigrateError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_finisher(
+    ("profile-folders",), finish_state, "an interrupted move of the profiles into their folders was finished"
+)  # the launcher's records still name the old profiles
+kinds.register_undo(
+    ("profile-folders",),
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("The move into profile folders can no longer be taken back."),
+)

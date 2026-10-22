@@ -9,19 +9,35 @@ window."""
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from bayle.game.catalog import Game
 
 
-def main() -> int:
-    """Console entry point: the window; or without one --play, --check, --update (see headless.update_headless)."""
-    if "--worker" in sys.argv:  # a CPU worker for the window (platform/cpu.py): before anything else starts
+@dataclass(frozen=True)
+class WindowHooks:
+    """What the engine borrows from the window program, injected so no path here imports Qt: the window's main
+    (takes the app context), the one-shot message box (heading, detail, buttons -> index) and the full self-test
+    (data folder, out -> exit code). Each callable imports its Qt code when called, never at construction."""
+
+    shell_main: Callable[..., int]
+    ask: Callable[..., int]
+    self_test: Callable[[Path, Callable[[str], None]], int]
+
+
+def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> int:
+    """Console entry point: the window (when `window` is given); or without one --play, --check, --update (see
+    headless.update_headless). argv is sys.argv by default (program name first)."""
+    argv = sys.argv if argv is None else argv
+    if "--worker" in argv:  # a CPU worker for the window (platform/cpu.py): before anything else starts
         from bayle.platform import cpu
 
         return cpu.worker_main()
-    if "--backend" in sys.argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
+    if "--backend" in argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
         from bayle.api.server import main as backend_main
         from bayle.app import migrate_data, use_data_folder
         from bayle.config.settings import load_settings
@@ -35,8 +51,8 @@ def main() -> int:
         except MigrationFailed as e:
             return storage_failed(e, window=False)
         return backend_main()
-    if "--self-test" in sys.argv:  # first: before anything picks the data folder or starts Velopack's hooks
-        return self_test()
+    if "--self-test" in argv:  # first: before anything picks the data folder or starts Velopack's hooks
+        return self_test(argv, window)
     from bayle.app import use_data_folder
     from bayle.platform import logging as run_logging
 
@@ -55,46 +71,48 @@ def main() -> int:
         from bayle.updates import headless
 
         updates.velopack_startup()  # Velopack's install/update/uninstall hooks exit here
-    if "--update" in sys.argv:
+    if "--update" in argv:
         from bayle.updates import apply as updates
         from bayle.updates import headless
 
-        return headless.update_headless([a for a in sys.argv[1:] if a != "--update"])
-    if "--check-storage" in sys.argv:
+        return headless.update_headless([a for a in argv[1:] if a != "--update"])
+    if "--check-storage" in argv:
         return check_storage()
     game = None  # --game without --play/--check: the tab the window opens on, this run only
-    if "--play" in sys.argv or "--check" in sys.argv or any(a.startswith("--game") for a in sys.argv):
+    if "--play" in argv or "--check" in argv or any(a.startswith("--game") for a in argv):
         from bayle.game import catalog as games
         from bayle.services import play as core
 
-        game = core.game_from_args(sys.argv)
+        game = core.game_from_args(argv)
         if game is None:
             print(f"Unknown game. --game takes one of: {games.names_help()}", file=sys.stderr)
             return 2
-        if "--play" in sys.argv:
-            return play_from_shortcut(game, allow_without_backup="--allow-without-backup" in sys.argv)
-        if "--check" in sys.argv:
+        if "--play" in argv:
+            return play_from_shortcut(game, allow_without_backup="--allow-without-backup" in argv, window=window)
+        if "--check" in argv:
             from bayle.app import create_app
             from bayle.storage.db import MigrationFailed
 
             try:
                 ctx = create_app(game)
             except MigrationFailed as e:
-                return storage_failed(e, window=False)
+                return storage_failed(e, None)
             core.check(ctx.settings, ctx.locations, ctx.data_dir)
             return 0
     from bayle.app import create_app
     from bayle.storage.db import MigrationFailed
-    from bayle.ui.launcher.window import main as shell_main
 
+    if window is None:  # python -m bayle from the engine alone: the headless modes above still work
+        print("No window program is installed: use --play, --check, --update or --check-storage.", file=sys.stderr)
+        return 2
     try:
         ctx = create_app(game)
     except MigrationFailed as e:  # no window, so no ready report: an update's watchdog rolls back
-        return storage_failed(e, window=True)
-    return int(shell_main(ctx) or 0)
+        return storage_failed(e, window)
+    return int(window.shell_main(ctx) or 0)
 
 
-def self_test() -> int:
+def self_test(argv: list[str], window: WindowHooks | None = None) -> int:
     """--self-test [REPORT]: check that this build starts and initializes (ui/self_test.py; technical specification
     §8.5), off-screen, in a temporary data folder that is removed afterwards. The report goes to standard output and,
     when given, to the REPORT file (a windowed build has no console). Exit 0 only when every check passed."""
@@ -103,7 +121,7 @@ def self_test() -> int:
     import tempfile
     from pathlib import Path
 
-    args = sys.argv[sys.argv.index("--self-test") + 1 :]
+    args = argv[argv.index("--self-test") + 1 :]
     report = Path(args[0]).resolve() if args and not args[0].startswith("-") else None
     data = Path(tempfile.mkdtemp(prefix="rs-self-test-")).resolve()
     os.environ["ROUNDTABLE_SOULS_DATA"] = str(data)
@@ -121,9 +139,12 @@ def self_test() -> int:
     try:
         use_data_folder()
         run_logging.setup_logging(console=False)
-        from bayle.ui import self_test as checks
+        if window is not None:
+            code = window.self_test(data, out)
+        else:
+            from bayle import diagnostics
 
-        code = checks.run(data, out)
+            code = diagnostics.run(data, out)
     except Exception as e:  # a crash in the harness itself is a failure, reported like the others
         out(f"FAIL  the self-test itself: {type(e).__name__}: {e}")
         code = 1
@@ -199,24 +220,22 @@ def check_storage() -> int:
     return 0 if ok else 1
 
 
-def storage_failed(error: Exception, window: bool) -> int:
+def storage_failed(error: Exception, window: WindowHooks | None) -> int:
     """The database upgrade failed: say so (the log, the console, and a small window when there is a display);
     this version does not report itself ready."""
     from bayle.platform import logging as run_logging
 
     run_logging.log(f"error: Bayle could not start: {error}")
     print(f"Bayle could not start: {error}", file=sys.stderr)
-    if window:
+    if window is not None:
         try:
-            from bayle.ui import message_box
-
-            message_box.ask("Bayle could not start.", str(error))
+            window.ask("Bayle could not start.", str(error))
         except Exception as e:  # no display: the log and the console say it
             run_logging.log(f"the message could not be shown: {e}")
     return 1
 
 
-def play_from_shortcut(game, allow_without_backup: bool = False) -> int:
+def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowHooks | None = None) -> int:
     """--play: when the window is open, it runs Play itself (one launcher manages the session); otherwise Play runs
     here, holding the PLAY name so a second shortcut start, or a silent update, waits for it to end.
     allow_without_backup (--allow-without-backup): start even when 'back up saves before Play' fails."""
@@ -243,17 +262,21 @@ def play_from_shortcut(game, allow_without_backup: bool = False) -> int:
         try:
             ctx = create_app(game)
         except MigrationFailed as e:  # not ready: an update's watchdog rolls back
-            return storage_failed(e, window=False)
+            return storage_failed(e, None)
         updates.mark_ready("play")  # this version starts and runs: an update's watchdog can stand down
         ctx.start_imports()
+
+        def notice(game: Game, why: str, headline: str | None = None) -> None:
+            not_started_notice(game, why, headline, window)
+
         if allow_without_backup:
-            return core.play_headless(ctx.settings, ctx.locations, notice=not_started_notice, allow_without_backup=True)
-        return core.play_headless(ctx.settings, ctx.locations, notice=not_started_notice)
+            return core.play_headless(ctx.settings, ctx.locations, notice=notice, allow_without_backup=True)
+        return core.play_headless(ctx.settings, ctx.locations, notice=notice)
     finally:
         hold.release()
 
 
-def not_started_notice(game: Game, why: str, headline: str | None = None) -> None:
+def not_started_notice(game: Game, why: str, headline: str | None = None, window: WindowHooks | None = None) -> None:
     """--play without the window, when the game was not started: a small window saying why, with a way to open the
     launcher (a Steam shortcut or Gaming Mode has nowhere else to show it). Nothing happens without a display."""
     from bayle.services import play as core
@@ -261,8 +284,8 @@ def not_started_notice(game: Game, why: str, headline: str | None = None) -> Non
     try:
         import subprocess
 
-        from bayle.ui import message_box
-
+        if window is None:
+            raise RuntimeError("no window program")
         if headline:  # another reason than the merged mods (a failed backup before Play)
             heading, detail = headline, why
         else:
@@ -271,7 +294,7 @@ def not_started_notice(game: Game, why: str, headline: str | None = None) -> Non
                 f"{why}\n\nThe game does not start with merged mods that no longer match your mods, so it cannot "
                 "run with a removed or changed mod still inside them."
             )
-        if message_box.ask(heading, detail, ("Open Bayle", "Close")) == 0:
+        if window.ask(heading, detail, ("Open Bayle", "Close")) == 0:
             command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "bayle"]
             subprocess.Popen([*command, "--game", game.key], close_fds=True)
     except Exception as e:  # no display (a console, a test): the log says it

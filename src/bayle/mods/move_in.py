@@ -28,10 +28,10 @@ from typing import TYPE_CHECKING
 
 from bayle.formats import me3_profile
 from bayle.merging import build
-from bayle.mods import library, migrate, naming, operations
+from bayle.mods import kinds, library, migrate, naming, operations, overhaul_install
 from bayle.mods import profile_settings as ps
 from bayle.mods.migrate import Item, Unit
-from bayle.mods.profile_edit import ModError
+from bayle.mods.models import ModError, UndoError
 from bayle.platform import files
 
 if TYPE_CHECKING:
@@ -142,7 +142,6 @@ def plan(profile: Path, loc: Locations) -> MovePlan:
     item = Item(profile, name, folder, library.state_of(profile).root, old_bytes=raw)
     seen: set[str] = set()
     from bayle import overhauls
-    from bayle.mods import overhaul_install
 
     # an overhaul's own folder is part of the profile's layout, at its root: it moves whole, not entry by entry
     owns = [Path(os.path.abspath(o)) for o in overhaul_install.own_folders(profile, rows, overhauls.load(loc.game.key))]
@@ -436,3 +435,21 @@ def undo_move_in(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> s
     for n in migrate._apply_state(info, back=True):
         log(f"undo: {n}")
     return f"took back the move of {info['name']}: it is where it was"
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return undo_move_in(Path(undo["operation"]), log)
+    except (MoveInError, ps.Unreadable) as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_finisher(
+    ("profile-move-in",), finish_state, "an interrupted move into Bayle's folder was finished"
+)  # the launcher's records still name the old profile
+kinds.register_undo(
+    ("profile-move-in",),
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("The move into Bayle's folder can no longer be taken back."),
+)

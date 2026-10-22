@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from bayle.mods import engine
+from bayle.mods import engine, overhaul_install
+from bayle.mods import models as mod_models
 from bayle.overhauls import basic
 from bayle.overhauls.config import Basic
 
@@ -42,9 +43,9 @@ def test_the_engine_refuses_a_step_path_outside_its_folder(tmp_path):
     base = tmp_path / "setup"
     base.mkdir()
     assert engine._in(base, "a/b.txt") == base / "a/b.txt"
-    with pytest.raises(engine.EngineError, match="outside"):
+    with pytest.raises(mod_models.EngineError, match="outside"):
         engine._in(base, "../outside.txt")
-    with pytest.raises(engine.EngineError, match="outside"):
+    with pytest.raises(mod_models.EngineError, match="outside"):
         engine._in(base, "map/../../x")
 
 
@@ -114,7 +115,7 @@ def test_undo_restores_the_other_profiles_exact_bytes_first_even_when_the_main_t
     import base64
     import hashlib
 
-    from bayle.mods import operations, undo
+    from bayle.mods import operations
 
     raw = b"name = '\xe9\xff'\n"  # not UTF-8
     other = tmp_path / "other.me3"
@@ -130,14 +131,13 @@ def test_undo_restores_the_other_profiles_exact_bytes_first_even_when_the_main_t
             }
         ],
     }
-    monkeypatch.setattr(undo, "available", lambda u: True)
 
     def boom(*a, **k):
         raise operations.OperationError("gone")
 
     monkeypatch.setattr(operations, "take_back", boom)
     with pytest.raises(operations.OperationError):
-        undo._overhaul_back(record, lambda s: None)
+        overhaul_install._undo_kind(record, lambda s: None, None)
     assert other.read_bytes() == raw
 
 

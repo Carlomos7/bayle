@@ -14,6 +14,7 @@ from bayle.merging import build as B
 from bayle.mods import folder_check as fc
 from bayle.mods import folder_split as fs
 from bayle.mods import library, operations, undo
+from bayle.mods import models as mod_models
 from bayle.platform import trash
 
 NEW = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
@@ -165,7 +166,7 @@ def test_split_undo_refuses_when_a_profile_changed(world):
     loc, _home, profiles = world
     out = fs.split(profiles / "pack" / "a.me3", loc)
     (profiles / "a" / "a.me3").write_bytes(b"changed")
-    with pytest.raises(undo.UndoError, match="changed after the split"):
+    with pytest.raises(mod_models.UndoError, match="changed after the split"):
         undo.run({"type": fs.KIND, "operation": out["operation"]}, lambda s: None, loc=loc)
     assert (profiles / "a" / "a.me3").read_bytes() == b"changed"
 

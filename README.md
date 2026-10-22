@@ -2,8 +2,6 @@
 
 <img src="docs/assets/brand/bayle-wordmark.png" alt="Bayle Modding Suite" width="480">
 
-# Bayle Mod Manager
-
 **An all-in-one toolkit for managing mods, profiles, and saves, with tools for resolving compatibility issues and merging mod changes.**
 
 [![Release](https://img.shields.io/github/v/release/Carlomos7/roundtable-souls?include_prereleases&sort=semver)](https://github.com/Carlomos7/roundtable-souls/releases/latest)
@@ -13,10 +11,10 @@
 
 </div>
 
-Bayle Mod Manager (Bayle for short) is a desktop app that manages your me3 profiles and mods, edits mod settings, looks after your saves,
+Bayle Modding Suite (Bayle for short) is a desktop app that manages your me3 profiles and mods, edits mod settings, looks after your saves,
 and launches the game. Pick a game and a profile at the top, then press **Launch**.
 
-Bayle Mod Manager is an unofficial fan project and is not affiliated with or endorsed by FromSoftware or Bandai Namco.
+Bayle is an unofficial fan project and is not affiliated with or endorsed by FromSoftware or Bandai Namco.
 
 ## Features
 

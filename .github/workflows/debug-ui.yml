@@ -17,22 +17,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: S-activity_ops, cov: "0", sel: "tests/session/test_activity_ops.py tests/ui" }
-          - { name: S-events, cov: "0", sel: "tests/session/test_events.py tests/ui" }
-          - { name: S-job_manager, cov: "0", sel: "tests/session/test_job_manager.py tests/ui" }
-          - { name: S-mods_entry_ops, cov: "0", sel: "tests/session/test_mods_entry_ops.py tests/ui" }
-          - { name: S-mods_install_ops, cov: "0", sel: "tests/session/test_mods_install_ops.py tests/ui" }
-          - { name: S-mods_library_ops, cov: "0", sel: "tests/session/test_mods_library_ops.py tests/ui" }
-          - { name: S-mods_ops, cov: "0", sel: "tests/session/test_mods_ops.py tests/ui" }
-          - { name: S-mods_overhaul_ops, cov: "0", sel: "tests/session/test_mods_overhaul_ops.py tests/ui" }
-          - { name: S-mods_profile_ops, cov: "0", sel: "tests/session/test_mods_profile_ops.py tests/ui" }
-          - { name: S-operations, cov: "0", sel: "tests/session/test_operations.py tests/ui" }
-          - { name: S-plans, cov: "0", sel: "tests/session/test_plans.py tests/ui" }
-          - { name: S-profile_transfer_ops, cov: "0", sel: "tests/session/test_profile_transfer_ops.py tests/ui" }
-          - { name: S-saves_ops, cov: "0", sel: "tests/session/test_saves_ops.py tests/ui" }
-          - { name: S-settings_ops, cov: "0", sel: "tests/session/test_settings_ops.py tests/ui" }
-          - { name: S-shell_service, cov: "0", sel: "tests/session/test_shell_service.py tests/ui" }
-          - { name: S-startup, cov: "0", sel: "tests/session/test_startup.py tests/ui" }
+          - { name: T0, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_an_entry_goes_off_and_the_last_change_is_taken_back tests/ui" }
+          - { name: T1, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_change_waits_for_a_running_job_and_an_entry_that_is_gone_is_said tests/ui" }
+          - { name: T2, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_removing_an_entry_undo_brings_back_runs_at_once_and_its_record_undoes_it_byte_exact tests/ui" }
+          - { name: T3, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_removing_a_folder_another_entry_uses_asks_first_with_the_words_in_the_error tests/ui" }
+          - { name: T4, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_removal_of_an_entry_that_changed_is_refused_as_stale tests/ui" }
+          - { name: T5, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_removal_that_fails_is_a_failed_job_with_its_reason tests/ui" }
+          - { name: T6, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_move_the_dependencies_would_undo_is_returned_with_the_entry_that_decides tests/ui" }
+          - { name: T7, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_move_that_is_allowed_is_written_and_a_busy_session_refuses tests/ui" }
+          - { name: T8, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_mod_options_are_read_and_saved_as_a_typed_record tests/ui" }
+          - { name: T9, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_wait_that_is_not_a_number_is_refused_with_a_code tests/ui" }
+          - { name: T10, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_the_profile_text_is_edited_with_a_parse_gate_and_its_line_ends_kept tests/ui" }
+          - { name: T11, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_versions_are_listed_restored_and_a_copy_that_is_not_one_is_refused tests/ui" }
+          - { name: T12, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_mod_folders_no_entry_loads_are_listed_and_added tests/ui" }
+          - { name: T13, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_renaming_a_mod_previews_and_runs_as_a_job tests/ui" }
+          - { name: T14, cov: "0", sel: "tests/session/test_mods_entry_ops.py::test_a_holder_entry_is_removed_through_a_plan tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen

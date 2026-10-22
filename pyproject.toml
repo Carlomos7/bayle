@@ -47,8 +47,11 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests", "tests/unit"]
+addopts = "--import-mode=importlib"
+# importlib mode puts no test folder on sys.path, so the shared helpers (support, fakegame...) come from here
+pythonpath = ["tests", "tests/unit", "tests/ui/views", "tests/views"]
 markers = [
+    "ui_stall_ok: this test may block the UI thread past the stall threshold",
     "integration: needs a real Elden Ring save on this PC (skipped otherwise)",
     "real_recycle_bin: sends to the real Windows Recycle Bin; runs last, after every Qt window of the run",
 ]

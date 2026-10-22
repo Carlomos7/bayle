@@ -18,10 +18,6 @@ from bayle.ui import stall
 STALL_MS = float(os.environ.get("RS_UI_STALL_MS", stall.TEST_MS))
 
 
-def pytest_configure(config):
-    config.addinivalue_line("markers", "ui_stall_ok: this test may block the UI thread past the stall threshold")
-
-
 @pytest.fixture(autouse=True)
 def _io_stays_off_the_ui_thread():
     threads.enable()

@@ -1312,6 +1312,29 @@
         "title": "Handoff",
         "type": "object"
       },
+      "Health": {
+        "properties": {
+          "app_version": {
+            "title": "App Version",
+            "type": "string"
+          },
+          "contract_version": {
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "ready": {
+            "default": true,
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "app_version",
+          "contract_version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
       "IndexParams": {
         "additionalProperties": false,
         "properties": {
@@ -2202,6 +2225,24 @@
         "title": "Me3",
         "type": "object"
       },
+      "MergeHealth": {
+        "properties": {
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "level"
+        ],
+        "title": "MergeHealth",
+        "type": "object"
+      },
       "ModConfigsState": {
         "description": "The page's snapshot: the profile it was read for (\"\" when there is none) and its mods with settings files.",
         "properties": {
@@ -2372,7 +2413,7 @@
           "health": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/bayle__views__mods__Health"
+                "$ref": "#/components/schemas/MergeHealth"
               },
               {
                 "type": "null"
@@ -5743,29 +5784,6 @@
         "title": "Warned",
         "type": "object"
       },
-      "bayle__api__models__Health": {
-        "properties": {
-          "app_version": {
-            "title": "App Version",
-            "type": "string"
-          },
-          "contract_version": {
-            "title": "Contract Version",
-            "type": "string"
-          },
-          "ready": {
-            "default": true,
-            "title": "Ready",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "app_version",
-          "contract_version"
-        ],
-        "title": "Health",
-        "type": "object"
-      },
       "bayle__session__ops__mod_configs__Done": {
         "properties": {
           "ok": {
@@ -6263,24 +6281,6 @@
         ],
         "title": "FolderParams",
         "type": "object"
-      },
-      "bayle__views__mods__Health": {
-        "properties": {
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text",
-          "level"
-        ],
-        "title": "Health",
-        "type": "object"
       }
     },
     "securitySchemes": {
@@ -6433,7 +6433,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__api__models__Health"
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             },

@@ -71,7 +71,7 @@ class Group:
 
 
 @dataclass(frozen=True)
-class Health:
+class MergeHealth:
     text: str
     level: str  # success | warning | danger
 
@@ -106,7 +106,7 @@ class Notice:
 class ModsState:
     title: str
     counts: str
-    health: Health | None
+    health: MergeHealth | None
     groups: tuple[Group, ...]
     parameters: Parameters
     notices: tuple[Notice, ...]
@@ -361,18 +361,18 @@ class ModsPresenter:
         )
 
     # ---- header
-    def health(self, scan: dict | None) -> Health | None:
+    def health(self, scan: dict | None) -> MergeHealth | None:
         """The merge-health pill: red when files clash, amber when a rebuild is needed, green otherwise; None until
         the first scan lands."""
         if not scan:
             return None
         lost = load_order.lost_files(scan)
         if lost:
-            return Health(plural("{n} file clashes", "{n} files clash", lost).format(n=lost), "danger")
+            return MergeHealth(plural("{n} file clashes", "{n} files clash", lost).format(n=lost), "danger")
         state = (scan.get("health") or {}).get("state")
         if state in ("stale", "failed", "stacked"):
-            return Health(tr("Rebuild needed"), "warning")
-        return Health(tr("All mods apply"), "success")
+            return MergeHealth(tr("Rebuild needed"), "warning")
+        return MergeHealth(tr("All mods apply"), "success")
 
     # ---- groups and rows
     def _group(self, facts: PageFacts, kind: str, clashes: dict[str, int]) -> Group:

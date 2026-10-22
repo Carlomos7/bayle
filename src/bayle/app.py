@@ -5,7 +5,8 @@ identity, the settings as last read, the game the window shows (or --game asked 
 is handed what it needs from it. use_data_folder() runs first of all (the command line calls it before logging
 starts): the platform layer is told the data folder and the build's instance scope instead of reading the settings.
 
-create_app() also opens the launcher's database (storage.db), migrating it first when needed. When storage is
+create_app() first migrates the app data (migrate_data: storage.datamigrations, one-way, before anything reads it),
+and opens the launcher's database (storage.db) inside that, migrating it first when needed. When storage is
 refused for the run (storage.db.StorageUnavailable) the context has no database and says why; when a migration
 fails, MigrationFailed reaches the caller, which must not report the version ready. With a database, the hash
 cache and the activity log use it (once their old files' import is verified); without one, the hash cache is
@@ -20,6 +21,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from bayle import __version__
 from bayle.config import identity
 from bayle.config.settings import LauncherSettings, data_dir, load_settings
 from bayle.game import catalog
@@ -27,8 +29,9 @@ from bayle.game.locate import Locations
 from bayle.mods import rebuild as mod_rebuild
 from bayle.platform import data_folder, instance, paths
 from bayle.platform import logging as run_logging
+from bayle.services import legacy_journals
+from bayle.storage import datamigrations, mirror
 from bayle.storage import db as storage_db
-from bayle.storage import mirror
 from bayle.storage.activity import ActivityLog
 from bayle.storage.cache import HashCache
 from bayle.storage.imports import run_imports
@@ -110,17 +113,31 @@ def use_data_folder() -> Path:
     return data
 
 
+def migrate_data(open_db=None):
+    """The one place the app data is brought to this build's data version (storage.datamigrations), before anything
+    reads it: the Qt start (create_app, which passes the database open as open_db) and --backend both come here.
+    Raises datamigrations.MigrationError, a storage.db.MigrationFailed, when the folder is refused or the migration
+    failed; the caller must not report the version ready."""
+    return datamigrations.migrate(
+        data_folder.data_root(), __version__, recover_journals=legacy_journals.recover, open_db=open_db
+    )
+
+
 def create_app(start_game: catalog.Game | None = None) -> AppContext:
     """The context for one run: the game is start_game (--game), else the tab the window last showed."""
     data = use_data_folder()
-    settings = load_settings()
+    try:
+        storage = migrate_data(lambda: storage_db.open_database(data_folder.data_root()))
+    except storage_db.StorageUnavailable as e:
+        storage = None
+        storage_problem = str(e)
+        run_logging.log(f"storage: {e}")
+    else:
+        storage_problem = ""
+    settings = load_settings()  # after the migration: it may have rewritten the file
     game = start_game or catalog.get(settings.game)
     ctx = AppContext(identity.get(), settings, game, Locations.from_settings(settings, game), data)
-    try:
-        ctx.storage = storage_db.open_database(data_folder.data_root())
-    except storage_db.StorageUnavailable as e:
-        ctx.storage_problem = str(e)
-        run_logging.log(f"storage: {e}")
+    ctx.storage, ctx.storage_problem = storage, storage_problem
     if ctx.storage is not None:
         ctx.hash_cache = HashCache(ctx.storage, run_logging.log)
         ctx.activity = ActivityLog(ctx.storage, run_logging.log)

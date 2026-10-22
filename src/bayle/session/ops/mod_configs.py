@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from bayle.formats import code_syntax
 from bayle.overhauls.config import BasicNative
 from bayle.platform.text import tr
 from bayle.services import mod_configs
@@ -30,9 +31,13 @@ class PathParams(Params):
     path: str
 
 
+SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
+
+
 class OpenParams(PathParams):
     seamless: bool = False  # also read the Seamless Co-op panel (and the regulation fingerprint line for profile)
     profile: str = ""
+    form: bool = True  # also build the settings form for a file the form reads (not the overhaul setup's TOML)
 
 
 class FileRead(Result):
@@ -48,6 +53,11 @@ class FileRead(Result):
     seamless: mod_configs.Seamless | None = None
     fingerprint: str = ""
     fingerprint_note: str = ""
+    # what the form shows, from the presenter (the page does not parse settings files itself)
+    has_form: bool = False  # the file reads as settings (a TOML that does not parse has none)
+    form_note: str = ""  # why a settings-looking file opens as text
+    sections: list[dict[str, Any]] = []  # presenter.form: the rows (Seamless: without the sections its panel shows)
+    seamless_view: dict[str, Any] = {}  # presenter.seamless
 
 
 class Stamp(Result):
@@ -71,6 +81,8 @@ class Saved(Result):
     name: str
     saved: int  # settings written (text: 1)
     missing: tuple[str, ...] = ()  # Seamless keys the file does not have (nothing is appended)
+    said: str = ""  # the toast: what was saved
+    missing_said: str = ""  # the refusal's words for the missing keys ("" when none)
 
 
 class TieParams(Params):
@@ -109,6 +121,26 @@ class OverhaulForm(Result):
     choices: dict[str, Any]
     values: dict[str, Any]  # the working values; services.mod_configs.patch_values edits them
     new: bool
+    view: dict[str, Any] = {}  # presenter.overhaul for these values
+
+
+class ViewParams(FormParams):
+    choices: dict[str, Any]
+    values: dict[str, Any]
+
+
+class OverhaulView(Result):
+    view: dict[str, Any]
+
+
+class CheckParams(Params):
+    name: str  # the file's name: its suffix says the language
+    text: str
+
+
+class TextProblem(Result):
+    line: int = 0  # 1-based; 0: the text parses (or the language is not checked)
+    message: str = ""
 
 
 class SetupForm(Params):
@@ -128,6 +160,7 @@ class SaveSetupParams(ProfileParams):
 class SetupSaved(Result):
     name: str
     overhaul_id: str
+    said: str = ""  # the toast: what was saved
 
 
 class ApplyParams(ProfileParams):
@@ -181,17 +214,35 @@ def _not_saved(e: Exception) -> OperationError:
     return OperationError("not_saved", str(e))
 
 
+def _current_profile(session: Session) -> str:
+    """The .me3 the shell has picked; "" when the session has no shell or no profile."""
+    try:
+        got = session.service("shell", _no_shell).state.launch_profile
+    except OperationError:
+        return ""
+    return str(got.profile) if got is not None else ""
+
+
+def _no_shell() -> Any:
+    raise OperationError("no_shell", "This session has no shell.")
+
+
 @registry.page("mod_configs", scope=ModConfigsScope, view=ModConfigsState)
 def snapshot(session: Session, profile: str = "") -> ModConfigsState:
+    if not profile:  # none sent: the one the top bar has picked
+        profile = _current_profile(session)
     try:
         loc = session.locations()
     except OperationError as e:
         if e.code != "no_game":
             raise
-        return ModConfigsState("", ())
+        return ModConfigsState("", (), _presenter().words())
     if not profile or not Path(profile).is_file():
-        return ModConfigsState("", ())
-    return ModConfigsState(profile, tuple(mod_configs.tree(profile, loc=loc, settings=load_settings())))
+        return ModConfigsState("", (), _presenter().words())
+    nodes = tuple(mod_configs.tree(profile, loc=loc, settings=load_settings()))
+    words = _presenter()
+    tree = tuple(words.overhaul_node(n) if n.kind == mod_configs.OVERHAUL else words.node(n) for n in nodes)
+    return ModConfigsState(profile, nodes, words.words(), tree)
 
 
 # ----------------------------------------------------------------------------- one file
@@ -214,6 +265,13 @@ def open_file(call: Call, p: OpenParams) -> FileRead:
         words = ModsPresenter()
         line = words.fingerprint(fp, loc.game.regulation)
         note = words.parameters({}, False, fp).fingerprint_note if fp else ""
+    doc = mod_configs.parse_doc(path.name, opened.text) if p.form else None
+    has_form = doc is not None and (doc.toml is not None or doc.lang != "toml")
+    words = _presenter()
+    if has_form and doc is not None:
+        sections = words.form(doc, seamless=seamless is not None, skip=SEAMLESS_OWN if seamless is not None else ())
+    else:
+        sections = []
     return FileRead(
         path=str(path),
         text=opened.text,
@@ -224,6 +282,10 @@ def open_file(call: Call, p: OpenParams) -> FileRead:
         seamless=seamless,
         fingerprint=line,
         fingerprint_note=note,
+        has_form=has_form,
+        form_note=words.words()["noForm"] if doc is not None and not has_form else "",
+        sections=sections,
+        seamless_view=words.seamless(seamless, line, note) if seamless is not None else {},
     )
 
 
@@ -245,7 +307,15 @@ def save(call: Call, p: SaveParams) -> Saved:
             raise
         except Exception as e:
             raise _not_saved(e) from e
-        return Saved(name=path.name, saved=len(values) - len(missing), missing=tuple(missing))
+        words = _presenter()
+        n = len(values) - len(missing)
+        return Saved(
+            name=path.name,
+            saved=n,
+            missing=tuple(missing),
+            said=words.saved(n),
+            missing_said=words.missing_keys(path.name, list(missing)).body if missing else "",
+        )
     try:
         opened = mod_configs.open_file(path, form=False)
     except Exception as e:
@@ -255,11 +325,11 @@ def save(call: Call, p: SaveParams) -> Saved:
     try:
         if p.kind == "text":
             mod_configs.save_text(opened, p.text)
-            return Saved(name=path.name, saved=1)
+            return Saved(name=path.name, saved=1, said=_presenter().saved_text(path.name))
         mod_configs.save_values(opened, {(e.section or None, e.key): e.value for e in p.edits})
     except Exception as e:  # a setting only text can change, a character the encoding cannot hold
         raise _not_saved(e) from e
-    return Saved(name=path.name, saved=len(p.edits))
+    return Saved(name=path.name, saved=len(p.edits), said=_presenter().saved(len(p.edits)))
 
 
 @operation("mod_configs.attach", params=TieParams, result=Done, kind="command", writes=True)
@@ -307,7 +377,23 @@ def overhaul_form(call: Call, p: FormParams) -> OverhaulForm:
     setup = _setup_of(call.session, p)
     choices = mod_configs.overhaul_choices(setup, loc.game_dir())
     values = mod_configs.initial_values(choices, setup["config"])
-    return OverhaulForm(setup=setup, choices=choices, values=values, new=bool(p.folder))
+    view = _presenter().overhaul(setup, choices, values, mod_configs.step_lines(setup["config"]), bool(p.folder))
+    return OverhaulForm(setup=setup, choices=choices, values=values, new=bool(p.folder), view=view)
+
+
+@operation("mod_configs.overhaul_view", params=ViewParams, result=OverhaulView)
+def overhaul_view(call: Call, p: ViewParams) -> OverhaulView:
+    """The form's rows for the values as edited so far (a file's action shows or hides its game path)."""
+    setup = _setup_of(call.session, p)
+    steps = mod_configs.step_lines(setup["config"])
+    return OverhaulView(view=_presenter().overhaul(setup, p.choices, p.values, steps, bool(p.folder)))
+
+
+@operation("mod_configs.check_text", params=CheckParams, result=TextProblem)
+def check_text(call: Call, p: CheckParams) -> TextProblem:
+    """The editor's parse check (TOML, JSON, INI): the first error's line and words. Pure, nothing is read."""
+    found = code_syntax.first_error(code_syntax.language_for(p.name), p.text)
+    return TextProblem(line=found[0], message=found[1]) if found else TextProblem()
 
 
 def _config_with(setup: dict[str, Any], form: SetupForm, call: Call):
@@ -349,7 +435,7 @@ def save_setup(call: Call, p: SaveSetupParams) -> SetupSaved:
         raise OperationError("invalid_setup", str(e)) from e
     except Exception as e:  # a verified one, changed on disk since, a config that would not read back
         raise _not_saved(e) from e
-    return SetupSaved(name=Path(out).name, overhaul_id=config.id)
+    return SetupSaved(name=Path(out).name, overhaul_id=config.id, said=_presenter().saved_text(Path(out).name))
 
 
 @operation(

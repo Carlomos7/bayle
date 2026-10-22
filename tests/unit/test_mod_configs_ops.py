@@ -258,3 +258,58 @@ def test_busy_gates_the_install_job(world):
     with pytest.raises(OperationError) as e:
         s.run("mod_configs.apply_setup", {"profile": str(world.profile), "overhaul_id": "x"})
     assert e.value.code == "busy"
+
+
+def test_the_page_and_the_open_file_carry_the_words_and_the_form(world):
+    ini = ini_of(world)
+    s = make(world)
+    state = s.snapshot("mod_configs", profile=str(world.profile))
+    assert state.words["save"] == "Save" and state.tree[0]["name"] == "Seamless Co-op"
+    assert state.tree[0]["files"][0]["path"] == str(ini)
+    got = s.run("mod_configs.open", {"path": str(ini), "seamless": True, "profile": str(world.profile)})
+    assert got.has_form and got.seamless_view["hasPassword"] and got.seamless_view["password"] == "room"
+    assert [sec["path"] for sec in got.sections] == ["GAMEPLAY"]  # the password section is the panel's own
+    assert got.sections[0]["rows"][0]["key"] == "allow_invaders"
+    plain = s.run("mod_configs.open", {"path": str(ini), "form": False})
+    assert plain.sections == [] and not plain.has_form
+
+
+def test_a_save_says_what_it_saved_and_the_editor_check_gives_the_line(world):
+    ini = ini_of(world)
+    s = make(world)
+    read = s.run("mod_configs.open", {"path": str(ini)})
+    done = s.run(
+        "mod_configs.save",
+        {
+            "path": str(ini),
+            "expect": read.sha,
+            "kind": "values",
+            "edits": [{"section": "GAMEPLAY", "key": "allow_invaders", "value": "0"}],
+        },
+    )
+    assert "1 setting saved" in done.said
+    bad = s.run("mod_configs.check_text", {"name": "a.toml", "text": "a = 1\nb = \n"})
+    assert bad.line == 2 and bad.message.startswith("Line 2")
+    assert s.run("mod_configs.check_text", {"name": "a.toml", "text": "a = 1\n"}).line == 0
+    assert s.run("mod_configs.check_text", {"name": "a.txt", "text": "= ="}).line == 0
+
+
+def test_the_overhaul_view_follows_the_values_as_edited(world):
+    set_up(world)
+    s = make(world)
+    profile = str(world.profile)
+    form = s.run("mod_configs.overhaul_form", {"profile": profile})
+    assert form.view["label"] and [x["title"] for x in form.view["sections"]][0] == "MixedMod.dll"
+    rows = [r["key"] for x in form.view["sections"] for r in x["rows"]]
+    assert "early:MixedMod.dll" in rows and not any(k.startswith("target:") for k in rows)
+    values = form.values
+    some = next(iter(values["files"]))
+    mod_configs.patch_values(values, mod_configs.FormPatch("file", some, "place"))
+    shown = s.run("mod_configs.overhaul_view", {"profile": profile, "choices": form.choices, "values": values})
+    assert f"target:{some}" in [r["key"] for x in shown.view["sections"] for r in x["rows"]]
+
+
+def test_the_page_follows_the_shell_when_no_profile_is_sent(world):
+    ini_of(world)
+    s = make(world)
+    assert s.snapshot("mod_configs").profile == ""  # no shell in this session

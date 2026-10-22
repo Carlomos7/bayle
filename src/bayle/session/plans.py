@@ -40,6 +40,7 @@ class Plan:
     id: str
     words: Prompt
     expires_at: float  # on the store's clock
+    destructive: bool = False  # the change loses something (a replaced save): a window styles its button for it
 
     def to_dict(self) -> dict:
         return {"id": self.id, "expires_at": self.expires_at, "prompt": prompt_dict(self.words)}
@@ -53,6 +54,7 @@ class Proposal:
     words: Prompt
     run: Callable[[Answer], Any]
     stale: Callable[[], object] | None = None
+    destructive: bool = False
 
 
 @dataclass
@@ -70,12 +72,18 @@ class PlanStore:
         self._entries: dict[str, _Entry] = {}
         self._ids = itertools.count(1)
 
-    def add(self, words: Prompt, run: Callable[[Answer], Any], stale: Callable[[], object] | None = None) -> Plan:
+    def add(
+        self,
+        words: Prompt,
+        run: Callable[[Answer], Any],
+        stale: Callable[[], object] | None = None,
+        destructive: bool = False,
+    ) -> Plan:
         """Keep a question and what to do with its answer. stale: a cheap read of what the plan was made from (a
         profile's mtime, a version); execute() refuses when it no longer equals what it was now."""
         with self._lock:
             self._drop_expired()
-            plan = Plan(f"p{next(self._ids)}", words, self._clock() + self._ttl)
+            plan = Plan(f"p{next(self._ids)}", words, self._clock() + self._ttl, destructive)
             self._entries[plan.id] = _Entry(plan, run, stale, None if stale is None else stale())
         return plan
 

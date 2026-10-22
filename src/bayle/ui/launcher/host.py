@@ -155,6 +155,7 @@ class ShellHost(QObject):
         )
         self.flow = launch.LaunchFlow(self.state, _FlowPorts(self))
         self._session_jobs: dict[str, str] = {}  # session jobs running, by id: their title
+        self._followers: dict[str, Callable[[Any], None]] = {}  # job id -> what to do with its end (follow_job)
         self.session = Session(
             JobManager(
                 game_running=lambda: self.state.game_running,
@@ -199,10 +200,22 @@ class ShellHost(QObject):
             elif e.type in ("finished", "failed", "cancelled"):
                 title = self._session_jobs.pop(e.job_id, "")
                 ok = e.type == "finished"
+                follower = self._followers.pop(e.job_id, None)
                 status = (
                     "Finished" if ok else "Error (see details)" if e.data.get("unexpected") else "Stopped (see details)"
                 )
                 self._done(Outcome(ok, status), title, "other", None)
+                if follower is not None:
+                    follower(self.session.jobs.get(e.job_id))
+
+    def follow_job(self, job_id: str, done: Callable[[Any], None]) -> None:
+        """done(JobSnapshot) on the UI thread when the session job ends (at once when it already has). A page tells
+        the job's result with it (a toast with Undo, a read of the page)."""
+        snap = self.session.jobs.get(job_id)
+        if snap is not None and snap.state != "running":
+            done(snap)
+        else:
+            self._followers[job_id] = done
 
     # ---------------------------------------------------------------- the host contract: state
     @property

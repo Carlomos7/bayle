@@ -35,6 +35,22 @@
         "title": "ActivityState",
         "type": "object"
       },
+      "Adopted": {
+        "properties": {
+          "folders": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Folders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "folders"
+        ],
+        "title": "Adopted",
+        "type": "object"
+      },
       "ApplyParams": {
         "additionalProperties": false,
         "properties": {
@@ -52,6 +68,40 @@
           "overhaul_id"
         ],
         "title": "ApplyParams",
+        "type": "object"
+      },
+      "BackUpParams": {
+        "additionalProperties": false,
+        "properties": {
+          "everything": {
+            "default": false,
+            "title": "Everything",
+            "type": "boolean"
+          },
+          "paths": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Paths",
+            "type": "array"
+          }
+        },
+        "title": "BackUpParams",
+        "type": "object"
+      },
+      "BackupRef": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backup"
+        ],
+        "title": "BackupRef",
         "type": "object"
       },
       "BasicNative": {
@@ -283,6 +333,35 @@
         "title": "Changed",
         "type": "object"
       },
+      "CharacterParams": {
+        "additionalProperties": false,
+        "properties": {
+          "dst_slot": {
+            "title": "Dst Slot",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "src_slot": {
+            "title": "Src Slot",
+            "type": "integer"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "src_slot",
+          "target",
+          "dst_slot"
+        ],
+        "title": "CharacterParams",
+        "type": "object"
+      },
       "Choice": {
         "description": "One entry of a filter drop-down: the value it filters by (\"\" for all) and its label.",
         "properties": {
@@ -349,6 +428,29 @@
         "title": "ConfigFile",
         "type": "object"
       },
+      "CopyEntry": {
+        "properties": {
+          "changed_outside": {
+            "title": "Changed Outside",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "changed_outside"
+        ],
+        "title": "CopyEntry",
+        "type": "object"
+      },
       "CopyParams": {
         "additionalProperties": false,
         "properties": {
@@ -376,6 +478,25 @@
           "job_id"
         ],
         "title": "CopyParams",
+        "type": "object"
+      },
+      "CopyRef": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder",
+          "entry_id"
+        ],
+        "title": "CopyRef",
         "type": "object"
       },
       "CopyText": {
@@ -687,18 +808,24 @@
         "title": "FinishedEvent",
         "type": "object"
       },
-      "FolderParams": {
-        "additionalProperties": false,
+      "Folder": {
         "properties": {
-          "kind": {
-            "title": "Kind",
-            "type": "string"
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
           }
         },
         "required": [
-          "kind"
+          "path"
         ],
-        "title": "FolderParams",
+        "title": "Folder",
         "type": "object"
       },
       "FolderPath": {
@@ -784,28 +911,6 @@
           "contract_version"
         ],
         "title": "Health",
-        "type": "object"
-      },
-      "ImportParams": {
-        "additionalProperties": false,
-        "properties": {
-          "resource": {
-            "title": "Resource",
-            "type": "string"
-          },
-          "skip": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Skip",
-            "type": "array"
-          }
-        },
-        "required": [
-          "resource"
-        ],
-        "title": "ImportParams",
         "type": "object"
       },
       "IniParams": {
@@ -1011,6 +1116,44 @@
           "job_id"
         ],
         "title": "JobStarted",
+        "type": "object"
+      },
+      "KeepAsParams": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backup",
+          "name"
+        ],
+        "title": "KeepAsParams",
+        "type": "object"
+      },
+      "KeepParams": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          },
+          "keep": {
+            "default": true,
+            "title": "Keep",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backup"
+        ],
+        "title": "KeepParams",
         "type": "object"
       },
       "LayoutCheck": {
@@ -1887,6 +2030,105 @@
         "title": "RelocateParams",
         "type": "object"
       },
+      "RenameParams": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder",
+          "entry_id",
+          "name"
+        ],
+        "title": "RenameParams",
+        "type": "object"
+      },
+      "RepairParams": {
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "keys"
+        ],
+        "title": "RepairParams",
+        "type": "object"
+      },
+      "ReplaceCopyParams": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder",
+          "entry_id",
+          "target"
+        ],
+        "title": "ReplaceCopyParams",
+        "type": "object"
+      },
+      "ReplaceFileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "ReplaceFileParams",
+        "type": "object"
+      },
       "ResourceRef": {
         "additionalProperties": false,
         "properties": {
@@ -1899,6 +2141,25 @@
           "resource"
         ],
         "title": "ResourceRef",
+        "type": "object"
+      },
+      "RestoreParams": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backup",
+          "target"
+        ],
+        "title": "RestoreParams",
         "type": "object"
       },
       "ResyncData": {
@@ -1956,6 +2217,38 @@
           "data"
         ],
         "title": "ResyncEvent",
+        "type": "object"
+      },
+      "Said": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Said",
+        "type": "object"
+      },
+      "SaveCopyParams": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "name"
+        ],
+        "title": "SaveCopyParams",
         "type": "object"
       },
       "SaveParams": {
@@ -2069,6 +2362,42 @@
           "saved"
         ],
         "title": "Saved",
+        "type": "object"
+      },
+      "SavesState": {
+        "description": "The page's facts. The presenter (views.saves) words them; which save the profile plays on is the host's.",
+        "properties": {
+          "backups": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Backups",
+            "type": "array"
+          },
+          "infos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Infos",
+            "type": "array"
+          },
+          "libraries": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Libraries",
+            "type": "object"
+          }
+        },
+        "required": [
+          "infos",
+          "libraries",
+          "backups"
+        ],
+        "title": "SavesState",
         "type": "object"
       },
       "ScalingSpec": {
@@ -2521,6 +2850,39 @@
         "title": "ShareText",
         "type": "object"
       },
+      "Sheet": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Sheet",
+        "type": "object"
+      },
+      "SheetParams": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "slot"
+        ],
+        "title": "SheetParams",
+        "type": "object"
+      },
       "Stamp": {
         "properties": {
           "stamp": {
@@ -2596,6 +2958,30 @@
           "data"
         ],
         "title": "StartedEvent",
+        "type": "object"
+      },
+      "StrandedParams": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "restore": {
+            "title": "Restore",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "folder",
+          "entry_id",
+          "restore"
+        ],
+        "title": "StrandedParams",
         "type": "object"
       },
       "SummaryCard": {
@@ -2683,6 +3069,25 @@
         "title": "TieParams",
         "type": "object"
       },
+      "UndoParams": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          },
+          "save": {
+            "title": "Save",
+            "type": "string"
+          }
+        },
+        "required": [
+          "save",
+          "backup"
+        ],
+        "title": "UndoParams",
+        "type": "object"
+      },
       "Unseen": {
         "properties": {
           "count": {
@@ -2734,6 +3139,17 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "Warned": {
+        "properties": {
+          "warning": {
+            "default": "",
+            "title": "Warning",
+            "type": "string"
+          }
+        },
+        "title": "Warned",
         "type": "object"
       },
       "bayle__session__ops__mod_configs__ExportParams": {
@@ -2825,6 +3241,89 @@
           "folder"
         ],
         "title": "ExportParams",
+        "type": "object"
+      },
+      "bayle__session__ops__profile_transfer__ImportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "skip": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Skip",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resource"
+        ],
+        "title": "ImportParams",
+        "type": "object"
+      },
+      "bayle__session__ops__saves__FolderParams": {
+        "additionalProperties": false,
+        "properties": {
+          "which": {
+            "enum": [
+              "saves",
+              "backups",
+              "library"
+            ],
+            "title": "Which",
+            "type": "string"
+          }
+        },
+        "required": [
+          "which"
+        ],
+        "title": "FolderParams",
+        "type": "object"
+      },
+      "bayle__session__ops__saves__ImportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "ImportParams",
+        "type": "object"
+      },
+      "bayle__session__ops__settings__FolderParams": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "FolderParams",
         "type": "object"
       }
     },
@@ -4091,7 +4590,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ImportParams"
+                "$ref": "#/components/schemas/bayle__session__ops__profile_transfer__ImportParams"
               }
             }
           },
@@ -4268,6 +4767,978 @@
         ]
       }
     },
+    "/v1/ops/saves.adopt_legacy": {
+      "post": {
+        "operationId": "op_saves_adopt_legacy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Adopted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.adopt_legacy (command, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.back_up": {
+      "post": {
+        "operationId": "op_saves_back_up",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackUpParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.back_up (job, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.copy_character": {
+      "post": {
+        "operationId": "op_saves_copy_character",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.copy_character (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.copy_entry": {
+      "post": {
+        "operationId": "op_saves_copy_entry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyEntry"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.copy_entry (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.default_name": {
+      "post": {
+        "operationId": "op_saves_default_name",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.default_name (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.delete_backup": {
+      "post": {
+        "operationId": "op_saves_delete_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.delete_backup (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.finish_stranded": {
+      "post": {
+        "operationId": "op_saves_finish_stranded",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrandedParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Warned"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.finish_stranded (command, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.folder": {
+      "post": {
+        "operationId": "op_saves_folder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/bayle__session__ops__saves__FolderParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.folder (command, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.health_report": {
+      "post": {
+        "operationId": "op_saves_health_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.health_report (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.import_files": {
+      "post": {
+        "operationId": "op_saves_import_files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/bayle__session__ops__saves__ImportParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.import_files (job)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.keep_as": {
+      "post": {
+        "operationId": "op_saves_keep_as",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepAsParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.keep_as (command, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.keep_backup": {
+      "post": {
+        "operationId": "op_saves_keep_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.keep_backup (command, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.post_session_repair": {
+      "post": {
+        "operationId": "op_saves_post_session_repair",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.post_session_repair (job, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.remove_copy": {
+      "post": {
+        "operationId": "op_saves_remove_copy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.remove_copy (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.rename_copy": {
+      "post": {
+        "operationId": "op_saves_rename_copy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.rename_copy (command, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.repair": {
+      "post": {
+        "operationId": "op_saves_repair",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.repair (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.replace_from_file": {
+      "post": {
+        "operationId": "op_saves_replace_from_file",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceFileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.replace_from_file (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.replace_from_library": {
+      "post": {
+        "operationId": "op_saves_replace_from_library",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceCopyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.replace_from_library (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.restore_backup": {
+      "post": {
+        "operationId": "op_saves_restore_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.restore_backup (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.save_copy": {
+      "post": {
+        "operationId": "op_saves_save_copy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCopyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.save_copy (job)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.sheet": {
+      "post": {
+        "operationId": "op_saves_sheet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SheetParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sheet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.sheet (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.undo_change": {
+      "post": {
+        "operationId": "op_saves_undo_change",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UndoParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.undo_change (job, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
     "/v1/ops/settings.clear_leftovers": {
       "post": {
         "operationId": "op_settings_clear_leftovers",
@@ -4301,7 +5772,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FolderParams"
+                "$ref": "#/components/schemas/bayle__session__ops__settings__FolderParams"
               }
             }
           },
@@ -4709,6 +6180,32 @@
           }
         ],
         "summary": "Page Profile Transfer",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/saves": {
+      "get": {
+        "operationId": "page_saves",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavesState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Page Saves",
         "tags": [
           "pages"
         ]

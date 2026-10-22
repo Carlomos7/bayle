@@ -70,7 +70,9 @@ class OperationSpec:
     result: type[BaseModel]
     kind: Kind
     writes: bool
-    title: str = ""  # a job's title in the top bar and Activity; the operation's name when empty
+    title: str | Callable[[Any], str] = (
+        ""  # a job's title (top bar, Activity): fixed, or from its params; default: the name
+    )
 
     @property
     def page(self) -> str:
@@ -91,9 +93,9 @@ class OperationRegistry:
         result: type[BaseModel],
         kind: Kind = "read",
         writes: bool = False,
-        title: str = "",
+        title: str | Callable[[Any], str] = "",
     ) -> Callable[[Callable[[Call, Any], Any]], Callable[[Call, Any], Any]]:
-        """Register fn(call, params) -> result. A duplicate name, an unknown kind, or a read that writes raises
+        """Register fn(call, params) -> result. title(params) names a job for the client (default: name). A duplicate name, an unknown kind, or a read that writes raises
         ValueError at once (a wiring mistake, not a runtime condition)."""
         if kind not in _KINDS:
             raise ValueError(f"operation {name}: unknown kind {kind!r}")
@@ -237,7 +239,7 @@ class Session:
             return spec.result.model_validate(spec.fn(Call(self), p))
         return self.start(
             lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)),
-            title=spec.title or name,
+            title=(spec.title(p) if callable(spec.title) else spec.title) or name,
             writes=spec.writes,
         )
 
@@ -246,7 +248,7 @@ class Session:
             return got
         if not isinstance(self.plans, PlanStore):
             raise OperationError("no_plans", "This session takes no plans.")
-        return self.plans.add(got.words, got.run, got.stale)
+        return self.plans.add(got.words, got.run, got.stale, got.destructive)
 
     def answer(self, token: str, answers: Mapping[str, Any]) -> Any:
         """Answer a plan the client was handed; the plan store decides what runs."""

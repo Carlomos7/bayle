@@ -5,6 +5,7 @@ PNGs of the drag states."""
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from page_window import PageWindow
@@ -20,7 +21,9 @@ class Host:
     game_running = False
     locations = None  # nothing is read from disk: the test fills the adapter by hand
 
-    def run_job(self, job, status):
+    session = SimpleNamespace(run=lambda name, params: SimpleNamespace(text="A name"))  # saves.default_name
+
+    def follow_job(self, job_id, done):
         raise AssertionError("the drop only reaches the twin's slot")
 
     def run_in_background(self, work, on_result):
@@ -52,12 +55,10 @@ def info(kind, name, chars):
 
 @pytest.fixture
 def page(qt_app, monkeypatch):
-    monkeypatch.setattr("bayle.saves.library.default_name", lambda path, game: "A name")
     host = Host()
     w = PageWindow(registered("saves"), host)
     assert w.build(), w.warnings
     a = w.adapter
-    a._game = lambda: None
     calls = []
     for name in ("copyCharacter", "replaceFromLibrary", "restoreBackup", "backUpNow"):
         setattr(a, name, lambda *args, _n=name: calls.append((_n, args)))

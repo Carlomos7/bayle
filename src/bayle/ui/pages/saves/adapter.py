@@ -1,11 +1,10 @@
 """The Saves page's adapter: the thin QObject the QML page binds to (technical specification §8.10, Saves). What to show
-comes from the presenter, what a change does from services/saves.py and the saves package.
+comes from the presenter, what a change does from the session's saves operations (session/ops/saves.py).
 
-The read (every live save, the Library, the Backups) runs on the host's worker. Each of the five operations is one
-slot: it checks the game is closed and no job runs, plans the change on the worker, asks in the presenter's words, and
-runs the write as a logged job whose body waits for the game to let go of the file (services.saves.assert_writable),
-backs up first and records how to take it back (the Activity's Undo). The result is told by a toast with Undo once the
-page is read again."""
+The read (every live save, the Library, the Backups) is the session's `saves` snapshot, run on the host's worker. Each
+write is an operation: a plan (the presenter's words asked through the Notifier, the answer sent back) whose answer
+starts a job, or a job at once. The adapter follows the job on the host, tells its result with Undo once the page is
+read again, and holds no decision about what to write or how to back it up."""
 
 from __future__ import annotations
 
@@ -14,18 +13,13 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from bayle.game import catalog as games
-from bayle.mods import undo as mod_undo
-from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
-from bayle.saves import backups as save_backups
-from bayle.saves import library as save_library
-from bayle.saves import repair as save_repair
-from bayle.saves import transfer as save_transfer
-from bayle.services import saves as saves_service
+from bayle.services.errors import OperationError
+from bayle.services.saves_page import retention_limits
+from bayle.session import Session
 from bayle.ui.notifications import Notifier
 from bayle.ui.refresh import Refresher
-from bayle.views.mods import Refusal
+from bayle.views.common import Refusal
 from bayle.views.saves import SavesPresenter
 
 
@@ -38,28 +32,15 @@ class SavesHost(Protocol):
     def game_running(self) -> bool: ...
     @property
     def locations(self) -> Any: ...
-    def run_job(self, job, status: str) -> None: ...
+    @property
+    def session(self) -> Session: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def follow_job(self, job_id: str, done) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None: ...
     def open_path(self, path: Path) -> None: ...
     def saves_in_use(self) -> dict:
         """The save files the profile in use plays on by name: {active, standard, coop} ({} without a profile)."""
         ...
-
-
-def apply_repairs(path: Path, calls: dict, *, loc) -> Path | None:
-    """Check & repair's writes, in order: loading fixes, mod items, checksums, the regulation block. Returns the
-    FIRST backup taken (the file as it was before anything changed), which is what Undo goes back to."""
-    backups = []
-    if calls["loading"]:
-        backups.append(saves_service.fix_loading(path, selection=calls["loading"], loc=loc).get("backup"))
-    if calls["vanilla"]:
-        backups.append(saves_service.restore_vanilla(path, selection=calls["vanilla"], loc=loc).get("backup"))
-    if calls["checksums"]:
-        backups.append(saves_service.fix_checksums(path, loc=loc).get("backup"))
-    if calls["regulation"]:
-        saves_service.repair_save(path, loc=loc)
-    return next((b for b in backups if b), None)
 
 
 class SavesAdapter(QObject):
@@ -81,7 +62,8 @@ class SavesAdapter(QObject):
         self._names: dict = {}
         self._loading = False
         self._refresher = Refresher(host, lambda: host.locations, self._build, self._apply, busy=self._set_loading)
-        self._after: dict = {}  # filled by a job: {text, save, backup}; told at the next read
+        self._after: dict = {}  # a write's result {text, save, backup}; told at the next read
+        self._adopt = False  # the next read is a user's Refresh: it also takes in older backup folders
         self._sheet_path, self._sheet_slot = "", 0
         self._repair_path = ""
         self._repair_slot = -1
@@ -105,9 +87,7 @@ class SavesAdapter(QObject):
     libraryRows = Property(list, lambda self: self.presenter.library_rows(self._libs)[0], notify=changed)
     libraryProblems = Property(list, lambda self: self.presenter.library_rows(self._libs)[1], notify=changed)
     backupDays = Property(list, lambda self: self.presenter.backup_days(self._backups), notify=changed)
-    retention = Property(
-        str, lambda self: self.presenter.retention(save_backups.KEEP_NEWEST, save_backups.KEEP_DAYS), constant=True
-    )
+    retention = Property(str, lambda self: self.presenter.retention(*retention_limits()), constant=True)
     # Check & repair
     repairOpen = Property(bool, lambda self: bool(self._repair_path), notify=repairChanged)
     repairCard = Property(dict, lambda self: self._repair_card(), notify=repairChanged)
@@ -175,23 +155,20 @@ class SavesAdapter(QObject):
         self.notifier.toast(tr("Open a character's menu and pick Copy character to..."))
 
     def _open_saves_folder(self) -> None:
-        if self._infos:
-            self.host.open_path(Path(self._infos[0]["path"]).parent)
+        self._open("saves")
 
     def backUpAll(self) -> None:
         """Saves > Back up now: one backup of every live save of this game."""
-        if self._blocked():
-            return
-        paths = [Path(i["path"]) for i in self._infos]
-
-        def body(loc):
-            made = [saves_service.back_up_now(p, loc=loc) for p in paths]
-            return {"text": tr("Backed up {n} save file(s).").format(n=len(made))}
-
-        self._write("back up now", tr("Backing up saves..."), body)
+        if not self._blocked():
+            self._job("saves.back_up", {"everything": True})
 
     @Slot()
     def refresh(self) -> None:
+        """The user's Refresh (and the page being shown): also takes in older tools' backup folders, then reads."""
+        self._adopt = True
+        self._refresher.request()
+
+    def _read(self) -> None:
         self._refresher.request()
 
     def _set_loading(self, on: bool) -> None:
@@ -201,27 +178,22 @@ class SavesAdapter(QObject):
     def _build(self, loc):
         if loc is None:
             return [], {}, [], {}
-        game = loc.game
+        session, adopt, self._adopt = self.host.session, self._adopt, False
         try:
             names = self.host.saves_in_use()  # before the read: the locations learn the names
         except Exception:
             names = {}
-        files = loc.save_files()
-        for d in {p.parent for p in files}:  # older tools may still drop backup folders beside the saves
-            save_backups.adopt_legacy_save_folders(d, game, again=True)
-        infos = [saves_service.save_info(p, game, loc=loc) for p in files]
-        libs = {str(f): save_library.load(f) for f in sorted({p.parent for p in files})}
-        try:
-            backups = saves_service.list_backups(loc=loc)
-        except Exception:
-            backups = []
-        return infos, libs, backups, names
+        if adopt:
+            try:
+                session.run("saves.adopt_legacy")
+            except OperationError:
+                pass  # the read still shows what is there
+        state = session.snapshot("saves")
+        return state.infos, state.libraries, state.backups, names
 
     def _apply(self, got) -> None:
         infos, libs, backups, names = got
-        loc = self.host.locations
-        self._infos = [i for i in infos if loc is None or games.for_save(i["path"]) in (loc.game, None)]
-        self._libs, self._backups, self._names = libs, backups, names
+        self._infos, self._libs, self._backups, self._names = infos, libs, backups, names
         self.changed.emit()
         if self._repair_path:
             self._reload_repair()
@@ -235,29 +207,17 @@ class SavesAdapter(QObject):
     def _tell(self, after: dict) -> None:
         text = after.get("text", "")
         if after.get("backup"):
-            save, backup = after["save"], after["backup"]
+            save, backup = Path(after["save"]), Path(after["backup"])
             self.notifier.toast_action(text, self._words["undo"], lambda: self._undo(save, backup))
         elif text:
             self.notifier.toast(text)
 
     def _undo(self, save: Path, backup: Path) -> None:
         """The toast's Undo: the same record the Activity page offers (mods.undo, type save-restore)."""
-        record = {"type": "save-restore", "save": str(save), "backup": str(backup), "name": save.name}
-        if self._blocked():
-            return
+        if not self._blocked():
+            self._job("saves.undo_change", {"save": str(save), "backup": str(backup)}, tell=False)
 
-        def job(_launch, loc):
-            run_logging.start_log(f"launcher: undo the last change to {save.name}", loc.game.key)
-            try:
-                said = mod_undo.run(record, run_logging.log, loc=loc)
-            except (mod_undo.UndoError, OSError) as e:
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-            run_logging.log(f"done: {said}")
-
-        self.host.run_job(job, tr("Undoing the change to {name}...").format(name=save.name))
-
-    # ---- the gate every write goes through
+    # ---- the gate every write goes through (the session enforces it too; this tells the player at once)
     def _blocked(self, read_only: bool = False) -> bool:
         """read_only: a twin that only reads the live save (Save a copy, Import) is refused for a running job only."""
         if self.host.busy or (self.host.game_running and not read_only):
@@ -270,57 +230,86 @@ class SavesAdapter(QObject):
     def _refuse(self, r: Refusal) -> None:
         self.notifier.toast(f"{r.title}. {r.body}", error=True)
 
-    def _write(self, log_title: str, status: str, body) -> None:
-        """Run body(loc) as a logged job. body returns {text, save?, backup?}: the toast's words, and how to take
-        the change back (the Activity's Undo and the toast's)."""
-        after = self._after
+    def _fail(self, e: OperationError, title: str = "") -> None:
+        if e.code == "busy":
+            self._refuse(
+                self.presenter.refusal_busy(self._game_name(), (e.details or {}).get("reason") == "game_running")
+            )
+        elif title:
+            self._refuse(Refusal(title, e.message))
+        else:
+            self.notifier.toast(e.message, error=True)
 
-        def job(_launch, loc):
-            run_logging.start_log(f"launcher: {log_title}", loc.game.key)
+    # ---- asking the session (on the host's worker; the answer lands on the UI thread)
+    def _call(self, name: str, params: dict | None, done=None, fail: str = "", settle=None) -> None:
+        """Run an operation. done(result) on success; an OperationError is a toast (titled fail); settle() either way."""
+        session = self.host.session
+
+        def work():
             try:
-                out = body(loc)
-            except Exception as e:
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-            if out.get("backup"):
-                run_logging.set_undo(
-                    {
-                        "type": "save-restore",
-                        "save": str(out["save"]),
-                        "backup": str(out["backup"]),
-                        "name": Path(out["save"]).name,
-                    }
-                )
-            after.clear()
-            after.update(out)
-            run_logging.log(f"done: {out['text']}")
+                return session.run(name, params)
+            except OperationError as e:
+                return e
 
-        self.host.run_job(job, status)
+        def landed(got) -> None:
+            if isinstance(got, OperationError):
+                self._fail(got, fail)
+            elif done is not None:
+                done(got)
+            if settle is not None:
+                settle()
 
-    def _plan(self, work, then) -> None:
-        """Plan a change on the worker (it reads whole saves), then ask about it. work() -> a Refusal or (Confirm,
-        context, destructive); then(context) runs on the user's yes."""
+        self.host.run_in_background(work, landed)
 
-        def done(got) -> None:
-            if isinstance(got, Refusal):
-                self._refuse(got)
+    def _job(self, name: str, params: dict | None, tell: bool = True) -> None:
+        """Run a job operation and follow it: when it ends its result is told (tell) and the page is read again."""
+        self._call(name, params, lambda job_id: self._follow(job_id, tell))
+
+    def _follow(self, job_id: str, tell: bool = True) -> None:
+        def ended(snap) -> None:
+            if tell and snap is not None and snap.state == "done" and isinstance(snap.result, dict):
+                self._after.update(snap.result)
+            self._read()
+
+        self.host.follow_job(job_id, ended)
+
+    def _ask(self, name: str, params: dict, fail: str = "", then=None) -> None:
+        """A plan operation: the session offers it, the Notifier asks in its words, and the answer goes back. A job
+        the answer starts is followed; one that finishes inline (a removal) calls then()."""
+
+        def offered(plan) -> None:
+            if isinstance(plan, Refusal):
+                self._refuse(plan)
                 return
-            words, context, destructive = got
             self.notifier.ask(
-                words, lambda ok, _o: then(context) if ok and not self._blocked() else None, destructive=destructive
+                plan.words,
+                lambda ok, option: self._answer(plan.id, ok, option, fail, then),
+                destructive=plan.destructive,
             )
 
-        def safe():
+        self._call(name, params, offered, fail)
+
+    def _answer(self, plan_id: str, ok: bool, option: bool, fail: str, then) -> None:
+        session = self.host.session
+
+        def work():
             try:
-                return work()
-            except Exception as e:
-                return Refusal(tr("This cannot be done"), str(e))
+                return session.answer(plan_id, {"ok": ok, "option": bool(option)})
+            except OperationError as e:  # busy, expired, or changed since
+                return e
 
-        self.host.run_in_background(safe, done)
+        def landed(got) -> None:
+            if isinstance(got, OperationError):
+                self._fail(got, fail)
+            elif ok and isinstance(got, str):
+                self._follow(got)
+            elif ok and then is not None:
+                then()
 
-    def _game(self):
-        loc = self.host.locations
-        return loc.game
+        self.host.run_in_background(work, landed)
+
+    def _open(self, which: str) -> None:
+        self._call("saves.folder", {"which": which}, lambda f: self.host.open_path(Path(f.path)) if f.path else None)
 
     # ---- drag and drop (every drop is one of the menu twins' slots below, after the presenter's one rule set)
     @staticmethod
@@ -360,16 +349,12 @@ class SavesAdapter(QObject):
         """One character out of a Library copy into a slot: copyCharacter with the copy's file as the source."""
         if self._blocked():
             return
-        try:
-            entry = save_library.find(self._libs.get(folder) or save_library.load(Path(folder)), entry_id)
-            src = save_library.entry_path(Path(folder), entry)
-        except Exception as e:
-            self._refuse(Refusal(tr("This copy cannot be used"), str(e)))
-            return
-        if not src.is_file():
-            self._refuse(Refusal(tr("This copy cannot be used"), tr("Its file is missing from the Library.")))
-            return
-        self.copyCharacter(str(src), src_slot, target, dst_slot)
+        self._call(
+            "saves.copy_entry",
+            {"folder": folder, "entry_id": entry_id},
+            lambda entry: self.copyCharacter(entry.path, src_slot, target, dst_slot),
+            fail=tr("This copy cannot be used"),
+        )
 
     # ---- Ctrl+C on a character, Ctrl+V on a slot (a drop of the copied character)
     @Slot(str, int)
@@ -392,32 +377,21 @@ class SavesAdapter(QObject):
     # ---- 4. Back up now
     @Slot(str)
     def backUpNow(self, path: str) -> None:
-        if self._blocked():
-            return
-        save = Path(path)
-
-        def body(loc):
-            bak = saves_service.back_up_now(save, loc=loc)
-            return {"text": tr("Backed up {name} ({file})").format(name=save.name, file=bak.name)}
-
-        self._write(f"back up {save.name}", tr("Backing up {name}...").format(name=save.name), body)
+        if not self._blocked():
+            self._job("saves.back_up", {"paths": [path]})
 
     # ---- 3. Save a copy
     @Slot(str, result=str)
     def defaultName(self, path: str) -> str:
-        return save_library.default_name(Path(path), self._game())
+        try:
+            return self.host.session.run("saves.default_name", {"path": path}).text
+        except OperationError:
+            return ""
 
     @Slot(str, str)
     def saveCopy(self, path: str, name: str) -> None:
-        if self._blocked(read_only=True):  # only reads the live save; the Library check rejects a half-written file
-            return
-        save, game = Path(path), self._game()
-
-        def body(loc):
-            e = save_library.add(save.parent, save, name, game, action="save copy")
-            return {"text": tr("Saved a copy of {file} as '{name}'").format(file=save.name, name=e["name"])}
-
-        self._write(f"save a copy of {save.name}", tr("Saving a copy of {name}...").format(name=save.name), body)
+        if not self._blocked(read_only=True):  # only reads the live save; the Library check rejects a half-written file
+            self._job("saves.save_copy", {"path": path, "name": name})
 
     # ---- 5. Import
     @Slot()
@@ -443,57 +417,24 @@ class SavesAdapter(QObject):
         elif good:
             self._import_many(good)
 
-    def _library_folder(self) -> Path | None:
-        folders = [Path(f) for f in self._libs] or sorted({Path(i["path"]).parent for i in self._infos})
-        if not folders:
+    def _has_library(self) -> bool:
+        if not (self._libs or self._infos):
             self.notifier.toast(tr("Play once so the game creates its save folder."), error=True)
-            return None
-        return folders[0]
+            return False
+        return True
 
     def _import_many(self, paths: list[Path]) -> None:
-        if self._blocked(read_only=True):
-            return
-        folder, game = self._library_folder(), self._game()
-        if folder is None:
-            return
-
-        def body(loc):
-            done, failed = [], []
-            for src in paths:
-                try:
-                    save_library.add(folder, src, save_library.default_name(src, game), game, action="import")
-                    done.append(src.name)
-                except Exception as e:
-                    run_logging.log(f"error: {src.name}: {e}")
-                    failed.append(src.name)
-            if not done:
-                raise RuntimeError(tr("None of these files could be imported: {names}").format(names=", ".join(failed)))
-            text = tr("Imported {n} files into the Library").format(n=len(done))
-            if failed:
-                text += tr(". Not imported: {names}").format(names=", ".join(failed))
-            return {"text": text}
-
-        self._write("import several files into the Library", tr("Importing {n} files...").format(n=len(paths)), body)
+        if not self._blocked(read_only=True) and self._has_library():
+            self._job("saves.import_files", {"files": [str(p) for p in paths]})
 
     def _offer_import(self, path: Path) -> None:
-        if self._blocked(read_only=True):
-            return
-        self.importNameRequested.emit(str(path), save_library.default_name(path, self._game()))
+        if not self._blocked(read_only=True):
+            self.importNameRequested.emit(str(path), self.defaultName(str(path)))
 
     @Slot(str, str)
     def importFile(self, path: str, name: str) -> None:
-        if self._blocked(read_only=True):
-            return
-        src, game = Path(path), self._game()
-        folder = self._library_folder()
-        if folder is None:
-            return
-
-        def body(loc):
-            e = save_library.add(folder, src, name, game, action="import")
-            return {"text": tr("Imported '{name}' into the Library").format(name=e["name"])}
-
-        self._write(f"import {src.name} into the Library", tr("Importing {name}...").format(name=src.name), body)
+        if not self._blocked(read_only=True) and self._has_library():
+            self._job("saves.import_files", {"files": [path], "name": name})
 
     # ---- 1. Copy a character (also Duplicate in the same file)
     @Slot(str, int, result=list)
@@ -521,222 +462,99 @@ class SavesAdapter(QObject):
 
     @Slot(str, int, str, int)
     def copyCharacter(self, source: str, src_slot: int, target: str, dst_slot: int) -> None:
-        if self._blocked():
-            return
-        src, dst = Path(source), Path(target)
-        same = src.resolve() == dst.resolve()
-
-        def work():
-            plan = save_transfer.plan_character_copy(src, src_slot, dst, dst_slot)
-            return self.presenter.character_copy(plan, src.name, dst.name, dst_slot, same), plan, bool(plan["replaces"])
-
-        def go(plan) -> None:
-            who = (plan["character"] or {}).get("name", "?")
-
-            def body(loc):
-                saves_service.assert_writable(dst, loc=loc)
-                out = save_transfer.copy_character(src, src_slot, dst, dst_slot)
-                return {
-                    "text": tr("{who} is in slot {n} of {file}").format(who=who, n=dst_slot, file=dst.name),
-                    "save": dst,
-                    "backup": out["backup"],
-                }
-
-            self._write(
-                f"copy slot {src_slot} of {src.name} into slot {dst_slot} of {dst.name}",
-                tr("Copying a character into {name}...").format(name=dst.name),
-                body,
+        if not self._blocked():
+            self._ask(
+                "saves.copy_character",
+                {"source": source, "src_slot": src_slot, "target": target, "dst_slot": dst_slot},
             )
-
-        self._plan(work, go)
 
     # ---- 2. Replace a live save with a file
-    def _replace(self, source: Path, target: Path, source_label: str, run, restore: bool = False) -> None:
-        """Plan Replace (the compare table, the signing) and, on yes, run(loc) -> {backup, kept?}."""
-        game = self._game()
-        live = next((i for i in self._infos if Path(i["path"]) == source), None)
-        holders = sum(1 for p in (live or {}).get("vanilla_plan") or [] if p.get("strip"))  # only a live source is read
-
-        def work():
-            rows = save_transfer.compare(source, target, game) if target.exists() else []
-            signed = save_library.signed_for_account(source.read_bytes(), target, game)[1]
-            kinds = None
-            if source.suffix.lower() != target.suffix.lower():
-                kinds = (self.presenter.kind_of(source), self.presenter.kind_of(target))
-            words = self.presenter.replace(
-                source_label,
-                target.name,
-                rows,
-                signed,
-                holders,
-                target.suffix.lower() == ".sl2",
-                restore=restore,
-                kinds=kinds,
-            )
-            return words, None, True
-
-        def go(_context) -> None:
-            def body(loc):
-                saves_service.assert_writable(target, loc=loc)
-                out = run(loc)
-                return {
-                    "text": tr("{target} now holds {source}").format(target=target.name, source=source_label),
-                    "save": target,
-                    "backup": out.get("backup"),
-                }
-
-            self._write(
-                f"replace {target.name} with {source_label}",
-                tr("Replacing {name}...").format(name=target.name),
-                body,
-            )
-
-        self._plan(work, go)
-
     @Slot(str, str, str)
     def replaceFromLibrary(self, folder: str, entry_id: str, target: str) -> None:
         if self._blocked():
             return
-        game, tgt = self._game(), Path(target)
-        doc = self._libs.get(folder) or save_library.load(Path(folder))
-        try:
-            entry = save_library.find(doc, entry_id)
-        except Exception as e:
-            self._refuse(Refusal(tr("This copy cannot be used"), str(e)))
-            return
-        source = save_library.entry_path(Path(folder), entry)
-        if not source.is_file():
-            self._refuse(Refusal(tr("This copy cannot be used"), tr("Its file is missing from the Library.")))
-            return
+        plan = {"folder": folder, "entry_id": entry_id, "target": target}
 
-        def run(_loc):
-            out = save_library.swap_in(Path(folder), entry_id, tgt, None, game)
-            return {"backup": out["backup"]}
+        def checked(entry) -> None:
+            if entry.changed_outside:  # the copy's file is not what the launcher stored: ask first
+                self.notifier.ask(
+                    self.presenter.changed_outside(entry.name),
+                    lambda ok, _o: self._ask("saves.replace_from_library", plan) if ok else None,
+                )
+            else:
+                self._ask("saves.replace_from_library", plan)
 
-        if save_library.changed_outside(Path(folder), entry):
-            self.notifier.ask(
-                self.presenter.changed_outside(entry["name"]),
-                lambda ok, _o: self._replace(source, tgt, entry["name"], run, True) if ok else None,
-            )
-            return
-        self._replace(source, tgt, entry["name"], run, True)
+        self._call(
+            "saves.copy_entry", {"folder": folder, "entry_id": entry_id}, checked, fail=tr("This copy cannot be used")
+        )
 
     @Slot(str)
     def replaceFromFile(self, target: str) -> None:
         if self._blocked():
             return
         src = self.host.pick_file(tr("Replace with a save file"), "Save files (*.sl2 *.co2);;All files (*)")
-        if src is None:
-            return
-        game, tgt = self._game(), Path(target)
-
-        def run(_loc):
-            out = save_transfer.copy_file(src, tgt, game)
-            return {"backup": out["backup"]}
-
-        self._replace(src, tgt, src.name, run)
+        if src is not None:
+            self._ask("saves.replace_from_file", {"source": str(src), "target": target})
 
     @Slot(str, str)
     def restoreBackup(self, backup: str, target: str) -> None:
-        if self._blocked():
-            return
-        bak, tgt = Path(backup), Path(target)
-        row = next((b for b in self._backups if str(b["path"]) == backup), None)
-        if row is None:
-            return
-        words = self.presenter.restore(row, tgt.name)
-
-        def go() -> None:
-            def body(loc):
-                safety = saves_service.restore_backup(bak, tgt, loc=loc)
-                return {
-                    "text": tr("{name} is back as it was in the backup").format(name=tgt.name),
-                    "save": tgt,
-                    "backup": safety,
-                }
-
-            self._write(f"restore backup {bak.name}", tr("Restoring {name}...").format(name=tgt.name), body)
-
-        self.notifier.ask(words, lambda ok, _o: go() if ok and not self._blocked() else None)
+        if not self._blocked():
+            self._ask("saves.restore_backup", {"backup": backup, "target": target})
 
     # ---- the saved copies' upkeep (the Library file and the Backups list; no live save is written)
     @Slot(str, str)
     def keepAs(self, backup: str, name: str) -> None:
-        try:
-            e = saves_service.keep_backup_as_copy(Path(backup), name, loc=self.host.locations)
-        except Exception as ex:
-            self._refuse(Refusal(tr("Could not keep it"), str(ex)))
-            return
-        self.notifier.toast(tr("Kept as '{name}' in the Library").format(name=e["name"]))
-        self.refresh()
+        def kept(got) -> None:
+            self.notifier.toast(tr("Kept as '{name}' in the Library").format(name=got.text))
+            self._read()
+
+        self._call("saves.keep_as", {"backup": backup, "name": name}, kept, fail=tr("Could not keep it"))
 
     @Slot(str)
     def letAgeOut(self, backup: str) -> None:
-        try:
-            saves_service.keep_backup(Path(backup), False)
-        except OSError as e:
-            self._refuse(Refusal(tr("Could not change it"), str(e)))
-            return
-        self.refresh()
+        self._call(
+            "saves.keep_backup",
+            {"backup": backup, "keep": False},
+            lambda _r: self._read(),
+            fail=tr("Could not change it"),
+        )
 
     @Slot(str)
     def deleteBackup(self, backup: str) -> None:
-        row = next(
-            (b for d in self.presenter.backup_days(self._backups) for b in d["rows"] if b["path"] == backup), None
-        )
-        if row is None:
-            return
-
-        def go() -> None:
-            try:
-                saves_service.delete_backup(Path(backup))
-            except Exception as e:
-                self._refuse(Refusal(tr("Could not remove"), str(e)))
-                return
+        def removed() -> None:
             self.notifier.toast(tr("Backup removed"))
-            self.refresh()
+            self._read()
 
-        self.notifier.ask(self.presenter.delete_backup(row), lambda ok, _o: go() if ok else None, destructive=True)
+        self._ask("saves.delete_backup", {"backup": backup}, fail=tr("Could not remove"), then=removed)
 
     @Slot(str, str, str)
     def renameCopy(self, folder: str, entry_id: str, name: str) -> None:
-        try:
-            save_library.rename(Path(folder), entry_id, name)
-        except Exception as e:
-            self._refuse(Refusal(tr("Could not rename"), str(e)))
-            return
-        self.refresh()
+        self._call(
+            "saves.rename_copy",
+            {"folder": folder, "entry_id": entry_id, "name": name},
+            lambda _r: self._read(),
+            fail=tr("Could not rename"),
+        )
 
     @Slot(str, str)
     def removeCopy(self, folder: str, entry_id: str) -> None:
-        entry = next((e for e in (self._libs.get(folder) or {}).get("entries", []) if e["id"] == entry_id), None)
-        if entry is None:
-            return
-
-        def go() -> None:
-            try:
-                save_library.remove(Path(folder), entry_id)
-            except Exception as e:
-                self._refuse(Refusal(tr("Could not remove"), str(e)))
-                return
-            self.refresh()
-
-        self.notifier.ask(
-            self.presenter.remove_copy(entry["name"]), lambda ok, _o: go() if ok else None, destructive=True
+        self._ask(
+            "saves.remove_copy", {"folder": folder, "entry_id": entry_id}, fail=tr("Could not remove"), then=self._read
         )
 
     @Slot(str, str, bool)
     def finishStranded(self, folder: str, entry_id: str, restore: bool) -> None:
-        try:
-            if restore:
-                warning = save_library.restore_removed(Path(folder), entry_id)
-                if warning:
-                    self.notifier.toast(warning)
-            else:
-                save_library.finish_removal(Path(folder), entry_id)
-        except Exception as e:
-            self._refuse(Refusal(tr("Could not finish it"), str(e)))
-        self.refresh()
+        def finished(got) -> None:
+            if got.warning:
+                self.notifier.toast(got.warning)
+
+        self._call(
+            "saves.finish_stranded",
+            {"folder": folder, "entry_id": entry_id, "restore": restore},
+            finished,
+            fail=tr("Could not finish it"),
+            settle=self._read,
+        )
 
     @Slot(str)
     def openFolder(self, path: str) -> None:
@@ -744,39 +562,26 @@ class SavesAdapter(QObject):
 
     @Slot()
     def openBackups(self) -> None:
-        folders = saves_service.backup_folders(loc=self.host.locations) if self.host.locations else []
-        if folders:
-            folders[0].mkdir(parents=True, exist_ok=True)
-            self.host.open_path(folders[0])
+        self._open("backups")
 
     @Slot()
     def openLibrary(self) -> None:
-        folders = [Path(f) for f in self._libs] or sorted({Path(i["path"]).parent for i in self._infos})
-        if folders:
-            lib = save_library.folder_for(folders[0])
-            lib.mkdir(parents=True, exist_ok=True)
-            self.host.open_path(lib)
+        self._open("library")
 
     @Slot(str)
     def copyReport(self, path: str) -> None:
-        info = self._info(path)
-        if info is None:
-            return
-        from PySide6.QtGui import QGuiApplication
+        def copied(got) -> None:
+            from PySide6.QtGui import QGuiApplication
 
-        QGuiApplication.clipboard().setText(saves_service.health_report(info=info))
-        self.notifier.toast(tr("Report copied"))
+            QGuiApplication.clipboard().setText(got.text)
+            self.notifier.toast(tr("Report copied"))
+
+        self._call("saves.health_report", {"path": path}, copied)
 
     @Slot()
     def postSessionRepair(self) -> None:
-        if self._blocked():
-            return
-
-        def body(loc):
-            save_repair.repair_all(loc)
-            return {"text": tr("Post-session repair finished")}
-
-        self._write("post-session repair", tr("Repairing saves..."), body)
+        if not self._blocked():
+            self._job("saves.post_session_repair", None)
 
     # ---- Check & repair
     @Slot(str)
@@ -856,34 +661,13 @@ class SavesAdapter(QObject):
         if self._blocked():
             return
         info, keys = self._info(self._repair_path), self._ticked()
-        if info is None or not keys:
-            return
-        path, calls = Path(info["path"]), self.presenter.calls(keys)
-
-        def go() -> None:
-            def body(loc):
-                first = apply_repairs(path, calls, loc=loc)
-                return {
-                    "text": tr("Repaired {name}").format(name=path.name),
-                    "save": path,
-                    "backup": first,
-                }
-
-            self._write(
-                f"repair {len(keys)} item(s) in {path.name}",
-                tr("Repairing {name}...").format(name=path.name),
-                body,
-            )
-
-        self.notifier.ask(
-            self.presenter.repair_confirm(info, keys), lambda ok, _o: go() if ok and not self._blocked() else None
-        )
+        if info is not None and keys:
+            self._ask("saves.repair", {"path": str(info["path"]), "keys": [list(k) for k in keys]})
 
     # ---- the character sheet (read-only)
     @Slot(str, int)
     def openSheet(self, path: str, slot: int) -> None:
         self._sheet_path, self._sheet_slot = path, slot
-        self._sheet_open = True
         self._reload_sheet()
 
     @Slot()
@@ -892,8 +676,17 @@ class SavesAdapter(QObject):
         self.sheetChanged.emit()
 
     def _reload_sheet(self) -> None:
-        info = self._info(self._sheet_path)
-        self._sheet = (self.presenter.sheet(info, self._sheet_slot) | {"path": self._sheet_path}) if info else {}
-        if not self._sheet:
-            self._sheet_open = False
-        self.sheetChanged.emit()
+        """Read the character from the session; the sheet opens (or refreshes) when it lands."""
+        path, slot = self._sheet_path, self._sheet_slot
+        if self._info(path) is None:
+            self._sheet = {}
+            self.closeSheet()
+            return
+
+        def shown(got) -> None:
+            if (path, slot) == (self._sheet_path, self._sheet_slot):  # not for a character the user has left
+                self._sheet_open = True
+                self._sheet = got.data | {"path": path}
+                self.sheetChanged.emit()
+
+        self._call("saves.sheet", {"path": path, "slot": slot}, shown)

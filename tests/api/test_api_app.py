@@ -138,6 +138,8 @@ def test_backend_handshake_and_stdin_eof_exit(tmp_path):
 
         r = httpx.get(f"http://127.0.0.1:{hs['port']}/v1/health", headers=AUTH)
         assert r.status_code == 200
+        shell = httpx.get(f"http://127.0.0.1:{hs['port']}/v1/pages/shell", headers=AUTH)
+        assert shell.status_code == 200 and shell.json()["game"]  # the sidecar hosts the program's Shell
         proc.stdin.close()
         assert proc.wait(timeout=15) == 0
         assert proc.stdout.read() == b""

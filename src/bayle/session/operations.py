@@ -70,6 +70,7 @@ class OperationSpec:
     result: type[BaseModel]
     kind: Kind
     writes: bool
+    title: Callable[[Any], str] | None = None  # a job's title from its params (the status line); default: the name
 
     @property
     def page(self) -> str:
@@ -90,8 +91,9 @@ class OperationRegistry:
         result: type[BaseModel],
         kind: Kind = "read",
         writes: bool = False,
+        title: Callable[[Any], str] | None = None,
     ) -> Callable[[Callable[[Call, Any], Any]], Callable[[Call, Any], Any]]:
-        """Register fn(call, params) -> result. A duplicate name, an unknown kind, or a read that writes raises
+        """Register fn(call, params) -> result. title(params) names a job for the client (default: name). A duplicate name, an unknown kind, or a read that writes raises
         ValueError at once (a wiring mistake, not a runtime condition)."""
         if kind not in _KINDS:
             raise ValueError(f"operation {name}: unknown kind {kind!r}")
@@ -101,7 +103,7 @@ class OperationRegistry:
         def register(fn: Callable[[Call, Any], Any]) -> Callable[[Call, Any], Any]:
             if name in self._ops:
                 raise ValueError(f"operation {name} is already registered")
-            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes)
+            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes, title)
             return fn
 
         return register
@@ -234,7 +236,9 @@ class Session:
         if spec.kind != "job":
             return spec.result.model_validate(spec.fn(Call(self), p))
         return self.start(
-            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)), title=name, writes=spec.writes
+            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)),
+            title=spec.title(p) if spec.title else name,
+            writes=spec.writes,
         )
 
     def _offer(self, got: Proposal | Refusal) -> Plan | Refusal:
@@ -242,7 +246,7 @@ class Session:
             return got
         if not isinstance(self.plans, PlanStore):
             raise OperationError("no_plans", "This session takes no plans.")
-        return self.plans.add(got.words, got.run, got.stale)
+        return self.plans.add(got.words, got.run, got.stale, got.destructive)
 
     def answer(self, token: str, answers: Mapping[str, Any]) -> Any:
         """Answer a plan the client was handed; the plan store decides what runs."""

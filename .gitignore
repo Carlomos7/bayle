@@ -49,3 +49,6 @@ scripts/verify/local.toml
 
 # a test build's identity override (scripts/build.py --identity); never committed
 src/bayle/data/build-identity.json
+
+# pnpm workspace (apps/desktop)
+node_modules/

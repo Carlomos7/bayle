@@ -9,6 +9,8 @@ interface Request {
   send: (answer: Answer) => Promise<unknown>;
   /** Runs after an OK answer was accepted (a page refreshes, or goes on to the next step). */
   done?: (result: unknown) => void;
+  /** A local question (`ask`): answered by resolving, cancel included, nothing is posted. */
+  local?: boolean;
 }
 
 interface Host {
@@ -17,6 +19,8 @@ interface Host {
   /** Show a plan offer; the answer goes to POST /v1/plans/{plan_id}. A refusal (no plan_id) is only told. `done` runs
    * after an OK answer was accepted, with the POST's result (a confirm with no plan_id posts nothing and just calls it). */
   offerPlan(offer: PlanOffer, done?: (result: unknown) => void): void;
+  /** Ask a question the page holds the words of (a retry's confirm, a tick list); resolves with the answer, cancel included. */
+  ask(words: PromptWords): Promise<Answer>;
 }
 
 const HostContext = createContext<Host | null>(null);
@@ -46,6 +50,7 @@ export function PromptHost({ children, toasts = sonnerToasts }: { children: Reac
           send: (a) => (plan_id ? api.post(`/v1/plans/${plan_id}`, a) : Promise.resolve()),
           done,
         }),
+      ask: (words) => new Promise<Answer>((resolve) => push({ words, local: true, send: async (a) => resolve(a) })),
     }),
     [api, push],
   );
@@ -61,6 +66,10 @@ export function PromptHost({ children, toasts = sonnerToasts }: { children: Reac
           words={head.words}
           onAnswer={(answer) => {
             setQueue((q) => q.slice(1));
+            if (head.local) {
+              void head.send(answer);
+              return;
+            }
             // a cancelled plan is never posted: the offer simply expires
             if (head.words.kind === "refusal" || (head.words.kind !== "choose" && !answer.ok)) return;
             // a question already answered (the other window, or the job ended) is nothing to tell the player

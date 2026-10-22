@@ -33,6 +33,29 @@ def test_the_snapshot_shows_the_rows_the_load_order_and_the_header(profile):
     assert view.overhaul.visible is False and view.overhaul_info is None
 
 
+def test_the_snapshot_carries_the_words_and_the_setup_it_is_about(profile):
+    view = make().snapshot("mods", profile=str(profile), kind="manifest", source="C:/x/installation.json")
+    assert (view.kind, view.source) == ("manifest", "C:/x/installation.json")
+    assert view.words["toastRemoved"] == "Removed {name}" and view.words["setting_savefile"]
+    assert "managed by its installer" in view.rename_block  # an overhaul installer's setup is renamed there
+    assert make().snapshot("mods", profile=str(profile)).rename_block == ""
+
+
+def test_no_profile_sent_reads_the_one_the_top_bar_picked(profile):
+    from types import SimpleNamespace
+
+    s = make()
+    picked = SimpleNamespace(profile=profile, kind="me3", source=None)
+    s.service("shell", lambda: SimpleNamespace(state=SimpleNamespace(launch_profile=picked)))
+    view = s.snapshot("mods")
+    assert view.has_profile and view.profile == str(profile) and view.kind == "me3"
+    assert view.words["undo"] == "Undo"
+    # the shell has none picked: the page says so, as with no shell at all
+    s2 = make()
+    s2.service("shell", lambda: SimpleNamespace(state=SimpleNamespace(launch_profile=None)))
+    assert not s2.snapshot("mods").has_profile
+
+
 def test_reading_the_page_writes_nothing(profile):
     s = make()
     before = tree_state(profile.parent, data_dir())

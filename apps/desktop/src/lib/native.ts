@@ -17,3 +17,18 @@ export const pickFile = async (title: string, filterName: string, extensions: st
 export { openPath };
 export const openFolder = (path: string) => openPath(path);
 export const openLink = (url: string) => openUrl(url);
+
+/** Files dropped from Explorer onto the window; returns the unsubscribe. The Webview reports the paths (a browser drop does not). Outside Tauri it does nothing. */
+export async function onFilesDropped(handler: (paths: string[], over: boolean) => void): Promise<() => void> {
+  try {
+    const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+    return await getCurrentWebview().onDragDropEvent((e) => {
+      const p = e.payload;
+      if (p.type === "drop") handler(p.paths, false);
+      else if (p.type === "over" || p.type === "enter") handler([], true);
+      else handler([], false);
+    });
+  } catch {
+    return () => {};
+  }
+}

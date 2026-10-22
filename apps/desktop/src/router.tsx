@@ -4,6 +4,7 @@ import { TokenPreview } from "@/theme/TokenPreview";
 import { PAGES } from "@/shell/pages";
 import { Shell } from "@/shell/Shell";
 import { ActivityPage } from "@/pages/activity/ActivityPage";
+import { ModsPage } from "@/pages/mods/ModsPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { ProfileTransferPage } from "@/pages/profile-transfer/ProfileTransferPage";
 import { SavesPage } from "@/pages/saves/SavesPage";
@@ -12,6 +13,7 @@ import { SavesPage } from "@/pages/saves/SavesPage";
 const BUILT: Record<string, RouteComponent> = {
   activity: ActivityPage,
   // the editor (CodeMirror) is the heavy part: loaded with the page
+  mods: ModsPage,
   modConfigs: lazyRouteComponent(() => import("@/pages/mod-configs/ModConfigsPage"), "ModConfigsPage"),
   profileTransfer: ProfileTransferPage,
   saves: SavesPage,

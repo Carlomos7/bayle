@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.merging import build
-from bayle.mods import library, migrate, operations
+from bayle.mods import kinds, library, migrate, operations
+from bayle.mods.models import UndoError
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -193,3 +194,21 @@ def undo_rename(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> st
     for n in migrate._apply_state(info, back=True):
         log(f"undo: {n}")
     return f"took back the rename: the folder is called {src.name} again"
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return undo_rename(Path(undo["operation"]), log)
+    except FolderError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_finisher(
+    ("folder-rename", "folder-split"), finish_state, "an interrupted change of a profile's folder was finished"
+)
+kinds.register_undo(
+    ("folder-rename",),
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("The change to the profile's folder can no longer be taken back."),
+)

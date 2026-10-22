@@ -37,14 +37,11 @@ from bayle.formats.me3_profile import (  # the one profile reader; re-exported f
     to_blocks,
 )
 from bayle.mods import library, naming
+from bayle.mods.models import ModError
 
 NATIVE_OPTION_KEYS = ("enabled", "optional", "load_early", "initializer", "finalizer", "load_after", "load_before")
 PACKAGE_OPTION_KEYS = ("enabled", "id", "load_after", "load_before")
 _KEY = re.compile(r"^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$")
-
-
-class ModError(Exception):
-    pass
 
 
 # ----------------------------------------------------------------------------- detection

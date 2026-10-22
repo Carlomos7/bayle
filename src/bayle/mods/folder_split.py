@@ -24,9 +24,10 @@ from typing import TYPE_CHECKING
 
 from bayle.formats import me3_profile
 from bayle.merging import build
-from bayle.mods import folder_check, library, migrate, operations
+from bayle.mods import folder_check, kinds, library, migrate, operations
 from bayle.mods import profile_settings as ps
 from bayle.mods.folder_check import FolderError, _sha
+from bayle.mods.models import UndoError
 from bayle.platform import files
 
 if TYPE_CHECKING:
@@ -330,3 +331,19 @@ def undo_split(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> str
     for n in migrate._apply_state(info, back=True):
         log(f"undo: {n}")
     return f"took back the split of {info.get('name', 'the folder')}"
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return undo_split(Path(undo["operation"]), log)
+    except folder_check.FolderError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.STAGE_CLEANERS.append(clean_stages)
+kinds.register_undo(
+    ("folder-split",),
+    kinds.operation_active,
+    _undo_kind,
+    kinds.fixed("The change to the profile's folder can no longer be taken back."),
+)

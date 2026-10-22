@@ -11,6 +11,7 @@ import os
 import shutil
 from pathlib import Path
 
+from bayle.mods import operations
 from bayle.mods.profile_edit import block_options, blocks, resolve
 from bayle.mods.profile_writer import ProfileWriter
 
@@ -20,7 +21,6 @@ def uninstall(profile: Path, index: int, delete_folder: bool = True, to_trash: b
     it lies beside the profile and no other entry still points into it (a natives folder shared by several DLLs is
     kept): to the Recycle Bin (to_trash), so it can come back, else deleted. Returns what was removed and where, so
     it can be put back (see mods.undo)."""
-    from bayle.mods import operations
 
     profile = Path(profile)
     with operations.lock(profile):
@@ -103,7 +103,6 @@ def remove_holder(profile: Path, index: int, ref: str, needs: list[str], *, loc:
     (ref, its id or folder name) from the packages named in needs: one profile write inside one operation, so an
     interruption leaves the profile as it was or as asked, never half changed. The folder and its mods stay.
     Returns the .bak."""
-    from bayle.mods import operations
 
     profile = Path(profile)
     low = ref.lower()

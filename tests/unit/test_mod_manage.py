@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from bayle.mods import checks, extract, install, remove
+from bayle.mods import models as mod_models
 from bayle.services import play as g
 from support import er
 
@@ -124,11 +125,11 @@ def test_zip_safety(tmp_path):
     z = tmp_path / "bad.zip"
     with zipfile.ZipFile(z, "w") as f:
         f.writestr("../evil.txt", "x")
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         extract.extract_zip(z, tmp_path / "out")
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         extract.stage(tmp_path / "x.txt", tmp_path)
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         extract.extract_archive(tmp_path / "x.tar.gz", tmp_path / "o")
     assert extract.ARCHIVE_EXTENSIONS == (".zip", ".7z", ".rar")
 
@@ -154,7 +155,7 @@ def test_7z_install_and_safety(tmp_path):
         and extract._unsafe("/abs")
         and not extract._unsafe("Wrap/ok.txt")
     )  # py7zr refuses to write such names itself
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         extract.extract_7z(tmp_path / "missing.7z", tmp_path / "o7")
 
 
@@ -162,12 +163,12 @@ def test_rar_dispatch(tmp_path, monkeypatch):
     fake = tmp_path / "x.rar"
     fake.write_bytes(b"not really")
     monkeypatch.setattr(extract, "rar_tools", lambda: [])
-    with pytest.raises(M.ModError) as e:
+    with pytest.raises(mod_models.ModError) as e:
         extract.extract_rar(fake, tmp_path / "o")
     assert "extractor" in str(e.value)
     tools = extract.rar_tools()  # on this Windows PC bsdtar is always there
     if tools:
-        with pytest.raises(M.ModError) as e:
+        with pytest.raises(mod_models.ModError) as e:
             extract.extract_rar(fake, tmp_path / "o2")  # garbage input fails cleanly
         assert "could not unpack" in str(e.value) and not any((tmp_path / "o2").iterdir())
 
@@ -199,7 +200,7 @@ def test_install_package_from_zip_and_native_from_folder(tmp_path):
         and "\r\n" in text
     )
     assert [e["name"] for e in M.entries(p)] == ["flora", "ersc.dll", "other.dll", "cool-armor"]
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         install.install(p, install.plan_install(p, z, loc=er()), loc=er())  # exists
     plan = install.plan_install(p, z, loc=er())
     assert plan["already_listed"] == ["mod/cool-armor"]
@@ -351,7 +352,7 @@ def test_create_and_delete_profile(tmp_path):
     ]
     home = tmp_path / "profiles" / "b-eldenring" / "My-Setup"  # each profile in a folder of its own, with its own mods
     assert p == home / "My-Setup.me3" and (home / "packages").is_dir() and (home / "natives").is_dir()
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         M.create_profile(tmp_path / "profiles", "My Setup")
     src = _profile(tmp_path / "src" / "my")
     (src.parent / "mod" / "flora").mkdir(parents=True, exist_ok=True)
@@ -364,7 +365,7 @@ def test_create_and_delete_profile(tmp_path):
 
     assert not c.exists() and gone.parent == data_folder.deleted_profiles(c.parent) and gone.suffix == ".me3"
     assert '"from"' in Path(str(gone) + ".json").read_text(encoding="utf-8")  # a note of where it lived
-    with pytest.raises(M.ModError):
+    with pytest.raises(mod_models.ModError):
         M.delete_profile(c)
 
 
@@ -725,7 +726,7 @@ def test_a_dll_folder_name_windows_or_the_launcher_refuses_writes_nothing(tmp_pa
         before, natives = prof.read_bytes(), sorted((prof.parent / "natives").iterdir())
         plan = install.plan_install(prof, dll, name=name, loc=er())
         assert plan["name_problem"], name
-        with pytest.raises(install.ModError):
+        with pytest.raises(mod_models.ModError):
             install.install(prof, plan, loc=er())
         assert prof.read_bytes() == before and sorted((prof.parent / "natives").iterdir()) == natives
     (p.parent / "natives" / "Fps").mkdir(parents=True)  # the same folder in another case: updated, not doubled

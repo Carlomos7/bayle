@@ -44,8 +44,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from bayle.mods import checks
+from bayle.mods import checks, profile_settings
 from bayle.mods import profile_edit as mod_manage
+from bayle.mods.models import Dependent, dependents
 from bayle.mods.profile_settings import Unreadable  # noqa: F401  (keep_after raises it)
 
 if TYPE_CHECKING:
@@ -53,14 +54,6 @@ if TYPE_CHECKING:
 
 ME3_ORDER_VERSIONS = ("0.11.0", "0.12.0", "0.12.1", "0.13.0")  # releases whose ordering code was compared
 ME3_ORDER_SINCE = (0, 11, 0)
-
-
-@dataclass(frozen=True)
-class Dependent:
-    """One load_after / load_before entry: the id it names, and whether me3 may go on without it."""
-
-    id: str
-    optional: bool
 
 
 @dataclass
@@ -330,14 +323,12 @@ def rename_refs(deps: list, renamed: dict[str, str]) -> list:
 
 def exceptions(profile: Path) -> set[str]:
     """Names (lower-case) kept after the mod that must stay last with Keep it after (the profile's settings.json)."""
-    from bayle.mods import profile_settings
 
     return {str(x).lower() for x in profile_settings.load(profile).get("after_overlay") or []}
 
 
 def keep_after(profile: Path, names: list[str], keep: bool = True) -> None:
     """Add names to (or with keep=False, take them out of) the entries kept after it on purpose."""
-    from bayle.mods import profile_settings
 
     have = [str(x) for x in profile_settings.load(profile).get("after_overlay") or []]
     low = {n.lower() for n in names}
@@ -484,8 +475,6 @@ def _order(profile: Path, rows: list[dict]) -> list[str]:
 def _rows(items: list[dict], kind: str) -> list[dict]:
     """Every entry of one kind (switched-off ones too: me3 orders them, then leaves them out), with the id me3 uses:
     a package's id (its path when it has none), a native's DLL file name."""
-    from bayle.mods.profile import _dependents
-
     out = []
     for e in items:
         if e["kind"] != kind or not e["path"]:
@@ -498,8 +487,8 @@ def _rows(items: list[dict], kind: str) -> list[dict]:
                 "me3_id": me3_id,
                 "path": e["path"],
                 "enabled": e.get("enabled", True) is not False,
-                "after": _dependents(e.get("load_after")),
-                "before": _dependents(e.get("load_before")),
+                "after": dependents(e.get("load_after")),
+                "before": dependents(e.get("load_before")),
             }
         )
     return out

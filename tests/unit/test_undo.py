@@ -8,6 +8,7 @@ import pytest
 from test_mod_merge import TALK, World
 
 from bayle.mods import conflicts as overview
+from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
 from bayle.mods import remove, undo
 from bayle.platform import trash
@@ -135,7 +136,7 @@ def test_restore_is_not_offered_once_done_or_when_the_profile_is_gone(prof, sent
     assert not undo.available(rec)
     prof.unlink()
     assert not undo.available(rec)
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo.run(rec, lambda s: None, loc=er())
     assert not undo.available(None) and not undo.available({"type": "nothing"})
 

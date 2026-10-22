@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from bayle.mods import engine
 from bayle.mods.backends import Recipe
 from bayle.mods.overhaul_manifest import LEGACY_MANIFEST, MANIFEST, find_setup, launcher_installed
 
@@ -93,26 +94,22 @@ class _Build:
         )
 
     def __call__(self, log):
-        from bayle.mods import engine
 
         engine.build(self.profile, Path(self.layer["folder"]), self.setup, self.recipe, self.version, log, loc=self.loc)
 
     def reasons(self, manifest: dict) -> list[str]:
         """Why the build its manifest records is out of date beyond its sources (mods.engine.input_reasons)."""
-        from bayle.mods import engine
 
         return engine.input_reasons(manifest, self.recipe, self.loc)
 
 
 def engine_match(setup: Path | None) -> dict | None:
-    from bayle.mods import engine
 
     return engine.match(setup)[0]
 
 
 def _engine(profile: Path, layer: dict, setup: Path | None, loc: Locations):
     """(problem, the build to run, approval key) when a recipe fits the download; None otherwise."""
-    from bayle.mods import engine
 
     if setup is None:
         return None

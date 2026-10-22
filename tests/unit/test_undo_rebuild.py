@@ -75,7 +75,7 @@ def test_a_restore_list_pointing_outside_the_profile_is_not_used(tmp_path, monke
     elsewhere.mkdir()
     listing.write_text(json.dumps({"directories": [{"path": str(elsewhere), "original": str(listing.parent)}]}))
     u = {"type": "rebuild", "profile": str(w.profile), "tool_restore": str(listing)}
-    assert not undo.available(u) and undo._tool_swaps(u) is None
+    assert not undo.available(u) and merge._tool_swaps(u) is None
     assert elsewhere.is_dir()
 
 

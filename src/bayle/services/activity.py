@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 
 from bayle.game.locate import Locations
+from bayle.mods import kinds
+from bayle.mods import models as mod_models
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.platform import trash
@@ -54,7 +56,7 @@ def log_title(u: dict, name: str) -> str:
     kind = u.get("type")
     if kind == "rebuild":
         return f"launcher: {'redo' if u.get('redo') else 'undo'} the rebuild"
-    if kind in mod_undo.OPERATIONS or kind in mod_undo.OVERHAUL:
+    if kind in kinds.OPERATIONS or kind in kinds.OVERHAUL:
         return f"launcher: {mod_undo.label(u).lower()} {name}"
     if kind in ("rename", "profile-rename"):
         return f"launcher: undo the rename of {name}"
@@ -79,7 +81,7 @@ def undo(u: dict, job_id: str, name: str, loc: Locations, title: str) -> str:
         run_logging.start_log(log_title(u, name), loc.game.key)
         try:
             said = mod_undo.run(u, run_logging.log, loc=loc)
-        except (mod_undo.UndoError, OSError) as e:
+        except (mod_models.UndoError, OSError) as e:
             raise OperationError("undo_failed", str(e)) from e
         if job_id:
             run_logging.mark_undone(job_id)

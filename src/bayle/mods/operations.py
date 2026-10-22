@@ -32,8 +32,9 @@ from pathlib import Path
 from bayle.formats import me3_profile
 from bayle.game import catalog as games
 from bayle.merging import build
-from bayle.mods import library
+from bayle.mods import kinds, library, rebuild
 from bayle.mods.checks import same_folder
+from bayle.mods.models import UndoError
 
 
 class OperationError(RuntimeError):
@@ -70,6 +71,7 @@ def _active(profile: Path) -> list[build.Operation]:
 def recover(profile: Path, timeout: float = 30.0) -> list[str]:
     """Finish or undo what an interrupted operation in this profile's folder left (see merging.build), wherever its
     journal is. Raises merging.build.BuildError when another launcher process holds the folder past timeout."""
+    kinds.ensure_loaded()
     said: list[str] = []
     for root in {b[0] for b in _bases(profile) if b[1] == build.LEGACY_OPS}:
         said += build.adopt_legacy_ops(root)
@@ -80,39 +82,16 @@ def recover(profile: Path, timeout: float = 30.0) -> list[str]:
         for root, ops in bases:
             said += build.recover_operations(root, timeout, ops)
             if root == _root(profile).parent:
-                from bayle.mods import folder_split
-
-                folder_split.clean_stages(root)  # what an interrupted split staged: copies only, emptied by recovery
-                if library.is_game_folder(root):
-                    from bayle.mods import shared_mods
-
-                    shared_mods.clean_stages(
-                        root / library.layout().shared
-                    )  # what an interrupted Library change staged
+                for clean in kinds.STAGE_CLEANERS:  # what an interrupted split or Library change staged: copies only
+                    clean(root)
         for o in (o for root, ops in _bases(profile) for o in build.active(root, ops)):
-            if o.info.get("kind") == "remove":  # a removal recovery finished: nothing of it is kept, as after one
+            kind = o.info.get("kind")
+            if kind == "remove":  # a removal recovery finished: nothing of it is kept, as after one
                 _release_others(o)
                 o.release()
-            elif o.info.get("kind") == "profile-folders" and not o.info.get("state_done"):
-                from bayle.mods import migrate
-
-                migrate.finish_state(o)  # the launcher's records still name the old profiles
-                said.append("an interrupted move of the profiles into their folders was finished")
-            elif o.info.get("kind") == "profile-move-in" and not o.info.get("state_done"):
-                from bayle.mods import move_in
-
-                move_in.finish_state(o)  # the launcher's records still name the old profile
-                said.append("an interrupted move into Bayle's folder was finished")
-            elif o.info.get("kind") in ("folder-rename", "folder-split") and not o.info.get("state_done"):
-                from bayle.mods import folder_check
-
-                folder_check.finish_state(o)
-                said.append("an interrupted change of a profile's folder was finished")
-            elif o.info.get("kind") == "profile-rename" and not o.info.get("state_done"):
-                from bayle.mods import profile_rename
-
-                profile_rename.finish_state(o)  # the launcher's records still name the old profile
-                said.append("an interrupted profile rename was finished")
+            elif (finisher := kinds.FINISHERS.get(kind)) and not o.info.get("state_done"):
+                finisher.finish(o)
+                said.append(finisher.said)
     return said
 
 
@@ -473,3 +452,22 @@ def kept_versions(profile: Path) -> list[dict]:
         {"dir": str(o.dir), "kind": o.info.get("kind", ""), "name": o.info.get("name", ""), "what": o.what}
         for o in _active(profile)
     ]
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    """Activity's Undo of an install, an update or a rollback."""
+    op = Path(undo["operation"])
+    if undo["type"] == "install":
+        return undo_install(op, log)
+
+    def rebuild_after() -> None:
+
+        rebuild.rebuild(Path(undo["profile"]), log, loc=loc)
+
+    try:
+        return rollback(op, log, rebuild_after if undo.get("rebuild") else None)
+    except OperationError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_undo(kinds.OPERATIONS, kinds.operation_active_with_profile, _undo_kind, kinds.named("It"))

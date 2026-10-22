@@ -20,6 +20,7 @@ from bayle.game import catalog as games
 from bayle.mods import checks as mod_checks
 from bayle.mods import conflicts as mod_overview
 from bayle.mods import dll_folders, folder_check, move_in, profile_edit, profile_writer, shared_mods
+from bayle.mods import models as mod_models
 from bayle.mods import order as mod_order
 from bayle.mods import rebuild as mod_merge
 from bayle.mods import remove as mod_remove
@@ -96,7 +97,7 @@ def removal_undoable(profile, plan: Removal, *, loc: Locations) -> bool:
 
 def undo_removal(undo: dict, *, loc: Locations, log: Callable[[str], None] | None = None) -> str:
     """Take back exactly one removal (the record remove_entry returned): the entry where it was, with later edits to
-    the profile kept, and the folder from the Recycle Bin. Raises mods.undo.UndoError, touching nothing, when the
+    the profile kept, and the folder from the Recycle Bin. Raises mods.models.UndoError, touching nothing, when the
     profile or the bin no longer allow it."""
     from bayle.mods import undo as mod_undo
 
@@ -174,7 +175,7 @@ def rename_mod(profile, index: int, new_name: str, *, loc: Locations, log: Calla
     log = log or run_logging.log
     pre = mod_rename.preview(Path(profile), index, new_name, loc=loc)
     if not pre.ok:
-        raise profile_edit.ModError(" ".join(pre.refusals) or "Nothing to rename.")
+        raise mod_models.ModError(" ".join(pre.refusals) or "Nothing to rename.")
     out = mod_rename.apply(pre, loc=loc, log=log)
     run_logging.set_undo(
         {"type": "rename", "profile": out["profile"], "name": out["name"], "operation": out["operation"]}

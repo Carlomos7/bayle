@@ -22,6 +22,7 @@ from bayle.game import config as game_config
 from bayle.game import oodle as game_oodle
 from bayle.merging import record as merge_record
 from bayle.merging.build import Build, BuildError
+from bayle.mods import rebuild as merge
 from bayle.mods.backends import BackendError
 from bayle.platform import cpu
 
@@ -34,7 +35,6 @@ REGULATION = games.ELDEN_RING.regulation
 
 
 def _sha(p: Path) -> str:
-    from bayle.mods import rebuild as merge
 
     return merge.sha256(p) or ""
 
@@ -267,7 +267,6 @@ class CombineTool:
     # -------------------------------------------------------------- running
     def run(self, log, all_layers: list[dict] | None = None, until: dict | None = None) -> dict:
         from bayle import __version__
-        from bayle.mods import rebuild as merge
 
         layers = merge.layers(self.profile) if all_layers is None else all_layers
         packs = self.inputs(layers, until)

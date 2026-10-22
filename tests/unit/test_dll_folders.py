@@ -13,6 +13,7 @@ from bayle.game.locate import Locations
 from bayle.merging import build as B
 from bayle.mods import dll_folders as df
 from bayle.mods import install, operations, undo
+from bayle.mods import models as mod_models
 from bayle.mods.profile_edit import entries
 from bayle.platform import trash
 from support import er
@@ -171,7 +172,7 @@ def test_undo_is_byte_identical(loose, tmp_path):
 def test_undo_refuses_when_a_new_file_changed(loose, tmp_path):
     out = df.move(loose, er())
     (tmp_path / "p/natives/Fps/Fps.ini").write_bytes(b"edited")
-    with pytest.raises(undo.UndoError):
+    with pytest.raises(mod_models.UndoError):
         undo.run({"type": df.KIND, "operation": out["operation"]}, lambda s: None, loc=er())
     assert (tmp_path / "p/natives/Fps/Fps.ini").read_bytes() == b"edited" and not (tmp_path / "p/Top.dll").exists()
 

@@ -13,7 +13,8 @@ import time
 from pathlib import Path
 
 from bayle.game import catalog as games
-from bayle.mods import naming
+from bayle.mods import naming, operations, overhaul_install
+from bayle.mods import profile as profile_tools
 from bayle.mods.checks import (
     ACCEPTABLE_FOLDERS,
     IGNORED_DLLS,
@@ -22,16 +23,8 @@ from bayle.mods.checks import (
     same_folder,
 )
 from bayle.mods.extract import ARCHIVE_EXTENSIONS, stage
-from bayle.mods.profile_edit import (
-    ModError,
-    entries,
-    is_array_form,
-    read_text,
-    rel,
-    resolve,
-    roots,
-    slug,
-)
+from bayle.mods.models import ModError
+from bayle.mods.profile_edit import entries, is_array_form, read_text, rel, resolve, roots, slug
 from bayle.mods.profile_writer import ProfileWriter
 from bayle.overhauls.basic import INSTALLER_SUFFIXES
 
@@ -432,7 +425,6 @@ def _overhaul_of(folder: Path, loc: Locations) -> dict | None:
     """The overhaul config that describes the download, if one does: {id, label, version, verified}, or {refusal}
     when one fits it but not this version or edition (no opt-in: the way out is named); None when none fits."""
     from bayle import overhauls
-    from bayle.mods import overhaul_install
 
     try:
         found = overhaul_install.find_download(folder, loc.game.key, overhauls.load(loc.game.key))
@@ -448,7 +440,6 @@ def regulation_order(profile: Path, skip: Path | None = None) -> dict:
     """The enabled packages that ship a regulation.bin, in me3's effective load order. me3 serves one regulation.bin:
     the last of these. {regulation_packages: [{index, name}], regulation_winner: name or None}. skip leaves out the
     package in that folder (the mod being reinstalled)."""
-    from bayle.mods import profile as profile_tools
 
     profile = Path(profile)
     text = read_text(profile)
@@ -507,7 +498,6 @@ def install(profile: Path, plan: dict, overwrite: bool = False, then=None, *, lo
     its place (an existing one, on an update, is kept aside for a rollback) and the profile is written under one
     journal. then(): work that needs the new state (a rebuild); when it fails, the whole install is undone. Returns
     {dest, entries, backup, in_place, order_problem, operation, update, kept}."""
-    from bayle.mods import operations
 
     profile = Path(profile)
     if plan.get("error") or plan.get("name_problem"):
@@ -533,7 +523,6 @@ def install(profile: Path, plan: dict, overwrite: bool = False, then=None, *, lo
 
 def _prepare(profile: Path, plan: dict, dest: Path, in_place: bool, update: bool, op, loc: Locations) -> dict:
     """Stage install()'s files and profile text in op. Nothing live changes."""
-    from bayle.mods import operations
 
     skip = {n.lower() for n in plan.get("exclude") or []}
     kept: list[str] = []

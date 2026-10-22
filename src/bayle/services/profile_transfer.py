@@ -37,7 +37,7 @@ from bayle.mods import (
 )
 from bayle.mods import order as mod_order
 from bayle.mods import profile as profile_tools
-from bayle.mods.profile_edit import ModError
+from bayle.mods.models import ModError
 from bayle.mods.profile_writer import ProfileWriter
 from bayle.platform import data_folder
 from bayle.platform import logging as run_logging

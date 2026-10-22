@@ -16,7 +16,9 @@ from bayle.formats import me3_profile
 from bayle.formats.me3_profile import resolve
 from bayle.game import catalog as games
 from bayle.game import config as game_config
+from bayle.mods import order
 from bayle.mods.checks import ACCEPTABLE_FOLDERS, NOT_GAME_FOLDERS
+from bayle.mods.models import dependents
 
 REGULATION = games.ELDEN_RING.regulation  # the parameter file a package may ship
 
@@ -123,20 +125,6 @@ def set_setting(text: str, key: str, value) -> str:
 
 
 # ----------------------------------------------------------------------------- packages in load order
-def _dependents(raw) -> list:
-    """load_after / load_before as me3 reads them: {id, optional}. An entry without optional, or a bare name, is
-    taken as required (me3 itself does not read such a profile)."""
-    from bayle.mods.order import Dependent
-
-    out = []
-    for d in raw or []:
-        if isinstance(d, dict) and d.get("id"):
-            out.append(Dependent(str(d["id"]), d.get("optional") is True))
-        elif isinstance(d, str):
-            out.append(Dependent(d, False))
-    return out
-
-
 def package_rows(text: str, include_disabled: bool = False) -> list[dict]:
     """Packages with id, path, load_after / load_before ids, in file order. Both me3 shapes. index is the entry's
     block number (as mods.profile_edit numbers them); id is the name the launcher uses (the id, else the folder name);
@@ -155,8 +143,8 @@ def package_rows(text: str, include_disabled: bool = False) -> list[dict]:
         path = e["path"]
         if not path:
             continue
-        after = _dependents(row.get("load_after"))
-        before = _dependents(row.get("load_before"))
+        after = dependents(row.get("load_after"))
+        before = dependents(row.get("load_before"))
         out.append(
             {
                 "index": e["index"],
@@ -176,7 +164,6 @@ def package_rows(text: str, include_disabled: bool = False) -> list[dict]:
 def me3_order(profile: Path | None, text: str):
     """The enabled packages in the order me3 loads them (mods.order.Ordered: rows, problem, dropped). With the
     profile's path, packages whose folder is missing are left out first, as me3 does."""
-    from bayle.mods import order
 
     rows = package_rows(text, include_disabled=True)
     if profile is None:

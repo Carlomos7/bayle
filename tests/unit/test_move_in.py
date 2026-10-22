@@ -11,6 +11,7 @@ from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B
 from bayle.mods import library, move_in, undo
+from bayle.mods import models as mod_models
 from bayle.mods import profile_settings as ps
 from bayle.platform import trash
 from bayle.views.mods import ModsPresenter
@@ -187,7 +188,7 @@ def test_undo_is_byte_identical_and_refuses_after_edits(world):
     new = Path(out["profile"])
     original = new.read_bytes()
     new.write_bytes(original + b"\n# edited")
-    with pytest.raises(undo.UndoError, match="changed after"):
+    with pytest.raises(mod_models.UndoError, match="changed after"):
         undo.run(rec, lambda s: None, loc=loc)
     new.write_bytes(original)
     undo.run(rec, lambda s: None, loc=loc)

@@ -46,7 +46,8 @@ from bayle.formats import me3_profile
 from bayle.game import catalog as games
 from bayle.mods import checks, history, library, naming, profile_edit
 from bayle.mods import order as mod_order
-from bayle.mods.profile_edit import ModError
+from bayle.mods import profile as profile_tools
+from bayle.mods.models import ModError
 from bayle.platform import files
 
 if TYPE_CHECKING:
@@ -556,7 +557,6 @@ class ProfileWriter:
 
     def set_setting(self, key: str, value) -> None:
         """Set, replace or (None) remove one top-level me3 setting (mods.profile.set_setting)."""
-        from bayle.mods import profile as profile_tools
 
         self.text = profile_tools.set_setting(self.text, key, value)
         self.changes.append(Change("setting", row={key: value}))

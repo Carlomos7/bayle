@@ -52,6 +52,9 @@ from bayle.game import catalog as games
 from bayle.game import config as game_config
 from bayle.game import knowledge
 from bayle.game import oodle as game_oodle
+from bayle.mods import checks, operations, rebuild
+from bayle.mods import profile_edit as mod_manage
+from bayle.mods.models import EngineError
 from bayle.overhauls import hks_check, hooks, lua_check
 
 if TYPE_CHECKING:
@@ -59,10 +62,6 @@ if TYPE_CHECKING:
 
 WORK = ".roundtable-build"  # beside the output: the previous build and its restore.json
 STEPS = {"copy_tree", "copy", "config", "merge", "text", "params", "hook", "remove"}
-
-
-class EngineError(RuntimeError):
-    pass
 
 
 def _sha(p: Path) -> str:
@@ -130,8 +129,6 @@ def match(setup: Path | None, among: list[dict] | None = None) -> tuple[dict | N
 def layers(profile: Path, target_folder: Path) -> list[Path]:
     """The enabled packages before the target, in the order its own installer merges them: file order, each moved
     after what it loads after (and before what it loads before), taking the first that can go next."""
-    from bayle.mods import checks
-    from bayle.mods import profile_edit as mod_manage
 
     rows = [
         e
@@ -168,7 +165,6 @@ def layers(profile: Path, target_folder: Path) -> list[Path]:
 def unmet(profile: Path, recipe: dict) -> list[str]:
     """Why the profile cannot have this build: each requirement of the recipe (another mod it needs) that is not
     present and switched on (overhauls.requirements decides), as the refusal says it."""
-    from bayle.mods import profile_edit as mod_manage
 
     requires = [overhauls.Requirement.model_validate(r) for r in recipe.get("requires") or []]
     if not requires:
@@ -264,7 +260,7 @@ def build(
     swap it in, and return {output, previous, restore, sources, seconds}. loc: the game's locations; game_dir, when
     given, is used instead of loc's game folder. swap=False: the build is left staged beside its place and returned
     as output (previous and restore None), nothing live changes; the caller puts it in place (an install's
-    operation, mods.overhaul_install) or removes it. Raises EngineError; the output in place is then unchanged."""
+    operation, mods.overhaul_install) or removes it. Raises models.EngineError; the output in place is then unchanged."""
     from bayle import __version__
 
     started = time.time()
@@ -635,7 +631,6 @@ def inputs_now(recipe: dict, game_dir: Path | None, loc: Locations, *, version: 
     """What a build of `recipe` is made for today: the merger's rules, the game's own files (when the game is found;
     the regulation's version too when `version`, as a build records it) and the config's build."""
     from bayle.merging import record as merge_record
-    from bayle.mods import rebuild
 
     files = (
         merge_record.game_files(game_dir, loc.game.regulation, rebuild.sha256, version=version) if game_dir else None
@@ -663,7 +658,6 @@ def _swap(profile: Path, own: Path, stage: Path, log) -> tuple[Path | None, Path
     """The live build goes to previous/ and the staged one takes its place, as one journaled operation: a kill
     between the two renames is undone at the next launcher start (operations.recover), so the mod folder is never
     left missing. The journal is dropped once both renames are done; without one, previous/ is never touched."""
-    from bayle.mods import operations
 
     work = own.parent / WORK
     previous = work / "previous"

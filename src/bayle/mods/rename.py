@@ -27,9 +27,9 @@ from bayle import overhauls
 from bayle.config import settings as launcher_settings
 from bayle.formats import me3_profile
 from bayle.merging import build
-from bayle.mods import checks, library, naming, operations, profile_edit, profile_settings
+from bayle.mods import checks, kinds, library, naming, operations, profile_edit, profile_settings
 from bayle.mods import order as mod_order
-from bayle.mods.profile_edit import ModError
+from bayle.mods.models import ModError, UndoError
 from bayle.mods.profile_writer import Plan as WriterPlan
 from bayle.mods.profile_writer import ProfileWriter
 from bayle.platform import filelock
@@ -406,3 +406,13 @@ def profile_back(op: build.Operation, profile: Path, notes: list[str]) -> tuple[
     if plan.refusals:
         raise operations.OperationError("; ".join(r.message for r in plan.refusals))
     return plan.bytes_to_write, expect
+
+
+def _undo_kind(undo: dict, log, loc) -> str:
+    try:
+        return operations.take_back(Path(undo["operation"]), log)
+    except operations.OperationError as e:
+        raise UndoError(str(e)) from e
+
+
+kinds.register_undo(("rename",), kinds.operation_active_with_profile, _undo_kind, kinds.named("The rename"))

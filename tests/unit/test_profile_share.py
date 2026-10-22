@@ -10,7 +10,7 @@ import pytest
 from bayle.config.settings import load_settings
 from bayle.merging.build import BuildError
 from bayle.mods import profile_share, undo
-from bayle.mods.profile_edit import ModError
+from bayle.mods.models import ModError
 from bayle.services import profile_transfer as pt
 from support import er
 

@@ -42,12 +42,18 @@ jobs:
             - "src/**"
             - "tests/**"
             - "scripts/**"
+            - "docs/api/**"
+            - "release-please-config.json"
             - "pyproject.toml"
             - "uv.lock"
             - ".python-version"
             - ".github/workflows/**"
           desktop:
             - "apps/desktop/**"
+            - "packages/**"
+            - "scripts/theme/**"
+            - "src/bayle/ui/theme_tokens.py"
+            - "docs/api/openapi.json"
             - "package.json"
             - "pnpm-lock.yaml"
             - "pnpm-workspace.yaml"
@@ -95,6 +101,12 @@ jobs:
       run: |
         uv run python scripts/theme/gen_theme.py --check
         uv run pytest -q tests/unit/test_theme_contrast.py
+
+    # A route or schema change without a regenerated docs/api/openapi.json fails here; the web job then checks the TS client.
+    - name: API contract and versions
+      run: |
+        uv run python scripts/export_openapi.py --check
+        uv run python scripts/ci/check-versions.py
 
     - name: Run tests with coverage
       run: |
@@ -148,13 +160,22 @@ jobs:
 
     - run: pnpm install --frozen-lockfile
 
-    - name: Type check, lint, test, build
-      working-directory: apps/desktop
+    # tokens.css comes from the Qt theme's generated tokens (stdlib Python, no uv needed).
+    - name: Theme tokens are up to date
+      run: python3 scripts/theme/gen_tokens.py --check
+
+    # The client is generated from docs/api/openapi.json and committed: a snapshot change without regenerating fails here.
+    - name: Generated client is up to date
       run: |
-        pnpm typecheck
-        pnpm lint
-        pnpm test
-        pnpm build
+        pnpm --filter @bayle/api generate
+        git diff --exit-code -- packages/api/src/generated
+
+    - name: Type check, lint, test, build
+      run: |
+        pnpm -r typecheck
+        pnpm -r lint
+        pnpm -r test
+        pnpm --filter @bayle/desktop build
 
   rust:
     needs: changes

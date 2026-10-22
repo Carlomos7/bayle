@@ -30,6 +30,7 @@ class Refusal:
 
     title: str
     body: str
+    info: bool = False  # said as plain news, not as an error ("Nothing to trim")
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class Pick:
     apply: str
     none: str = ""
     ticked: tuple[int, ...] = ()  # rows ticked at first
+    rows: tuple[str, ...] = ()  # the rows' labels, when the words travel with them (a plan's prompt)
 
 
 @dataclass(frozen=True)

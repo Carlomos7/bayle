@@ -6,7 +6,12 @@ use engine::Backend;
 use std::path::PathBuf;
 use std::process::Child;
 use std::sync::{Arc, Condvar, Mutex};
+
 use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+
+/// The Qt launcher's default and minimum window size (Main.qml), in logical pixels.
+const WINDOW_SIZE: (f64, f64) = (1100.0, 760.0);
+const WINDOW_MIN: (f64, f64) = (740.0, 540.0);
 
 /// Set once, by the startup thread: the engine's connection details or why there is none.
 type Slot = Arc<(Mutex<Option<Result<Backend, String>>>, Condvar)>;
@@ -67,7 +72,8 @@ pub fn run() {
             std::fs::create_dir_all(&dir)?;
             let main = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Bayle")
-                .inner_size(1100.0, 720.0)
+                .inner_size(WINDOW_SIZE.0, WINDOW_SIZE.1)
+                .min_inner_size(WINDOW_MIN.0, WINDOW_MIN.1)
                 .data_directory(dir.clone())
                 .visible(false)
                 .build()?;
@@ -88,7 +94,7 @@ pub fn run() {
                 // the main page shows an engine error itself, so it is shown either way
                 let _ = handle.run_on_main_thread(move || {
                     let _ = splash.close();
-                    let _ = main.set_size(tauri::LogicalSize::new(1100.0, 720.0));
+                    let _ = main.set_size(tauri::LogicalSize::new(WINDOW_SIZE.0, WINDOW_SIZE.1));
                     let _ = main.center();
                     let _ = main.show();
                 });

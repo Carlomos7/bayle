@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-
-// Temporary hand-written client; WP30 swaps it for the generated one in packages/api.
+import { createClient } from "@bayle/api";
+import type { Problem } from "./types";
 
 /** What the Rust shell learned from the engine's handshake line. */
 export interface Backend {
@@ -8,13 +8,6 @@ export interface Backend {
   token: string;
   app_version: string;
   contract_version: string;
-}
-
-/** The backend's error body (application/problem+json). */
-export interface Problem {
-  code: string;
-  message: string;
-  details: Record<string, unknown>;
 }
 
 export class ApiError extends Error {
@@ -28,46 +21,28 @@ export class ApiError extends Error {
 
 export const getBackend = () => invoke<Backend>("get_backend");
 
-async function toProblem(response: Response): Promise<Problem> {
-  try {
-    const body = (await response.json()) as Partial<Problem>;
-    if (typeof body.code === "string" && typeof body.message === "string") {
-      return { code: body.code, message: body.message, details: body.details ?? {} };
-    }
-  } catch {
-    // not JSON: fall through
+function toProblem(body: unknown, status: number): Problem {
+  const p = body as Partial<Problem> | null;
+  if (typeof p?.code === "string" && typeof p.message === "string") {
+    return { code: p.code, message: p.message, details: p.details ?? {} };
   }
-  return { code: "http_error", message: `HTTP ${response.status}`, details: {} };
+  return { code: "http_error", message: `HTTP ${status}`, details: {} };
 }
 
 export type Api = ReturnType<typeof createApi>;
 
-/** The one place that adds the bearer header and the base URL. */
+/** The generated client (packages/api) for this run's handshake, with get/post for the page and plan routes that throw ApiError. */
 export function createApi(backend: Pick<Backend, "base_url" | "token">) {
-  const headers = (extra?: HeadersInit) => ({ ...extra, Authorization: `Bearer ${backend.token}` });
-
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${backend.base_url}${path}`, { ...init, headers: headers(init.headers) });
-    if (!response.ok) throw new ApiError(await toProblem(response), response.status);
-    return (await response.json()) as T;
+  const api = createClient({ baseUrl: backend.base_url, token: backend.token });
+  async function call<T>(run: Promise<{ data?: unknown; error?: unknown; response?: Response }>): Promise<T> {
+    const r = await run;
+    if (r.error !== undefined || !r.response?.ok) throw new ApiError(toProblem(r.error, (r.response?.status ?? 0)), (r.response?.status ?? 0));
+    return r.data as T;
   }
   return {
-    backend,
-    get: <T>(path: string) => request<T>(path),
-    post: <T>(path: string, body: unknown = {}) =>
-      request<T>(path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }),
-    /** Open the SSE stream. fetch, not EventSource: the stream needs the bearer header. */
-    stream: (lastEventId: number | null, signal: AbortSignal) =>
-      fetch(`${backend.base_url}/v1/events`, {
-        signal,
-        headers: headers({
-          Accept: "text/event-stream",
-          ...(lastEventId === null ? {} : { "Last-Event-ID": String(lastEventId) }),
-        }),
-      }),
+    ...api,
+    get: <T>(url: string) => call<T>(api.client.get({ url })),
+    post: <T>(url: string, body: unknown = {}) =>
+      call<T>(api.client.post({ url, body, headers: { "Content-Type": "application/json" } })),
   };
 }

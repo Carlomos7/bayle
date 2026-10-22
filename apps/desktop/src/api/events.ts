@@ -17,7 +17,7 @@ export interface EventDeps {
 
 /** Route one event to the query cache, the toasts, the dialog host or the router. */
 export function handleEvent(e: ApiEvent, { queryClient: qc, toasts, ask, navigate }: EventDeps): void {
-  const id = e.job_id;
+  const id = e.job_id ?? null;
   const update = (patch: (j: JobState) => Partial<JobState>) => {
     if (id === null) return undefined;
     const old = qc.getQueryData<JobState>(jobKey(id)) ?? {
@@ -64,7 +64,7 @@ export function handleEvent(e: ApiEvent, { queryClient: qc, toasts, ask, navigat
       break;
     }
     case "prompt":
-      ask(e.data);
+      ask(e.data as unknown as PromptEventData);
       break;
     case "invalidated":
       // shell | pages | updates | game: "pages" means every page; a name means that page

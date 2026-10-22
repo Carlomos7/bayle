@@ -88,6 +88,7 @@ class ShellHost(QObject):
         self._detail_seen = ""
         self._session_jobs: dict[str, str] = {}  # jobs running, by id: their title
         self._followers: dict[str, Callable[[Any], None]] = {}  # job id -> what to do with its end (follow_job)
+        self._quiet: set[str] = set()  # jobs whose end the page words itself: no generic "done" toast
         self.shell.coop_unsaved = self.coop_unsaved
         self.shell.save_pending = self._save_pending
         self._events = self.shell.bus.subscribe(notify=self._session_event.emit)
@@ -131,6 +132,8 @@ class ShellHost(QObject):
         job_id = str(e.job_id)
         if e.type == "started":
             self._session_jobs[job_id] = str(e.data.get("title") or "")
+            if e.data.get("quiet"):
+                self._quiet.add(job_id)
             self._detail_seen = ""
             self.changed.emit()
         elif e.type in ("log", "progress"):
@@ -140,12 +143,14 @@ class ShellHost(QObject):
         elif e.type in ("finished", "failed", "cancelled"):
             label = self._session_jobs.pop(job_id, "")
             kind = self.shell.kinds.get(job_id, "other")
+            quiet = job_id in self._quiet
+            self._quiet.discard(job_id)
             if e.type != "finished":
                 status = "Error (see details)" if e.data.get("unexpected") else "Stopped (see details)"
                 self.notifier.toast_action(
                     f"{label.rstrip('. ')}: {status}", tr("Details"), lambda: self.show_page("activity"), error=True
                 )
-            elif kind == "other":
+            elif kind == "other" and not quiet:
                 self.notifier.toast(tr("{job}: done").format(job=label.rstrip(". ")))
             self.changed.emit()
             follower = self._followers.pop(job_id, None)

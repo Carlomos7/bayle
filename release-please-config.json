@@ -12,6 +12,12 @@
       "bump-minor-pre-major": false,
       "extra-files": [
         "src/bayle/__init__.py",
+        { "type": "json", "path": "package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/desktop/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/api/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/desktop/src-tauri/tauri.conf.json", "jsonpath": "$.version" },
+        { "type": "toml", "path": "apps/desktop/src-tauri/Cargo.toml", "jsonpath": "$.package.version" },
+        { "type": "toml", "path": "apps/desktop/src-tauri/Cargo.lock", "jsonpath": "$.package[?(@.name=='bayle-desktop')].version" },
         {
           "type": "toml",
           "path": "uv.lock",

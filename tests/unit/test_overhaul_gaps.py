@@ -415,18 +415,38 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
 
 
 # ----------------------------------------------------------------------------- gap 4: a matched setup is pre-filled
-def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world):
-    from types import SimpleNamespace
+def open_draft(world, plan):
+    """An Install mod draft in a session, the way the dialog holds it: (session, draft id, its state)."""
+    from bayle.session import EventBus, JobManager, PlanStore, Session
+    from bayle.session import ops as _ops  # noqa: F401  registers the operations
+    from bayle.session.ops.mods_install import DraftState, drafts
+    from bayle.views.mod_install import InstallDraft
 
-    from PySide6.QtCore import QCoreApplication
+    session = Session(
+        JobManager(EventBus(), spawn=lambda run, name=None: run()),
+        plans=PlanStore(),
+        locations=lambda: world.loc,
+    )
+    state = DraftState(InstallDraft(plan, world.profile, overhaul_on=True), world.profile)
+    state.planned = state.key()
+    return session, drafts(session).add(state), state
+
+
+def refresh(session, draft_id):
+    """What the dialog asks for after its pause: the replan, then the preview (on a worker)."""
+    from bayle.platform.threads import as_worker
+
+    with as_worker():
+        session.run("mods.install_replan", {"draft_id": draft_id})
+        return session.run("mods.install_preview", {"draft_id": draft_id})
+
+
+def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world):
     from test_overhaul_install import set_up
 
     from bayle import overhauls
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install_adapter import InstallAdapter
-    from bayle.views.mod_install import InstallDraft
 
-    app = QCoreApplication.instance() or QCoreApplication([])
     folder, toml, _out = set_up(world)
     config = overhauls.read(toml)
     natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
@@ -434,26 +454,21 @@ def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_i
     toml.write_text(__import__("bayle.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")
     plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
     assert plan.get("overhaul")
-    host = SimpleNamespace(
-        profile=world.profile,
-        locations=world.loc,
-        run_in_background=lambda work, done: done(work()),
-        run_job=lambda *a, **k: None,
-    )
-    adapter = InstallAdapter(host, SimpleNamespace())
-    draft = adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
+    session, draft_id, state = open_draft(world, plan)
+    draft = state.draft
     assert draft.overhaul_mode == "matched"
-    adapter._planned = adapter._key()
-    adapter._refresh()
+    refresh(session, draft_id)
     view = draft.view()
     assert view["natives"][0]["initializer"] == "Boot"  # pre-filled from the saved setup
     assert {"MixedMod.ini"} <= {r["file"] for r in view["files"]}
-    assert not adapter._via_setup
-    adapter.setNative("MixedMod.dll", "early", "true")
-    adapter._timer.stop()
-    adapter._refresh()
-    assert adapter._via_setup and adapter._preview.found.config.basic.natives[0].load_early is True
-    del app
+    assert not state.via_setup
+    got = session.run(
+        "mods.install_edit",
+        {"draft_id": draft_id, "field": "native", "key": "MixedMod.dll", "kind": "early", "text": "true"},
+    )
+    assert got.pending and got.view["busy"]  # a new preview is asked for
+    refresh(session, draft_id)
+    assert state.via_setup and state.preview.found.config.basic.natives[0].load_early is True
 
 
 def test_a_dll_with_the_name_of_one_already_in_the_profile_is_said_in_the_review(world):
@@ -516,92 +531,61 @@ def test_the_left_out_note_ignores_the_case_of_the_folder(world):
 
 
 def test_the_files_table_is_read_off_the_ui_thread_and_a_fresh_config_forgets_earlier_edits(world, monkeypatch):
-    from types import SimpleNamespace
-
-    from PySide6.QtCore import QCoreApplication
     from test_overhaul_install import set_up
 
+    from bayle.platform import threads
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install_adapter import InstallAdapter
-    from bayle.views.mod_install import InstallDraft
 
-    QCoreApplication.instance() or QCoreApplication([])
     folder, _toml, _out = set_up(world)
     plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
-    inside = {"refreshed": False}
     real = mod_service.setup_file_rows
 
     def rows(config, where):
-        assert not inside["refreshed"], "the Files table was read on the UI thread"
+        threads.assert_not_ui_thread("the Files table")  # reads the whole download
         return real(config, where)
 
     monkeypatch.setattr(mod_service, "setup_file_rows", rows)
-    host = SimpleNamespace(
-        profile=world.profile,
-        locations=world.loc,
-        run_in_background=lambda work, done: done(work()),
-        run_job=lambda *a: None,
-    )
-    adapter = InstallAdapter(host, SimpleNamespace())
-    adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
-    adapter._planned = adapter._key()
-    original = adapter._refreshed
-
-    def watched(got):
-        inside["refreshed"] = True
-        try:
-            original(got)
-        finally:
-            inside["refreshed"] = False
-
-    adapter._refreshed = watched
-    adapter._refresh()
-    assert adapter._draft.files
-    adapter._edited = True
-    adapter._config_for = ()  # the name or variant changed: the config is proposed again
-    adapter._previewed = ()
-    adapter._refresh()
-    assert adapter._edited is False
+    session, draft_id, state = open_draft(world, plan)
+    threads.enable()  # this thread is "the UI thread" from here on
+    try:
+        session.run("mods.install_edit", {"draft_id": draft_id, "field": "tick", "key": "x", "on": True})  # in memory
+        with pytest.raises(threads.UiThreadIO):
+            session.run("mods.install_preview", {"draft_id": draft_id})  # asked on the UI thread: refused
+        refresh(session, draft_id)
+    finally:
+        threads.disable()
+    assert state.draft.files
+    state.edited = True
+    state.config_for = ()  # the name or variant changed: the config is proposed again
+    state.previewed = ()
+    refresh(session, draft_id)
+    assert state.edited is False
 
 
 def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen(world):
-    from types import SimpleNamespace
-
-    from PySide6.QtCore import QCoreApplication
     from test_overhaul_texts_propose import download
 
     from bayle.services import mods as mod_service
-    from bayle.ui.pages.mods.install_adapter import InstallAdapter
-    from bayle.views.mod_install import InstallDraft
 
-    QCoreApplication.instance() or QCoreApplication([])
     folder = download(world.tmp / "dl" / "Texty", {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
     (folder / "mod/chr").mkdir(parents=True)
     (folder / "mod/chr/a.anibnd.dcx").write_bytes(b"x")
     plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
-    host = SimpleNamespace(
-        profile=world.profile,
-        locations=world.loc,
-        run_in_background=lambda work, done: done(work()),
-        run_job=lambda *a: None,
-    )
-    adapter = InstallAdapter(host, SimpleNamespace())
-    draft = adapter._draft = InstallDraft(plan, world.profile, overhaul_on=True)
+    session, draft_id, state = open_draft(world, plan)
+    draft = state.draft
     draft.overhaul = True
-    adapter._planned = adapter._key()
-    adapter._refresh()
+    refresh(session, draft_id)
     (row,) = draft.view()["texts"]
     assert row["table"] == "" and [c["label"] for c in row["choices"]] == ["(choose a table)", "A.fmg", "B.fmg"]
     assert not draft.can_install() and any("Choose the table" in r for r in draft.preview["refusals"])
-    adapter.setTable(row["file"], "B.fmg")
-    adapter._timer.stop()
-    adapter._refresh()
+    session.run("mods.install_edit", {"draft_id": draft_id, "field": "table", "key": row["file"], "text": "B.fmg"})
+    refresh(session, draft_id)
     assert draft.view()["texts"][0]["table"] == "B.fmg"
     assert not any("Choose the table" in r for r in draft.preview["refusals"])
 
 
 def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
-    from bayle.ui.pages.mods.install_adapter import setup_notes
+    from bayle.session.ops.mods_install import setup_notes
 
     folder = make_folder(tmp_path / "dl", ["mod/chr/a.anibnd.dcx", "M.dll"])
     b = basic.propose(folder, game="eldenring").model_copy(update={"files": {"old/gone.ini": "leave"}})

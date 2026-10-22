@@ -1,9 +1,8 @@
-"""Write tokens.css from src/bayle/ui/theme_tokens.py (itself generated from scripts/theme/tokens.json).
+"""Write apps/desktop/src/theme/tokens.css from src/bayle/ui/theme_tokens.py (itself generated from scripts/theme/tokens.json).
 
-    python apps/desktop/src/theme/gen_tokens.py [--check]
+    python scripts/theme/gen_tokens.py [--check]
 
---check exits 1 when tokens.css is stale. shortcut: lives next to its output, not in scripts/theme/gen_theme.py;
-fold it in there (and into the CI --check) when the Qt UI is retired.
+--check exits 1 when tokens.css is stale (a CI gate in the web job). Stdlib only.
 """
 
 from __future__ import annotations
@@ -14,8 +13,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SRC = HERE.parents[3] / "src" / "bayle" / "ui" / "theme_tokens.py"
-OUT = HERE / "tokens.css"
+SRC = HERE.parents[1] / "src" / "bayle" / "ui" / "theme_tokens.py"
+OUT = HERE.parents[1] / "apps" / "desktop" / "src" / "theme" / "tokens.css"
 
 spec = importlib.util.spec_from_file_location("theme_tokens", SRC)
 assert spec and spec.loader

@@ -73,6 +73,8 @@ class OperationSpec:
     title: str | Callable[[Any], str] = (
         ""  # a job's title (top bar, Activity): fixed, or from its params; default: the name
     )
+    check: Callable[[Call, Any], None] | None = None  # a job's refusals, raised before it starts (not as a failed job)
+    quiet: bool = False  # the client words the job's end itself
 
     @property
     def page(self) -> str:
@@ -94,8 +96,12 @@ class OperationRegistry:
         kind: Kind = "read",
         writes: bool = False,
         title: str | Callable[[Any], str] = "",
+        check: Callable[[Call, Any], None] | None = None,
+        quiet: bool = False,
     ) -> Callable[[Callable[[Call, Any], Any]], Callable[[Call, Any], Any]]:
-        """Register fn(call, params) -> result. title(params) names a job for the client (default: name). A duplicate name, an unknown kind, or a read that writes raises
+        """Register fn(call, params) -> result. title(params) names a job for the client (default: name). check and
+        quiet apply to a job: check(call, params) raises an OperationError to refuse before anything starts, quiet
+        means the client words the job's end itself. A duplicate name, an unknown kind, or a read that writes raises
         ValueError at once (a wiring mistake, not a runtime condition)."""
         if kind not in _KINDS:
             raise ValueError(f"operation {name}: unknown kind {kind!r}")
@@ -105,7 +111,7 @@ class OperationRegistry:
         def register(fn: Callable[[Call, Any], Any]) -> Callable[[Call, Any], Any]:
             if name in self._ops:
                 raise ValueError(f"operation {name} is already registered")
-            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes, title)
+            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes, title, check, quiet)
             return fn
 
         return register
@@ -214,14 +220,14 @@ class Session:
             raise _invalid(page, e) from None
         return spec.fn(self, **scope)
 
-    def start(self, work: Callable[[JobContext], Any], *, title: str, writes: bool = True) -> str:
+    def start(self, work: Callable[[JobContext], Any], *, title: str, writes: bool = True, quiet: bool = False) -> str:
         """Start work(ctx) as a job; its return value (a model or JSON-clean data) is the job's result."""
 
         def dump(ctx: JobContext) -> Any:
             got = work(ctx)
             return got.model_dump(mode="json") if isinstance(got, BaseModel) else got
 
-        return self.jobs.start(dump, title=title, writes=writes)
+        return self.jobs.start(dump, title=title, writes=writes, quiet=quiet)
 
     def run(self, name: str, params: Params | Mapping[str, Any] | None = None) -> Any:
         """Run operation name. A read or command returns its validated result model; a job returns its job id (the
@@ -237,10 +243,13 @@ class Session:
             return self._offer(spec.fn(Call(self), p))
         if spec.kind != "job":
             return spec.result.model_validate(spec.fn(Call(self), p))
+        if spec.check is not None:
+            spec.check(Call(self), p)
         return self.start(
             lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)),
             title=(spec.title(p) if callable(spec.title) else spec.title) or name,
             writes=spec.writes,
+            quiet=spec.quiet,
         )
 
     def _offer(self, got: Proposal | Refusal) -> Plan | Refusal:

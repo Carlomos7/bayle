@@ -2,8 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useApi } from "./backend";
 import { handleEvent, type EventDeps } from "./events";
-import { readFrames } from "./sse";
-import type { ApiEvent } from "./types";
 
 const BACKOFF_MS = [250, 500, 1000, 2000, 5000];
 
@@ -22,11 +20,8 @@ export function EventsProvider({ deps, children }: { deps: Omit<EventDeps, "quer
     void (async () => {
       for (let attempt = 0; !abort.signal.aborted; attempt++) {
         try {
-          const response = await api.stream(last, abort.signal);
-          if (!response.ok || !response.body) throw new Error(`events: HTTP ${response.status}`);
-          for await (const frame of readFrames(response.body)) {
+          for await (const event of api.events({ lastEventId: last ?? undefined, signal: abort.signal })) {
             attempt = 0;
-            const event = JSON.parse(frame.data) as ApiEvent;
             last = event.seq;
             handleEvent(event, { ...depsRef.current, queryClient });
           }

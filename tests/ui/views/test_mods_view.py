@@ -4,7 +4,6 @@ dependencies would undo is refused with the reason, removing asks first and runs
 through the profile writer."""
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 from page_window import PageWindow
@@ -15,6 +14,8 @@ from PySide6.QtTest import QTest
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
 from bayle.services.mods import profile_entries
+from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import ops as _registered_operations  # noqa: F401
 from bayle.ui.host import Host as HostContract
 from bayle.ui.pages.registry import page as registered
 from support import er
@@ -41,15 +42,33 @@ class Host:
         self.settings = LauncherSettings()
         self.game = games.ELDEN_RING
         self.launch_profile = type("Setup", (), {"profile": str(profile), "kind": "me3"})()
-        self.jobs: list[str] = []
+        self.legacy_jobs: list[str] = []  # jobs the host itself ran (the pages not behind the session yet)
         self.changes: list[str] = []
         self.installs: list = []
         self.ran = None
-        self.session: Any = None
+        self.session = Session(  # the session runs its jobs at once, over the same disk the test sets up
+            JobManager(
+                EventBus(),
+                spawn=lambda run, name=None: run(),
+                game_running=lambda: self.game_running,
+                external_busy=lambda: self.busy,
+            ),
+            plans=PlanStore(),
+            locations=lambda: self.locations,
+        )
+
+    @property
+    def jobs(self) -> list[str]:
+        """The titles of the jobs started, in order: the session's (they run at once) and the host's own."""
+        mine = (self.session.jobs.get(f"j{i}") for i in range(1, 30))
+        return [*[s.title for s in mine if s], *self.legacy_jobs]
 
     def run_job(self, job, status, on_done=None):
-        self.jobs.append(status)
+        self.legacy_jobs.append(status)
         self.ran = (job, on_done)
+
+    def follow_job(self, job_id, done):
+        done(self.session.jobs.get(job_id))  # the session ran it at once
 
     def mark_seen(self):
         pass
@@ -356,10 +375,7 @@ def _removed_with_toast(w, host):
     w.notifier.confirmFullRequested.connect(lambda token, words: asked.append(words))
     w.notifier.toastActionRequested.connect(lambda text, error, action, token: toasts.append((text, action, token)))
     click(w, find(w, "remove_a.dll"))
-    assert asked == [] and host.jobs == ["Removing a.dll..."]
-    job, on_done = host.ran
-    job(None, host.locations)
-    on_done(True)
+    assert asked == [] and host.jobs == ["Removing a.dll..."]  # the session ran it at once
     assert [t[:2] for t in toasts] == [("Removed a.dll", "Undo")]
     return toasts[0][2]
 
@@ -465,6 +481,9 @@ def test_the_overhaul_entries_follow_the_preview_switch(qt_app, profile, monkeyp
 
 def test_removing_an_installer_made_overhaul_asks_what_to_put_back_then_confirms(qt_app, profile, monkeypatch):
     calls = overhaul_services(monkeypatch)
+    from bayle.services import mods as mod_service
+
+    monkeypatch.setattr(mod_service, "remove_overhaul", lambda p: calls["removed"].append(p))
     host = Host(profile)
     w = opened(host)
     try:
@@ -483,6 +502,7 @@ def test_removing_an_installer_made_overhaul_asks_what_to_put_back_then_confirms
         assert words["option"] == "Also switch ersc.dll back off, as it was before the install"
         w.notifier.answerWith(token, True, True)  # the switch-back ticked: previewed again with it
         assert calls["previews"][-1] == (True, ["E"]) and host.jobs == ["Removing Toy..."]
+        assert len(calls["removed"]) == 1  # what was previewed with the switch-back is what ran
     finally:
         closed(w)
 
@@ -605,7 +625,6 @@ def test_the_profile_menu_commands_reach_the_page(qt_app, profile):
 def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_install_again(
     qt_app, profile, monkeypatch
 ):
-    from bayle.services import jobs as job_service
     from bayle.services import mods as mod_service
 
     overhaul_services(monkeypatch)
@@ -646,10 +665,8 @@ def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_ins
         [(token, words)] = asked
         assert words["title"] == "Take over Toy in main.me3" and words["apply"] == "Take over"
         w.notifier.answerWith(token, True, False)
-        assert host.jobs == ["Taking over Toy..."]
-        assert host.ran is not None and host.ran[1] is not None
-        host.ran[1](job_service.Outcome(True, "Finished"))  # the job is done: asks about installing again
-        settle()
+        assert host.jobs == ["Taking over Toy..."] and len(chosen) == 1  # the session ran the job at once
+        settle()  # the job is done: asks about installing again
         assert asked[-1][1]["title"] == "Install Toy with the launcher now?" and host.installs == []
         w.notifier.answerWith(asked[-1][0], True, False)
         assert host.installs == [True]  # opens Install mod; nothing installs by itself
@@ -680,5 +697,38 @@ def test_take_over_ticks_the_entries_the_installer_copied(qt_app, profile, monke
         settle()
         [(ticked, rows)] = picks
         assert ticked == [1] and "copied by the installer" in rows[1] and "not in the profile" in rows[0]
+    finally:
+        closed(w)
+
+
+def test_cleaning_installer_leftovers_picks_the_folders_then_asks_about_each_backup(qt_app, profile, monkeypatch):
+    from types import SimpleNamespace
+
+    from bayle.services import mods as mod_service
+
+    overhaul_services(monkeypatch)
+    left = [
+        SimpleNamespace(path=Path("C:/x/Old Mod"), label="Old Mod (3 MB)", backups=False),
+        SimpleNamespace(path=Path("C:/x/Old Backups"), label="Old Backups (2 MB)", backups=True),
+    ]
+    monkeypatch.setattr(mod_service, "overhaul_leftovers", lambda p, loc: left)
+    removed: list = []
+    monkeypatch.setattr(mod_service, "remove_overhaul_leftovers", lambda paths: removed.append(list(paths)) or [])
+    host = Host(profile)
+    w = opened(host)
+    try:
+        picks, asked = [], []
+        w.adapter.pickRequested.connect(lambda key, words, rows: picks.append((key, words["title"], rows)))
+        w.notifier.confirmFullRequested.connect(lambda token, words: asked.append((token, words["title"])))
+        w.adapter.cleanLeftovers()
+        settle()
+        [(key, title, rows)] = picks
+        assert (title, rows) == ("Clean up installer leftovers", ["Old Mod (3 MB)"])
+        w.adapter.picked(key, [0])  # the folder ticked: the backups are asked last
+        settle()
+        assert [t for _tok, t in asked] == ["Also remove Old Backups?"] and removed == []
+        w.notifier.answerWith(asked[0][0], True, False)
+        assert host.jobs == ["Moving leftovers to the Recycle Bin..."]
+        assert removed == [[Path("C:/x/Old Mod"), Path("C:/x/Old Backups")]]
     finally:
         closed(w)

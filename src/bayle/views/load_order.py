@@ -4,7 +4,7 @@ string through tr(); it reads one Load order scan (mods.conflicts.overview)."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from bayle.mods import conflicts as mod_overview
@@ -130,6 +130,11 @@ def panel(scan: dict | None, show_all: bool = False) -> LoadOrderPanel:
         refused=refused,
         error=tr("The files could not be compared: {why}").format(why=error) if error else "",
     )
+
+
+def shown(panel: LoadOrderPanel, show_all: bool) -> LoadOrderPanel:
+    """The panel with the clash list cut to SHOWN_CLASHES unless show_all (the snapshot carries every clash)."""
+    return panel if show_all else replace(panel, clashes=panel.clashes[:SHOWN_CLASHES])
 
 
 def same_profile(scan: dict | None, profile) -> bool:

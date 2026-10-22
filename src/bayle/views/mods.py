@@ -6,7 +6,7 @@ shows. The adapter hands it to QML; the Widgets Mods page uses its confirmation 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.game import catalog
@@ -17,6 +17,7 @@ from bayle.services.profile_mods import PageFacts, Removal
 from bayle.views import load_order
 from bayle.views.common import Confirm, Pick, Refusal
 
+BUSY = profile_mods.DELETE_BUSY  # rename_block's code for "a job is running"
 MAX_TAGS = 2  # tags shown on a row; the rest are in its tooltip
 MAX_DEPS = 3  # dependencies named in the status line before "N others"
 
@@ -133,7 +134,6 @@ class ModsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
     notices_shown: int = 2  # InfoBars at once; the rest wait
-    _closed: set[tuple[str, str]] = field(default_factory=set)  # (profile, notice kind) closed this session
 
     # ---- the page's fixed words
     install_text = property(lambda self: tr("Install mod"))
@@ -299,10 +299,12 @@ class ModsPresenter:
         seamless: str = "",
         no_profiles: bool = False,
         duplicated: tuple[int, int] = (0, 0),
+        closed: frozenset[tuple[str, str]] = frozenset(),
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
-        changes put right as the page opened (one line each);
+        changes put right as the page opened (one line each); closed: the (profile, notice key) pairs the player closed
+        this session (the session keeps them);
         no_profiles: this game has no profile at all, so the page says how to start."""
         if facts is None:
             words = (
@@ -354,6 +356,7 @@ class ModsPresenter:
                 len(facts.loose_dlls),
                 duplicated,
                 facts.outside,
+                closed,
             ),
         )
 
@@ -602,6 +605,7 @@ class ModsPresenter:
         loose_dlls: int = 0,
         duplicated: tuple[int, int] = (0, 0),
         outside: bool = False,
+        closed: frozenset[tuple[str, str]] = frozenset(),
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -716,11 +720,18 @@ class ModsPresenter:
             )
         if duplicated[1] > shared_mods.HINT_BYTES:
             out.append(Notice("library-hint", "info", self.hint_text(*duplicated), tr("Shared mods..."), True))
-        return tuple(n for n in out if (profile, n.key) not in self._closed)[: self.notices_shown]
+        return tuple(n for n in out if (profile, n.key) not in closed)[: self.notices_shown]
 
-    def close_notice(self, key: str, profile: str = "") -> None:
-        """A closed InfoBar stays closed for this profile only."""
-        self._closed.add((profile, key))
+    def library_hint(self, duplicated: tuple[int, int], profile: str = "", closed: frozenset = frozenset()):
+        """The disk hint on its own (it is worked out after the page shows): a Notice, or None."""
+        if duplicated[1] <= shared_mods.HINT_BYTES or (profile, "library-hint") in closed:
+            return None
+        return Notice("library-hint", "info", self.hint_text(*duplicated), tr("Shared mods..."), True)
+
+    @staticmethod
+    def text_error(why: str) -> str:
+        """The profile text does not parse (why: the parser's words); "" when it does."""
+        return tr("Does not parse as a profile: {why}. Save is off until it does.").format(why=why) if why else ""
 
     # ---- the Library
     @staticmethod
@@ -1019,6 +1030,35 @@ class ModsPresenter:
             else tr("Your profile's own copy is not touched."),
         )
 
+    @staticmethod
+    def rebuild_refusal(code: str, detail: str = "") -> str:
+        """Why the combined parameters cannot be rebuilt now (profile_mods.REBUILD_* code)."""
+        if code == profile_mods.REBUILD_GAME_RUNNING:
+            return tr("Close the game first. The rebuild rewrites files the game has open.")
+        if code == profile_mods.REBUILD_BLOCKED:
+            return tr("It cannot be rebuilt now: {why}").format(why=detail)
+        return tr("Nothing to rebuild. Fewer than two packs ship parameters and there is no rebuild tool.")
+
+    @staticmethod
+    def seamless_changes(move: bool, folder, files: int, launcher: str = "") -> list[str]:
+        """The change list of the Seamless Co-op move or clean-up: what is found in the game folder and where it goes."""
+        changes = [
+            tr("{n} file(s) in {folder} {what}").format(
+                n=files,
+                folder=folder,
+                what=tr("move into this profile, settings included") if move else tr("go to the Recycle Bin"),
+            )
+        ]
+        if launcher:
+            changes.append(tr("{name}, Seamless Co-op's own launcher, goes to the Recycle Bin").format(name=launcher))
+        return changes
+
+    @staticmethod
+    def setting_changed(key: str) -> str:
+        from bayle.mods.profile import SETTING_TEXT
+
+        return tr("{setting} changed: it applies at the next launch").format(setting=tr(SETTING_TEXT[key][0]))
+
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
 
@@ -1137,3 +1177,36 @@ class ModsPresenter:
 
     def leftovers_moving(self) -> str:
         return tr("Moving leftovers to the Recycle Bin...")
+
+    # ---- Take over: an overhaul its own installer set up becomes the launcher's to manage
+    @staticmethod
+    def takeover_pick(label: str) -> Pick:
+        return Pick(
+            title=tr("Take over {label}: what to put back?").format(label=label),
+            body=tr(
+                "Its installer changed these in your profile (compared with its oldest backup of it), and kept backups of "
+                "your profile. Tick what to put back or move to the Recycle Bin; the rest stays as it is now."
+            ),
+            apply=tr("Continue"),
+            none=tr("Leave them"),
+        )
+
+    @staticmethod
+    def takeover_failed(label: str, why: str) -> Refusal:
+        return Refusal(tr("Can't take over {label}").format(label=label), why)
+
+    def takeover_confirm(self, profile, label: str, preview) -> Confirm | Refusal:
+        if not preview.ok:
+            return self.takeover_failed(label, " ".join(preview.refusals))
+        asked = ", ".join(str(e.entry) for e in preview.asked)
+        return Confirm(
+            title=tr("Take over {label} in {profile}").format(label=label, profile=Path(profile).name),
+            changes=tuple(preview.lines),
+            apply=tr("Take over"),
+            safety=tr(
+                "Your other mods' files are not touched. Undo in Activity puts it all back. Folders go to the Recycle Bin."
+            ),
+            option=tr("Also switch {names} back off, as it was before the install").format(names=asked)
+            if asked
+            else "",
+        )

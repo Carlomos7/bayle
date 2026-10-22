@@ -162,10 +162,13 @@ class JobManager:
         writes: bool = True,
         external: bool = False,
         while_game_runs: bool = False,
+        quiet: bool = False,
     ) -> str:
         """Run work(ctx) on a worker; return the job id. Raises Busy (writes only) while another writing job runs or
         the game is running (while_game_runs: this job may, like clearing leftover processes). external: the caller
-        is the outside work external_busy counts (the Launch flow), so that count does not refuse it. Whatever work returns is the result (a JobResult is used as it is); an exception ends the
+        is the outside work external_busy counts (the Launch flow), so that count does not refuse it. quiet: the client
+        speaks for the job itself (its own words when it ends), so a window need not announce it. Whatever work
+        returns is the result (a JobResult is used as it is); an exception ends the
         job as failed/cancelled and never escapes."""
         with self._lock:
             if writes:
@@ -184,7 +187,7 @@ class JobManager:
             if writes:
                 self._writer = job_id
             self._forget_old()
-        self._emit("started", {"title": title}, job_id)
+        self._emit("started", {"title": title, **({"quiet": True} if quiet else {})}, job_id)
 
         def run(progress: service_jobs.Progress) -> tuple[str, JobResult]:
             self._progress[job_id] = progress

@@ -1,25 +1,10 @@
-import type { Problem } from "./client";
+import type { ErrorData, ProgressData } from "@bayle/api";
 
-// Hand-written mirror of docs/api/openapi.json for what the foundation reads; replaced by the generated types.
+/** The backend's error body (application/problem+json) and the error inside failed events. */
+export type Problem = ErrorData;
+export type { ApiEvent, ShellState } from "@bayle/api";
+export type Progress = ProgressData;
 
-export interface Progress {
-  done?: number | null;
-  total?: number | null;
-  label?: string;
-}
-
-export type ApiEvent =
-  | { seq: number; job_id: string | null; type: "started"; data: { title: string } }
-  | { seq: number; job_id: string | null; type: "progress"; data: Progress }
-  | { seq: number; job_id: string | null; type: "log"; data: { level: string; text: string } }
-  | { seq: number; job_id: string | null; type: "prompt"; data: PromptEventData }
-  | { seq: number; job_id: string | null; type: "finished"; data: { result?: unknown; undo?: unknown } }
-  | { seq: number; job_id: string | null; type: "failed" | "cancelled"; data: { error: Problem; unexpected?: boolean } }
-  | { seq: number; job_id: string | null; type: "resync"; data: { requested: number; oldest: number; seq: number } }
-  | { seq: number; job_id: string | null; type: "game.state"; data: { game: string; running: boolean } }
-  | { seq: number; job_id: string | null; type: "invalidated"; data: { what: string[] } }
-  | { seq: number; job_id: string | null; type: "notice"; data: { text: string; error?: boolean; details?: boolean } }
-  | { seq: number; job_id: string | null; type: "navigate"; data: { page: string } };
 
 export interface JobState {
   id: string;
@@ -77,15 +62,4 @@ export interface Answer {
 export interface PlanOffer {
   plan_id: string | null;
   prompt: PromptWords;
-}
-
-export interface ShellState {
-  game_name: string;
-  game_ready: boolean;
-  game_running: boolean;
-  profiles: string[];
-  profile_index: number;
-  status: { text: string; tone: string; busy: boolean; link?: { text: string; action: string } | null };
-  pill: { text: string; state: string; can_launch: boolean; mode_text: string };
-  unseen: number;
 }

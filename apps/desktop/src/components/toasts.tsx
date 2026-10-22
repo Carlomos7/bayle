@@ -1,6 +1,6 @@
 import { toast } from "sonner";
-import { ApiError, type Problem } from "@/api/client";
-import type { Progress } from "@/api/types";
+import { ApiError } from "@/api/client";
+import type { Problem, Progress } from "@/api/types";
 
 /** What the event router needs from the toast layer; Sonner implements it, tests fake it. */
 export interface Toasts {

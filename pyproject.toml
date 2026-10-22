@@ -104,6 +104,7 @@ layers = [
     "bayle.cli",
     "bayle.app",
     "bayle.ui",
+    "bayle.session",
     "bayle.services",
     "bayle.mods | bayle.saves | bayle.coop | bayle.updates",
     "bayle.overhauls",
@@ -118,6 +119,7 @@ layers = [
 name = "No Qt below the UI"
 type = "forbidden"
 source_modules = [
+    "bayle.session",
     "bayle.services",
     "bayle.mods",
     "bayle.saves",

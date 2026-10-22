@@ -4,11 +4,9 @@ import { Download, FolderOpen, MoreHorizontal, Pencil, Settings } from "lucide-r
 import { Switch } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { openPath } from "@/lib/native";
 import { cn } from "@/lib/cn";
 import { useMods } from "./context";
 import { useModsHost } from "./install-contract";
-import { sayError } from "./notify";
 import { inputClass, Menu, MenuCheck, MenuItem, MenuSep, Pill } from "./ui";
 
 /** The header strip: profile name (click to rename) · counts · merge health · Edit as text · Install mod · folder · gear · more. */
@@ -73,7 +71,7 @@ export function ModsHeader({
         <Button
           aria-label={words.profileFolder}
           title={words.profileFolder}
-          onClick={() => void openPath(view.profile.replace(/[\\/][^\\/]*$/, "")).catch((e: unknown) => sayError(String(e)))}
+          onClick={actions.openProfileFolder}
         >
           <FolderOpen aria-hidden className="size-4" />
           <span className="max-[1060px]:sr-only">{words.profileFolder}</span>

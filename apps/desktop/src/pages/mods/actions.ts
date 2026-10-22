@@ -112,6 +112,8 @@ export function useModsActions(view: ModsView | undefined, ui: { openOptions(ind
     const actions = {
       pending: mutation.isPending,
       refresh,
+      /** The profile's folder in Explorer: the engine opens it (the webview may not open arbitrary paths). */
+      openProfileFolder: () => act(() => post("shell.open_place", { which: "profile" })),
       post,
       act,
 

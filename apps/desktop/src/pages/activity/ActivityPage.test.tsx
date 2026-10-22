@@ -7,11 +7,9 @@ import { BackendProvider } from "@/api/backend";
 import { handleEvent } from "@/api/events";
 import { PromptHost } from "@/components/PromptHost";
 import { sonnerToasts, type Toasts } from "@/components/toasts";
-import { openPath } from "@/lib/native";
 import { backend, BASE, server } from "@/test/server";
 import { ActivityPage } from "./ActivityPage";
 
-vi.mock("@/lib/native", () => ({ openPath: vi.fn(() => Promise.resolve()) }));
 
 // the virtual list needs a measurable scroller; jsdom has no layout
 beforeAll(() => {
@@ -102,7 +100,7 @@ function setup(page: unknown = state(), toasts?: Toasts) {
           return HttpResponse.json({ rows: [], plain: "line one\nline two", note: "Only the end is shown.", missing: false });
         case "activity.copy":
           return HttpResponse.json({ text: "copied text" });
-        case "activity.log_file":
+        case "activity.open_log":
           return HttpResponse.json({ path: "C:/logs/jobs/j1.log" });
         case "activity.undo":
           return HttpResponse.json({
@@ -215,13 +213,13 @@ describe("Activity page", () => {
     expect(ops(posted, "activity.copy")[1]?.body).toMatchObject({ for_support: false });
   });
 
-  test("Open file opens the log through the desktop, or says it is gone", async () => {
-    const { user } = setup();
+  test("Open file asks the engine to open the log, or says it is gone", async () => {
+    const { posted, user } = setup();
     await user.click(await screen.findByRole("button", { name: /Install Foo/ }));
     await user.click(await screen.findByRole("button", { name: "Open file" }));
-    await vi.waitFor(() => expect(openPath).toHaveBeenCalledWith("C:/logs/jobs/j1.log"));
+    await vi.waitFor(() => expect(ops(posted, "activity.open_log")).toHaveLength(1));
 
-    server.use(http.post(`${BASE}/v1/ops/activity.log_file`, () => HttpResponse.json({ path: null })));
+    server.use(http.post(`${BASE}/v1/ops/activity.open_log`, () => HttpResponse.json({ path: null })));
     await user.click(screen.getByRole("button", { name: "Open file" }));
     await vi.waitFor(() => expect(notice).toHaveBeenCalledWith(words.fileGone, { error: true }));
   });

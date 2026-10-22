@@ -4,6 +4,7 @@ import pytest
 
 from bayle.config.settings import data_dir
 from bayle.mods import undo as mod_undo
+from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.services.errors import OperationError
 from bayle.session import EventBus, JobManager, PlanStore, Session
@@ -51,7 +52,7 @@ def test_the_snapshot_takes_filters():
     assert e.value.code == "invalid_params"
 
 
-def test_log_attachment_and_copy_reads():
+def test_log_attachment_and_copy_reads(monkeypatch):
     entries = [{"time": "09:30:00.000", "level": "error", "source": "job", "text": "path C:/Users/carlos/x"}]
     facts = FakeActivityFacts(
         JOBS,
@@ -66,6 +67,11 @@ def test_log_attachment_and_copy_reads():
     assert "path C:/Users/carlos/x" in s.run("activity.copy", {"job_id": "i1"}).text
     assert s.run("activity.log_file", {"job_id": "i1"}).path == "C:/logs/i1.log"
     assert s.run("activity.log_file", {"job_id": "r1"}).path is None
+    shown = []
+    monkeypatch.setattr(desktop, "open_path", shown.append)
+    assert s.run("activity.open_log", {"job_id": "i1"}).path == "C:/logs/i1.log"
+    assert s.run("activity.open_log", {"job_id": "r1"}).path is None
+    assert shown == ["C:/logs/i1.log"]
 
 
 def test_unseen_and_mark_seen_with_the_real_service():

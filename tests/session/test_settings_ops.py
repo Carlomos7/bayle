@@ -7,6 +7,7 @@ from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods.layout import Cancelled as LayoutCancelled
 from bayle.mods.layout import LayoutError
+from bayle.platform import desktop
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
 from bayle.services import settings as store
@@ -113,6 +114,12 @@ def test_folders(tmp_path, monkeypatch):
     assert backups and backups.endswith("saves")  # asking made it
     monkeypatch.setattr(store, "data_dir", lambda: tmp_path)
     assert s.run("settings.folder", {"kind": "logs"}).path == str(tmp_path / "logs")  # asking made it
+    shown = []
+    monkeypatch.setattr(desktop, "open_path", shown.append)
+    s.run("settings.folder", {"kind": "logs"})
+    assert shown == []  # asking alone shows nothing
+    s.run("settings.folder", {"kind": "logs", "open": True})
+    assert shown == [tmp_path / "logs"]
     with pytest.raises(OperationError) as e:
         s.run("settings.folder", {"kind": "attic"})
     assert e.value.code == "unknown_folder"

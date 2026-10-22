@@ -1,5 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 
 /** The desktop shell's pickers and openers (Tauri plugins); pages call these so tests can replace them. */
 export const pickFolder = async (title: string): Promise<string | null> => {
@@ -13,8 +13,8 @@ export const pickFile = async (title: string, filterName: string, extensions: st
   return typeof got === "string" ? got : null;
 };
 
-/** Open a file or folder with the desktop's default program (the opener capability limits where). */
-export { openPath };
+/** Show a file in Explorer, selected. Opens nothing, so it needs no path scope (capability opener:allow-reveal-item-in-dir). */
+export const revealInFolder = (path: string) => revealItemInDir(path);
 /** The Install mod dialog's picker: an archive or DLL, or an unpacked folder; null when cancelled. Same filter as the Qt dialog. */
 export const pickModSource = async (folder: boolean): Promise<string | null> => {
   const got = await open(
@@ -31,7 +31,6 @@ export const pickModSource = async (folder: boolean): Promise<string | null> => 
   return typeof got === "string" ? got : null;
 };
 
-export const openFolder = (path: string) => openPath(path);
 export const openLink = (url: string) => openUrl(url);
 
 /** Files dropped from Explorer onto the window; returns the unsubscribe. The Webview reports the paths (a browser drop does not). Outside Tauri it does nothing. */

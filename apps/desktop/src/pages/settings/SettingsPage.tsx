@@ -5,7 +5,7 @@ import { useApi } from "@/api/backend";
 import { pageKey } from "@/api/events";
 import { sonnerToasts, toProblem } from "@/components/toasts";
 import { Button } from "@/components/ui/button";
-import { openFolder, openLink, pickFile, pickFolder } from "@/lib/native";
+import { openLink, pickFile, pickFolder } from "@/lib/native";
 import { PathButtons, Row, Section, SettingControl, type Value } from "./controls";
 import { LayoutSection } from "./LayoutSection";
 import { UpdateNotices } from "./UpdateNotices";
@@ -64,9 +64,8 @@ function Loaded({ state }: { state: SettingsState }) {
   const me3 = useMutation({ mutationFn: () => run<{ facts: Me3Facts }>("shell.me3") });
   const openKind = useMutation({
     mutationFn: async (kind: string) => {
-      const got = await run<{ path: string | null }>("settings.folder", { kind });
+      const got = await run<{ path: string | null }>("settings.folder", { kind, open: true }); // the engine opens it
       if (got.path === null) sonnerToasts.notice(SAID.folderMissing, { error: true });
-      else await openFolder(got.path);
     },
     ...fail,
   });

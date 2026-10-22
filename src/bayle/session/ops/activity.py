@@ -7,6 +7,7 @@ import datetime
 
 from pydantic import BaseModel
 
+from bayle.platform import desktop
 from bayle.platform.text import tr
 from bayle.services.activity import ActivityService
 from bayle.services.activity import undo as undo_job
@@ -118,6 +119,15 @@ def log_file(call: Call, p: LogParams) -> LogFile:
     rec = pres.record(p.job_id) or {}
     path = pres.log_path(p.source or rec.get("log") or "")
     return LogFile(path=None if path is None else str(path))
+
+
+@operation("activity.open_log", params=LogParams, result=LogFile, kind="command")
+def open_log(call: Call, p: LogParams) -> LogFile:
+    """Open the log file in the desktop's program for it (the app opens it, so a web client needs no opener permission)."""
+    found = log_file(call, p)
+    if found.path is not None:
+        desktop.open_path(found.path)
+    return found
 
 
 @operation("activity.unseen", result=Unseen)

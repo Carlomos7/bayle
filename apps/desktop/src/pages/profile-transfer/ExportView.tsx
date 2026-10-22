@@ -10,7 +10,7 @@ import { usePrompts } from "@/components/PromptHost";
 import { sonnerToasts, toProblem } from "@/components/toasts";
 import { bigWarning, doneText, LARGE_EXPORT, LARGE_MOD, progressText, readmeText, sizeText, total } from "./format";
 import { detailOf, useJob, useJobResult } from "./jobs";
-import { pickFolder } from "@/lib/native";
+import { pickFolder, revealInFolder } from "@/lib/native";
 import { Bar, Card, Check, Field, inputClass, Segmented } from "./ui";
 import { W } from "./words";
 
@@ -191,6 +191,9 @@ export function ExportView({ profile, busy, gameRunning }: { profile: string; bu
         <p role="status" className="rounded-control border border-status-success bg-status-success-bg p-3">
           {doneText(result.path, result.size, elapsed)}{" "}
           <span className="break-all text-text-secondary">{result.path}</span>
+          <Button className="mt-2 block" onClick={() => void revealInFolder(result.path).catch(sonnerToasts.error)}>
+            {W.showInFolder}
+          </Button>
         </p>
       ) : null}
       {phase === "failed" ? (

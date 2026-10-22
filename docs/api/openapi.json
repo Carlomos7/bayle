@@ -6596,6 +6596,11 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "open": {
+            "default": false,
+            "title": "Open",
+            "type": "boolean"
           }
         },
         "required": [
@@ -7055,6 +7060,52 @@
           }
         ],
         "summary": "activity.mark_seen (command, writes)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/ops/activity.open_log": {
+      "post": {
+        "operationId": "op_activity_open_log",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogFile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.open_log (command)",
         "tags": [
           "activity"
         ]

@@ -4553,6 +4553,10 @@ export type BayleSessionOpsSettingsFolderParams = {
      * Kind
      */
     kind: string;
+    /**
+     * Open
+     */
+    open?: boolean;
 };
 
 /**
@@ -4780,6 +4784,31 @@ export type OpActivityMarkSeenResponses = {
 };
 
 export type OpActivityMarkSeenResponse = OpActivityMarkSeenResponses[keyof OpActivityMarkSeenResponses];
+
+export type OpActivityOpenLogData = {
+    body: LogParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/activity.open_log';
+};
+
+export type OpActivityOpenLogErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpActivityOpenLogError = OpActivityOpenLogErrors[keyof OpActivityOpenLogErrors];
+
+export type OpActivityOpenLogResponses = {
+    /**
+     * Successful Response
+     */
+    200: LogFile;
+};
+
+export type OpActivityOpenLogResponse = OpActivityOpenLogResponses[keyof OpActivityOpenLogResponses];
 
 export type OpActivityUndoData = {
     body: JobRef;

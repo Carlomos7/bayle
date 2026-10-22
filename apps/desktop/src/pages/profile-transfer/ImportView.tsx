@@ -6,7 +6,7 @@ import { sonnerToasts, toProblem } from "@/components/toasts";
 import type { BundledRequest } from "./bundled";
 import { Clashes, type Clash } from "./Clashes";
 import { useJob, useJobResult } from "./jobs";
-import { pickFile } from "@/lib/native";
+import { pickFile, revealInFolder } from "@/lib/native";
 import { Bar, Card, Check, Field, Notes, Segmented } from "./ui";
 import { W } from "./words";
 
@@ -135,11 +135,13 @@ export function ImportView({
     },
     onError: (e) => setError(`Can't use that file. ${toProblem(e).message}`),
   });
+  const [pickedPath, setPickedPath] = useState("");
   const chooseFile = async () => {
     const path = await pickFile(W.openFile, "Profile files", ["json", "zip"]).catch((e: unknown) => (sonnerToasts.error(e), null));
     if (!path || openM.isPending) return;
     if (res.current) discard(res.current);
     reset();
+    setPickedPath(path);
     openM.mutate(path);
   };
 
@@ -357,6 +359,9 @@ export function ImportView({
           >
             {W.cancel}
           </Button>
+          {opened?.is_zip && pickedPath ? (
+            <Button onClick={() => void revealInFolder(pickedPath).catch(sonnerToasts.error)}>{W.openZipFolder}</Button>
+          ) : null}
         </div>
       ) : null}
     </div>

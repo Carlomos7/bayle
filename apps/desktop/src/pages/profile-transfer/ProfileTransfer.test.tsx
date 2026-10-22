@@ -13,7 +13,7 @@ import { handOverBundled } from "./bundled";
 import * as pickers from "@/lib/native";
 import { ProfileTransfer } from "./ProfileTransferPage";
 
-vi.mock("@/lib/native", () => ({ pickFolder: vi.fn(), pickFile: vi.fn(), openFolder: vi.fn(), openLink: vi.fn() }));
+vi.mock("@/lib/native", () => ({ pickFolder: vi.fn(), pickFile: vi.fn(), revealInFolder: vi.fn(() => Promise.resolve()) }));
 
 const GB = 1024 ** 3;
 const PROFILE = "C:\\game\\profiles\\Mine.me3";
@@ -137,6 +137,8 @@ describe("export", () => {
     await emit("finished", "j1", { result: {} });
     expect(await screen.findByText(/Done: Mine\.json \(2 KB, took/)).toBeInTheDocument();
     expect(screen.getByText("C:\\out\\Mine.json")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show in folder" }));
+    expect(pickers.revealInFolder).toHaveBeenCalledWith("C:\\out\\Mine.json");
   });
 
   test("Cancel export posts the job cancel and a cancelled job says nothing was written", async () => {

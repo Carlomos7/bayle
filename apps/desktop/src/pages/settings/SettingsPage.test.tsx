@@ -10,7 +10,6 @@ import { backend, BASE, server } from "@/test/server";
 const native = vi.hoisted(() => ({
   pickFolder: vi.fn(),
   pickFile: vi.fn(),
-  openFolder: vi.fn(),
   openLink: vi.fn(),
 }));
 vi.mock("@/lib/native", () => native);
@@ -185,7 +184,7 @@ describe("Settings page", () => {
     expect(screen.getByLabelText("me3")).toHaveAttribute("aria-invalid", "true");
   });
 
-  test("Browse picks a folder and saves it; Open folder asks the engine, then opens it", async () => {
+  test("Browse picks a folder and saves it; Open folder asks the engine to open it", async () => {
     native.pickFolder.mockResolvedValue("D:\\Saves");
     const { last } = boot({ "settings.folder": () => HttpResponse.json({ path: "C:\\saves" }) });
     const user = userEvent.setup();
@@ -193,8 +192,7 @@ describe("Settings page", () => {
     await user.click(within(row).getByRole("button", { name: "Browse..." }));
     await waitFor(() => expect(last("settings.set")).toEqual({ key: "saves_dir", value: "D:\\Saves" }));
     await user.click(within(row).getByRole("button", { name: "Open folder" }));
-    await waitFor(() => expect(last("settings.folder")).toEqual({ kind: "saves" }));
-    await waitFor(() => expect(native.openFolder).toHaveBeenCalledWith("C:\\saves"));
+    await waitFor(() => expect(last("settings.folder")).toEqual({ kind: "saves", open: true }));
   });
 
   test("renaming the folders is a plan: check, confirm, then the answer is posted", async () => {

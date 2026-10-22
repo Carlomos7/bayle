@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from bayle.game import catalog as games
+from bayle.platform import desktop
 from bayle.platform.text import tr
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
@@ -39,6 +40,7 @@ class Changed(Result):
 
 class FolderParams(Params):
     kind: str  # me3 | game | profiles | saves | backups | settings | logs
+    open: bool = False  # also show it in the desktop (the app opens it, so a web client needs no opener permission)
 
 
 class FolderPath(Result):
@@ -109,6 +111,8 @@ def folder(call: Call, p: FolderParams) -> FolderPath:
     """The folder behind an "Open ... folder" button; asking for the backups folder creates it. Errors: unknown_folder."""
     _game, loc = _where(call.session)
     found = store.folder(p.kind, loc, make=True)
+    if p.open and found is not None:
+        desktop.open_path(found)
     return FolderPath(path=None if found is None else str(found))
 
 

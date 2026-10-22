@@ -33,6 +33,8 @@ export const W = {
   exportingProfile: "Exporting",
   importingInto: "Importing into",
   cancel: "Cancel",
+  showInFolder: "Show in folder",
+  openZipFolder: "Open the zip's folder",
   openFile: "Open file...",
   importAbout: "Open a share list (.json) or a full export (.zip) someone sent you.",
   willChange: "Files this import changes",

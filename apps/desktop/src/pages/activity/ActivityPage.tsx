@@ -9,7 +9,6 @@ import { useOp, usePage, usePlanOp } from "@/api/hooks";
 import { sonnerToasts, toProblem } from "@/components/toasts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { openPath } from "@/lib/native";
 
 interface LogView {
   rows: { time: string; level: string; text: string }[];
@@ -70,7 +69,7 @@ function LogPanel({ job, words }: { job: JobItem; words: Record<string, string> 
     queryFn: () => api.post<LogView>("/v1/ops/activity.log", params),
   });
   const copy = useOp<{ text: string }, typeof params & { for_support: boolean }>("activity.copy");
-  const file = useOp<{ path: string | null }, { job_id: string; source: string }>("activity.log_file");
+  const file = useOp<{ path: string | null }, { job_id: string; source: string }>("activity.open_log");
   const firstSource = job.sources[0]?.key ?? "";
   const text = log.data ? log.data.plain || log.data.rows.map((r) => r.text).join("\n") : "";
 
@@ -91,7 +90,6 @@ function LogPanel({ job, words }: { job: JobItem; words: Record<string, string> 
       {
         onSuccess: ({ path }) => {
           if (path === null) sonnerToasts.notice(words.fileGone ?? "That file is no longer there.", { error: true });
-          else openPath(path).catch((e: unknown) => sonnerToasts.error(e));
         },
       },
     );

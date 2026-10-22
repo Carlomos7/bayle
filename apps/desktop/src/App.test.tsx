@@ -51,3 +51,14 @@ test("Ctrl+1..6 jump to the pages in rail order", async () => {
   await user.keyboard("{Control>}4{/Control}");
   expect(await screen.findByRole("heading", { name: "Profile transfer" })).toBeInTheDocument();
 });
+
+test("a refused shell page (no game yet) shows the backend's message in the status line", async () => {
+  server.use(
+    http.get(`${BASE}/v1/pages/shell`, () =>
+      HttpResponse.json({ code: "no_shell", message: "This session has no shell.", details: {} }, { status: 409 }),
+    ),
+    http.get(`${BASE}/v1/events`, () => new HttpResponse(new ReadableStream(), { headers: { "Content-Type": "text/event-stream" } })),
+  );
+  render(<AppWithBackend backend={backend} router={buildRouter(createMemoryHistory({ initialEntries: ["/"] }))} />);
+  expect(await screen.findByText("This session has no shell.", {}, { timeout: 3000 })).toBeInTheDocument();
+});

@@ -10,7 +10,7 @@ const TONES: Record<string, string> = {
 };
 
 /** Logo, game, profile, the one status line and the Play pill (a placeholder until the launch flow lands). */
-export function TopBar({ shell }: { shell: ShellState | undefined }) {
+export function TopBar({ shell, error }: { shell: ShellState | undefined; error?: string }) {
   const { logoSrc } = useTheme();
   const profile = shell?.profiles[shell.profile_index];
   return (
@@ -24,10 +24,10 @@ export function TopBar({ shell }: { shell: ShellState | undefined }) {
       ) : null}
       <p
         role="status"
-        className={`flex min-w-0 items-center gap-2 truncate text-caption ${TONES[shell?.status.tone ?? ""] ?? "text-text-secondary"}`}
+        className={`flex min-w-0 items-center gap-2 truncate text-caption ${TONES[error ? "danger" : (shell?.status.tone ?? "")] ?? "text-text-secondary"}`}
       >
         {shell?.status.busy ? <Loader2 aria-hidden className="size-3 animate-spin" /> : null}
-        {shell?.status.text ?? "Connecting to the engine..."}
+        {error ?? shell?.status.text ?? "Connecting to the engine..."}
       </p>
       <Button variant="primary" className="ml-auto rounded-pill px-6" disabled={!shell?.pill.can_launch}>
         {shell?.pill.text ?? "Play"}

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { pageKey } from "@/api/events";
 import { useApi } from "@/api/backend";
 import type { ShellState } from "@/api/types";
+import { toProblem } from "@/components/toasts";
 import { PAGES } from "./pages";
 import { Rail } from "./Rail";
 import { TopBar } from "./TopBar";
@@ -27,7 +28,7 @@ export function usePageShortcuts() {
 export function Shell() {
   const api = useApi();
   usePageShortcuts();
-  const { data: shell } = useQuery({
+  const { data: shell, error } = useQuery({
     queryKey: pageKey("shell"),
     queryFn: () => api.get<ShellState>("/v1/pages/shell"),
   });
@@ -39,7 +40,7 @@ export function Shell() {
       >
         Skip to content
       </a>
-      <TopBar shell={shell} />
+      <TopBar shell={shell} error={error ? toProblem(error).message : undefined} />
       <div className="flex min-h-0 flex-1">
         <Rail unseen={shell?.unseen ?? 0} />
         <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto p-6 outline-none">

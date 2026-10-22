@@ -7,6 +7,7 @@ import { getBackend, type Backend } from "@/api/client";
 import { EventsProvider } from "@/api/EventsProvider";
 import { PromptHost, usePrompts } from "@/components/PromptHost";
 import { sonnerToasts, toProblem } from "@/components/toasts";
+import { ThemeSync } from "@/pages/settings/ThemeSync";
 import { buildRouter } from "@/router";
 import { pathForPage } from "@/shell/pages";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
@@ -37,6 +38,7 @@ function Themed({ children }: { children: React.ReactNode }) {
   const { resolved } = useTheme();
   return (
     <>
+      <ThemeSync />
       {children}
       <Toaster theme={resolved === "light" ? "light" : "dark"} position="bottom-right" />
     </>

@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, createRouter, redirect, type AnyRoute } from "@tanstack/react-router";
-import { AppearanceControls } from "@/theme/AppearanceControls";
+import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TokenPreview } from "@/theme/TokenPreview";
 import { PAGES } from "@/shell/pages";
 import { Shell } from "@/shell/Shell";
@@ -18,9 +18,7 @@ export function buildRouter(history?: Parameters<typeof createRouter>[0]["histor
     createRoute({
       getParentRoute: () => root,
       path: p.path,
-      component: () => (
-        <PlaceholderPage title={p.label}>{p.key === "settings" ? <AppearanceControls /> : null}</PlaceholderPage>
-      ),
+      component: p.key === "settings" ? SettingsPage : () => <PlaceholderPage title={p.label} />,
     }),
   );
   const routes: AnyRoute[] = [index, ...pages];

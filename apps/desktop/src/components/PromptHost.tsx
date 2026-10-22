@@ -13,7 +13,7 @@ interface Host {
   /** Show a backend prompt event; the answer goes to POST /v1/prompts/{prompt_id}. */
   askPrompt(prompt: PromptEventData): void;
   /** Show a plan offer; the answer goes to POST /v1/plans/{plan_id}. A refusal (no plan_id) is only told. */
-  offerPlan(offer: PlanOffer): void;
+  offerPlan(offer: PlanOffer, onExecuted?: (result: unknown) => void): void;
 }
 
 const HostContext = createContext<Host | null>(null);
@@ -37,10 +37,14 @@ export function PromptHost({ children, toasts = sonnerToasts }: { children: Reac
           words: words as PromptWords,
           send: (a) => api.post(`/v1/prompts/${prompt_id}`, { choice: a.choice }),
         }),
-      offerPlan: ({ plan_id, prompt }) =>
+      offerPlan: ({ plan_id, prompt }, onExecuted) =>
         push({
           words: prompt,
-          send: (a) => (plan_id ? api.post(`/v1/plans/${plan_id}`, a) : Promise.resolve()),
+          send: async (a) => {
+            if (!plan_id) return;
+            const done = await api.post(`/v1/plans/${plan_id}`, a);
+            onExecuted?.(done);
+          },
         }),
     }),
     [api, push],

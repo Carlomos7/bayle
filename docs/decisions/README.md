@@ -15,3 +15,7 @@ records are not rewritten afterwards.
 | 0007 | [Merged Oodle files are written at level 4 (4/4)](0007-kraken-level-4.md) | in use from the release after 3.21.0-beta.2 |
 | 0008 | [The 64 KB zstd rule is about how far back the data reaches](0008-zstd-window-reason.md) | in use (corrects 0001's reason) |
 | 0009 | [Havok Script's own syntax is a warning, not a refusal, in the character-script check](0009-havok-script-syntax.md) | in use from the release after 3.21.0-beta.3 |
+| 0010 | [The backend is separate from Qt; the session is the one seam](0010-backend-separation.md) | accepted |
+| 0011 | [The interface talks to the backend over loopback HTTP and server-sent events](0011-transport.md) | proposed |
+| 0012 | [The backend process dies with the app: onedir, stdin watchdog, Job Object, startup sweep](0012-process-lifecycle.md) | proposed |
+| 0013 | [Velopack stays the updater; the desktop app and the API package live in this repository](0013-updater-and-repo-layout.md) | proposed |

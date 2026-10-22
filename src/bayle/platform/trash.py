@@ -18,6 +18,7 @@ import os
 import shutil
 import struct
 import sys
+import threading
 import time
 import urllib.parse
 from pathlib import Path
@@ -152,7 +153,17 @@ def _send_windows(path: Path) -> dict:
     op.wFunc = FO_DELETE
     op.pFrom = str(path) + "\0\0"
     op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI | FOF_WANTNUKEWARNING
-    rc = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))  # type: ignore[attr-defined]
+    # On a thread of its own: the shell initializes COM on the thread that calls it and leaves it initialized there.
+    # On the thread that later creates Qt's application (a job run inline, as the tests do) that breaks Qt's own
+    # OLE set-up, and a window that takes drops then crashes on a Windows runner.
+    done: list[int] = []
+    worker = threading.Thread(
+        target=lambda: done.append(ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))),  # type: ignore[attr-defined]
+        name="recycle-bin",
+    )
+    worker.start()
+    worker.join()
+    rc = done[0] if done else -1
     if rc != 0 or op.fAnyOperationsAborted or path.exists():
         raise TrashError(f"the Recycle Bin did not take it (code {rc})" if rc else "cancelled")
     found = _find_windows(path, started)

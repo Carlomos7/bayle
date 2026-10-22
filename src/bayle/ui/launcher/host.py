@@ -399,6 +399,7 @@ class ShellHost(QObject):
 
     def new_profile(self, name: str, include_seamless: bool) -> bool:
         """File > New profile: a profile for this game (and Seamless Co-op moved into it when asked), as a logged job."""
+        from bayle.services import jobs as jobs_service
         from bayle.services import mods as mods_service
 
         g = self.state.game
@@ -406,14 +407,10 @@ class ShellHost(QObject):
         made: list[str] = []
 
         def job(_launch_profile, loc):
-            run_logging.start_log("launcher: create profile", loc.game.key)
-            try:
+            with jobs_service.run_logged("launcher: create profile", loc.game.key):
                 made.append(
                     str(mods_service.create_first_profile(name, include_seamless, loc=loc, log=run_logging.log))
                 )
-            except Exception as e:  # reported to the player
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
 
         def done(ok: bool) -> None:
             if ok and made:

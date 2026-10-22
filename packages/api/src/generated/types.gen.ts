@@ -697,10 +697,30 @@ export type FileRead = {
      */
     fingerprint_note?: string;
     /**
+     * Form Note
+     */
+    form_note?: string;
+    /**
+     * Has Form
+     */
+    has_form?: boolean;
+    /**
      * Path
      */
     path: string;
     seamless?: Seamless | null;
+    /**
+     * Seamless View
+     */
+    seamless_view?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Sections
+     */
+    sections?: Array<{
+        [key: string]: unknown;
+    }>;
     /**
      * Sha
      */
@@ -1612,6 +1632,18 @@ export type ModConfigsState = {
      * Profile
      */
     profile: string;
+    /**
+     * Tree
+     */
+    tree?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Words
+     */
+    words?: {
+        [key: string]: string;
+    };
 };
 
 /**
@@ -2288,6 +2320,12 @@ export type OverhaulForm = {
     values: {
         [key: string]: unknown;
     };
+    /**
+     * View
+     */
+    view?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -2355,6 +2393,18 @@ export type OverhaulMenu = {
      * Visible
      */
     visible: boolean;
+};
+
+/**
+ * OverhaulView
+ */
+export type OverhaulView = {
+    /**
+     * View
+     */
+    view: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -3167,9 +3217,17 @@ export type Saved = {
      */
     missing?: Array<string>;
     /**
+     * Missing Said
+     */
+    missing_said?: string;
+    /**
      * Name
      */
     name: string;
+    /**
+     * Said
+     */
+    said?: string;
     /**
      * Saved
      */
@@ -3559,6 +3617,10 @@ export type SetupSaved = {
      * Overhaul Id
      */
     overhaul_id: string;
+    /**
+     * Said
+     */
+    said?: string;
 };
 
 /**
@@ -3886,6 +3948,20 @@ export type TextCheck = {
 };
 
 /**
+ * TextProblem
+ */
+export type TextProblem = {
+    /**
+     * Line
+     */
+    line?: number;
+    /**
+     * Message
+     */
+    message?: string;
+};
+
+/**
  * TextView
  */
 export type TextView = {
@@ -4066,6 +4142,40 @@ export type VersionRow = {
 };
 
 /**
+ * ViewParams
+ */
+export type ViewParams = {
+    /**
+     * Choices
+     */
+    choices: {
+        [key: string]: unknown;
+    };
+    /**
+     * Folder
+     */
+    folder?: string;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Overhaul Id
+     */
+    overhaul_id?: string;
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Values
+     */
+    values: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * Warned
  */
 export type Warned = {
@@ -4073,6 +4183,20 @@ export type Warned = {
      * Warning
      */
     warning?: string;
+};
+
+/**
+ * CheckParams
+ */
+export type BayleSessionOpsModConfigsCheckParams = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Text
+     */
+    text: string;
 };
 
 /**
@@ -4103,6 +4227,10 @@ export type BayleSessionOpsModConfigsExportParams = {
  * OpenParams
  */
 export type BayleSessionOpsModConfigsOpenParams = {
+    /**
+     * Form
+     */
+    form?: boolean;
     /**
      * Path
      */
@@ -4722,6 +4850,31 @@ export type OpModConfigsAttachResponses = {
 
 export type OpModConfigsAttachResponse = OpModConfigsAttachResponses[keyof OpModConfigsAttachResponses];
 
+export type OpModConfigsCheckTextData = {
+    body: BayleSessionOpsModConfigsCheckParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mod_configs.check_text';
+};
+
+export type OpModConfigsCheckTextErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModConfigsCheckTextError = OpModConfigsCheckTextErrors[keyof OpModConfigsCheckTextErrors];
+
+export type OpModConfigsCheckTextResponses = {
+    /**
+     * Successful Response
+     */
+    200: TextProblem;
+};
+
+export type OpModConfigsCheckTextResponse = OpModConfigsCheckTextResponses[keyof OpModConfigsCheckTextResponses];
+
 export type OpModConfigsDetachData = {
     body: TieParams;
     path?: never;
@@ -4846,6 +4999,31 @@ export type OpModConfigsOverhaulFormResponses = {
 };
 
 export type OpModConfigsOverhaulFormResponse = OpModConfigsOverhaulFormResponses[keyof OpModConfigsOverhaulFormResponses];
+
+export type OpModConfigsOverhaulViewData = {
+    body: ViewParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/mod_configs.overhaul_view';
+};
+
+export type OpModConfigsOverhaulViewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpModConfigsOverhaulViewError = OpModConfigsOverhaulViewErrors[keyof OpModConfigsOverhaulViewErrors];
+
+export type OpModConfigsOverhaulViewResponses = {
+    /**
+     * Successful Response
+     */
+    200: OverhaulView;
+};
+
+export type OpModConfigsOverhaulViewResponse = OpModConfigsOverhaulViewResponses[keyof OpModConfigsOverhaulViewResponses];
 
 export type OpModConfigsPasteData = {
     body: PasteParams;

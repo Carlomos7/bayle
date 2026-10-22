@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter, redirect, type AnyRoute } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect, type AnyRoute, type RouteComponent } from "@tanstack/react-router";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TokenPreview } from "@/theme/TokenPreview";
 import { PAGES } from "@/shell/pages";
@@ -8,8 +8,10 @@ import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { SavesPage } from "@/pages/saves/SavesPage";
 
 /** The pages that are built, by key; the rest show a placeholder. One line per page keeps page merges apart. */
-const BUILT: Record<string, () => React.JSX.Element> = {
+const BUILT: Record<string, RouteComponent> = {
   activity: ActivityPage,
+  // the editor (CodeMirror) is the heavy part: loaded with the page
+  modConfigs: lazyRouteComponent(() => import("@/pages/mod-configs/ModConfigsPage"), "ModConfigsPage"),
   saves: SavesPage,
   settings: SettingsPage,
 };

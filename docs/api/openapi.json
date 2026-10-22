@@ -965,6 +965,16 @@
             "title": "Fingerprint Note",
             "type": "string"
           },
+          "form_note": {
+            "default": "",
+            "title": "Form Note",
+            "type": "string"
+          },
+          "has_form": {
+            "default": false,
+            "title": "Has Form",
+            "type": "boolean"
+          },
           "path": {
             "title": "Path",
             "type": "string"
@@ -978,6 +988,21 @@
                 "type": "null"
               }
             ]
+          },
+          "seamless_view": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Seamless View",
+            "type": "object"
+          },
+          "sections": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sections",
+            "type": "array"
           },
           "sha": {
             "title": "Sha",
@@ -2334,6 +2359,22 @@
           "profile": {
             "title": "Profile",
             "type": "string"
+          },
+          "tree": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Tree",
+            "type": "array"
+          },
+          "words": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Words",
+            "type": "object"
           }
         },
         "required": [
@@ -3315,6 +3356,12 @@
             "additionalProperties": true,
             "title": "Values",
             "type": "object"
+          },
+          "view": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "View",
+            "type": "object"
           }
         },
         "required": [
@@ -3406,6 +3453,20 @@
           "can_clean"
         ],
         "title": "OverhaulMenu",
+        "type": "object"
+      },
+      "OverhaulView": {
+        "properties": {
+          "view": {
+            "additionalProperties": true,
+            "title": "View",
+            "type": "object"
+          }
+        },
+        "required": [
+          "view"
+        ],
+        "title": "OverhaulView",
         "type": "object"
       },
       "Parameters": {
@@ -4613,8 +4674,18 @@
             "title": "Missing",
             "type": "array"
           },
+          "missing_said": {
+            "default": "",
+            "title": "Missing Said",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "said": {
+            "default": "",
+            "title": "Said",
             "type": "string"
           },
           "saved": {
@@ -5215,6 +5286,11 @@
           "overhaul_id": {
             "title": "Overhaul Id",
             "type": "string"
+          },
+          "said": {
+            "default": "",
+            "title": "Said",
+            "type": "string"
           }
         },
         "required": [
@@ -5698,6 +5774,22 @@
         "title": "TextCheck",
         "type": "object"
       },
+      "TextProblem": {
+        "properties": {
+          "line": {
+            "default": 0,
+            "title": "Line",
+            "type": "integer"
+          },
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "TextProblem",
+        "type": "object"
+      },
       "TextView": {
         "properties": {
           "crlf": {
@@ -5948,6 +6040,47 @@
         "title": "VersionRow",
         "type": "object"
       },
+      "ViewParams": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "additionalProperties": true,
+            "title": "Choices",
+            "type": "object"
+          },
+          "folder": {
+            "default": "",
+            "title": "Folder",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "overhaul_id": {
+            "default": "",
+            "title": "Overhaul Id",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile",
+          "choices",
+          "values"
+        ],
+        "title": "ViewParams",
+        "type": "object"
+      },
       "Warned": {
         "properties": {
           "warning": {
@@ -5957,6 +6090,25 @@
           }
         },
         "title": "Warned",
+        "type": "object"
+      },
+      "bayle__session__ops__mod_configs__CheckParams": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "text"
+        ],
+        "title": "CheckParams",
         "type": "object"
       },
       "bayle__session__ops__mod_configs__Done": {
@@ -5992,6 +6144,11 @@
       "bayle__session__ops__mod_configs__OpenParams": {
         "additionalProperties": false,
         "properties": {
+          "form": {
+            "default": true,
+            "title": "Form",
+            "type": "boolean"
+          },
           "path": {
             "title": "Path",
             "type": "string"
@@ -7040,6 +7197,52 @@
         ]
       }
     },
+    "/v1/ops/mod_configs.check_text": {
+      "post": {
+        "operationId": "op_mod_configs_check_text",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/bayle__session__ops__mod_configs__CheckParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextProblem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.check_text (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
     "/v1/ops/mod_configs.detach": {
       "post": {
         "operationId": "op_mod_configs_detach",
@@ -7265,6 +7468,52 @@
           }
         ],
         "summary": "mod_configs.overhaul_form (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.overhaul_view": {
+      "post": {
+        "operationId": "op_mod_configs_overhaul_view",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverhaulView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.overhaul_view (read)",
         "tags": [
           "mod_configs"
         ]

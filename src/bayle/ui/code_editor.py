@@ -19,7 +19,8 @@ from PySide6.QtGui import (
 from PySide6.QtQml import QmlElement
 from PySide6.QtQuick import QQuickTextDocument
 
-from bayle.ui import code_syntax, find
+from bayle.formats import code_syntax
+from bayle.ui import find
 from bayle.ui.jobs import run_async
 
 QML_IMPORT_NAME = "Roundtable.Code"

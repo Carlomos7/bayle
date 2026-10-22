@@ -8,7 +8,7 @@ titles) live here, not in coop/ (spec table, S7): the Widgets Co-op page uses th
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -170,6 +170,9 @@ class ModConfigsState:
 
     profile: str
     nodes: tuple[mod_configs.ModNode, ...]
+    # what the page shows, from the presenter (the Qt page asks the presenter itself): its words, and the tree in words
+    words: dict[str, str] = field(default_factory=dict)
+    tree: tuple[dict[str, Any], ...] = ()
 
 
 class ModConfigsPresenter:
@@ -237,6 +240,29 @@ class ModConfigsPresenter:
             "setUpOverhaul": tr("Set up as an overhaul..."),
             "turnOffOverhaul": tr("Turn off overhaul setup..."),
             "setUpModLink": tr("Set up a mod as an overhaul..."),
+            # the client-driven parts of the page (the React page asks and toasts with these)
+            "waitForJob": tr("Wait for the current job"),
+            "cantSetUp": tr("Can't set it up"),
+            "cantTurnOff": tr("Can't turn it off"),
+            "nothingToSetUp": tr("Nothing to set up"),
+            "savedNotApplied": tr(
+                "Saved, but not applied to the profiles yet: wait for the current job, then save again."
+            ),
+            "pickOverhaulTitle": self.pick_overhaul_mod().title,
+            "pickOverhaulBody": self.pick_overhaul_mod().body,
+            "pickOverhaulApply": self.pick_overhaul_mod().apply,
+            "copied": self.copied(),
+            "savedOne": tr("{n} setting saved. It applies the next time the game starts."),
+            "savedMany": tr("{n} settings saved. They apply the next time the game starts."),
+            "changeOne": tr("{n} change not saved"),
+            "changeMany": tr("{n} changes not saved"),
+            "savedFile": tr("Saved {name}"),
+            "emptyPasswordTitle": self.empty_password().title,
+            "emptyPasswordBody": self.empty_password().body,
+            "notSavedTitle": tr("Not saved"),
+            "notSettingsTitle": tr("Not settings text"),
+            "notSettingsBody": tr("The text could not be read as co-op settings: {why}"),
+            "cantOpen": tr("Can't open {name}"),
         }
 
     # ---- the tree
@@ -516,6 +542,7 @@ class ModConfigsPresenter:
             "lo": lo,
             "hi": hi,
             "tip": tr("Default: {value}").format(value=item.default) if item.default is not None else "",
+            "default": item.default,
             # what a switch writes: TOML's true / false, an ini's 1 / 0
             "onValue": "true" if item.value.strip().lower() in ("true", "false") else "1",
             "offValue": "false" if item.value.strip().lower() in ("true", "false") else "0",

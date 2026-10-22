@@ -31,8 +31,9 @@ function toProblem(body: unknown, status: number): Problem {
 
 export type Api = ReturnType<typeof createApi>;
 
-/** The generated client (packages/api) for this run's handshake, with get/post for the page and plan routes that throw ApiError. */
+/** The generated client (packages/api) for this run's handshake, with get/post for the page and plan routes that throw ApiError. (The generated client only adds the token to operations with a security entry, so these add it themselves.) */
 export function createApi(backend: Pick<Backend, "base_url" | "token">) {
+  const auth = { Authorization: `Bearer ${backend.token}` };
   const api = createClient({ baseUrl: backend.base_url, token: backend.token });
   async function call<T>(run: Promise<{ data?: unknown; error?: unknown; response?: Response }>): Promise<T> {
     const r = await run;
@@ -41,8 +42,8 @@ export function createApi(backend: Pick<Backend, "base_url" | "token">) {
   }
   return {
     ...api,
-    get: <T>(url: string) => call<T>(api.client.get({ url })),
+    get: <T>(url: string) => call<T>(api.client.get({ url, headers: auth })),
     post: <T>(url: string, body: unknown = {}) =>
-      call<T>(api.client.post({ url, body, headers: { "Content-Type": "application/json" } })),
+      call<T>(api.client.post({ url, body, headers: { ...auth, "Content-Type": "application/json" } })),
   };
 }

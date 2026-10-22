@@ -26,6 +26,7 @@ coverage.xml
 # (an unanchored mods/ or saves/ would also hide the source packages of those names).
 /launcher_settings.json
 /launcher_settings.json.tmp
+/launcher_settings.json.lock
 /logs/
 /cache/
 /merges.json

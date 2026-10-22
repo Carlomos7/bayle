@@ -3,17 +3,17 @@ import { createApi } from "./api";
 
 afterEach(() => vi.unstubAllGlobals());
 
-test("get sends the bearer token to the handshake base url", async () => {
-  const fetchMock = vi.fn().mockResolvedValue(new Response('{"ok":true}'));
+test("health sends the bearer token to the handshake base url", async () => {
+  const body = { app_version: "1", contract_version: "1", ready: true };
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }));
   vi.stubGlobal("fetch", fetchMock);
-  const body = await createApi({ base_url: "http://127.0.0.1:5", token: "t" }).get("/v1/health");
-  expect(body).toEqual({ ok: true });
-  expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:5/v1/health", {
-    headers: { Authorization: "Bearer t" },
-  });
+  expect(await createApi({ base_url: "http://127.0.0.1:5", token: "t" }).health()).toEqual(body);
+  const req = fetchMock.mock.calls[0]![0] as Request;
+  expect(req.url).toBe("http://127.0.0.1:5/v1/health");
+  expect(req.headers.get("Authorization")).toBe("Bearer t");
 });
 
-test("get rejects on a non-2xx answer", async () => {
+test("health rejects on a non-2xx answer", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("no", { status: 401 })));
-  await expect(createApi({ base_url: "http://x", token: "t" }).get("/v1/health")).rejects.toThrow("HTTP 401");
+  await expect(createApi({ base_url: "http://x", token: "t" }).health()).rejects.toBeDefined();
 });

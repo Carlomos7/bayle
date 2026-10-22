@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0-rc.2] - 2026-10-21
+
+### Fixed
+
+- **Overhauls:** Install as overhaul uses your saved setup of the same overhaul again (each DLL's options, the text
+  table, your Files choices), also when a new download keeps its game files in a folder such as `mod`.
+- **Overhauls:** the review asks you to choose a text table once, and names the files as
+  `msg/<language>/...` instead of showing a raw `{each}`.
+- **Overhauls:** the game path of a file you place has its own line in the Files table, so it's no longer cut off.
+
 ## [4.6.0-rc.1] - 2026-10-21
 
 Overhauls set up by Bayle now cover large overhauls like Nightreign Revive from start to finish: you see and choose

@@ -1,6 +1,7 @@
 {
   "name": "bayle-workspace",
   "private": true,
+  "version": "4.6.0-rc.3",
   "packageManager": "pnpm@12.14.0",
   "description": "pnpm workspace root; the Python project is pyproject.toml, the desktop app is apps/desktop"
 }

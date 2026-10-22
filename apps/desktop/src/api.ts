@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { createClient } from "@bayle/api";
 
 /** What the Rust shell learned from the engine's handshake line. */
 export interface Backend {
@@ -8,23 +9,8 @@ export interface Backend {
   contract_version: string;
 }
 
-export interface Health {
-  app_version: string;
-  contract_version: string;
-  ready: boolean;
-}
-
 export const getBackend = () => invoke<Backend>("get_backend");
 
-/** The one place that adds the bearer header and the base URL. */
-export function createApi(backend: Pick<Backend, "base_url" | "token">) {
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${backend.base_url}${path}`, {
-      ...init,
-      headers: { ...init.headers, Authorization: `Bearer ${backend.token}` },
-    });
-    if (!response.ok) throw new Error(`${init.method ?? "GET"} ${path}: HTTP ${response.status}`);
-    return (await response.json()) as T;
-  }
-  return { get: <T>(path: string) => request<T>(path) };
-}
+/** Typed client for the engine (packages/api), bound to this run's handshake. */
+export const createApi = (backend: Pick<Backend, "base_url" | "token">) =>
+  createClient({ baseUrl: backend.base_url, token: backend.token });

@@ -1,6 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
-import { createApi, getBackend, type Health } from "./api";
+import type { Health } from "@bayle/api";
+import { createApi, getBackend } from "./api";
 
 type State = { error: string } | { health: Health; shell: string } | null;
 
@@ -10,7 +11,7 @@ export function App() {
   useEffect(() => {
     getBackend()
       .then(async (backend) => ({
-        health: await createApi(backend).get<Health>("/v1/health"),
+        health: await createApi(backend).health(),
         shell: await getVersion(),
       }))
       .then(setState, (e: unknown) => setState({ error: String(e) }));

@@ -13,7 +13,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 test("shows engine health and versions", async () => {
   const health = '{"app_version":"4.6.0","contract_version":"1","ready":true}';
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(health)));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(health, { headers: { "Content-Type": "application/json" } })));
   render(<App />);
   expect(await screen.findByText("Engine: ready")).toBeTruthy();
   expect(screen.getByText("Engine version: 4.6.0")).toBeTruthy();

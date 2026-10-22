@@ -1,14 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: core defaults, the open-file dialog, and opening a job log from the launcher's logs folder (no other path, no shell, no fs)",
-  "windows": ["main"],
+  "description": "Main window: core defaults plus exactly the plugin permissions the pages use (no shell, no fs)",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "dialog:allow-open",
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "**/logs/jobs/*" }]
-    }
+      "allow": [
+        {
+          "path": "**/logs/jobs/*"
+        }
+      ]
+    },
+    "core:window:allow-close"
   ]
 }

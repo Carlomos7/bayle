@@ -2763,6 +2763,24 @@
         "title": "NavigateEvent",
         "type": "object"
       },
+      "NewProfileOffer": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "seamless": {
+            "title": "Seamless",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "seamless"
+        ],
+        "title": "NewProfileOffer",
+        "type": "object"
+      },
       "NewProfileParams": {
         "additionalProperties": false,
         "properties": {
@@ -3522,6 +3540,27 @@
           "text"
         ],
         "title": "Pill",
+        "type": "object"
+      },
+      "PlaceParams": {
+        "additionalProperties": false,
+        "properties": {
+          "which": {
+            "enum": [
+              "profile",
+              "game",
+              "logs",
+              "steam",
+              "readme"
+            ],
+            "title": "Which",
+            "type": "string"
+          }
+        },
+        "required": [
+          "which"
+        ],
+        "title": "PlaceParams",
         "type": "object"
       },
       "PlanAnswer": {
@@ -11966,6 +12005,78 @@
         ]
       }
     },
+    "/v1/ops/shell.new_profile_offer": {
+      "post": {
+        "operationId": "op_shell_new_profile_offer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewProfileOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "shell.new_profile_offer (read)",
+        "tags": [
+          "shell"
+        ]
+      }
+    },
+    "/v1/ops/shell.open_place": {
+      "post": {
+        "operationId": "op_shell_open_place",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bayle__session__ops__shell__Done"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "shell.open_place (command)",
+        "tags": [
+          "shell"
+        ]
+      }
+    },
     "/v1/ops/shell.pick_profile": {
       "post": {
         "operationId": "op_shell_pick_profile",
@@ -12171,6 +12282,32 @@
           }
         ],
         "summary": "shell.steam_shortcuts (command, writes)",
+        "tags": [
+          "shell"
+        ]
+      }
+    },
+    "/v1/ops/shell.stop_rebuild": {
+      "post": {
+        "operationId": "op_shell_stop_rebuild",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bayle__session__ops__shell__Done"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "shell.stop_rebuild (command)",
         "tags": [
           "shell"
         ]

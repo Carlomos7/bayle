@@ -1867,6 +1867,20 @@ export type NavigateEvent = {
 };
 
 /**
+ * NewProfileOffer
+ */
+export type NewProfileOffer = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Seamless
+     */
+    seamless: boolean;
+};
+
+/**
  * NewProfileParams
  */
 export type NewProfileParams = {
@@ -2436,6 +2450,16 @@ export type Pill = {
      * Warn
      */
     warn?: boolean;
+};
+
+/**
+ * PlaceParams
+ */
+export type PlaceParams = {
+    /**
+     * Which
+     */
+    which: 'profile' | 'game' | 'logs' | 'steam' | 'readme';
 };
 
 /**
@@ -7391,6 +7415,47 @@ export type OpShellNewProfileResponses = {
 
 export type OpShellNewProfileResponse = OpShellNewProfileResponses[keyof OpShellNewProfileResponses];
 
+export type OpShellNewProfileOfferData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/shell.new_profile_offer';
+};
+
+export type OpShellNewProfileOfferResponses = {
+    /**
+     * Successful Response
+     */
+    200: NewProfileOffer;
+};
+
+export type OpShellNewProfileOfferResponse = OpShellNewProfileOfferResponses[keyof OpShellNewProfileOfferResponses];
+
+export type OpShellOpenPlaceData = {
+    body: PlaceParams;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/shell.open_place';
+};
+
+export type OpShellOpenPlaceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpShellOpenPlaceError = OpShellOpenPlaceErrors[keyof OpShellOpenPlaceErrors];
+
+export type OpShellOpenPlaceResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsShellDone;
+};
+
+export type OpShellOpenPlaceResponse = OpShellOpenPlaceResponses[keyof OpShellOpenPlaceResponses];
+
 export type OpShellPickProfileData = {
     body: IndexParams;
     path?: never;
@@ -7506,6 +7571,22 @@ export type OpShellSteamShortcutsResponses = {
 };
 
 export type OpShellSteamShortcutsResponse = OpShellSteamShortcutsResponses[keyof OpShellSteamShortcutsResponses];
+
+export type OpShellStopRebuildData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/ops/shell.stop_rebuild';
+};
+
+export type OpShellStopRebuildResponses = {
+    /**
+     * Successful Response
+     */
+    200: BayleSessionOpsShellDone;
+};
+
+export type OpShellStopRebuildResponse = OpShellStopRebuildResponses[keyof OpShellStopRebuildResponses];
 
 export type OpShellUpdateActionData = {
     body: NoticeActionParams;

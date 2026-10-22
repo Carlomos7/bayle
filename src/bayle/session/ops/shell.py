@@ -61,6 +61,10 @@ class CheckParams(Params):
     force: bool = True
 
 
+class PlaceParams(Params):
+    which: Literal["profile", "game", "logs", "steam", "readme"]
+
+
 class NoticeParams(Params):
     notice_id: str
 
@@ -100,6 +104,11 @@ class Shortcuts(Result):
 
 class Me3(Result):
     facts: dict[str, Any]
+
+
+class NewProfileOffer(Result):
+    name: str
+    seamless: bool
 
 
 class Done(Result):
@@ -193,4 +202,21 @@ def update_action(call: Call, p: NoticeActionParams) -> Done:
 @operation("shell.dismiss_notice", params=NoticeParams, result=Done, kind="command")
 def dismiss_notice(call: Call, p: NoticeParams) -> Done:
     shell_of(call.session).updates.dismiss(p.notice_id)
+    return Done()
+
+
+@operation("shell.open_place", params=PlaceParams, result=Done, kind="command")
+def open_place(call: Call, p: PlaceParams) -> Done:
+    shell_of(call.session).open_place(p.which)
+    return Done()
+
+
+@operation("shell.new_profile_offer", result=NewProfileOffer)
+def new_profile_offer(call: Call, p: NoParams) -> NewProfileOffer:
+    return NewProfileOffer(**shell_of(call.session).new_profile_offer())
+
+
+@operation("shell.stop_rebuild", result=Done, kind="command")
+def stop_rebuild(call: Call, p: NoParams) -> Done:
+    shell_of(call.session).flow.stop_after_rebuild()
     return Done()

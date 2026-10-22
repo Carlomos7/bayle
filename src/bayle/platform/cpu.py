@@ -2,7 +2,7 @@
 
 A task is a top-level function named "package.module:function" that takes keyword arguments (JSON values; pass file
 paths, not bytes) and returns a JSON value. run_cpu(task, args) returns a Future. Without a backend (tests, the
-command line) the task runs at once on the calling thread; the window installs one (ui/cpu_pool.py) that sends the
+command line) the task runs at once on the calling thread; the window installs one (platform/cpu_pool.py) that sends the
 task to a worker process: this program started again with --worker, speaking one JSON object per line on standard
 input and output (serve below). Calling .result() from a job's thread is the intended use; a task run from the
 window's own thread would deadlock a waiting caller, so the backend runs those inline.
@@ -146,8 +146,8 @@ def worker_main() -> int:
 
 # ----------------------------------------------------------------------------- tasks of its own
 def probe(value: int = 0) -> dict:
-    """A tiny task for the self-test and the tests: echoes, and says whether Qt is running in the worker (it must not
-    be). A frozen build's start-up hooks may load the Qt library itself; what matters is that no Qt application or
+    """A tiny task for the self-test and the tests: echoes value + 1, and returns the worker's pid and whether a Qt
+    application exists in it (it must not). A frozen build's start-up hooks may load the Qt library itself; what matters is that no Qt application or
     event loop exists here."""
     core = sys.modules.get("PySide6.QtCore")
     qt = core is not None and core.QCoreApplication.instance() is not None

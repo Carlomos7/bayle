@@ -249,8 +249,8 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_cpu_workers_left_over():
-    """A test that starts the window's worker pool must not leave it installed for the next test (CI runs the unit
-    and ui tests in one process, so the window's thread would count as the UI thread for every later test)."""
+    """A test that installs the worker pool must not leave it installed for the next test (CI runs the unit and ui
+    tests in one process, so the window's thread would count as the UI thread for every later test)."""
     yield
     from bayle.platform import cpu
 

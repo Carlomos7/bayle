@@ -4,7 +4,6 @@ dependencies would undo is refused with the reason, removing asks first and runs
 through the profile writer."""
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 from page_window import PageWindow
@@ -15,6 +14,8 @@ from PySide6.QtTest import QTest
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
 from bayle.services.mods import profile_entries
+from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import ops as _registered_operations  # noqa: F401
 from bayle.ui.host import Host as HostContract
 from bayle.ui.pages.registry import page as registered
 from support import er
@@ -45,7 +46,16 @@ class Host:
         self.changes: list[str] = []
         self.installs: list = []
         self.ran = None
-        self.session: Any = None
+        self.session = Session(  # the session runs its jobs at once, over the same disk the test sets up
+            JobManager(
+                EventBus(),
+                spawn=lambda run, name=None: run(),
+                game_running=lambda: self.game_running,
+                external_busy=lambda: self.busy,
+            ),
+            plans=PlanStore(),
+            locations=lambda: self.locations,
+        )
 
     def run_job(self, job, status, on_done=None):
         self.jobs.append(status)

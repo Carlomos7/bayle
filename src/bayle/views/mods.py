@@ -6,7 +6,7 @@ shows. The adapter hands it to QML; the Widgets Mods page uses its confirmation 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.game import catalog
@@ -133,7 +133,6 @@ class ModsPresenter:
     """Pure: everything the page shows comes from the arguments."""
 
     notices_shown: int = 2  # InfoBars at once; the rest wait
-    _closed: set[tuple[str, str]] = field(default_factory=set)  # (profile, notice kind) closed this session
 
     # ---- the page's fixed words
     install_text = property(lambda self: tr("Install mod"))
@@ -299,10 +298,12 @@ class ModsPresenter:
         seamless: str = "",
         no_profiles: bool = False,
         duplicated: tuple[int, int] = (0, 0),
+        closed: frozenset[tuple[str, str]] = frozenset(),
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
         tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
-        changes put right as the page opened (one line each);
+        changes put right as the page opened (one line each); closed: the (profile, notice key) pairs the player closed
+        this session (the session keeps them);
         no_profiles: this game has no profile at all, so the page says how to start."""
         if facts is None:
             words = (
@@ -354,6 +355,7 @@ class ModsPresenter:
                 len(facts.loose_dlls),
                 duplicated,
                 facts.outside,
+                closed,
             ),
         )
 
@@ -602,6 +604,7 @@ class ModsPresenter:
         loose_dlls: int = 0,
         duplicated: tuple[int, int] = (0, 0),
         outside: bool = False,
+        closed: frozenset[tuple[str, str]] = frozenset(),
     ) -> tuple[Notice, ...]:
         """In this order, two at most: online with changed parameters (a ban risk), out of date, the rebuild tool's
         permission, interrupted changes put right."""
@@ -716,11 +719,18 @@ class ModsPresenter:
             )
         if duplicated[1] > shared_mods.HINT_BYTES:
             out.append(Notice("library-hint", "info", self.hint_text(*duplicated), tr("Shared mods..."), True))
-        return tuple(n for n in out if (profile, n.key) not in self._closed)[: self.notices_shown]
+        return tuple(n for n in out if (profile, n.key) not in closed)[: self.notices_shown]
 
-    def close_notice(self, key: str, profile: str = "") -> None:
-        """A closed InfoBar stays closed for this profile only."""
-        self._closed.add((profile, key))
+    def library_hint(self, duplicated: tuple[int, int], profile: str = "", closed: frozenset = frozenset()):
+        """The disk hint on its own (it is worked out after the page shows): a Notice, or None."""
+        if duplicated[1] <= shared_mods.HINT_BYTES or (profile, "library-hint") in closed:
+            return None
+        return Notice("library-hint", "info", self.hint_text(*duplicated), tr("Shared mods..."), True)
+
+    @staticmethod
+    def text_error(why: str) -> str:
+        """The profile text does not parse (why: the parser's words); "" when it does."""
+        return tr("Does not parse as a profile: {why}. Save is off until it does.").format(why=why) if why else ""
 
     # ---- the Library
     @staticmethod

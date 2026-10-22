@@ -88,6 +88,47 @@
         "title": "Choice",
         "type": "object"
       },
+      "ClashFile": {
+        "properties": {
+          "losers": {
+            "title": "Losers",
+            "type": "string"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "winner": {
+            "title": "Winner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "winner",
+          "losers",
+          "lost"
+        ],
+        "title": "ClashFile",
+        "type": "object"
+      },
+      "Closed": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "Closed",
+        "type": "object"
+      },
       "CopyParams": {
         "additionalProperties": false,
         "properties": {
@@ -149,6 +190,46 @@
           "jobs"
         ],
         "title": "Day",
+        "type": "object"
+      },
+      "DragTable": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reasons": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "reasons"
+        ],
+        "title": "DragTable",
+        "type": "object"
+      },
+      "EntryRef": {
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "index"
+        ],
+        "title": "EntryRef",
         "type": "object"
       },
       "ErrorData": {
@@ -281,6 +362,55 @@
         "title": "FinishedEvent",
         "type": "object"
       },
+      "Group": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "string"
+          },
+          "empty": {
+            "title": "Empty",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/Row"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "icon",
+          "count",
+          "empty",
+          "lines",
+          "rows"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -292,29 +422,6 @@
           }
         },
         "title": "HTTPValidationError",
-        "type": "object"
-      },
-      "Health": {
-        "properties": {
-          "app_version": {
-            "title": "App Version",
-            "type": "string"
-          },
-          "contract_version": {
-            "title": "Contract Version",
-            "type": "string"
-          },
-          "ready": {
-            "default": true,
-            "title": "Ready",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "app_version",
-          "contract_version"
-        ],
-        "title": "Health",
         "type": "object"
       },
       "Job": {
@@ -460,6 +567,114 @@
           "job_id"
         ],
         "title": "JobRef",
+        "type": "object"
+      },
+      "LibraryHint": {
+        "properties": {
+          "mods": {
+            "title": "Mods",
+            "type": "integer"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Notice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mods",
+          "size",
+          "notice"
+        ],
+        "title": "LibraryHint",
+        "type": "object"
+      },
+      "Line": {
+        "description": "A muted line under a group header: \"2 folders ... are not loaded \u00b7 Add...\" or \"<entry> loads nothing\".",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "index": {
+            "default": -1,
+            "title": "Index",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "action"
+        ],
+        "title": "Line",
+        "type": "object"
+      },
+      "LoadOrderPanel": {
+        "properties": {
+          "clash_note": {
+            "title": "Clash Note",
+            "type": "string"
+          },
+          "clash_total": {
+            "title": "Clash Total",
+            "type": "integer"
+          },
+          "clashes": {
+            "items": {
+              "$ref": "#/components/schemas/ClashFile"
+            },
+            "title": "Clashes",
+            "type": "array"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "refused": {
+            "items": {
+              "$ref": "#/components/schemas/Refused"
+            },
+            "title": "Refused",
+            "type": "array"
+          },
+          "stays_last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaysLast"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "stays_last",
+          "clashes",
+          "clash_total",
+          "clash_note",
+          "refused"
+        ],
+        "title": "LoadOrderPanel",
         "type": "object"
       },
       "LogData": {
@@ -612,6 +827,334 @@
         "title": "LogView",
         "type": "object"
       },
+      "ModsState": {
+        "properties": {
+          "counts": {
+            "title": "Counts",
+            "type": "string"
+          },
+          "empty": {
+            "default": "",
+            "title": "Empty",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "health": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/bayle__views__mods__Health"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notices": {
+            "items": {
+              "$ref": "#/components/schemas/Notice"
+            },
+            "title": "Notices",
+            "type": "array"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/Parameters"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "counts",
+          "health",
+          "groups",
+          "parameters",
+          "notices"
+        ],
+        "title": "ModsState",
+        "type": "object"
+      },
+      "ModsView": {
+        "description": "The Mods page for one profile: what the presenter shows, the Load order panel (every clash; a client cuts the\nlist), the entries (for the options and rename dialogs) and what the header menu needs.",
+        "properties": {
+          "configs": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Configs",
+            "type": "object"
+          },
+          "entries": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "has_profile": {
+            "title": "Has Profile",
+            "type": "boolean"
+          },
+          "load_order": {
+            "$ref": "#/components/schemas/LoadOrderPanel"
+          },
+          "outside": {
+            "title": "Outside",
+            "type": "boolean"
+          },
+          "overhaul": {
+            "$ref": "#/components/schemas/OverhaulMenu"
+          },
+          "overhaul_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverhaulInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "rebuild_undo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RebuildUndo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ModsState"
+          }
+        },
+        "required": [
+          "profile",
+          "has_profile",
+          "state",
+          "load_order",
+          "entries",
+          "configs",
+          "rebuild_undo",
+          "overhaul",
+          "overhaul_info",
+          "outside"
+        ],
+        "title": "ModsView",
+        "type": "object"
+      },
+      "Notice": {
+        "description": "One InfoBar: key says what it is (online, stale, allow-tool, recovered), so the adapter knows what its action\ndoes.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "closable": {
+            "title": "Closable",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "severity",
+          "text",
+          "action",
+          "closable"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
+      "NoticeRef": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "key"
+        ],
+        "title": "NoticeRef",
+        "type": "object"
+      },
+      "OverhaulInfo": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "legacy": {
+            "title": "Legacy",
+            "type": "boolean"
+          },
+          "removable": {
+            "title": "Removable",
+            "type": "boolean"
+          },
+          "short_label": {
+            "title": "Short Label",
+            "type": "string"
+          },
+          "takeover": {
+            "title": "Takeover",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "short_label",
+          "legacy",
+          "takeover",
+          "removable"
+        ],
+        "title": "OverhaulInfo",
+        "type": "object"
+      },
+      "OverhaulMenu": {
+        "description": "The header overflow's overhaul entries (an overhaul installed with the launcher, a preview): shown while the\nswitch is on and the game has an overhaul the launcher can install (owner, D4 A).",
+        "properties": {
+          "can_clean": {
+            "title": "Can Clean",
+            "type": "boolean"
+          },
+          "can_remove": {
+            "title": "Can Remove",
+            "type": "boolean"
+          },
+          "can_take_over": {
+            "default": false,
+            "title": "Can Take Over",
+            "type": "boolean"
+          },
+          "clean": {
+            "title": "Clean",
+            "type": "string"
+          },
+          "install": {
+            "title": "Install",
+            "type": "string"
+          },
+          "remove": {
+            "title": "Remove",
+            "type": "string"
+          },
+          "take_over": {
+            "default": "",
+            "title": "Take Over",
+            "type": "string"
+          },
+          "visible": {
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "visible",
+          "install",
+          "remove",
+          "can_remove",
+          "clean",
+          "can_clean"
+        ],
+        "title": "OverhaulMenu",
+        "type": "object"
+      },
+      "Parameters": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "blocked": {
+            "title": "Blocked",
+            "type": "string"
+          },
+          "fingerprint": {
+            "default": "",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "fingerprint_note": {
+            "default": "",
+            "title": "Fingerprint Note",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "packs": {
+            "title": "Packs",
+            "type": "string"
+          },
+          "pill": {
+            "title": "Pill",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "visible": {
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "visible",
+          "state",
+          "pill",
+          "level",
+          "reasons",
+          "packs",
+          "action",
+          "blocked"
+        ],
+        "title": "Parameters",
+        "type": "object"
+      },
       "PlanAnswer": {
         "properties": {
           "choice": {
@@ -682,6 +1225,20 @@
           "prompt"
         ],
         "title": "PlanOffer",
+        "type": "object"
+      },
+      "ProfileRef": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ProfileRef",
         "type": "object"
       },
       "ProgressData": {
@@ -787,6 +1344,58 @@
         "title": "PromptEvent",
         "type": "object"
       },
+      "RebuildUndo": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "RebuildUndo",
+        "type": "object"
+      },
+      "Recovered": {
+        "properties": {
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "Recovered",
+        "type": "object"
+      },
+      "Refused": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "why"
+        ],
+        "title": "Refused",
+        "type": "object"
+      },
       "ResyncData": {
         "properties": {
           "oldest": {
@@ -842,6 +1451,92 @@
           "data"
         ],
         "title": "ResyncEvent",
+        "type": "object"
+      },
+      "Row": {
+        "properties": {
+          "can_share": {
+            "default": false,
+            "title": "Can Share",
+            "type": "boolean"
+          },
+          "configs_tip": {
+            "title": "Configs Tip",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "has_configs": {
+            "title": "Has Configs",
+            "type": "boolean"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "more": {
+            "title": "More",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "shared": {
+            "default": 0,
+            "title": "Shared",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_error": {
+            "title": "Status Error",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "kind",
+          "position",
+          "name",
+          "enabled",
+          "locked",
+          "tags",
+          "more",
+          "status",
+          "status_error",
+          "has_configs",
+          "configs_tip",
+          "path"
+        ],
+        "title": "Row",
         "type": "object"
       },
       "Seen": {
@@ -904,6 +1599,34 @@
         "title": "StartedEvent",
         "type": "object"
       },
+      "StaysLast": {
+        "properties": {
+          "can_fix": {
+            "title": "Can Fix",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "text",
+          "can_fix",
+          "problem"
+        ],
+        "title": "StaysLast",
+        "type": "object"
+      },
       "SummaryCard": {
         "properties": {
           "label": {
@@ -925,6 +1648,34 @@
           "level"
         ],
         "title": "SummaryCard",
+        "type": "object"
+      },
+      "Tag": {
+        "properties": {
+          "icon": {
+            "default": "",
+            "title": "Icon",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "tip": {
+            "default": "",
+            "title": "Tip",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "level"
+        ],
+        "title": "Tag",
         "type": "object"
       },
       "Unseen": {
@@ -978,6 +1729,47 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "bayle__api__models__Health": {
+        "properties": {
+          "app_version": {
+            "title": "App Version",
+            "type": "string"
+          },
+          "contract_version": {
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "ready": {
+            "default": true,
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "app_version",
+          "contract_version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "bayle__views__mods__Health": {
+        "properties": {
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "level"
+        ],
+        "title": "Health",
         "type": "object"
       }
     },
@@ -1115,7 +1907,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Health"
+                  "$ref": "#/components/schemas/bayle__api__models__Health"
                 }
               }
             },
@@ -1455,6 +2247,190 @@
         ]
       }
     },
+    "/v1/ops/mods.close_notice": {
+      "post": {
+        "operationId": "op_mods_close_notice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Closed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.close_notice (command)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.drag": {
+      "post": {
+        "operationId": "op_mods_drag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DragTable"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.drag (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.library_hint": {
+      "post": {
+        "operationId": "op_mods_library_hint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryHint"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.library_hint (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.recover": {
+      "post": {
+        "operationId": "op_mods_recover",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recovered"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.recover (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
     "/v1/pages/activity": {
       "get": {
         "operationId": "page_activity",
@@ -1518,6 +2494,84 @@
           }
         ],
         "summary": "Page Activity",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/mods": {
+      "get": {
+        "operationId": "page_mods",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Profile",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": "me3",
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no_profiles",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "No Profiles",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Page Mods",
         "tags": [
           "pages"
         ]

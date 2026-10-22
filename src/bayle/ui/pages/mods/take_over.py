@@ -53,10 +53,10 @@ def reinstall_words(label: str) -> Confirm:
 
 def start(page: ModsAdapter) -> None:
     """The Mods ⋯ menu's Take over... for the current profile."""
-    profile, has = page._ready(), page._overhaul[1]
-    if profile is None or not has or not has.get("takeover"):
+    profile, has = page._ready(), page._view.overhaul_info if page._view else None
+    if profile is None or not has or not has.takeover:
         return
-    loc, label = page.host.locations, has["label"]
+    loc, label = page.host.locations, has.label
 
     def preview_and_ask(chosen: list) -> None:
         try:

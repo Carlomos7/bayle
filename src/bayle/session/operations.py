@@ -70,6 +70,10 @@ class OperationSpec:
     result: type[BaseModel]
     kind: Kind
     writes: bool
+    title: Callable[[Any], str] | None = (
+        None  # a job's title from its params (words for the top bar); default: the name
+    )
+    check: Callable[[Call, Any], None] | None = None  # a job's refusals, raised before it starts (not as a failed job)
 
     @property
     def page(self) -> str:
@@ -90,9 +94,12 @@ class OperationRegistry:
         result: type[BaseModel],
         kind: Kind = "read",
         writes: bool = False,
+        title: Callable[[Any], str] | None = None,
+        check: Callable[[Call, Any], None] | None = None,
     ) -> Callable[[Callable[[Call, Any], Any]], Callable[[Call, Any], Any]]:
         """Register fn(call, params) -> result. A duplicate name, an unknown kind, or a read that writes raises
-        ValueError at once (a wiring mistake, not a runtime condition)."""
+        ValueError at once (a wiring mistake, not a runtime condition). title and check apply to a job: its title
+        from the params, and what is refused (OperationError) before anything starts."""
         if kind not in _KINDS:
             raise ValueError(f"operation {name}: unknown kind {kind!r}")
         if writes and kind == "read":
@@ -101,7 +108,7 @@ class OperationRegistry:
         def register(fn: Callable[[Call, Any], Any]) -> Callable[[Call, Any], Any]:
             if name in self._ops:
                 raise ValueError(f"operation {name} is already registered")
-            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes)
+            self._ops[name] = OperationSpec(name, fn, params, result, kind, writes, title, check)
             return fn
 
         return register
@@ -233,8 +240,12 @@ class Session:
             return self._offer(spec.fn(Call(self), p))
         if spec.kind != "job":
             return spec.result.model_validate(spec.fn(Call(self), p))
+        if spec.check is not None:
+            spec.check(Call(self), p)
         return self.start(
-            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)), title=name, writes=spec.writes
+            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)),
+            title=spec.title(p) if spec.title is not None else name,
+            writes=spec.writes,
         )
 
     def _offer(self, got: Proposal | Refusal) -> Plan | Refusal:

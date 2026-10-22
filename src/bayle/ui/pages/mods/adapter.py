@@ -12,7 +12,6 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
-from bayle.mods import conflicts as mod_overview
 from bayle.mods import move_in, profile_edit
 from bayle.mods import order as mod_order
 from bayle.platform import logging as run_logging
@@ -22,6 +21,8 @@ from bayle.services import mods as mod_service
 from bayle.services import profile_mods
 from bayle.services import profile_rename as rename_service
 from bayle.services import shared_mods as library_service
+from bayle.session import Session
+from bayle.session.ops.mods import ModsView
 from bayle.ui.models import RowsModel, plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mods import take_over
@@ -64,6 +65,8 @@ class ModsHost(Protocol):
     def busy(self) -> bool: ...
     @property
     def game_running(self) -> bool: ...
+    @property
+    def session(self) -> Session: ...
     @property
     def locations(self) -> Any: ...
     @property
@@ -124,15 +127,10 @@ class ModsAdapter(QObject):
         self.host = host
         self.notifier = notifier
         self.presenter = presenter or ModsPresenter()
-        self._facts: profile_mods.PageFacts | None = None
+        self._view: ModsView | None = None  # the session's snapshot of the page
         self._drag: dict = {}
-        self._scan: dict | None = None
-        self._tool: Any = None
-        self._rebuild_undo: dict | None = None
-        self._recovered: tuple[str, ...] = ()  # interrupted changes put right as the page read the profile
-        self._overhaul: tuple[bool, dict | None, bool] = (False, None, False)  # switch on, the profile's, leftovers
         self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
-        self._duplicated: tuple[int, int] = (0, 0)  # mods kept as Separate copies in several profiles, and their size
+        self._hint: Any = None  # the Library disk hint (a Notice), worked out after the page shows
         self._state: ModsState = self.presenter.page(None)
         self._loading = False
         self._refresher = Refresher(
@@ -158,7 +156,7 @@ class ModsAdapter(QObject):
     packageGroup = Property(dict, lambda self: self._group("package"), notify=changed)
     nativeGroup = Property(dict, lambda self: self._group("native"), notify=changed)
     parameters = Property(dict, lambda self: plain(self._state.parameters), notify=changed)
-    panel = Property(dict, lambda self: plain(load_order.panel(self._scan, self._show_all)), notify=changed)
+    panel = Property(dict, lambda self: plain(self._panel()), notify=changed)
     rebuildUndo = Property(str, lambda self: self._undo_label(), notify=changed)
     words = Property(dict, lambda self: self._words, constant=True)
     packages = Property(QObject, lambda self: self._packages, constant=True)
@@ -166,8 +164,8 @@ class ModsAdapter(QObject):
     notices = Property(QObject, lambda self: self._notices, constant=True)
     loading = Property(bool, lambda self: self._loading, notify=loadingChanged)
     showAll = Property(bool, lambda self: self._show_all, notify=changed)
-    hasProfile = Property(bool, lambda self: self._facts is not None and not self._facts.error, notify=changed)
-    overhaul = Property(dict, lambda self: plain(self.presenter.overhaul_menu(*self._overhaul)), notify=changed)
+    hasProfile = Property(bool, lambda self: self._view is not None and self._view.has_profile, notify=changed)
+    overhaul = Property(dict, lambda self: plain(self._view.overhaul) if self._view else {}, notify=changed)
     installer = Property(QObject, lambda self: self._install, constant=True)
 
     @Slot()
@@ -179,11 +177,11 @@ class ModsAdapter(QObject):
         return plain(group) if group else {"title": "", "count": "", "empty": "", "lines": [], "rows": []}
 
     def _undo_label(self) -> str:
-        if not self._rebuild_undo:
-            return ""
-        from bayle.mods import undo as mod_undo
+        return self._view.rebuild_undo.label if self._view and self._view.rebuild_undo else ""
 
-        return tr(mod_undo.label(self._rebuild_undo.get("undo")))
+    def _panel(self) -> load_order.LoadOrderPanel:
+        empty = load_order.panel(None)
+        return load_order.shown(self._view.load_order if self._view else empty, self._show_all)
 
     def state(self) -> ModsState:
         """What the page shows now (tests and the self-test)."""
@@ -224,8 +222,7 @@ class ModsAdapter(QObject):
 
     def load_order_broken(self) -> bool:
         """The mod that must stay last is not last and Fix order would change the file (Profile > Fix load order)."""
-        order = getattr(self._state, "load_order", None)
-        stays = getattr(order, "stays_last", None)
+        stays = self._view.load_order.stays_last if self._view else None
         return bool(stays is not None and stays.can_fix)
 
     @Slot()
@@ -244,10 +241,9 @@ class ModsAdapter(QObject):
         return {
             "profile": self.host.profile,
             "launch": self.host.launch_profile,
-            "loc": self.host.locations,
             "settings": self.host.settings,
-            "game": self.host.game,
             "busy": self.host.busy,  # a running job holds the folder: nothing of it is interrupted
+            "no_profiles": not self.host.profiles(),
         }
 
     @staticmethod
@@ -263,42 +259,22 @@ class ModsAdapter(QObject):
             snap["busy"],
         )
 
-    def _build(self, snap: dict):
-        profile, launch, loc = snap["profile"], snap["launch"], snap["loc"]
-        settings, game, recover = snap["settings"], snap["game"], not snap["busy"]
-        if profile is None or not Path(profile).is_file():
-            return None, None, None, None, (), (False, None, False)
-        try:
-            self._seamless_found = coop_service.game_folder_seamless(launch) if launch is not None else None
-        except Exception:  # a game folder that cannot be read: nothing to offer
-            self._seamless_found = None
-        recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
-        facts = profile_mods.page_facts(profile, loc=loc, settings=settings)
-        try:
-            scan = mod_overview.overview(Path(profile), loc=loc)
-        except Exception as e:  # a broken profile or record: the page shows what it has
-            scan = {"profile": str(profile), "scan": {"error": str(e)}}
-        tool = profile_mods.tool_to_offer(profile, game, loc=loc)
-        try:
-            undo = profile_mods.last_rebuild_undo(profile)
-        except Exception:
-            undo = None
-        try:
-            on = mod_service.overhaul_preview_on(loc)
-            overhaul = (
-                on,
-                mod_service.profile_overhaul(profile, loc=loc) if on else None,
-                bool(mod_service.overhaul_leftovers(profile, loc=loc)) if on else False,
-            )
-        except Exception:  # an overhaul config or record that does not read: no overhaul entries
-            overhaul = (False, None, False)
-        return facts, scan, tool, undo, recovered, overhaul
+    def _build(self, snap: dict) -> ModsView:
+        """On the worker: finish an interrupted change (the session does nothing while a job holds the folder), then
+        read the page. The snapshot itself writes nothing."""
+        session, profile, launch = self.host.session, snap["profile"], snap["launch"]
+        scope = {
+            "profile": "" if profile is None else str(profile),
+            "kind": getattr(launch, "kind", "me3"),
+            "source": str(getattr(launch, "source", "") or ""),
+            "no_profiles": snap["no_profiles"],
+        }
+        if scope["profile"] and Path(profile).is_file() and not snap["busy"]:
+            session.run("mods.recover", {"profile": scope["profile"]})
+        return session.snapshot("mods", **scope)
 
-    def _apply(self, got) -> None:
-        before = self._facts.profile if self._facts is not None else None
-        self._facts, self._scan, self._tool, self._rebuild_undo, recovered, self._overhaul = got
-        now = self._facts.profile if self._facts is not None else None
-        self._recovered = (self._recovered if now == before else ()) + recovered  # another profile: its own lines
+    def _apply(self, view: ModsView) -> None:
+        self._view = view
         self._render()
         if not self._edit_text:
             self._read_text()
@@ -306,16 +282,13 @@ class ModsAdapter(QObject):
         self._look_for_duplicates()
 
     def _render(self) -> None:
-        self._state = self.presenter.page(
-            self._facts,
-            self._scan,
-            game_running=self.host.game_running,
-            tool_to_allow=self._tool,
-            recovered=self._recovered,
-            seamless=self._seamless_found.kind if getattr(self, "_seamless_found", None) else "",
-            no_profiles=not self.host.profiles(),
-            duplicated=self._duplicated,
-        )
+        view = self._view
+        assert view is not None
+        state = view.state
+        notices = state.notices
+        if self._hint is not None and len(notices) < self.presenter.notices_shown:
+            notices = (*notices, self._hint)  # the disk hint comes last: it waits for a free bar
+        self._state = state = ModsState(**{**state.__dict__, "notices": notices})
         groups = {g.kind: g for g in self._state.groups}
         self._packages.set_rows([_row(r) for r in (groups["package"].rows if "package" in groups else ())])
         self._natives.set_rows([_row(r) for r in (groups["native"].rows if "native" in groups else ())])
@@ -324,16 +297,18 @@ class ModsAdapter(QObject):
 
     def _look_for_duplicates(self) -> None:
         """The disk hint: mods kept as the same Separate copy in several profiles, worked out after the page shows."""
-        if self._facts is None:
+        view = self._view
+        if view is None or not view.has_profile:
             return
-        loc = self.host.locations
+        session, profile = self.host.session, view.profile
 
         def got(found) -> None:
-            if found != self._duplicated:
-                self._duplicated = found
+            hint = found.notice
+            if hint != self._hint and self._view is not None and self._view.profile == profile:
+                self._hint = hint
                 self._render()
 
-        self.host.run_in_background(lambda: library_service.duplicates(loc), got)
+        self.host.run_in_background(lambda: session.run("mods.library_hint", {"profile": profile}), got)
 
     # ---- the Library (opt-in sharing of game-file mods between profiles)
     @Slot(int)
@@ -463,7 +438,7 @@ class ModsAdapter(QObject):
         return Path(profile)
 
     def _entry(self, index: int) -> dict | None:
-        return next((e for e in (self._facts.entries if self._facts else ()) if e["index"] == index), None)
+        return next((e for e in (self._view.entries if self._view else ()) if e["index"] == index), None)
 
     def _changed(self, note: str, toast: str) -> None:
         """A change was written: tell the host, read the page again, offer Undo."""
@@ -508,7 +483,7 @@ class ModsAdapter(QObject):
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None:
             return
-        plan = profile_mods.removal(profile, entry, loc=self.host.locations, scan=self._scan)
+        plan = profile_mods.removal(profile, entry, loc=self.host.locations)
         words = self.presenter.removal(profile, plan)
 
         def answered(ok: bool, recycle: bool, quiet: bool = False) -> None:
@@ -598,8 +573,8 @@ class ModsAdapter(QObject):
             if plan.problem:
                 refusal = self.presenter.move_refused(plan.problem)
                 by = (
-                    next((e["index"] for e in self._facts.entries if e["name"] == plan.decided_by), -1)
-                    if self._facts
+                    next((e["index"] for e in self._view.entries if e["name"] == plan.decided_by), -1)
+                    if self._view
                     else -1
                 )
                 if by >= 0:
@@ -660,7 +635,7 @@ class ModsAdapter(QObject):
     def moveBy(self, index: int, delta: int) -> None:
         """Ctrl+Up / Ctrl+Down and the row's Move menu: by delta places (a large delta: to the top or bottom)."""
         entry = self._entry(index)
-        if entry is None or self._facts is None:
+        if entry is None or self._view is None:
             return
         order = [r["entry"] for r in (self._packages if entry["kind"] == "package" else self._natives).rows()]
         if index not in order:
@@ -723,8 +698,8 @@ class ModsAdapter(QObject):
     def allowTool(self) -> None:
         """The InfoBar's Allow (owner, D2): what the tool runs, then remembered once the player confirms."""
         profile = self.host.profile
-        tool = self._tool
-        if profile is None or tool is None:
+        tool = profile_mods.tool_state(profile, loc=self.host.locations).tool if profile is not None else None
+        if tool is None:
             return
 
         def answered(ok: bool, _option: bool) -> None:
@@ -738,10 +713,9 @@ class ModsAdapter(QObject):
 
     @Slot()
     def undoRebuild(self) -> None:
-        rec = self._rebuild_undo
-        if not rec:
-            return
-        ask_undo(self.host, self.notifier, str(rec.get("id") or ""))
+        rec = self._view.rebuild_undo if self._view else None
+        if rec:
+            ask_undo(self.host, self.notifier, rec.id)
 
     @Slot()
     def trimBackups(self) -> None:
@@ -784,8 +758,14 @@ class ModsAdapter(QObject):
     # ---- InfoBars
     @Slot(str)
     def closeNotice(self, key: str) -> None:
-        self.presenter.close_notice(key, str(self._facts.profile) if self._facts is not None else "")
-        self._render()
+        if self._view is None:
+            return
+        if key == "library-hint":
+            self._hint = None
+        session, profile = self.host.session, self._view.profile
+        self.host.run_in_background(
+            lambda: session.run("mods.close_notice", {"profile": profile, "key": key}), lambda _got: self.refresh()
+        )
 
     @Slot(str)
     def noticeAction(self, key: str) -> None:
@@ -808,10 +788,11 @@ class ModsAdapter(QObject):
 
     def _folder_action(self) -> None:
         """Rename the profile's folder to its name, or split a crowded folder (a logged job, Undo in Activity)."""
-        profile, facts = self.host.profile, self._facts
-        if profile is None or facts is None or self.host.busy:
+        profile = self.host.profile
+        if profile is None or self._view is None or self.host.busy:
             return
-        old, kind, loc = Path(profile), facts.folder.kind, self.host.locations
+        old, loc = Path(profile), self.host.locations
+        kind = profile_mods.folder_check.check(old, loc).kind
         if kind == "misnamed":
             if why := rename_service.rename_folder_refusal(old, loc=loc):
                 self.notifier.toast(why, error=True)
@@ -862,8 +843,9 @@ class ModsAdapter(QObject):
     def _seamless_action(self) -> None:
         """Move Seamless Co-op from the game folder into this profile, or clean up what it left there (a job; the
         files go to the Recycle Bin, the profile's own copy and the settings file in use are never touched)."""
-        found, launch = getattr(self, "_seamless_found", None), self.host.launch_profile
-        if found is None or launch is None or self.host.busy or self.host.game_running:
+        launch = self.host.launch_profile
+        found = coop_service.game_folder_seamless(launch) if launch is not None else None
+        if found is None or self.host.busy or self.host.game_running:
             return
         move = found.kind == "move"
         changes = [
@@ -901,10 +883,10 @@ class ModsAdapter(QObject):
     def copyFingerprint(self) -> None:
         from PySide6.QtGui import QGuiApplication
 
-        facts = self._facts
-        if facts is None or facts.fingerprint is None:
+        text = self._state.parameters.fingerprint
+        if not text:
             return
-        QGuiApplication.clipboard().setText(self.presenter.fingerprint(facts.fingerprint, facts.regulation))
+        QGuiApplication.clipboard().setText(text)
         self.notifier.toast(tr("Fingerprint copied"))
 
     # ---- overhauls installed with the launcher (preview; owner, D4 A: shown while the switch is on)
@@ -980,10 +962,10 @@ class ModsAdapter(QObject):
 
     @Slot()
     def removeOverhaul(self) -> None:
-        profile, has = self._ready(), self._overhaul[1]
+        profile, has = self._ready(), self._view.overhaul_info if self._view else None
         if profile is None or not has:
             return
-        loc, label = self.host.locations, has["label"]
+        loc, label = self.host.locations, has.label
 
         def preview_and_ask(chosen: list) -> None:
             try:
@@ -1015,13 +997,13 @@ class ModsAdapter(QObject):
                     mod_service.remove_overhaul(final)
 
                 self.host.run_job(job, self.presenter.overhaul_removing(label))
-                if has["legacy"]:
+                if has.legacy:
                     later = self.presenter.overhaul_leftovers_later(label)
                     self.notifier.toast(f"{later.title}. {later.body}")
 
             self.notifier.ask(words, answered, destructive=True)
 
-        choices = mod_service.legacy_overhaul_choices(profile, loc=loc) if has["legacy"] else []
+        choices = mod_service.legacy_overhaul_choices(profile, loc=loc) if has.legacy else []
         if choices:  # what its installer changed: offered unticked (owner, 3.22-A)
             self._pick(
                 self.presenter.overhaul_put_back(label),
@@ -1202,7 +1184,7 @@ class ModsAdapter(QObject):
             "others": list(facts.others),
             "overlay": -1 if facts.overlay is None else int(facts.overlay),
             "rebuildFile": facts.rebuild_file,
-            "configs": list(self._facts.configs.get(index, ())) if self._facts else [],
+            "configs": list(self._view.configs.get(index, ())) if self._view else [],
         }
 
     @Slot(int, dict)

@@ -81,3 +81,27 @@ class FakeActivityFacts:
     def mark_seen(self):
         self.seen_at += 1
         return self.seen_at
+
+
+MODS_PROFILE = (
+    'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n\n'
+    "[[packages]]\nid = \"flora\"\npath = 'mod/flora'\n\n"
+    '[[packages]]\nid = "cloud"\npath = \'mod/cloud\'\nload_after = [{ id = "flora", optional = false }]\n\n'
+    "[[natives]]\npath = 'natives/a.dll'\n"
+)
+
+
+def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
+    """A small me3 profile on disk (two packages, one DLL) with its folders: what the Mods operations are run over."""
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / "main.me3"
+    path.write_text(text, encoding="utf-8")
+    for d in ("mod/flora/parts", "mod/cloud/parts", "natives"):
+        (root / d).mkdir(parents=True, exist_ok=True)
+    (root / "natives" / "a.dll").write_bytes(b"d")
+    return path
+
+
+def tree_state(*roots: Path) -> dict:
+    """(mtime, size) of every file and folder under the roots: a read must leave it as it was."""
+    return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for r in roots for p in [r, *r.rglob("*")]}

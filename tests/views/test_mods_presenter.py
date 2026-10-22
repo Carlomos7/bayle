@@ -221,8 +221,8 @@ def test_infobars_two_at_once_and_a_closed_one_stays_closed():
     assert [n.key for n in notices] == ["stale", "allow-tool"]
     assert notices[0].text == "Combined parameters are out of date: a new pack loads before it"
     assert notices[1].action == "Allow..."
-    p.close_notice("allow-tool")
-    assert [n.key for n in p.notices(stale, tool, ("x",))] == ["stale", "recovered"]
+    closed = frozenset({("", "allow-tool")})  # the session keeps what the player closed
+    assert [n.key for n in p.notices(stale, tool, ("x",), closed=closed)] == ["stale", "recovered"]
 
 
 def test_the_load_order_panel():

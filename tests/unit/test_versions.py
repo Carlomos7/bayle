@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import importlib.util
 import re
-from pathlib import Path
 
 import pytest
 
 from bayle import __version__
 from bayle.updates import feed
+from support import repo_root
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = repo_root()
 
 
 def test_rc_orders_between_the_last_stable_and_its_release():

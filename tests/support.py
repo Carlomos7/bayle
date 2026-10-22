@@ -16,6 +16,11 @@ from bayle.game.locate import Locations
 from bayle.saves.analyze import GameItems
 
 
+def repo_root() -> Path:
+    """The repository root (where pyproject.toml, scripts/ and .github/ live), however deep the calling test is."""
+    return Path(__file__).resolve().parent.parent
+
+
 def er() -> Locations:
     """Elden Ring with nothing set under Settings > Locations: what code that is handed a game's locations gets."""
     return Locations(catalog.ELDEN_RING)

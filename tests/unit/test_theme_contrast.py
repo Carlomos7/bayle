@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import sys
 from functools import cache
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "theme"))
+from support import repo_root
+
+sys.path.insert(0, str(repo_root() / "scripts" / "theme"))
 
 from colour import Rgba, composite, contrast  # noqa: E402  # pyright: ignore[reportMissingImports]
 from gen_theme import load_tokens, resolve_all, theme_colors  # noqa: E402  # pyright: ignore[reportMissingImports]

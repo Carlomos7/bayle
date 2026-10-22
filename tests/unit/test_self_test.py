@@ -13,6 +13,7 @@ import pytest
 
 from bayle.resources import PACKAGE_DIR
 from bayle.ui import self_test
+from support import repo_root
 
 QML = PACKAGE_DIR / "ui" / "qml"
 
@@ -40,7 +41,7 @@ def test_the_build_collects_only_the_qml_modules_the_launcher_needs():
     import runpy
 
     pytest.importorskip("PyInstaller")
-    hook_file = PACKAGE_DIR.parents[1] / "scripts" / "pyinstaller_hooks" / "hook-PySide6.QtQml.py"
+    hook_file = repo_root() / "scripts" / "pyinstaller_hooks" / "hook-PySide6.QtQml.py"
     hook = runpy.run_path(str(hook_file), run_name="closure-only")  # the collection itself is skipped
     modules = hook["closure"](hook["WANTED"])
     shipped_by_qt = [m for m in self_test.requirements()["qml_modules"] if m.startswith("Qt")]

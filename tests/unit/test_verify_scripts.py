@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 import pytest
 
-VERIFY = Path(__file__).resolve().parents[2] / "scripts" / "verify"
+from support import repo_root
+
+VERIFY = repo_root() / "scripts" / "verify"
 sys.path.insert(0, str(VERIFY))
 
 import _common  # noqa: E402  # pyright: ignore[reportMissingImports]

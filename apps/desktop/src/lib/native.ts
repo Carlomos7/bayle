@@ -13,5 +13,7 @@ export const pickFile = async (title: string, filterName: string, extensions: st
   return typeof got === "string" ? got : null;
 };
 
+/** Open a file or folder with the desktop's default program (the opener capability limits where). */
+export { openPath };
 export const openFolder = (path: string) => openPath(path);
 export const openLink = (url: string) => openUrl(url);

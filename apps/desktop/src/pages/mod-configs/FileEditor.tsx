@@ -11,7 +11,7 @@ import type { Dialogs } from "./dialogs";
 import { failed, message, refuse, say, useModOps } from "./ops";
 import { formOf, patchValues, shownValue } from "./overhaul";
 import { OverhaulSetup } from "./OverhaulSetup";
-import { pickFile } from "./native";
+import { pickFile } from "@/lib/native";
 import { SeamlessPanel } from "./SeamlessPanel";
 import type { Candidate, FileRead, FormValues, OverhaulForm, OverhaulView, RawNode, Row, Saved, TreeNode } from "./types";
 
@@ -268,7 +268,7 @@ export function FileEditor(p: FileEditorProps) {
   const canAttach = !!node.target && !ov;
   const attached = !!file?.attached;
   async function attach() {
-    const got = await pickFile(words.attach ?? "");
+    const got = await pickFile(words.attach ?? "", "", []);
     if (!got || !node.target) return;
     ops.run("mod_configs.attach", { target: node.target, file: got }).then(() => p.onTreeChanged(node.key), (e) => failed(e, words));
   }

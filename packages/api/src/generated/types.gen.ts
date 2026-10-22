@@ -3699,6 +3699,10 @@ export type ShellState = {
      */
     profile_index: number;
     /**
+     * Profile Path
+     */
+    profile_path?: string;
+    /**
      * Profiles
      */
     profiles: Array<string>;

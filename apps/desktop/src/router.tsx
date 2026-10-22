@@ -5,6 +5,7 @@ import { PAGES } from "@/shell/pages";
 import { Shell } from "@/shell/Shell";
 import { ActivityPage } from "@/pages/activity/ActivityPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { ProfileTransferPage } from "@/pages/profile-transfer/ProfileTransferPage";
 import { SavesPage } from "@/pages/saves/SavesPage";
 
 /** The pages that are built, by key; the rest show a placeholder. One line per page keeps page merges apart. */
@@ -12,6 +13,7 @@ const BUILT: Record<string, RouteComponent> = {
   activity: ActivityPage,
   // the editor (CodeMirror) is the heavy part: loaded with the page
   modConfigs: lazyRouteComponent(() => import("@/pages/mod-configs/ModConfigsPage"), "ModConfigsPage"),
+  profileTransfer: ProfileTransferPage,
   saves: SavesPage,
   settings: SettingsPage,
 };

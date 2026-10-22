@@ -8,7 +8,7 @@ import { BackendProvider } from "@/api/backend";
 import { sonnerToasts } from "@/components/toasts";
 import { backend, BASE, server } from "@/test/server";
 import { ModConfigsPage } from "./ModConfigsPage";
-import * as native from "./native";
+import * as native from "@/lib/native";
 
 // jsdom cannot type into CodeMirror: a textarea stands in for it here (the editor has its own test)
 vi.mock("@/components/CodeEditor", () => ({
@@ -16,7 +16,7 @@ vi.mock("@/components/CodeEditor", () => ({
     <textarea aria-label={label} value={value} onChange={(e) => onChange?.(e.target.value)} />
   ),
 }));
-vi.mock("./native", () => ({ pickFile: vi.fn() }));
+vi.mock("@/lib/native", () => ({ pickFile: vi.fn(), openFolder: vi.fn() }));
 
 const WORDS: Record<string, string> = {
   title: "Mod Configs",

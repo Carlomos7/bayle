@@ -9,7 +9,7 @@ import { useOp, usePage, usePlanOp } from "@/api/hooks";
 import { sonnerToasts, toProblem } from "@/components/toasts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { openPath } from "@/lib/desktop";
+import { openPath } from "@/lib/native";
 
 interface LogView {
   rows: { time: string; level: string; text: string }[];

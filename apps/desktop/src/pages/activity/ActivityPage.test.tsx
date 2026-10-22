@@ -7,11 +7,11 @@ import { BackendProvider } from "@/api/backend";
 import { handleEvent } from "@/api/events";
 import { PromptHost } from "@/components/PromptHost";
 import { sonnerToasts, type Toasts } from "@/components/toasts";
-import { openPath } from "@/lib/desktop";
+import { openPath } from "@/lib/native";
 import { backend, BASE, server } from "@/test/server";
 import { ActivityPage } from "./ActivityPage";
 
-vi.mock("@/lib/desktop", () => ({ openPath: vi.fn(() => Promise.resolve()) }));
+vi.mock("@/lib/native", () => ({ openPath: vi.fn(() => Promise.resolve()) }));
 
 // the virtual list needs a measurable scroller; jsdom has no layout
 beforeAll(() => {

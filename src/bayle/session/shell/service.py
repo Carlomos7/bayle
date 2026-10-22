@@ -350,6 +350,7 @@ class Shell:
             installed=self.installed_games(),
             unseen=self.unseen,
             updates=self.updates.state(),
+            profile_path=str(self.state.profile_path() or ""),
         )
 
     def checks_key(self) -> tuple:

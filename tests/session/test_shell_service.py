@@ -201,7 +201,7 @@ def test_a_session_without_a_shell_says_so():
 def test_startup_runs_the_session_steps_once_and_tells_what_they_put_right(shell, monkeypatch):
     calls = []
     monkeypatch.setattr(startup.run_health, "recover_all", lambda: calls.append("runs") or ["last run reported"])
-    monkeypatch.setattr(startup.save_backups, "adopt_legacy_save_folders", lambda *a, **k: calls.append("adopt"))
+    monkeypatch.setattr(startup.saves_page, "adopt_legacy_folders", lambda *a, **k: calls.append("adopt") or [])
     monkeypatch.setattr(shell.watch, "start", lambda: calls.append("watch"))
     shell.startup()
     assert calls.count("runs") == 1 and "watch" in calls

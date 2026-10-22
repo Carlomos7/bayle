@@ -9,19 +9,20 @@ player has not confirmed (confirmed=True on the second call). Refusals are Opera
 
 from __future__ import annotations
 
+import contextlib
 import threading
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
-
-from bayle.mods import profile_edit
+from bayle.game.locate import Locations
 from bayle.mods import undo as mod_undo
 from bayle.platform.text import tr
 from bayle.services import mods as mod_service
-from bayle.services import mods_page, profile_mods
-from bayle.services.errors import OperationError
+from bayle.services import mods_page
+from bayle.services.errors import Cancelled, ErrorInfo, OperationError
+from bayle.services.jobs import run_job_result, run_logged
 from bayle.session.operations import Call, Params, Result, Session, operation, registry
 from bayle.views import load_order
 from bayle.views.common import Confirm, prompt_dict
@@ -121,6 +122,11 @@ class ModsView:
     overhaul: OverhaulMenu
     overhaul_info: OverhaulInfo | None
     outside: bool  # not in Bayle's folder: it can be moved in
+    folders: dict[int, str]  # entry -> its folder's name (the Rename dialog starts from it)
+    rename_code: str = ""  # profile_mods.DELETE_* : why it can't be renamed, copied or moved whatever is running
+    tool_label: str = ""  # the rebuild tool waiting for the player's permission ("" when none)
+    # the profile's folder: "misnamed" or "crowded" when it can be fixed (mods.rename_folder, mods.split_folder)
+    folder_kind: str = ""
 
 
 def _overhaul_info(has: dict | None) -> OverhaulInfo | None:
@@ -145,16 +151,17 @@ def snapshot(
     if not profile or not Path(profile).is_file():
         state = pres.page(None, game_running=running, no_profiles=no_profiles)
         return ModsView(
-            "",
-            False,
-            state,
-            load_order.panel(None, True),
-            (),
-            {},
-            None,
-            pres.overhaul_menu(False, None, False),
-            None,
-            False,
+            profile="",
+            has_profile=False,
+            state=state,
+            load_order=load_order.panel(None, True),
+            entries=(),
+            configs={},
+            rebuild_undo=None,
+            overhaul=pres.overhaul_menu(False, None, False),
+            overhaul_info=None,
+            outside=False,
+            folders={},
         )
     loc = session.locations()
     notes = book(session)
@@ -183,6 +190,10 @@ def snapshot(
         overhaul=pres.overhaul_menu(got.overhaul_on, got.overhaul, got.leftovers),
         overhaul_info=_overhaul_info(got.overhaul),
         outside=got.facts.outside,
+        folders={e["index"]: mods_page.folder_name(got.facts.profile, e) for e in got.facts.entries},
+        rename_code=got.rename_code,
+        tool_label=got.tool.label if got.tool is not None else "",
+        folder_kind=got.facts.folder.kind,
     )
 
 
@@ -264,6 +275,52 @@ def needs_confirmation(words: Confirm) -> OperationError:
     return OperationError("needs_confirmation", words.title, {"prompt": prompt_dict(words)})
 
 
+@contextlib.contextmanager
+def refusing(code: str) -> Iterator[None]:
+    """Whatever the service raises is the player's to be told: an OperationError with this code and its words."""
+    try:
+        yield
+    except OperationError:
+        raise
+    except Exception as e:
+        raise OperationError(code, str(e)) from e
+
+
+def run_logged_job(loc: Locations, title: str, log_title: str, body: Callable[[Locations], Any]) -> Any:
+    """body(loc) as an old-style logged job: its own log file, jobs-index record and undo record (what Activity
+    lists). Call it inside a session job; a failure is an OperationError, a stop is Cancelled."""
+
+    def job(_launch: Any, jloc: Locations) -> Any:
+        with run_logged(log_title, jloc.game.key):
+            return body(jloc)
+
+    done = run_job_result(job, None, loc, title)
+    if done.state == "done":
+        return done.result
+    if done.state == "cancelled":
+        raise Cancelled()
+    err = done.error or ErrorInfo("failed", "Failed.")
+    raise OperationError(err.code, err.message, err.details)
+
+
+def start_logged(
+    session: Session, title: str, log_title: str, body: Callable[[Locations], Any], quiet: bool = False
+) -> str:
+    """For a plan's run: start body as a session job that is also an old-style logged one. Returns the job id. The
+    job's result is body's return value (a Result model or JSON-clean data)."""
+    loc = session.locations()
+    return session.start(lambda _ctx: run_logged_job(loc, title, log_title, body), title=title, quiet=quiet)
+
+
+def stamp(profile: str) -> object:
+    """A cheap read of the profile a plan was made from: the plan is stale once the file changed."""
+    try:
+        st = Path(profile).stat()
+    except OSError:
+        return None
+    return st.st_mtime_ns, st.st_size
+
+
 class Changed(Result):
     """A command that wrote the profile: the host's other views read it again, and Undo restores the version before."""
 
@@ -271,15 +328,5 @@ class Changed(Result):
     name: str = ""
 
 
-# keep the models importable for the other operation modules of the page
-__all__ = [
-    "BaseModel",
-    "Changed",
-    "EntryRef",
-    "LaunchRef",
-    "ProfileRef",
-    "idle",
-    "needs_confirmation",
-    "profile_edit",
-    "profile_mods",
-]
+class Done(Result):
+    note: str = ""

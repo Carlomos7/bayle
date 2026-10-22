@@ -42,7 +42,7 @@ class Host:
         self.settings = LauncherSettings()
         self.game = games.ELDEN_RING
         self.launch_profile = type("Setup", (), {"profile": str(profile), "kind": "me3"})()
-        self.jobs: list[str] = []
+        self.legacy_jobs: list[str] = []  # jobs the host itself ran (the pages not behind the session yet)
         self.changes: list[str] = []
         self.installs: list = []
         self.ran = None
@@ -57,9 +57,24 @@ class Host:
             locations=lambda: self.locations,
         )
 
+    @property
+    def jobs(self) -> list[str]:
+        """The titles of the jobs started, in order: the session's (they run at once) and the host's own."""
+        mine = (self.session.jobs.get(f"j{i}") for i in range(1, 30))
+        return [*[s.title for s in mine if s], *self.legacy_jobs]
+
     def run_job(self, job, status, on_done=None):
-        self.jobs.append(status)
+        self.legacy_jobs.append(status)
         self.ran = (job, on_done)
+
+    def follow_job(self, job_id, on_done):
+        snap = self.session.jobs.get(job_id)
+        assert snap is not None
+        if snap.state == "done":
+            on_done(True, {"result": snap.result, "undo": snap.undo})
+        else:
+            err = snap.error
+            on_done(False, {"error": {"code": err.code, "message": err.message} if err else {}})
 
     def mark_seen(self):
         pass
@@ -369,10 +384,7 @@ def _removed_with_toast(w, host):
     w.notifier.confirmFullRequested.connect(lambda token, words: asked.append(words))
     w.notifier.toastActionRequested.connect(lambda text, error, action, token: toasts.append((text, action, token)))
     click(w, find(w, "remove_a.dll"))
-    assert asked == [] and host.jobs == ["Removing a.dll..."]
-    job, on_done = host.ran
-    job(None, host.locations)
-    on_done(True)
+    assert asked == [] and host.jobs == ["Removing a.dll..."]  # the session ran it at once
     assert [t[:2] for t in toasts] == [("Removed a.dll", "Undo")]
     return toasts[0][2]
 

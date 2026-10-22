@@ -184,3 +184,35 @@ def test_a_plan_can_be_a_refusal_and_needs_a_plan_store(reg):
     with pytest.raises(OperationError) as e:
         make(reg).run("math.plan", {"a": 1})
     assert e.value.code == "no_plans"
+
+
+def test_a_job_takes_its_title_from_its_params_and_is_refused_before_it_starts_when_checked():
+    r = OperationRegistry()
+
+    def check(call, p):
+        if p.a < 0:
+            raise OperationError("negative", "No negatives.")
+
+    @r.operation(
+        "math.checked",
+        params=Add,
+        result=Sum,
+        kind="job",
+        writes=True,
+        title=lambda call, p: f"Adding {p.a}...",
+        check=check,
+        quiet=True,
+    )
+    def checked(call, p):
+        return Sum(total=p.a + p.b)
+
+    s = Session(JobManager(EventBus(), spawn=inline), ops=r)
+    sub = s.jobs.bus.subscribe()
+    job = s.run("math.checked", {"a": 2})
+    snap = s.jobs.get(job)
+    assert (snap.title, snap.state, snap.result) == ("Adding 2...", "done", {"total": 3})
+    started = [e for e in iter(lambda: sub.get(0), None) if e.type == "started"]
+    assert started[0].data == {"title": "Adding 2...", "quiet": True}
+    with pytest.raises(OperationError) as e:
+        s.run("math.checked", {"a": -1})
+    assert e.value.code == "negative" and s.jobs.get("j2") is None  # nothing started

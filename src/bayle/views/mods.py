@@ -1029,6 +1029,35 @@ class ModsPresenter:
             else tr("Your profile's own copy is not touched."),
         )
 
+    @staticmethod
+    def rebuild_refusal(code: str, detail: str = "") -> str:
+        """Why the combined parameters cannot be rebuilt now (profile_mods.REBUILD_* code)."""
+        if code == profile_mods.REBUILD_GAME_RUNNING:
+            return tr("Close the game first. The rebuild rewrites files the game has open.")
+        if code == profile_mods.REBUILD_BLOCKED:
+            return tr("It cannot be rebuilt now: {why}").format(why=detail)
+        return tr("Nothing to rebuild. Fewer than two packs ship parameters and there is no rebuild tool.")
+
+    @staticmethod
+    def seamless_changes(move: bool, folder, files: int, launcher: str = "") -> list[str]:
+        """The change list of the Seamless Co-op move or clean-up: what is found in the game folder and where it goes."""
+        changes = [
+            tr("{n} file(s) in {folder} {what}").format(
+                n=files,
+                folder=folder,
+                what=tr("move into this profile, settings included") if move else tr("go to the Recycle Bin"),
+            )
+        ]
+        if launcher:
+            changes.append(tr("{name}, Seamless Co-op's own launcher, goes to the Recycle Bin").format(name=launcher))
+        return changes
+
+    @staticmethod
+    def setting_changed(key: str) -> str:
+        from bayle.mods.profile import SETTING_TEXT
+
+        return tr("{setting} changed: it applies at the next launch").format(setting=tr(SETTING_TEXT[key][0]))
+
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
 

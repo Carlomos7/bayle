@@ -35,6 +35,7 @@ class ErrorData(BaseModel):
 
 class StartedData(BaseModel):
     title: str
+    quiet: bool = False  # the client words the job's end itself
 
 
 class ProgressData(BaseModel):

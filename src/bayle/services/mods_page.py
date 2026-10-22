@@ -29,6 +29,7 @@ class PageRead:
     overhaul: dict | None  # mods.profile_overhaul
     leftovers: bool
     seamless: str  # "" | "move" | "cleanup": Seamless Co-op also in the game folder
+    rename_code: str  # why the profile can't be renamed or copied whatever is running (a DELETE_* code), or ""
 
 
 def launch_for(loc: Locations, profile: str, kind: str = "me3", source: str = ""):
@@ -58,7 +59,16 @@ def read(profile, *, loc: Locations, launch=None, settings=None) -> PageRead:
         left = bool(mod_service.overhaul_leftovers(prof, loc=loc)) if on else False
     except Exception:  # an overhaul config or record that does not read: no overhaul entries
         on, has, left = False, None, False
-    return PageRead(facts, scan, tool, undo, on, has, left, seamless.kind if seamless is not None else "")
+    block = profile_mods.delete_refusal(launch, False, loc=loc) if launch is not None else None
+    return PageRead(facts, scan, tool, undo, on, has, left, seamless.kind if seamless is not None else "", block or "")
+
+
+def folder_name(profile, entry: dict) -> str:
+    """The entry's folder name (a package's folder, a DLL's parent): where the Rename dialog starts; "" without a path."""
+    if not entry.get("path"):
+        return ""
+    folder = profile_edit.resolve(Path(profile), entry["path"])
+    return (folder if entry["kind"] == "package" else folder.parent).name
 
 
 def drop_reasons(profile, kind: str, index: int, *, loc: Locations) -> dict[int, str]:

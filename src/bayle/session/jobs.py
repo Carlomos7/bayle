@@ -131,8 +131,11 @@ class JobManager:
         self._count = 0
 
     # ------------------------------------------------------------------ start
-    def start(self, work: Callable[[JobContext], Any], *, title: str = "Job", writes: bool = True) -> str:
-        """Run work(ctx) on a worker; return the job id. Raises Busy (writes only) while another writing job runs or
+    def start(
+        self, work: Callable[[JobContext], Any], *, title: str = "Job", writes: bool = True, quiet: bool = False
+    ) -> str:
+        """Run work(ctx) on a worker; return the job id. quiet: the client speaks for the job itself (its own words
+        when it ends), so a window need not announce it. Raises Busy (writes only) while another writing job runs or
         the game is running. Whatever work returns is the result (a JobResult is used as it is); an exception ends the
         job as failed/cancelled and never escapes."""
         with self._lock:
@@ -150,7 +153,7 @@ class JobManager:
             if writes:
                 self._writer = job_id
             self._forget_old()
-        self.bus.publish("started", {"title": title}, job_id)
+        self.bus.publish("started", {"title": title, **({"quiet": True} if quiet else {})}, job_id)
 
         def run(progress: service_jobs.Progress) -> tuple[str, JobResult]:
             self._progress[job_id] = progress

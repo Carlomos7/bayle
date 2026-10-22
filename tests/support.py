@@ -95,7 +95,7 @@ def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
     """A small me3 profile on disk (two packages, one DLL) with its folders: what the Mods operations are run over."""
     root.mkdir(parents=True, exist_ok=True)
     path = root / "main.me3"
-    path.write_text(text, encoding="utf-8")
+    path.write_bytes(text.encode("utf-8"))  # LF whatever the platform
     for d in ("mod/flora/parts", "mod/cloud/parts", "natives"):
         (root / d).mkdir(parents=True, exist_ok=True)
     (root / "natives" / "a.dll").write_bytes(b"d")

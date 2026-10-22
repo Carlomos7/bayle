@@ -151,9 +151,7 @@ def test_duplicate_asks_and_can_share_with_the_original(qt_app, world):
         w.adapter.duplicateProfile()
         token, words = asked[-1]
         assert words["option"].startswith("Share the game-file mods")
-        w.notifier.answerWith(token, True, True)  # the option ticked: share them with the original
-        job, _ = host.ran
-        job(None, loc)
+        w.notifier.answerWith(token, True, True)  # the option ticked: share them with the original; the session ran it
         copy = a.parent.parent / "a copy" / "a copy.me3"
         assert copy.is_file() and not (copy.parent / "packages" / "grass").exists()
         assert (

@@ -155,6 +155,9 @@ class ShellHost(QObject):
         )
         self.flow = launch.LaunchFlow(self.state, _FlowPorts(self))
         self._session_jobs: dict[str, str] = {}  # session jobs running, by id: their title
+        self._quiet_jobs: set[str] = set()  # session jobs whose end the page words itself (no "done" toast)
+        self._followers: dict[str, Callable[[bool, dict], None]] = {}  # job id -> the page's call when it ends
+        self._ended: dict[str, tuple[bool, dict]] = {}  # session jobs that ended before anyone followed them
         self.session = Session(
             JobManager(
                 game_running=lambda: self.state.game_running,
@@ -188,6 +191,8 @@ class ShellHost(QObject):
             if e.type == "started":
                 title = str(e.data.get("title") or "")
                 self._session_jobs[e.job_id] = title
+                if e.data.get("quiet"):
+                    self._quiet_jobs.add(e.job_id)
                 run_logging.attach_notice_sink(self._noticed.emit)
                 st.busy, st.job_label, st.job_kind, self.job_detail, self.step = True, title, "other", "", ""
                 self.changed.emit()
@@ -202,7 +207,24 @@ class ShellHost(QObject):
                 status = (
                     "Finished" if ok else "Error (see details)" if e.data.get("unexpected") else "Stopped (see details)"
                 )
-                self._done(Outcome(ok, status), title, "other", None)
+                quiet = e.job_id in self._quiet_jobs
+                self._quiet_jobs.discard(e.job_id)
+                follower = self._followers.pop(e.job_id, None)
+                if follower is None:  # a page may follow it a moment later: keep how it ended
+                    self._ended[e.job_id] = (ok, dict(e.data))
+                    while len(self._ended) > 50:
+                        self._ended.pop(next(iter(self._ended)))
+                after = None if follower is None else (lambda _ok, f=follower, d=dict(e.data): f(_ok, d))
+                self._done(Outcome(ok, status), title, "page" if quiet or follower else "other", after)
+
+    def follow_job(self, job_id: str, on_done: Callable[[bool, dict], None]) -> None:
+        """A page wants to know how a session job ended: on_done(ok, data) on the UI thread, once. data is the job's
+        finished event (result, undo) or its failed event (error: code, message, details)."""
+        ended = self._ended.pop(job_id, None)
+        if ended is not None:
+            on_done(*ended)
+        else:
+            self._followers[job_id] = on_done
 
     # ---------------------------------------------------------------- the host contract: state
     @property

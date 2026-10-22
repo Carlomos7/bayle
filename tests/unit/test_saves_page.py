@@ -7,8 +7,9 @@ from bayle.game.locate import Locations
 from bayle.saves import fix as F
 from bayle.saves import layout as L
 from bayle.services import saves as service
+from bayle.services.saves_page import apply_repairs
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.saves.adapter import SavesAdapter, apply_repairs
+from bayle.ui.pages.saves.adapter import SavesAdapter
 from bayle.views.saves import SavesPresenter
 from support import copy_live_save, er
 
@@ -21,11 +22,13 @@ class Host:
     def __init__(self):
         self.jobs = []
 
-    def run_job(self, job, status):
-        self.jobs.append(status)
+    session = None  # a refused write never reaches the session
 
     def run_in_background(self, work, on_result):
         raise AssertionError("a refused write must not plan anything")
+
+    def follow_job(self, job_id, done):
+        raise AssertionError("a refused write must not start a job")
 
     def pick_file(self, title, filters):
         raise AssertionError("a refused write must not ask for a file")

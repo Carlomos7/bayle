@@ -141,29 +141,6 @@ test("a Launch-flow prompt opens the dialog and the answer goes to /v1/prompts/{
   await vi.waitFor(() => expect(posts).toContainEqual({ path: "prompt q7", body: { choice: "retry" } }));
 });
 
-test("update notices show their actions, which post to update_action, and dismiss", async () => {
-  boot({
-    updates: {
-      notices: [
-        {
-          id: "flow",
-          level: "info",
-          title: "Bayle 9.9 is available",
-          body: "Notes",
-          closable: true,
-          actions: [{ key: "update", label: "Update now", primary: true }],
-        },
-      ],
-    },
-  });
-  const user = userEvent.setup();
-  expect(await screen.findByText("Bayle 9.9 is available")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Update now" }));
-  await vi.waitFor(() => expect(posts).toContainEqual({ path: "shell.update_action", body: { notice_id: "flow", key: "update" } }));
-  await user.click(screen.getByRole("button", { name: /Dismiss/ }));
-  await vi.waitFor(() => expect(posts).toContainEqual({ path: "shell.dismiss_notice", body: { notice_id: "flow" } }));
-});
-
 test("Help > Save logs asks for a folder and Check for updates forces a check", async () => {
   boot();
   pickPath.mockResolvedValue("C:\\out");

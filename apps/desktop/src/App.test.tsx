@@ -23,6 +23,7 @@ const shell = {
 function boot() {
   server.use(
     http.get(`${BASE}/v1/pages/shell`, () => HttpResponse.json(shell)),
+    http.get(`${BASE}/v1/pages/settings`, () => HttpResponse.json({ theme: "system", logo: "auto", specs: [], switches: [], locations: [], choices: {}, layout: {}, launcher_line: "Bayle" })),
     http.get(`${BASE}/v1/events`, () => new HttpResponse(new ReadableStream(), { headers: { "Content-Type": "text/event-stream" } })),
   );
   const router = buildRouter(createMemoryHistory({ initialEntries: ["/"] }));
@@ -49,7 +50,6 @@ test("Ctrl+1..5 jump to the pages as the Qt app does", async () => {
   expect(await screen.findByRole("heading", { name: "Saves" })).toBeInTheDocument();
   await user.keyboard("{Control>}5{/Control}");
   expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
-  expect(screen.getByLabelText("Theme")).toBeInTheDocument();
   await user.keyboard("{Control>}4{/Control}");
   expect(await screen.findByRole("heading", { name: "Activity" })).toBeInTheDocument();
 });

@@ -38,7 +38,7 @@ class Changed(Result):
 
 
 class FolderParams(Params):
-    kind: str  # me3 | game | profiles | saves | backups | settings
+    kind: str  # me3 | game | profiles | saves | backups | settings | logs
 
 
 class FolderPath(Result):

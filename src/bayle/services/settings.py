@@ -221,6 +221,10 @@ def folder(kind: str, loc, make: bool = False) -> Path | None:
                 found.mkdir(parents=True, exist_ok=True)
         elif kind == "settings":
             found = data_dir()
+        elif kind == "logs":
+            found = data_dir() / "logs"
+            if make:
+                found.mkdir(parents=True, exist_ok=True)
         elif kind not in ("me3", "game", "profiles", "saves"):
             raise OperationError(
                 "unknown_folder", tr("There is no folder called {kind}.").format(kind=kind), {"kind": kind}

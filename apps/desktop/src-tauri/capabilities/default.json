@@ -8,14 +8,22 @@
   "permissions": [
     "core:default",
     "dialog:allow-open",
+    "core:window:allow-close",
     {
       "identifier": "opener:allow-open-path",
       "allow": [
         {
-          "path": "**/logs/jobs/*"
+          "path": "**"
         }
       ]
     },
-    "core:window:allow-close"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/Carlomos7/roundtable-souls/**"
+        }
+      ]
+    }
   ]
 }

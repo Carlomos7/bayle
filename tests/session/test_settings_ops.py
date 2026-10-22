@@ -2,19 +2,26 @@
 
 import pytest
 
-from bayle.config.settings import data_dir
+from bayle.config.settings import DATA_ENV, data_dir
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods.layout import Cancelled as LayoutCancelled
 from bayle.mods.layout import LayoutError
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
+from bayle.services import settings as store
 from bayle.services.errors import OperationError
 from bayle.services.settings import load_settings
 from bayle.session import EventBus, JobManager, PlanStore, Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Refusal
 from support import er
+
+
+@pytest.fixture(autouse=True)
+def _own_data_folder(tmp_path, monkeypatch):
+    """A source run's data folder is the repository (node_modules, caches): the no-writes checks scan this one."""
+    monkeypatch.setenv(DATA_ENV, str(tmp_path / "data"))
 
 
 def inline(run, name=None):
@@ -105,11 +112,13 @@ def test_the_repair_switch_has_a_key_per_game():
     assert got.stored_as == "play_repair_after"
 
 
-def test_folders(tmp_path):
+def test_folders(tmp_path, monkeypatch):
     s = make()
     assert s.run("settings.folder", {"kind": "settings"}).path == str(data_dir())
     backups = s.run("settings.folder", {"kind": "backups"}).path
     assert backups and backups.endswith("saves")  # asking made it
+    monkeypatch.setattr(store, "data_dir", lambda: tmp_path)
+    assert s.run("settings.folder", {"kind": "logs"}).path == str(tmp_path / "logs")  # asking made it
     with pytest.raises(OperationError) as e:
         s.run("settings.folder", {"kind": "attic"})
     assert e.value.code == "unknown_folder"

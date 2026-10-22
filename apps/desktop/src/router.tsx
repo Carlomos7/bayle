@@ -1,10 +1,16 @@
 import { createRootRoute, createRoute, createRouter, redirect, type AnyRoute } from "@tanstack/react-router";
-import { AppearanceControls } from "@/theme/AppearanceControls";
+import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TokenPreview } from "@/theme/TokenPreview";
 import { PAGES } from "@/shell/pages";
 import { Shell } from "@/shell/Shell";
 import { ActivityPage } from "@/pages/activity/ActivityPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+
+/** The pages that are built, by key; the rest show a placeholder. One line per page keeps page merges apart. */
+const BUILT: Record<string, () => React.JSX.Element> = {
+  activity: ActivityPage,
+  settings: SettingsPage,
+};
 
 export function buildRouter(history?: Parameters<typeof createRouter>[0]["history"]) {
   const root = createRootRoute({ component: Shell });
@@ -19,9 +25,7 @@ export function buildRouter(history?: Parameters<typeof createRouter>[0]["histor
     createRoute({
       getParentRoute: () => root,
       path: p.path,
-      component: p.key === "activity" ? ActivityPage : () => (
-        <PlaceholderPage title={p.label}>{p.key === "settings" ? <AppearanceControls /> : null}</PlaceholderPage>
-      ),
+      component: BUILT[p.key] ?? (() => <PlaceholderPage title={p.label} />),
     }),
   );
   const routes: AnyRoute[] = [index, ...pages];

@@ -17,7 +17,6 @@ import { useShellOp } from "./ops";
 import { pathForPage } from "./pages";
 import { Rail } from "./Rail";
 import { TopBar } from "./TopBar";
-import { UpdateNotices } from "./UpdateNotices";
 
 const RAIL_KEY = "bayle.railCollapsed";
 const loadRail = () => {
@@ -211,7 +210,6 @@ export function Shell() {
           Skip to content
         </a>
         <TopBar shell={shell} error={error ? toProblem(error).message : undefined} />
-        <UpdateNotices notices={shell?.updates?.notices ?? []} />
         <div className="flex min-h-0 flex-1">
           <Rail unseen={shell?.unseen ?? 0} collapsed={railCollapsed} />
           <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto p-6 outline-none">

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config.settings import DATA_ENV, data_dir
+from bayle.config.settings import data_dir
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.platform import logging as run_logging
@@ -88,7 +88,6 @@ def _tree(*roots):
 
 
 def test_reading_the_page_writes_nothing(world, monkeypatch, tmp_path):
-    monkeypatch.setenv(DATA_ENV, str(tmp_path / "data"))  # a source run's data folder is the repository
     world.session().run("saves.back_up", {"paths": [str(world.save)]})  # a backup to list
     info = {
         "path": world.save,

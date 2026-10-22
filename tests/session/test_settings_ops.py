@@ -2,7 +2,7 @@
 
 import pytest
 
-from bayle.config.settings import DATA_ENV, data_dir
+from bayle.config.settings import data_dir
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods.layout import Cancelled as LayoutCancelled
@@ -16,12 +16,6 @@ from bayle.session import EventBus, JobManager, PlanStore, Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Refusal
 from support import er
-
-
-@pytest.fixture(autouse=True)
-def _own_data_folder(tmp_path, monkeypatch):
-    """A source run's data folder is the repository (node_modules, caches): the no-writes checks scan this one."""
-    monkeypatch.setenv(DATA_ENV, str(tmp_path / "data"))
 
 
 def inline(run, name=None):

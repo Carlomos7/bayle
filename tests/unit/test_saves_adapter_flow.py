@@ -54,7 +54,12 @@ def flow(tmp_path, monkeypatch):
     monkeypatch.setattr(
         saves_service,
         "save_info",
-        lambda path, game=None, kind=None, *, loc: {"path": path, "name": path.name, "kind": "Standard"},
+        lambda path, game=None, kind=None, *, loc: {
+            "path": path,
+            "name": path.name,
+            "kind": "Standard",
+            "modified": "2026-01-01 00:00",
+        },
     )
     notifier, said = Notifier(), {"asked": [], "toasts": [], "actions": []}
     notifier.confirmFullRequested.connect(lambda token, words: said["asked"].append((token, words)))

@@ -107,6 +107,8 @@ def writes_stay_in_temporary_folders(tmp_path_factory):
 def isolated_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "settings_path", lambda: tmp_path / "launcher_settings.json")
     monkeypatch.setattr(data_folder, "data_root", lambda: tmp_path / "launcher-data")
+    # A source run's data_dir() is the repository (node_modules and all): point it at the test's own folder.
+    monkeypatch.setenv(settings.DATA_ENV, str(tmp_path / "app-data"))
     # Moving older folders into the data folder only ever happens inside this test's own folder: a test that builds
     # the real window sees the developer's real saves and profiles, and must never move anything out of them.
     for module, name in ((save_backups, "adopt_legacy_save_folders"), (data_folder, "adopt_legacy_profile_folders")):

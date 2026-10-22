@@ -74,7 +74,7 @@ async def events(
         while not sub.closed:
             wake.clear()  # before draining: a publish after the drain sets it again
             while (e := sub.get(0)) is not None:
-                yield ServerSentEvent(
+                yield ServerSentEvent(  # pyright: ignore[reportReturnType]
                     data={"seq": e.seq, "job_id": e.job_id, "type": e.type, "data": e.data},
                     id=str(e.seq),
                     event=e.type,

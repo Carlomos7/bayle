@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from bayle.api.settings import ApiSettings
-from bayle.session import JobManager
+from bayle.session import JobManager, Session
 
 _bearer = HTTPBearer(auto_error=False)  # stateless scheme; auto_error=False makes a missing header a 401, not 403
 
@@ -32,3 +32,10 @@ def get_jobs(request: Request) -> JobManager:
 
 
 JobsDep = Annotated[JobManager, Depends(get_jobs)]
+
+
+def get_session(request: Request) -> Session:
+    return request.app.state.session
+
+
+SessionDep = Annotated[Session, Depends(get_session)]

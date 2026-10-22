@@ -1,6 +1,40 @@
 {
   "components": {
     "schemas": {
+      "ActivityState": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/Day"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "empty": {
+            "title": "Empty",
+            "type": "string"
+          },
+          "summary": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryCard"
+            },
+            "title": "Summary",
+            "type": "array"
+          },
+          "unseen": {
+            "default": 0,
+            "title": "Unseen",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "summary",
+          "days",
+          "empty"
+        ],
+        "title": "ActivityState",
+        "type": "object"
+      },
       "CancelledEvent": {
         "properties": {
           "data": {
@@ -33,6 +67,88 @@
           "data"
         ],
         "title": "CancelledEvent",
+        "type": "object"
+      },
+      "Choice": {
+        "description": "One entry of a filter drop-down: the value it filters by (\"\" for all) and its label.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "Choice",
+        "type": "object"
+      },
+      "CopyParams": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "default": false,
+            "title": "Detail",
+            "type": "boolean"
+          },
+          "for_support": {
+            "default": false,
+            "title": "For Support",
+            "type": "boolean"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "CopyParams",
+        "type": "object"
+      },
+      "CopyText": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "CopyText",
+        "type": "object"
+      },
+      "Day": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobItem"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "jobs"
+        ],
+        "title": "Day",
         "type": "object"
       },
       "ErrorData": {
@@ -265,6 +381,87 @@
         "title": "Job",
         "type": "object"
       },
+      "JobItem": {
+        "description": "One job's row.",
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "meta": {
+            "title": "Meta",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "undo_label": {
+            "title": "Undo Label",
+            "type": "string"
+          },
+          "undo_tip": {
+            "title": "Undo Tip",
+            "type": "string"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "when",
+          "title",
+          "outcome",
+          "level",
+          "meta",
+          "line",
+          "failed",
+          "undo_label",
+          "undo_tip",
+          "sources"
+        ],
+        "title": "JobItem",
+        "type": "object"
+      },
+      "JobRef": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "JobRef",
+        "type": "object"
+      },
       "LogData": {
         "properties": {
           "level": {
@@ -315,6 +512,176 @@
           "data"
         ],
         "title": "LogEvent",
+        "type": "object"
+      },
+      "LogFile": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "LogFile",
+        "type": "object"
+      },
+      "LogParams": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "default": false,
+            "title": "Detail",
+            "type": "boolean"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "LogParams",
+        "type": "object"
+      },
+      "LogRow": {
+        "properties": {
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "time": {
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "time",
+          "level",
+          "text"
+        ],
+        "title": "LogRow",
+        "type": "object"
+      },
+      "LogView": {
+        "properties": {
+          "missing": {
+            "default": false,
+            "title": "Missing",
+            "type": "boolean"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "plain": {
+            "title": "Plain",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LogRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "plain"
+        ],
+        "title": "LogView",
+        "type": "object"
+      },
+      "PlanAnswer": {
+        "properties": {
+          "choice": {
+            "default": "",
+            "title": "Choice",
+            "type": "string"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "option": {
+            "default": false,
+            "title": "Option",
+            "type": "boolean"
+          },
+          "ticked": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Ticked",
+            "type": "array"
+          }
+        },
+        "title": "PlanAnswer",
+        "type": "object"
+      },
+      "PlanExecuted": {
+        "properties": {
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          }
+        },
+        "title": "PlanExecuted",
+        "type": "object"
+      },
+      "PlanOffer": {
+        "description": "A plan operation's answer: a question to show (prompt: kind confirm | pick | choose, plus its words) and the\nplan_id to answer on POST /v1/plans/{plan_id}; or, with plan_id null, a refusal (kind refusal: title and body).",
+        "properties": {
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "prompt": {
+            "additionalProperties": true,
+            "title": "Prompt",
+            "type": "object"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "PlanOffer",
         "type": "object"
       },
       "ProgressData": {
@@ -477,6 +844,19 @@
         "title": "ResyncEvent",
         "type": "object"
       },
+      "Seen": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "title": "Seen",
+        "type": "object"
+      },
       "StartedData": {
         "properties": {
           "title": {
@@ -522,6 +902,42 @@
           "data"
         ],
         "title": "StartedEvent",
+        "type": "object"
+      },
+      "SummaryCard": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "level"
+        ],
+        "title": "SummaryCard",
+        "type": "object"
+      },
+      "Unseen": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "Unseen",
         "type": "object"
       },
       "ValidationError": {
@@ -801,6 +1217,368 @@
           }
         ],
         "summary": "Cancel Job"
+      }
+    },
+    "/v1/ops/activity.copy": {
+      "post": {
+        "operationId": "op_activity_copy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyText"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.copy (read)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/ops/activity.log": {
+      "post": {
+        "operationId": "op_activity_log",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.log (read)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/ops/activity.log_file": {
+      "post": {
+        "operationId": "op_activity_log_file",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogFile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.log_file (read)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/ops/activity.mark_seen": {
+      "post": {
+        "operationId": "op_activity_mark_seen",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Seen"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.mark_seen (command, writes)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/ops/activity.undo": {
+      "post": {
+        "operationId": "op_activity_undo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.undo (plan, writes)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/ops/activity.unseen": {
+      "post": {
+        "operationId": "op_activity_unseen",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unseen"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "activity.unseen (read)",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/pages/activity": {
+      "get": {
+        "operationId": "page_activity",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "game",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Game",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "failed_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Failed Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Page Activity",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/plans/{plan_id}": {
+      "post": {
+        "description": "Answer a plan the client was offered: runs it once. Errors: unknown_plan, plan_expired, plan_stale.",
+        "operationId": "answer_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanExecuted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Answer Plan",
+        "tags": [
+          "plans"
+        ]
       }
     }
   }

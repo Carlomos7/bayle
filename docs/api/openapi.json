@@ -69,6 +69,49 @@
         "title": "CancelledEvent",
         "type": "object"
       },
+      "Changed": {
+        "properties": {
+          "follow": {
+            "title": "Follow",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "said": {
+            "default": "",
+            "title": "Said",
+            "type": "string"
+          },
+          "stored_as": {
+            "title": "Stored As",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "stored_as",
+          "follow"
+        ],
+        "title": "Changed",
+        "type": "object"
+      },
       "Choice": {
         "description": "One entry of a filter drop-down: the value it filters by (\"\" for all) and its label.",
         "properties": {
@@ -86,6 +129,24 @@
           "label"
         ],
         "title": "Choice",
+        "type": "object"
+      },
+      "ChoiceRow": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "ChoiceRow",
         "type": "object"
       },
       "CopyParams": {
@@ -281,6 +342,40 @@
         "title": "FinishedEvent",
         "type": "object"
       },
+      "FolderParams": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "FolderParams",
+        "type": "object"
+      },
+      "FolderPath": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "FolderPath",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -462,6 +557,83 @@
         "title": "JobRef",
         "type": "object"
       },
+      "JobStarted": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "JobStarted",
+        "type": "object"
+      },
+      "LayoutCheck": {
+        "properties": {
+          "errors": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "object"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
+          }
+        },
+        "required": [
+          "errors",
+          "preview"
+        ],
+        "title": "LayoutCheck",
+        "type": "object"
+      },
+      "LocationRow": {
+        "properties": {
+          "filter": {
+            "default": "",
+            "title": "Filter",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "is_dir": {
+            "title": "Is Dir",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "placeholder": {
+            "title": "Placeholder",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "help",
+          "value",
+          "placeholder",
+          "is_dir"
+        ],
+        "title": "LocationRow",
+        "type": "object"
+      },
       "LogData": {
         "properties": {
           "level": {
@@ -610,6 +782,58 @@
           "plain"
         ],
         "title": "LogView",
+        "type": "object"
+      },
+      "Names": {
+        "additionalProperties": false,
+        "description": "The four folder names; None leaves one as it is.",
+        "properties": {
+          "natives": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Natives"
+          },
+          "packages": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packages"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared"
+          }
+        },
+        "title": "Names",
         "type": "object"
       },
       "PlanAnswer": {
@@ -787,6 +1011,20 @@
         "title": "PromptEvent",
         "type": "object"
       },
+      "RelocateParams": {
+        "additionalProperties": false,
+        "properties": {
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder"
+        ],
+        "title": "RelocateParams",
+        "type": "object"
+      },
       "ResyncData": {
         "properties": {
           "oldest": {
@@ -857,6 +1095,254 @@
         "title": "Seen",
         "type": "object"
       },
+      "SetParams": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "SetParams",
+        "type": "object"
+      },
+      "SettingSpec": {
+        "description": "One setting a client may change: its kind decides which values are allowed, its scope where it is stored.",
+        "properties": {
+          "choices": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "follow": {
+            "default": "settings",
+            "enum": [
+              "none",
+              "settings",
+              "appearance",
+              "updates"
+            ],
+            "title": "Follow",
+            "type": "string"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "is_dir": {
+            "default": false,
+            "title": "Is Dir",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "switch",
+              "choice",
+              "number",
+              "location"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "scope": {
+            "default": "global",
+            "enum": [
+              "global",
+              "game"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "kind"
+        ],
+        "title": "SettingSpec",
+        "type": "object"
+      },
+      "SettingsState": {
+        "properties": {
+          "backups_keep": {
+            "title": "Backups Keep",
+            "type": "integer"
+          },
+          "backups_location": {
+            "title": "Backups Location",
+            "type": "string"
+          },
+          "choices": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/ChoiceRow"
+              },
+              "type": "array"
+            },
+            "title": "Choices",
+            "type": "object"
+          },
+          "data_folder": {
+            "title": "Data Folder",
+            "type": "string"
+          },
+          "effects": {
+            "title": "Effects",
+            "type": "string"
+          },
+          "game": {
+            "title": "Game",
+            "type": "string"
+          },
+          "grain": {
+            "title": "Grain",
+            "type": "string"
+          },
+          "keep_from": {
+            "title": "Keep From",
+            "type": "integer"
+          },
+          "keep_to": {
+            "title": "Keep To",
+            "type": "integer"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "launcher_channel": {
+            "title": "Launcher Channel",
+            "type": "string"
+          },
+          "launcher_line": {
+            "title": "Launcher Line",
+            "type": "string"
+          },
+          "layout": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Layout",
+            "type": "object"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/LocationRow"
+            },
+            "title": "Locations",
+            "type": "array"
+          },
+          "log_level": {
+            "title": "Log Level",
+            "type": "string"
+          },
+          "logo": {
+            "title": "Logo",
+            "type": "string"
+          },
+          "profiles_root": {
+            "title": "Profiles Root",
+            "type": "string"
+          },
+          "specs": {
+            "items": {
+              "$ref": "#/components/schemas/SettingSpec"
+            },
+            "title": "Specs",
+            "type": "array"
+          },
+          "steam_options": {
+            "title": "Steam Options",
+            "type": "string"
+          },
+          "steam_target": {
+            "title": "Steam Target",
+            "type": "string"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/SwitchRow"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "theme": {
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "game",
+          "theme",
+          "effects",
+          "grain",
+          "logo",
+          "log_level",
+          "launcher_channel",
+          "labels",
+          "choices",
+          "backups_keep",
+          "keep_from",
+          "keep_to",
+          "backups_location",
+          "profiles_root",
+          "steam_target",
+          "steam_options",
+          "data_folder",
+          "launcher_line",
+          "layout",
+          "locations",
+          "switches",
+          "specs"
+        ],
+        "title": "SettingsState",
+        "type": "object"
+      },
       "StartedData": {
         "properties": {
           "title": {
@@ -925,6 +1411,49 @@
           "level"
         ],
         "title": "SummaryCard",
+        "type": "object"
+      },
+      "SwitchRow": {
+        "properties": {
+          "blurb": {
+            "title": "Blurb",
+            "type": "string"
+          },
+          "checked": {
+            "title": "Checked",
+            "type": "boolean"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "shown": {
+            "title": "Shown",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "blurb",
+          "help",
+          "group",
+          "checked",
+          "shown"
+        ],
+        "title": "SwitchRow",
         "type": "object"
       },
       "Unseen": {
@@ -1455,6 +1984,288 @@
         ]
       }
     },
+    "/v1/ops/settings.clear_leftovers": {
+      "post": {
+        "operationId": "op_settings_clear_leftovers",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.clear_leftovers (job)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.folder": {
+      "post": {
+        "operationId": "op_settings_folder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderPath"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.folder (command, writes)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.layout_check": {
+      "post": {
+        "operationId": "op_settings_layout_check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Names"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.layout_check (read)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.move_all": {
+      "post": {
+        "operationId": "op_settings_move_all",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.move_all (plan, writes)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.relocate": {
+      "post": {
+        "operationId": "op_settings_relocate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelocateParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.relocate (plan, writes)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.rename_layout": {
+      "post": {
+        "operationId": "op_settings_rename_layout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Names"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.rename_layout (plan, writes)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.set": {
+      "post": {
+        "operationId": "op_settings_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Changed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.set (command, writes)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/v1/pages/activity": {
       "get": {
         "operationId": "page_activity",
@@ -1518,6 +2329,32 @@
           }
         ],
         "summary": "Page Activity",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/settings": {
+      "get": {
+        "operationId": "page_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Page Settings",
         "tags": [
           "pages"
         ]

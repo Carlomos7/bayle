@@ -31,6 +31,7 @@ class ShellState:
     status: topbar.Status
     game_running: bool
     unseen: int = 0
+    profile_path: str = ""  # the .me3 of the picked profile; pages pass it in their calls
     updates: UpdatesState = field(default_factory=UpdatesState)
 
 
@@ -42,6 +43,7 @@ def shell_state(
     installed: dict[str, bool],
     unseen: int,
     updates: dict,
+    profile_path: str = "",
 ) -> ShellState:
     """updates: UpdateFlow.state() (line, tone, checking, notices)."""
     return ShellState(
@@ -57,5 +59,6 @@ def shell_state(
         status=topbar.status(facts),
         game_running=facts.game_running,
         unseen=unseen,
+        profile_path=profile_path,
         updates=UpdatesState(updates["line"], updates["tone"], bool(updates["checking"]), tuple(updates["notices"])),
     )

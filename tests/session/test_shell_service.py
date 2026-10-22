@@ -66,6 +66,7 @@ def test_the_shell_snapshot_reads_without_writing(shell, tmp_path):
     assert view.game == "eldenring" and view.pill.mode == "profile" and view.status.text
     assert [g.key for g in view.games if g.checked] == ["eldenring"] and view.updates.notices == ()
     assert stamp() == before
+    assert view.profile_path == str(shell.state.profile_path() or "")
 
 
 # ---------------------------------------------------------------- game.state and the writes gate

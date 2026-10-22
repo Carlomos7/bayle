@@ -5139,6 +5139,11 @@
             "title": "Profile Index",
             "type": "integer"
           },
+          "profile_path": {
+            "default": "",
+            "title": "Profile Path",
+            "type": "string"
+          },
           "profiles": {
             "items": {
               "type": "string"

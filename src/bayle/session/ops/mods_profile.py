@@ -66,9 +66,9 @@ def _check_rebuild(call: Call, p: RebuildParams) -> None:
         profile_mods.allow_tool(state.tool)  # the player confirmed: remembered for this version of the tool
 
 
-def _rebuild_title(call: Call, p: RebuildParams) -> str:
-    uses_tool = profile_mods.rebuild_uses_tool(p.profile, loc=call.session.locations())
-    return tr("Rebuilding combined parameters...") if uses_tool else tr("Combining parameters...")
+def _rebuild_title(p: RebuildParams) -> str:
+    """Stacked packs asking to be combined for the first time say so; otherwise it is a rebuild."""
+    return tr("Combining parameters...") if p.combine else tr("Rebuilding combined parameters...")
 
 
 @operation(
@@ -84,7 +84,7 @@ def rebuild(call: Call, p: RebuildParams) -> Done:
     """Rebuild (or first combine) the profile's parameters. Raises needs_confirmation before a rebuild tool that is
     not allowed yet runs; answer with allow=True."""
     job = profile_mods.rebuild_job(p.profile, True if p.combine else None)
-    done = run_job_result(job, None, call.session.locations(), _rebuild_title(call, p))
+    done = run_job_result(job, None, call.session.locations(), _rebuild_title(p))
     if done.state != "done":
         raise OperationError(
             done.error.code if done.error else "failed", done.error.message if done.error else "Failed."
@@ -148,7 +148,7 @@ def _check_rename_folder(call: Call, p: ProfileRef) -> None:
     result=Done,
     kind="job",
     writes=True,
-    title=lambda _c, _p: tr("Renaming the folder..."),
+    title=lambda _p: tr("Renaming the folder..."),
     check=_check_rename_folder,
 )
 def rename_folder(call: Call, p: ProfileRef) -> Done:
@@ -363,7 +363,7 @@ def _check_rename_profile(call: Call, p: NameParams) -> None:
     result=ProfileRenamed,
     kind="job",
     writes=True,
-    title=lambda _c, p: tr("Renaming {name}...").format(name=Path(p.profile).stem),
+    title=lambda p: tr("Renaming {name}...").format(name=Path(p.profile).stem),
     check=_check_rename_profile,
 )
 def rename_profile(call: Call, p: NameParams) -> ProfileRenamed:
@@ -410,7 +410,7 @@ def _check_duplicate(call: Call, p: DuplicateParams) -> None:
     result=ProfileCopied,
     kind="job",
     writes=True,
-    title=lambda _c, p: tr("Copying {name}...").format(name=Path(p.profile).stem),
+    title=lambda p: tr("Copying {name}...").format(name=Path(p.profile).stem),
     check=_check_duplicate,
 )
 def duplicate_profile(call: Call, p: DuplicateParams) -> ProfileCopied:

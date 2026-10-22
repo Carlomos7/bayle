@@ -147,6 +147,17 @@ def run_job_result(job: Callable[[Any, Locations], Any], launch, loc: Locations,
     return JobResult(state, value, error, getattr(record, "undo", None) if state == "done" else None, unexpected)
 
 
+def run_job_value(job: Callable[[Any, Locations], Any], loc: Locations, title: str = "Job") -> Any:
+    """run_job_result for work that already runs as a session job: the job's value, or the OperationError / Cancelled
+    it ended with."""
+    done = run_job_result(job, None, loc, title)
+    if done.state == "done":
+        return done.result
+    if done.state == "cancelled":
+        raise Cancelled()
+    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+
+
 def run_job(job: Callable[[Any, Locations], Any], launch, loc: Locations, title: str = "Job") -> Outcome:
     """run_job_result for callers that want the window's status line (an Outcome)."""
     return run_job_result(job, launch, loc, title).outcome

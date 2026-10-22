@@ -237,9 +237,9 @@ class InstallAdapter(QObject):
             return False
         if self._profile() is None:
             return False
-        draft, self._draft, self._view = self._draft, None, {}
+        draft, name, self._draft, self._view = self._draft, self._view.get("name", ""), None, {}
         self.viewChanged.emit()
-        self._calls.job("mods.install_finish", {"draft_id": draft})
+        self._calls.job("mods.install_finish", {"draft_id": draft, "name": name})
         return True
 
     @Slot(result=bool)

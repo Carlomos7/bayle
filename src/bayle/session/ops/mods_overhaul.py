@@ -206,7 +206,7 @@ def _check_clean(call: Call, p: CleanParams) -> None:
     result=Done,
     kind="job",
     writes=True,
-    title=lambda _c, _p: ModsPresenter().leftovers_moving(),
+    title=lambda _p: ModsPresenter().leftovers_moving(),
     check=_check_clean,
 )
 def leftovers_clean(call: Call, p: CleanParams) -> Done:

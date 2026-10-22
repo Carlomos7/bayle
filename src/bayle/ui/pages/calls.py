@@ -38,6 +38,22 @@ class Calls:
     def __init__(self, host: Any, notifier: Notifier):
         self.host, self.notifier = host, notifier
 
+    def _follow(self, job_id: str, done: Callable[[bool, dict], None] | None) -> None:
+        """done(ok, data) when the job ends: data is its result and undo, or the error (code, message, details)."""
+        if done is None:
+            return
+
+        def ended(snap: Any) -> None:
+            if snap is not None and snap.state == "done":
+                done(True, {"result": snap.result, "undo": snap.undo})
+            else:
+                err = getattr(snap, "error", None)
+                done(
+                    False, {"error": {"code": err.code, "message": err.message, "details": err.details} if err else {}}
+                )
+
+        self.host.follow_job(job_id, ended)
+
     def say(self, e: OperationError) -> None:
         self.notifier.toast(e.message, error=True)
 
@@ -98,8 +114,7 @@ class Calls:
         """Run a job operation; done(ok, data) when it ends (data: its finished event, or its failed event's error)."""
 
         def started(job_id: str) -> None:
-            if done is not None:
-                self.host.follow_job(job_id, done)
+            self._follow(job_id, done)
 
         self.run(op, params, started, fail, retry=retry, destructive=destructive, declined=declined)
 
@@ -183,8 +198,8 @@ class Calls:
                 return
             if ok and after is not None:
                 after(got)
-            if isinstance(got, str) and done is not None:
-                self.host.follow_job(got, done)
+            if isinstance(got, str):
+                self._follow(got, done)
 
         self.host.run_in_background(work, landed)
 

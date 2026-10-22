@@ -4,6 +4,7 @@ GET  /v1/pages/{page}   a page's snapshot (its filters are query parameters)
 POST /v1/ops/{name}     run an operation: a read or command answers with its result, a job with 202 and the job id,
                         a plan with the question to show (or a refusal)
 POST /v1/plans/{id}     answer a plan; it runs once and answers with the id of the job it started
+POST /v1/prompts/{id}   answer a question a running job asked (a `prompt` event on the stream)
 
 Each page and operation gets its own path, so the OpenAPI document carries its own filters, params and result.
 No `from __future__ import annotations` here: the annotations are built from the registry's models at def time.
@@ -14,7 +15,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 
 from bayle.api.deps import SessionDep
-from bayle.api.models import JobStarted, PlanAnswer, PlanExecuted, PlanOffer
+from bayle.api.models import JobStarted, PlanAnswer, PlanExecuted, PlanOffer, PromptAnswer, PromptAnswered
 from bayle.session import NoParams, OperationSpec, PageSpec, Session
 from bayle.views.common import Refusal, prompt_dict
 
@@ -77,5 +78,11 @@ def session_router(session: Session) -> APIRouter:
     def answer_plan(session: SessionDep, plan_id: str, body: PlanAnswer) -> PlanExecuted:
         """Answer a plan the client was offered: runs it once. Errors: unknown_plan, plan_expired, plan_stale."""
         return PlanExecuted(job_id=session.answer(plan_id, body.model_dump()))
+
+    @router.post("/prompts/{prompt_id}", tags=["plans"])
+    def answer_prompt(session: SessionDep, prompt_id: str, body: PromptAnswer) -> PromptAnswered:
+        """Answer a question a running job or the Launch flow asked (a `prompt` event). Error: unknown_prompt."""
+        session.answer_prompt(prompt_id, body.choice)
+        return PromptAnswered()
 
     return router

@@ -7,10 +7,14 @@ from __future__ import annotations
 import importlib
 import os
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 
 from bayle.mods import library, move_in
+from bayle.mods.layout import Cancelled as LayoutCancelled
+from bayle.mods.layout import LayoutError
 from bayle.platform import logging as run_logging
+from bayle.services.errors import Cancelled, OperationError
 
 
 def _fn(name: str):
@@ -31,10 +35,22 @@ def _record(out) -> None:
         run_logging.set_undo(undo)
 
 
+@contextmanager
+def _as_operation_error():
+    """A refused or stopped layout change as the codes a client branches on (layout_refused, cancelled)."""
+    try:
+        yield
+    except LayoutCancelled:
+        raise Cancelled() from None
+    except LayoutError as e:
+        raise OperationError("layout_refused", str(e)) from e
+
+
 def relocate(loc, new_root, progress=None, cancel=None) -> dict:
     """Move the profiles and mods to a new profiles folder, as a logged job with an undo record."""
     run_logging.start_log(f"launcher: move profiles and mods to {new_root}", loc.game.key)
-    out = _fn("relocate")(loc, Path(new_root), progress=progress or run_logging.log, cancel=cancel)
+    with _as_operation_error():
+        out = _fn("relocate")(loc, Path(new_root), progress=progress or run_logging.log, cancel=cancel)
     _record(out)
     return out
 
@@ -42,7 +58,8 @@ def relocate(loc, new_root, progress=None, cancel=None) -> dict:
 def rename_layout(loc, **names) -> dict:
     """Rename the game folder pattern and the packages / DLL / shared folders (None = unchanged)."""
     run_logging.start_log("launcher: rename layout folders", loc.game.key)
-    out = _fn("rename_layout")(loc, **names)
+    with _as_operation_error():
+        out = _fn("rename_layout")(loc, **names)
     _record(out)
     return out
 

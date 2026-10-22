@@ -85,7 +85,7 @@ def _check_remove(call: Call, p: RemoveParams) -> None:
     kind="job",
     writes=True,
     quiet=True,
-    title=lambda _c, p: tr("Removing {name}...").format(name=p.name),
+    title=lambda p: tr("Removing {name}...").format(name=p.name),
     check=_check_remove,
 )
 def remove(call: Call, p: RemoveParams) -> RemoveResult:
@@ -213,7 +213,7 @@ def _check_entry(call: Call, p: EntryRef) -> None:
     result=Done,
     kind="job",
     writes=True,
-    title=lambda _c, p: tr("Renaming {name}...").format(name=_entry_name(p)),
+    title=lambda p: tr("Renaming {name}...").format(name=_entry_name(p)),
     check=_check_entry,
 )
 def rename(call: Call, p: RenameParams) -> Done:

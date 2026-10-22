@@ -6,35 +6,25 @@ host runs them with its own checks (the game and jobs stopped, the program's ide
 
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from bayle.config.settings import data_dir, game_setting, load_settings, save_game_settings, save_settings
-from bayle.game import catalog as games
-from bayle.game.locate import saves_dir_problem
-from bayle.platform import data_folder, desktop
+from bayle.platform import desktop
 from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.services import layout as layout_service
-from bayle.services import mods as mod_service
-from bayle.services import play as play_service
+from bayle.services.errors import OperationError
+from bayle.session import Session
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
 from bayle.ui.refresh import Refresher
 from bayle.views import settings as sp
+from bayle.views.common import Refusal
+from bayle.views.settings_state import CHOICE_LABELS, KEEP_RANGE, LAYOUT_LABELS, LOCATION_WORDS, SettingsState
 
-KEEP_RANGE = (5, 200)
-# draft field -> (settings key, layout_problems keyword, label)
-LAYOUT = {
-    "pattern": ("game_folder_pattern", "pattern", "Game folder"),
-    "packages": ("packages_folder", "packages", "Game-file mods"),
-    "natives": ("natives_folder", "natives", "DLL mods"),
-    "shared": ("shared_folder", "shared", "Shared mods"),
-}
+LAYOUT = tuple(LAYOUT_LABELS)  # the draft fields
 
 
 class SettingsHost(Protocol):
@@ -43,10 +33,7 @@ class SettingsHost(Protocol):
     @property
     def busy(self) -> bool: ...
     @property
-    def game(self) -> Any: ...
-    @property
-    def locations(self) -> Any: ...
-    def run_job(self, job, status: str) -> None: ...
+    def session(self) -> Session: ...
     def run_in_background(self, work, on_result) -> None: ...
     def open_path(self, path: Path) -> None: ...
     def pick_folder(self, title: str) -> Path | None: ...
@@ -68,48 +55,6 @@ class SettingsHost(Protocol):
     def dismiss_notice(self, notice_id: str) -> None: ...
 
 
-# key, title, help, is a folder, file filter
-LOCATIONS = (
-    (
-        "me3_path",
-        "me3",
-        "Leave empty to find me3 automatically. Set it only if you keep me3 somewhere unusual, such as a portable copy.",
-        False,
-        "me3 (me3.exe)",
-    ),
-    (
-        "game_exe",
-        "Game executable",
-        "Leave empty to use the game from your Steam library. Set it only to launch a different copy of the game. Saved per game.",
-        False,
-        "Game (*.exe)",
-    ),
-    (
-        "me3_profile_dir",
-        "me3 profiles folder",
-        "Where me3 keeps its own profiles. Leave empty to use the folder me3 uses.",
-        True,
-        "",
-    ),
-    (
-        "saves_dir",
-        "Saves folder",
-        "Leave empty to find your saves automatically. Set it only if the game keeps them somewhere else. The Saves page, "
-        "backups and repairs all use this folder. Saved per game.",
-        True,
-        "",
-    ),
-)
-CHOICES = {
-    "theme": (("dark", "Dark"), ("tarnished", "Tarnished"), ("light", "Light"), ("system", "System")),
-    "effects": (("full", "Full"), ("reduced", "Reduced"), ("off", "Off")),
-    "grain": (("off", "Off"), ("subtle", "Subtle"), ("film", "Film")),
-    "logo": (("auto", "Follows theme"), ("crimson", "Crimson"), ("ice", "Ice"), ("gold", "Tarnished")),
-    "log_level": (("normal", "Normal"), ("verbose", "Verbose")),
-    "launcher_channel": (("stable", "Stable"), ("beta", "Beta")),
-}
-
-
 class SettingsAdapter(QObject):
     changed = Signal()
     updatesChanged = Signal()
@@ -127,10 +72,11 @@ class SettingsAdapter(QObject):
             for g in ("launch", "offline", "updates", "me3")
         }
         self._notices = RowsModel(("id", "level", "title", "body", "closable", "actions"), self)
-        self._choices = {k: RowsModel(("key", "label"), self) for k in CHOICES}
-        for k, rows in CHOICES.items():
+        self._choices = {k: RowsModel(("key", "label"), self) for k in CHOICE_LABELS}
+        for k, rows in CHOICE_LABELS.items():
             self._choices[k].set_rows([{"key": a, "label": tr(b)} for a, b in rows])
         self._saved_layout: dict[str, str] = {}
+        self._layout_check: dict[str, Any] = {"errors": {}, "preview": ""}
         # what the page shows until the first read lands (it is built on a worker)
         self._values: dict[str, Any] = {
             **dict.fromkeys(
@@ -151,12 +97,12 @@ class SettingsAdapter(QObject):
                 "",
             ),
             "backups_keep": 20,
-            "labels": dict.fromkeys(CHOICES, ""),
+            "labels": dict.fromkeys(CHOICE_LABELS, ""),
         }
         self._draft: dict[str, str] = {}
-        self._cancel = threading.Event()
+        self._move_job = ""  # the running move of the profiles folder (its Cancel stops it)
         self._moving = False
-        self._refresher = Refresher(host, self._snapshot, self._build, self._apply)
+        self._refresher = Refresher(host, lambda: None, self._build, self._apply)
         self.refresh()
         try:
             host.watch_updates(self._on_update_state)
@@ -276,12 +222,10 @@ class SettingsAdapter(QObject):
     keepTo = Property(int, lambda self: KEEP_RANGE[1], constant=True)
     profilesRoot = Property(str, lambda self: self._values["profiles_root"], notify=changed)
     layoutDraft = Property(dict, lambda self: dict(self._draft), notify=changed)
-    layoutErrors = Property(dict, lambda self: self._layout_errors(), notify=changed)
-    gamePreview = Property(
-        str, lambda self: sp.game_preview(self._draft.get("pattern", ""), self._game().key), notify=changed
-    )
+    layoutErrors = Property(dict, lambda self: dict(self._layout_check["errors"]), notify=changed)
+    gamePreview = Property(str, lambda self: self._layout_check["preview"], notify=changed)
     layoutDirty = Property(bool, lambda self: self._layout_changes() != {}, notify=changed)
-    layoutValid = Property(bool, lambda self: not self._layout_errors(), notify=changed)
+    layoutValid = Property(bool, lambda self: not self._layout_check["errors"], notify=changed)
     moving = Property(bool, lambda self: self._moving, notify=changed)
     labels = Property(dict, lambda self: self._values["labels"], notify=changed)
     steamTarget = Property(str, lambda self: self._values["steam_target"], notify=changed)
@@ -297,36 +241,6 @@ class SettingsAdapter(QObject):
     me3Tone = Property(str, lambda self: self._me3.tone, notify=me3Changed)
 
     # ---- reading the settings again
-    def _game(self):
-        return getattr(self.host, "game", None) or games.ELDEN_RING
-
-    @staticmethod
-    def _detected(key: str, loc) -> str:
-        """What Blank detects now, for the field's placeholder."""
-        if loc is None:
-            return tr("detected")
-        try:
-            found: Path | None = None
-            if key == "me3_path":
-                found = loc.me3_exe()
-            elif key == "game_exe":
-                found = loc.game_dir()
-            elif key == "me3_profile_dir":
-                found = loc.me3_profiles_dir()
-            elif key == "saves_dir":
-                found = next(iter(loc.save_roots()), None)
-            return tr("detected: {path}").format(path=found) if found else tr("detected")
-        except Exception:
-            return tr("detected")
-
-    @staticmethod
-    def _me3_profiles(loc) -> str:
-        try:
-            found = loc.me3_profiles_dir() if loc is not None else None
-        except Exception:
-            found = None
-        return str(found) if found else tr("me3's folder")
-
     def _menu(self, key: str) -> list[dict]:
         """The row's overflow: the folder opener (the page twin of the File menu's) and, for me3, its facts."""
         opener = {
@@ -362,93 +276,63 @@ class SettingsAdapter(QObject):
     def refresh(self) -> None:
         self._refresher.request()
 
-    def _snapshot(self) -> tuple:
-        return self._game(), self.host.locations
-
-    def _build(self, snap: tuple) -> dict:
+    def _build(self, _snap: object) -> SettingsState:
         """Everything the page reads from the disk or the system (on a worker)."""
         assert_not_ui_thread("Settings facts")
-        game, loc = snap
-        s = load_settings()
-        try:
-            overhaul = mod_service.overhaul_switch_text(game.key)
-        except Exception:
-            overhaul = ""
-        try:
-            target, options = play_service.play_command(game)
-        except Exception:
-            target, options = "", ""
-        return {
-            "s": s,
-            "game": game,
-            "detected": {key: self._detected(key, loc) for key, *_ in LOCATIONS},
-            "overhaul": overhaul,
-            "target": target,
-            "options": options,
-            "backups": str(self._backups_folder()),
-            "me3_profiles": s.profiles_root or self._me3_profiles(loc),
-            "data_folder": sp.data_location(),
-            "launcher_line": f"{sp.TITLE} {sp.VERSION}  ·  {sp.install_kind()}",
-        }
+        return self.host.session.snapshot("settings")
 
-    def _apply(self, facts: dict) -> None:
-        s, game = facts["s"], facts["game"]
-        rows = []
-        for key, title, help_text, is_dir, _filter in LOCATIONS:
-            value = (
-                str(game_setting(s, game.key, key) or "")
-                if key in ("game_exe", "saves_dir")
-                else str(getattr(s, key) or "")
-            )
-            rows.append(
+    def _apply(self, st: SettingsState) -> None:
+        self._locations.set_rows(
+            [
                 {
-                    "key": key,
-                    "title": tr(title),
-                    "help": tr(help_text),
-                    "value": value,
-                    "placeholder": facts["detected"][key],
-                    "isDir": is_dir,
-                    "menu": self._menu(key),
+                    "key": r.key,
+                    "title": r.title,
+                    "help": r.help,
+                    "value": r.value,
+                    "placeholder": r.placeholder,
+                    "isDir": r.is_dir,
+                    "menu": self._menu(r.key),
                 }
-            )
-        self._locations.set_rows(rows)
+                for r in st.locations
+            ]
+        )
         grouped: dict[str, list[dict]] = {g: [] for g in self._switches}
-        for spec in sp.switches(facts["overhaul"], game.key):
-            attr = play_service.repair_key(game) if spec.key == "play_repair_after" else spec.key
-            grouped[spec.group].append(
+        for r in st.switches:
+            grouped[r.group].append(
                 {
-                    "key": spec.key,
-                    "title": spec.title,
-                    "blurb": spec.blurb,
-                    "help": spec.help,
-                    "checked": bool(getattr(s, attr, False)),
-                    "shown": bool(spec.blurb) or spec.key != "overhaul_install",
+                    "key": r.key,
+                    "title": r.title,
+                    "blurb": r.blurb,
+                    "help": r.help,
+                    "checked": r.checked,
+                    "shown": r.shown,
                 }
             )
         for g, rows_ in grouped.items():
             self._switches[g].set_rows(rows_)
         self._values = {
-            "theme": s.theme,
-            "effects": s.effects,
-            "grain": s.grain,
-            "logo": s.logo,
-            "log_level": s.log_level,
-            "launcher_channel": s.launcher_channel,
-            "backups_keep": s.backups_keep if KEEP_RANGE[0] <= s.backups_keep <= KEEP_RANGE[1] else 20,
-            "backups_location": facts["backups"],
-            "profiles_root": facts["me3_profiles"],
-            "steam_target": facts["target"],
-            "steam_options": facts["options"],
-            "data_folder": facts["data_folder"],
-            "labels": {
-                which: next((tr(b) for k, b in CHOICES[which] if k == getattr(s, which)), "") for which in CHOICES
-            },
-            "launcher_line": facts["launcher_line"],
+            "theme": st.theme,
+            "effects": st.effects,
+            "grain": st.grain,
+            "logo": st.logo,
+            "log_level": st.log_level,
+            "launcher_channel": st.launcher_channel,
+            "backups_keep": st.backups_keep,
+            "backups_location": st.backups_location,
+            "profiles_root": st.profiles_root,
+            "steam_target": st.steam_target,
+            "steam_options": st.steam_options,
+            "data_folder": st.data_folder,
+            "labels": st.labels,
+            "launcher_line": st.launcher_line,
         }
         edited = self._layout_changes() != {}
-        self._saved_layout = {k: str(getattr(s, v[0])) for k, v in LAYOUT.items()}
+        self._saved_layout = dict(st.layout)
         if not edited:
             self._draft = dict(self._saved_layout)
+        self._check_layout()
+        if self._moving and not self._move_running():
+            self._moving = False
         try:
             self._update = self.host.update_state()
         except Exception:
@@ -457,12 +341,9 @@ class SettingsAdapter(QObject):
         self.changed.emit()
         self.updatesChanged.emit()
 
-    @staticmethod
-    def _backups_folder() -> Path:
-        try:
-            return data_folder.data_root() / "saves"
-        except RuntimeError:  # the data folder is set when the program starts
-            return data_dir() / "saves"
+    def _move_running(self) -> bool:
+        job = self.host.session.jobs.get(self._move_job) if self._move_job else None
+        return job is not None and job.state == "running"
 
     def _on_update_state(self) -> None:
         self._update = self.host.update_state()
@@ -486,70 +367,65 @@ class SettingsAdapter(QObject):
             ]
         )
 
+    # ---- asking the session (on the host's worker thread; an OperationError comes back as the result)
+    def _ask(self, name: str, params: dict, done) -> None:
+        session = self.host.session
+
+        def work() -> Any:
+            try:
+                return session.run(name, params)
+            except OperationError as e:
+                return e
+
+        def landed(got: Any) -> None:
+            if isinstance(got, OperationError):
+                self.notifier.toast(got.message, error=True)
+                self.refresh()
+            else:
+                done(got)
+
+        self.host.run_in_background(work, landed)
+
     # ---- switches and choices
+    def _set(self, key: str, value: bool | int | str) -> None:
+        self._ask("settings.set", {"key": key, "value": value}, self._saved)
+
+    def _saved(self, got: Any) -> None:
+        """A setting was saved: the host follows as the setting says, then the page reads again."""
+        if got.follow == "appearance":
+            self.host.set_appearance()
+        elif got.follow != "none":
+            self.host.settings_changed(got.stored_as)
+        if got.follow == "updates":
+            self.host.check_for_updates()
+        self.refresh()
+        if got.said:
+            self.notifier.toast(got.said)
+
     @Slot(str, bool)
     def setSwitch(self, key: str, on: bool) -> None:
-        game = self._game()
-        attr = play_service.repair_key(game) if key == "play_repair_after" else key
-        save_settings(**{attr: bool(on)})
-        self.host.settings_changed(attr)
-        self.refresh()
+        self._set(key, bool(on))
 
     @Slot(str, str)
     def setChoice(self, which: str, key: str) -> None:
-        if which not in CHOICES or key not in dict(CHOICES[which]):
-            return
-        save_settings(**{which: key})
-        if which in ("theme", "effects", "grain"):
-            self.host.set_appearance()
-        else:
-            self.host.settings_changed(which)
-        if which == "launcher_channel":
-            self.host.check_for_updates()
-        if which == "log_level":
-            self.notifier.toast(tr("The log level applies from the next start."))
-        self.refresh()
+        self._set(which, key)
 
     @Slot(int)
     def setBackupsKeep(self, n: int) -> None:
-        n = max(KEEP_RANGE[0], min(KEEP_RANGE[1], int(n)))
-        save_settings(backups_keep=n)
-        self.refresh()
+        self._set("backups_keep", int(n))
 
     # ---- locations
-    def _problem(self, key: str, value: str) -> str:
-        is_dir = next(r[3] for r in LOCATIONS if r[0] == key)
-        if key == "saves_dir":
-            return saves_dir_problem(value, self._game())
-        if is_dir:
-            return "" if Path(value).is_dir() else tr("That folder does not exist.")
-        return "" if Path(value).is_file() else tr("That file does not exist.")
-
     @Slot(str, str)
     def setLocation(self, key: str, value: str) -> None:
-        value = value.strip()
-        if value:
-            problem = self._problem(key, value)
-            if problem:
-                self.notifier.toast(problem, error=True)
-                self.refresh()
-                return
-        if key in ("game_exe", "saves_dir"):
-            save_game_settings(self._game().key, **{key: value})
-        else:
-            save_settings(**{key: value})
-        self.host.settings_changed(key)
-        self.refresh()
-        self.notifier.toast(
-            tr("Location updated") + (" " + Path(value).name if value else " " + tr("Detecting again."))
-        )
+        self._set(key, value)
 
     @Slot(str)
     def browse(self, key: str) -> None:
-        _key, title, _help, is_dir, filt = next(r for r in LOCATIONS if r[0] == key)
+        row = next(r for r in self._locations.rows() if r["key"] == key)
+        filt = LOCATION_WORDS[key][2]
         picked = (
             self.host.pick_folder(tr("Pick the folder"))
-            if is_dir
+            if row["isDir"]
             else self.host.pick_file(tr("Pick the file"), filt + ";;All files (*)")
         )
         if picked:
@@ -559,40 +435,22 @@ class SettingsAdapter(QObject):
     def clearLocation(self, key: str) -> None:
         self.setLocation(key, "")
 
-    def _folder(self, kind: str) -> Path | None:
-        loc = self.host.locations
-        try:
-            if kind == "me3" and loc is not None:
-                exe = loc.me3_exe()
-                return Path(exe).parent if exe else None
-            if kind == "game" and loc is not None:
-                return loc.game_dir()
-            if kind == "profiles" and loc is not None:
-                return loc.me3_profiles_dir()
-            if kind == "saves" and loc is not None:
-                return next((r for r in loc.save_roots() if r.is_dir()), None)
-        except Exception:
-            return None
-        if kind == "backups":
-            return self._backups_folder()
-        if kind == "settings":
-            return data_dir()
-        if kind == "me3-logs":
-            return Path(self._me3.logs) if self._me3.logs else None
-        return None
-
     @Slot(str)
     def openFolder(self, kind: str) -> None:
         if kind == "logs":
             self.host.open_logs_folder()
             return
-        if kind == "backups":
-            self._backups_folder().mkdir(parents=True, exist_ok=True)
-        folder = self._folder(kind)
-        if folder is None or not Path(folder).exists():
+        if kind == "me3-logs":
+            logs = Path(self._me3.logs) if self._me3.logs else None
+            self._open(str(logs) if logs is not None and logs.exists() else None)
+            return
+        self._ask("settings.folder", {"kind": kind}, lambda got: self._open(got.path))
+
+    def _open(self, path: str | None) -> None:
+        if path is None:
             self.notifier.toast(tr("That folder was not found on this PC."), error=True)
             return
-        self.host.open_path(Path(folder))
+        self.host.open_path(Path(path))
 
     @Slot(str, str)
     def rowAction(self, key: str, action: str) -> None:
@@ -624,102 +482,71 @@ class SettingsAdapter(QObject):
     # ---- where profiles live, and what the folders are called
     def _layout_changes(self) -> dict[str, tuple[str, str]]:
         return {
-            tr(LAYOUT[k][2]): (self._saved_layout[k], v)
+            tr(LAYOUT_LABELS[k]): (self._saved_layout[k], v)
             for k, v in self._draft.items()
             if v != self._saved_layout.get(k)
         }
 
-    def _layout_errors(self) -> dict[str, str]:
-        return sp.name_errors(self._draft)
+    def _check_layout(self) -> None:
+        """The names' problems and the preview, from the session (a pure read, so it answers at once)."""
+        try:
+            got = self.host.session.run("settings.layout_check", self._draft)
+            self._layout_check = {"errors": got.errors, "preview": got.preview}
+        except OperationError:
+            pass
 
     @Slot(str, str)
     def editLayout(self, field: str, value: str) -> None:
         if field in LAYOUT:
             self._draft[field] = value
+            self._check_layout()
             self.changed.emit()
 
     @Slot()
     def applyLayout(self) -> None:
-        changes = self._layout_changes()
-        if not changes or self._layout_errors() or self._moving:
+        if not self._layout_changes() or self._layout_check["errors"] or self._moving:
             return
-        names = {LAYOUT[k][1]: v for k, v in self._draft.items() if v != self._saved_layout[k]}
-
-        def answered(ok: bool) -> None:
-            if ok:
-                self._run(lambda loc: layout_service.rename_layout(loc, **names), tr("Renaming folders..."))
-
-        self.notifier.confirm(sp.rename_confirm(changes), answered)
+        self._offer("settings.rename_layout", dict(self._draft))
 
     @Slot()
     def changeProfilesFolder(self) -> None:
         picked = self.host.pick_folder(tr("Pick the profiles folder"))
-        if not picked or self.host.locations is None:
-            return
-        loc = self.host.locations
-
-        def facts() -> tuple[int, int, int | None]:
-            n, size = layout_service.profiles_facts(loc)
-            return n, size, layout_service.free_bytes(picked)
-
-        def ask(found: tuple[int, int, int | None]) -> None:
-            def answered(ok: bool) -> None:
-                if ok:
-                    self._moving = True
-                    self._cancel.clear()
-                    self.changed.emit()
-                    self._run(
-                        lambda loc: layout_service.relocate(loc, picked, cancel=self._cancel.is_set),
-                        tr("Moving profiles and mods..."),
-                    )
-
-            self.notifier.confirm(sp.relocate_confirm(str(picked), *found), answered)
-
-        self.host.run_in_background(facts, ask)
+        if picked:
+            self._offer("settings.relocate", {"folder": str(picked)})
 
     @Slot()
     def cancelMove(self) -> None:
-        self._cancel.set()
+        if self._move_job:
+            self.host.session.jobs.cancel(self._move_job)
 
     @Slot()
     def moveAll(self) -> None:
-        loc = self.host.locations
-        if loc is None:
-            return
+        self._offer("settings.move_all", {})
 
-        def ask(found: list[Path]) -> None:
-            if not found:
-                self.notifier.toast(tr("No profiles are outside Bayle's folder."))
+    def _offer(self, op: str, params: dict) -> None:
+        """Ask the session for the plan, show its Confirm, and send the answer back; the job it starts is followed by
+        the host on the event bus."""
+
+        def shown(got: Any) -> None:
+            if isinstance(got, Refusal):
+                self.notifier.toast(
+                    got.body if op == "settings.move_all" else f"{got.title}. {got.body}",
+                    error=op != "settings.move_all",
+                )
                 return
+            self.notifier.confirm(got.words, lambda ok: self._answered(op, got.id, ok))
 
-            def answered(ok: bool) -> None:
-                if ok:
-                    self._run(lambda loc: layout_service.move_all(loc, found), tr("Moving profiles..."))
+        self._ask(op, params, shown)
 
-            self.notifier.confirm(sp.move_all_confirm([p.stem for p in found]), answered)
-
-        self.host.run_in_background(lambda: layout_service.plain_profiles(loc), ask)
-
-    def _run(self, work, status: str) -> None:
-        if self.host.busy:
-            self.notifier.toast(tr("Wait for the current job."), error=True)
-            self._moving = False
-            self.changed.emit()
+    def _answered(self, op: str, plan_id: str, ok: bool) -> None:
+        try:
+            job_id = self.host.session.answer(plan_id, {"ok": ok})
+        except OperationError as e:  # busy, expired, or changed since
+            self.notifier.toast(e.message, error=True)
             return
-
-        def job(_launch, loc):
-            work(loc)
-
-        def done(ok: bool) -> None:
-            self._moving = False
-            self.host.settings_changed("layout")
-            self.refresh()
-            if ok:
-                self.notifier.toast(tr("Done. Undo in Activity."))
-            else:
-                self.notifier.toast(tr("Nothing was changed. Details are in Activity."), error=True)
-
-        self.host.run_job(job, status, done)
+        if ok and op == "settings.relocate":
+            self._move_job, self._moving = str(job_id), True
+            self.changed.emit()
 
     # ---- launch
     def _copy(self, text: str) -> None:
@@ -739,7 +566,7 @@ class SettingsAdapter(QObject):
         if self.host.busy:
             self.notifier.toast(tr("Wait for the current job."), error=True)
             return
-        self.host.run_job(play_service.job_clear, tr("Clearing leftover processes..."))
+        self._ask("settings.clear_leftovers", {}, lambda _job: None)
 
     # ---- updates, logs, about
     @Slot()

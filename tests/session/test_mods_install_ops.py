@@ -65,7 +65,7 @@ def test_a_download_is_opened_edited_planned_again_and_installed_as_a_logged_job
     assert renamed.view["id"] == "grass2"  # the id follows the name
     replanned = s.run("mods.install_replan", {"draft_id": got.draft_id})
     assert replanned.view["busy"] is False and replanned.view["canInstall"]
-    job = s.run("mods.install_finish", {"draft_id": got.draft_id})
+    job = s.run("mods.install_finish", {"draft_id": got.draft_id, "name": "grass2"})
     snap = s.jobs.get(job)
     assert (snap.state, snap.title) == ("done", "Installing grass2...")
     assert snap.result == {"name": "grass2", "overhaul": False, "update": False}

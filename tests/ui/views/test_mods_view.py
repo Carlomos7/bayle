@@ -67,14 +67,8 @@ class Host:
         self.legacy_jobs.append(status)
         self.ran = (job, on_done)
 
-    def follow_job(self, job_id, on_done):
-        snap = self.session.jobs.get(job_id)
-        assert snap is not None
-        if snap.state == "done":
-            on_done(True, {"result": snap.result, "undo": snap.undo})
-        else:
-            err = snap.error
-            on_done(False, {"error": {"code": err.code, "message": err.message} if err else {}})
+    def follow_job(self, job_id, done):
+        done(self.session.jobs.get(job_id))  # the session ran it at once
 
     def mark_seen(self):
         pass
@@ -268,26 +262,23 @@ def test_switching_a_mod_off_writes_the_profile_and_offers_undo(qt_app, profile)
         closed(w)
 
 
-def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app, profile, monkeypatch):
+def test_the_page_does_not_recover_interrupted_changes_itself(qt_app, profile, monkeypatch):
     from bayle.services import mods as mod_service
 
     calls = []
 
     def recover(prof, timeout=30.0):
         calls.append(prof)
-        return ["the removal of flora was undone"] if len(calls) == 1 else []
+        return ["the removal of flora was undone"]
 
     monkeypatch.setattr(mod_service, "recover_interrupted", recover)
     host = Host(profile)
     w = opened(host)
     try:
-        assert [n.key for n in w.adapter.state().notices if n.key not in ("dll-folders", "outside")] == ["recovered"]
-        host.busy = True  # a job holds the folder: it is not looked at then
         w.adapter.refresh()
         settle()
-        assert len(calls) == 1 and [
-            n.key for n in w.adapter.state().notices if n.key not in ("dll-folders", "outside")
-        ] == ["recovered"]
+        assert calls == []  # reads never write: the session's start-up does the recovery
+        assert "recovered" not in [n.key for n in w.adapter.state().notices]
     finally:
         closed(w)
 

@@ -14,7 +14,6 @@ def reset_process_globals() -> None:
     mod_rebuild.use_run_store(None)
     mirror.use(None)
     run_logging.use_job_store(None)
-    run_logging.detach_sink()
     run_logging.attach_notice_sink(None)
     cpu.install(None)
     # these have no "unset" in their own API (set once at start-up); a reset is the one place that needs it

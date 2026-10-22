@@ -72,8 +72,8 @@ class ModsHost(Protocol):
     @property
     def game(self) -> Any: ...
     def run_in_background(self, work, on_result) -> None: ...
-    def follow_job(self, job_id: str, on_done) -> None:
-        """A session job's end, for the page that started it: on_done(ok, data) on the UI thread."""
+    def follow_job(self, job_id: str, done) -> None:
+        """A session job's end, for the page that started it: done(JobSnapshot) on the UI thread."""
 
     def profile_changed(self, note: str) -> None:
         """The page changed the profile: the host's other views read it again (and log the note)."""
@@ -258,8 +258,8 @@ class ModsAdapter(QObject):
         )
 
     def _build(self, snap: dict) -> ModsView:
-        """On the worker: finish an interrupted change (the session does nothing while a job holds the folder), then
-        read the page. The snapshot itself writes nothing."""
+        """On the worker: read the page. The snapshot writes nothing (the session's start-up puts interrupted changes
+        right)."""
         session, profile, launch = self.host.session, snap["profile"], snap["launch"]
         scope = {
             "profile": "" if profile is None else str(profile),
@@ -267,8 +267,6 @@ class ModsAdapter(QObject):
             "source": str(getattr(launch, "source", "") or ""),
             "no_profiles": snap["no_profiles"],
         }
-        if scope["profile"] and Path(profile).is_file() and not snap["busy"]:
-            session.run("mods.recover", {"profile": scope["profile"]})
         return session.snapshot("mods", **scope)
 
     def _apply(self, view: ModsView) -> None:
@@ -328,7 +326,9 @@ class ModsAdapter(QObject):
 
         def chosen(ticked: list[int]) -> None:
             if ticked and not self.host.busy:
-                self._calls.job("mods.library_use", self._ref(index=index, targets=ticked))
+                self._calls.job(
+                    "mods.library_use", self._ref(index=index, targets=ticked, name=self._entry(index)["name"])
+                )
 
         self._calls.run(
             "mods.library_use_choices", self._ref(index=index), lambda got: self._show_pick(got.prompt, chosen)

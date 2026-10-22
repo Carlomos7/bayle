@@ -70,7 +70,9 @@ class OperationSpec:
     result: type[BaseModel]
     kind: Kind
     writes: bool
-    title: Callable[[Call, Any], str] | None = None  # a job's title (words for the top bar); default: the name
+    title: str | Callable[[Any], str] = (
+        ""  # a job's title (top bar, Activity): fixed, or from its params; default: the name
+    )
     check: Callable[[Call, Any], None] | None = None  # a job's refusals, raised before it starts (not as a failed job)
     quiet: bool = False  # the client words the job's end itself
 
@@ -93,13 +95,14 @@ class OperationRegistry:
         result: type[BaseModel],
         kind: Kind = "read",
         writes: bool = False,
-        title: Callable[[Call, Any], str] | None = None,
+        title: str | Callable[[Any], str] = "",
         check: Callable[[Call, Any], None] | None = None,
         quiet: bool = False,
     ) -> Callable[[Callable[[Call, Any], Any]], Callable[[Call, Any], Any]]:
-        """Register fn(call, params) -> result. A duplicate name, an unknown kind, or a read that writes raises
-        ValueError at once (a wiring mistake, not a runtime condition). title and check apply to a job: its title
-        (from the params), and what is refused (OperationError) before anything starts."""
+        """Register fn(call, params) -> result. title(params) names a job for the client (default: name). check and
+        quiet apply to a job: check(call, params) raises an OperationError to refuse before anything starts, quiet
+        means the client words the job's end itself. A duplicate name, an unknown kind, or a read that writes raises
+        ValueError at once (a wiring mistake, not a runtime condition)."""
         if kind not in _KINDS:
             raise ValueError(f"operation {name}: unknown kind {kind!r}")
         if writes and kind == "read":
@@ -244,7 +247,7 @@ class Session:
             spec.check(Call(self), p)
         return self.start(
             lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)),
-            title=spec.title(Call(self), p) if spec.title is not None else name,
+            title=(spec.title(p) if callable(spec.title) else spec.title) or name,
             writes=spec.writes,
             quiet=spec.quiet,
         )
@@ -254,13 +257,19 @@ class Session:
             return got
         if not isinstance(self.plans, PlanStore):
             raise OperationError("no_plans", "This session takes no plans.")
-        return self.plans.add(got.words, got.run, got.stale)
+        return self.plans.add(got.words, got.run, got.stale, got.destructive)
 
     def answer(self, token: str, answers: Mapping[str, Any]) -> Any:
         """Answer a plan the client was handed; the plan store decides what runs."""
         if self.plans is None:
             raise OperationError("no_plans", "This session takes no plan answers.")
         return self.plans.answer(token, answers)
+
+    def answer_prompt(self, prompt_id: str, key: str) -> None:
+        """Answer a question a running job (or the Launch flow) asked on the bus. Raises unknown_prompt when nobody
+        waits for it any more."""
+        if not self.jobs.prompts.answer(prompt_id, key):
+            raise OperationError("unknown_prompt", "That question is no longer open.", {"prompt_id": prompt_id})
 
     def startup(self) -> list[StepReport]:
         """Run the start-up steps in order, once the process is set up and before clients read. A failing step is

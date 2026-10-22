@@ -6,6 +6,7 @@ writes only those values (refused when the file changed on disk since it was rea
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -13,27 +14,21 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle.coop import scaling as coop_scaling
 from bayle.formats import config_model
-from bayle.overhauls import basic
 from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
-from bayle.services import mods as mod_service
 from bayle.services.errors import OperationError
+from bayle.session import Plan, Session
 from bayle.ui.models import plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.refresh import Refresher
 from bayle.views.mod_configs import ModConfigsPresenter
-from bayle.views.mods import Confirm, ModsPresenter, Pick, Refusal
+from bayle.views.mods import Confirm, Pick, Refusal
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 
 
-def _stamp(path: Path) -> tuple[int, int] | None:
-    """Modification time and size: what tells that a file changed under the page."""
-    try:
-        st = path.stat()
-    except OSError:
-        return None
-    return st.st_mtime_ns, st.st_size
+def _why(e: Exception) -> str:
+    return e.message if isinstance(e, OperationError) else str(e)
 
 
 class ModConfigsHost(Protocol):
@@ -42,14 +37,14 @@ class ModConfigsHost(Protocol):
     @property
     def busy(self) -> bool: ...
     @property
-    def locations(self) -> Any: ...
-    @property
     def profile(self) -> Path | None: ...
     @property
-    def settings(self) -> Any: ...
+    def session(self) -> Session: ...
     def run_in_background(self, work, on_result) -> None: ...
     def show_page(self, name: str) -> Any: ...
-    def run_job(self, job, status: str) -> None: ...
+    def settings_changed(self, key: str) -> None:
+        """A page saved key (here native_configs): the shell reads the settings again."""
+
     def pick_file(self, title: str, filters: str) -> Path | None:
         """Ask for a file to open; None when cancelled."""
 
@@ -81,6 +76,7 @@ class ModConfigsAdapter(QObject):
         self._node: mod_configs.ModNode | None = None
         self._opened: mod_configs.Opened | None = None
         self._seamless: mod_configs.Seamless | None = None
+        self._fingerprint = ("", "")  # Seamless: the regulation line and its note, read with the file
         self._pending: dict[tuple[str, str], str] = {}
         self._text = ""
         self._edit_text = False
@@ -196,22 +192,13 @@ class ModConfigsAdapter(QObject):
     def _seamless_view(self) -> dict:
         if self._seamless is None:
             return {}
-        line, note = "", ""
-        profile, loc = self._profile, self.host.locations
-        if profile is not None and loc is not None:
-            from bayle.services import game_checks
-
-            fp = game_checks.regulation_fingerprint(profile, loc)
-            words = ModsPresenter()
-            line = words.fingerprint(fp, loc.game.regulation)
-            note = words.parameters({}, False, fp).fingerprint_note if fp else ""
         s = self._seamless
         if s.spec is not None and s.scaling is not None:  # a preset or a number changed and not saved yet
             values = tuple(
                 int(self._pending.get(("SCALING", k), v)) for k, v in zip(s.spec.keys, s.scaling, strict=True)
             )
             s = dataclasses.replace(s, scaling=values, preset=coop_scaling.preset_of(values, s.spec))
-        return self.presenter.seamless(s, line, note)
+        return self.presenter.seamless(s, *self._fingerprint)
 
     def _changed_keys(self) -> list:
         """ "section|key" of every setting whose waiting value differs from the file's (the form's Changed marker)."""
@@ -289,15 +276,12 @@ class ModConfigsAdapter(QObject):
     def refresh(self) -> None:
         self._refresher.request()
 
-    def _snapshot(self) -> tuple:
-        return self.host.profile, self.host.locations, self.host.settings
+    def _snapshot(self) -> Path | None:
+        return self.host.profile
 
-    @staticmethod
-    def _build(snap: tuple):
-        profile, loc, settings = snap
-        if profile is None or not Path(profile).is_file() or loc is None:
-            return None, []
-        return Path(profile), mod_configs.tree(profile, loc=loc, settings=settings)
+    def _build(self, profile: Path | None):
+        state = self.host.session.snapshot("mod_configs", profile=str(profile) if profile else "")
+        return (Path(state.profile) if state.profile else None), list(state.nodes)
 
     def _set_loading(self, on: bool) -> None:
         self._loading = on
@@ -348,28 +332,35 @@ class ModConfigsAdapter(QObject):
         self._seamless = self._ov = None
         self._open_token = token = getattr(self, "_open_token", 0) + 1
         setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
+        session, profile = self.host.session, self._profile
 
         def work():  # the file is read off the UI thread
             try:
-                self._mtime = _stamp(path)
-                opened = mod_configs.open_file(path, form=not setup_file)
-                seamless = mod_configs.seamless(path) if node.kind == mod_configs.SEAMLESS else None
-                return opened, seamless, None
+                read = session.run(
+                    "mod_configs.open",
+                    {"path": str(path), "seamless": node.kind == mod_configs.SEAMLESS, "profile": str(profile or "")},
+                )
+                doc = None if setup_file else mod_configs.parse_doc(path.name, read.text)
+                opened = mod_configs.Opened(path, read.text, read.encoding, read.crlf, read.sha, doc)
+                form = None
+                if setup_file and node.kind != mod_configs.SEAMLESS and node.setup:
+                    form = session.run("mod_configs.overhaul_form", {"profile": str(profile)})
+                return read, opened, form, None
             except Exception as e:  # too big, not text, gone: said, nothing open
-                return None, None, e
+                return None, None, None, e
 
         def got(result) -> None:
             if token != self._open_token or self._node is not node:  # a newer open or a close came first
                 return
             self._set_disk_changed(False)
-            self._opened, self._seamless, err = result
-            try:
-                if err is None and node.kind != mod_configs.SEAMLESS and setup_file and node.setup:
-                    self._ov = self._new_ov(node.setup, None)
-            except Exception as e:
-                self._opened, err = None, e
+            read, self._opened, form, err = result
+            self._mtime = read.stamp if read is not None else None
+            self._seamless = read.seamless if read is not None else None
+            self._fingerprint = (read.fingerprint, read.fingerprint_note) if read is not None else ("", "")
+            if form is not None:
+                self._ov = self._ov_state(form, None)
             if err is not None:
-                self._refuse(self.presenter.unreadable(path.name, str(err)))
+                self._refuse(self.presenter.unreadable(path.name, _why(err)))
             self._text = self._opened.text if self._opened else ""
             self.fileChanged.emit()
             self.dirtyChanged.emit()
@@ -390,9 +381,10 @@ class ModConfigsAdapter(QObject):
         opened, seen = self._opened, self._mtime
         if opened is None or seen is None or self._disk_changed:
             return
-        path = opened.path
+        session, path = self.host.session, str(opened.path)
         self.host.run_in_background(
-            lambda: _stamp(path), lambda now: self._set_disk_changed(now is not None and now != seen)
+            lambda: session.run("mod_configs.stamp", {"path": path}).stamp,
+            lambda now: self._set_disk_changed(now is not None and now != seen),
         )
 
     @Slot()
@@ -411,7 +403,7 @@ class ModConfigsAdapter(QObject):
         if self._node is not None and self._opened is not None:
             self._open(self._node, self._opened.path)
         elif self._ov is not None and self._ov["mod"] is not None:  # a new setup: back to the proposal
-            self._start_new(self._ov["setup"]["config"], self._ov["mod"])
+            self._start_new(self._ov["mod"])
 
     def _refuse(self, r: Refusal) -> None:
         self.notifier.toast(f"{r.title}. {r.body}", error=True)
@@ -499,56 +491,135 @@ class ModConfigsAdapter(QObject):
             return
         if opened is None or not self._is_dirty():
             return
-        try:
-            if self._ov is not None:  # the setup's own file, as text
-                self._save_overhaul_text(opened)
-                return
-            if self._kind() == "text":
-                mod_configs.save_text(opened, self._text)
-                said = self.presenter.saved_text(opened.path.name)
-            elif self._seamless is not None:
-                values = {key: value for (_section, key), value in self._pending.items()}
-                missing = mod_configs.save_seamless(opened.path, values)
-                if missing:
-                    self._refuse(self.presenter.missing_keys(opened.path.name, missing))
-                said = self.presenter.saved(len(values) - len(missing))
-            else:
-                mod_configs.save_values(opened, dict(self._pending))
-                said = self.presenter.saved(len(self._pending))
-        except OperationError as e:
-            self._refuse(
-                self.presenter.empty_password()
-                if e.code == "password_empty"
-                else self.presenter.could_not_save(e.message)
-            )
+        if self._ov is not None:  # the setup's own file, as text
+            self._save_overhaul_text(opened)
             return
-        except ValueError as e:
-            self._refuse(self.presenter.could_not_save(str(e)))
-            return
-        except Exception as e:  # changed on disk, can't be written: nothing changed
-            self._refuse(self.presenter.could_not_save(str(e)))
-            return
+        path = str(opened.path)
+        if self._kind() == "text":
+            kind, params = "text", {"path": path, "expect": opened.sha, "kind": "text", "text": self._text}
+        else:
+            edits = [
+                {"section": section or "", "key": key, "value": value}
+                for (section, key), value in self._pending.items()
+            ]
+            kind = "seamless" if self._seamless is not None else "values"
+            params = {"path": path, "expect": opened.sha, "kind": kind, "edits": edits}
+        self._call("mod_configs.save", params, lambda r: self._saved_file(opened, kind, r), self._save_failed)
+
+    def _saved_file(self, opened: mod_configs.Opened, kind: str, r) -> None:
+        if kind == "text":
+            said = self.presenter.saved_text(opened.path.name)
+        else:
+            if r.missing:
+                self._refuse(self.presenter.missing_keys(opened.path.name, list(r.missing)))
+            said = self.presenter.saved(r.saved)
         self.notifier.toast(said)
         self._reopen()
 
+    def _save_failed(self, e: OperationError) -> None:
+        self._refuse(
+            self.presenter.empty_password() if e.code == "password_empty" else self.presenter.could_not_save(e.message)
+        )
+
+    # ---- asking the session (every call runs on the host's worker; the answer comes back on the UI thread)
+    def _call(
+        self,
+        name: str,
+        params: dict,
+        then: Callable[[Any], None],
+        failed: Callable[[OperationError], None] | None = None,
+    ) -> None:
+        session = self.host.session
+
+        def work():
+            try:
+                return session.run(name, params), None
+            except OperationError as e:
+                return None, e
+
+        def landed(got) -> None:
+            value, err = got
+            if err is None:
+                then(value)
+            else:
+                (failed or self._failed)(err)
+
+        self.host.run_in_background(work, landed)
+
+    def _failed(self, e: OperationError) -> None:
+        """An operation said no: the code says why, never its words."""
+        match e.code:
+            case "password_empty":
+                self._refuse(self.presenter.empty_password())
+            case "cannot_set_up":
+                self._refuse(Refusal(tr("Can't set it up"), e.message))
+            case "cannot_turn_off":
+                self._refuse(Refusal(tr("Can't turn it off"), e.message))
+            case "not_settings":
+                self._refuse(self.presenter.not_settings(e.message))
+            case "nothing_to_change":
+                self.notifier.toast(e.message)
+            case "busy" | "plan_stale" | "plan_expired" | "unknown_plan":
+                self.notifier.toast(e.message, error=True)
+            case _:
+                self._refuse(self.presenter.could_not_save(e.message))
+
+    def _ask(
+        self,
+        name: str,
+        params: dict,
+        *,
+        destructive: bool = False,
+        guard: bool = False,
+        confirmed: Callable[[], None] | None = None,
+        done: Callable[[Plan], None] | None = None,
+    ) -> None:
+        """A plan operation: get its question, show it (after the unsaved-changes guard when guard), send the answer.
+        confirmed runs when the user says yes, done when the answered plan has run."""
+        session = self.host.session
+
+        def answered(plan: Plan, ok: bool) -> None:
+            if ok and confirmed is not None:
+                confirmed()
+
+            def answer():
+                try:
+                    session.answer(plan.id, {"ok": ok})
+                    return None
+                except OperationError as e:
+                    return e
+
+            def landed(err: OperationError | None) -> None:
+                if err is not None:
+                    self._failed(err)
+                elif ok and done is not None:
+                    done(plan)
+
+            self.host.run_in_background(answer, landed)
+
+        def shown(plan: Plan | Refusal) -> None:
+            if isinstance(plan, Refusal):
+                self._refuse(plan)
+                return
+
+            def ask() -> None:
+                if isinstance(plan.words, Confirm):
+                    self.notifier.confirm(plan.words, lambda ok: answered(plan, ok), destructive)
+
+            self._guard(ask) if guard else ask()
+
+        self._call(name, params, shown)
+
     # ---- the Overhaul setup (S7d): the profile's overhaul as a form, turned off, or a mod set up as one
-    def _new_ov(self, setup: dict, mod: dict | None) -> dict:
+    def _ov_state(self, form, mod: dict | None) -> dict:
         """The form's state for a setup: the choices the mod's files give and the values as the config has them."""
-        loc = self.host.locations
-        choices = mod_configs.overhaul_choices(setup, loc.game_dir() if loc is not None else None)
-        values = {
-            "natives": choices["natives"],
-            "files": {r["file"]: basic.encode_action(r["action"], r["target"]) for r in choices["files"]},
-            "tables": {t["file"]: t["table"] for t in choices["texts"]},
-        }
-        values["health"] = mod_configs.health_form(setup["config"])
         return {
-            "setup": setup,
-            "choices": choices,
-            "values": values,
+            "setup": form.setup,
+            "choices": form.choices,
+            "values": form.values,
             "new": mod is not None,
             "mod": mod,
-            "folder": setup.get("folder"),
+            "folder": form.setup.get("folder"),
             "dirty": mod is not None,  # a proposal is saved to set the mod up
         }
 
@@ -565,39 +636,22 @@ class ModConfigsAdapter(QObject):
         ov = self._ov
         if ov is None:
             return
-        kind, _, name = key.partition(":")
-        values = ov["values"]
-        native = next((n for n in values["natives"] if n["file"] == name), None)
-        if kind == "early" and native is not None:
-            native["load_early"] = value == "true"
-        elif kind == "after" and native is not None:
-            native["after_others"] = value == "true"
-        elif kind == "init" and native is not None:
-            native["initializer"] = value.strip() or None
-        elif kind == "file":  # a choice of the Files table; placing keeps the path typed before
-            target = basic.decode_action(values["files"].get(name, ""))[1]
-            values["files"][name] = basic.encode_action(value, target)
-        elif kind == "table":
-            values["tables"][name] = value
-        elif kind == "target":
-            values["files"][name] = basic.encode_action("place", value.strip())
-        elif kind == "health" and name in values["health"]:
-            values["health"][name] = value
-            values["health_touched"] = True
+        patch = mod_configs.FormPatch.of(key, value)
+        if patch is not None:
+            mod_configs.patch_values(ov["values"], patch)
         ov["dirty"] = True
         self.dirtyChanged.emit()
 
-    def _with_values(self):
-        ov = self._ov
-        assert ov is not None
-        values = ov["values"]
-        return mod_configs.with_basic(
-            ov["setup"]["config"],
-            natives=values["natives"],
-            files=mod_configs.files_to_store(ov["choices"]["files"], values["files"]),
-            health=mod_configs.health_of_form(values["health"]) if values.get("health_touched") else None,
-            tables=values["tables"],
-        )
+    def _form(self) -> dict:
+        """The form's values as the operations take them (the log check only when it was touched)."""
+        assert self._ov is not None
+        values = self._ov["values"]
+        return {
+            "natives": values["natives"],
+            "files": values["files"],
+            "tables": values["tables"],
+            "health": values["health"] if values.get("health_touched") else None,
+        }
 
     def _saved(self, node_key: str, said: str) -> None:
         self.notifier.toast(said)
@@ -608,116 +662,81 @@ class ModConfigsAdapter(QObject):
         ov = self._ov
         if ov is None or self._node is None:
             return
-        try:
-            config = self._with_values()
-        except ValueError as e:  # a texts entry with no table chosen, or a "re:" text that is not a regular expression
-            self._refuse(self.presenter.could_not_save(str(e)))
-            return
         if ov["new"]:
-            self._install_new(config)
+            self._install_new()
             return
-        setup = ov["setup"]
-        try:
-            mod_service.save_overhaul_setup(config, expect=setup["sha"], path=setup["path"], folder=setup["folder"])
-        except Exception as e:  # a verified one, changed on disk since, a config that would not read back
-            self._refuse(self.presenter.could_not_save(str(e)))
-            return
-        self._saved(self._node.key, self.presenter.saved_text(setup["path"].name))
-        self._reapply(config.id)
+        setup, key = ov["setup"], self._node.key
+        params = {
+            "profile": str(self._profile),
+            "path": str(setup["path"]),
+            "expect": setup["sha"],
+            "form": self._form(),
+        }
+        self._call("mod_configs.save_setup", params, lambda r: self._setup_saved(key, r))
+
+    def _setup_saved(self, node_key: str, r) -> None:
+        self._saved(node_key, self.presenter.saved_text(r.name))
+        self._reapply(r.overhaul_id)
 
     def _reapply(self, overhaul_id: str) -> None:
         """The saved setup, installed again in the profiles using it (their entries are the install's, not the file's)."""
         profile = self._profile
         if profile is None:
             return
-        if self.host.busy:
-            self.notifier.toast(
-                tr("Saved, but not applied to the profiles yet: wait for the current job, then save again."),
-                error=True,
-            )
-            return
 
-        def job(_launch, loc):
-            from bayle.platform import logging as run_logging
+        def failed(e: OperationError) -> None:
+            if e.code == "busy":
+                self.notifier.toast(
+                    tr("Saved, but not applied to the profiles yet: wait for the current job, then save again."),
+                    error=True,
+                )
+            else:
+                self._failed(e)
 
-            run_logging.start_log("launcher: apply the saved overhaul setup", loc.game.key)
-            try:
-                mod_service.reapply_overhaul_setup(profile, overhaul_id, loc=loc)
-            except Exception as e:
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-
-        self.host.run_job(job, tr("Applying the overhaul setup to the profiles using it..."))
+        params = {"profile": str(profile), "overhaul_id": overhaul_id}
+        self._call("mod_configs.apply_setup", params, lambda _job: None, failed)
 
     def _save_overhaul_text(self, opened: mod_configs.Opened) -> None:
-        try:
-            config = mod_configs.parse_overhaul_text(self._text)
-            mod_service.save_overhaul_setup(config, expect=opened.sha, path=opened.path)
-        except Exception as e:
-            self._refuse(self.presenter.could_not_save(str(e)))
-            return
-        self._saved(self._node.key if self._node else "overhaul", self.presenter.saved_text(opened.path.name))
-        self._reapply(config.id)
+        params = {"profile": str(self._profile), "path": str(opened.path), "expect": opened.sha, "text": self._text}
+        key = self._node.key if self._node else "overhaul"
+        self._call("mod_configs.save_setup", params, lambda r: self._setup_saved(key, r))
 
-    def _start_new(self, config, mod: dict) -> None:
+    def _start_new(self, mod: dict) -> None:
         """Show the proposal for a mod as a new setup (nothing is written until Save is confirmed)."""
-        setup = {
-            "config": config,
-            "verified": False,
-            "level": "basic",
-            "folder": mod["folder"],
-            "path": None,
-            "sha": None,
+        params = {
+            "profile": str(self._profile),
+            "folder": str(mod["folder"]),
+            "name": mod["name"],
+            "overhaul_id": mod["id"] or "",
         }
+        self._call("mod_configs.overhaul_form", params, lambda form: self._show_new(form, mod))
+
+    def _show_new(self, form, mod: dict) -> None:
+        setup = form.setup
         self._node = mod_configs.ModNode(
-            "overhaul:new", config.label, mod_configs.OVERHAUL, True, True, None, (), setup
+            "overhaul:new", setup["config"].label, mod_configs.OVERHAUL, True, True, None, (), setup
         )
         self._opened = self._seamless = None
         self._pending, self._text, self._edit_text = {}, "", False
-        self._ov = self._new_ov(setup, mod)
+        self._ov = self._ov_state(form, mod)
         self.fileChanged.emit()
         self.dirtyChanged.emit()
         self.changed.emit()
 
-    def _install_new(self, config) -> None:
-        profile, loc, ov = self._profile, self.host.locations, self._ov
+    def _install_new(self) -> None:
+        profile, ov = self._profile, self._ov
         if profile is None or ov is None or self.host.busy:
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        folder = ov["folder"]
-
-        def work():
-            try:
-                return mod_service.preview_overhaul_setup(profile, folder, config, loc=loc), ""
-            except Exception as e:
-                return None, str(e)
-
-        def got(result) -> None:
-            preview, why = result
-            if preview is None:
-                self._refuse(Refusal(tr("Can't set it up"), why))
-                return
-            words = self.presenter.install_setup(preview)
-            if isinstance(words, Refusal):
-                self._refuse(words)
-                return
-
-            def answered(ok: bool, _option: bool) -> None:
-                if not ok or self.host.busy:
-                    return
-
-                def job(_launch, loc):
-                    from bayle.platform import logging as run_logging
-
-                    run_logging.start_log(f"launcher: set up {preview.label} as an overhaul", loc.game.key)
-                    mod_service.install_overhaul_setup(preview, loc=loc)
-
-                self._want = "overhaul"
-                self.host.run_job(job, tr("Installing {label} as an overhaul...").format(label=preview.label))
-
-            self.notifier.ask(words, answered)
-
-        self.host.run_in_background(work, got)
+        mod = ov["mod"]
+        params = {
+            "profile": str(profile),
+            "folder": str(ov["folder"]),
+            "name": mod["name"],
+            "overhaul_id": mod["id"] or "",
+            "form": self._form(),
+        }
+        self._ask("mod_configs.install_setup", params, confirmed=lambda: setattr(self, "_want", "overhaul"))
 
     @Slot(str)
     def addOverhaulSetup(self, key: str) -> None:
@@ -727,18 +746,16 @@ class ModConfigsAdapter(QObject):
         if profile is None or self.host.busy:
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        mods = mod_configs.mods_to_set_up(profile)
         node = next((n for n in self._nodes if n.key == key), None) if key else None
+        self._call(
+            "mod_configs.setup_candidates",
+            {"profile": str(profile)},
+            lambda r: self._choose_to_set_up([m.model_dump() for m in r.mods], node),
+        )
 
+    def _choose_to_set_up(self, mods: list[dict], node: mod_configs.ModNode | None) -> None:
         def go(mod: dict) -> None:
-            try:
-                config = mod_service.propose_overhaul_setup(
-                    mod["folder"], mod["name"], loc=self.host.locations, overhaul_id=mod["id"] or None
-                )
-            except ValueError as e:
-                self._refuse(Refusal(tr("Can't set it up"), str(e)))
-                return
-            self._guard(lambda: self._start_new(config, mod))
+            self._guard(lambda: self._start_new(mod))
 
         chosen = next((m for m in mods if node is not None and m["name"] == node.name), None)
         if chosen is not None:
@@ -758,45 +775,13 @@ class ModConfigsAdapter(QObject):
 
     @Slot()
     def turnOffOverhaul(self) -> None:
-        profile, loc = self._profile, self.host.locations
+        profile = self._profile
         setup = self._ov["setup"] if self._ov is not None and not self._ov["new"] else None
         if setup is None and self._node is not None and self._node.kind == mod_configs.OVERHAUL:
             setup = self._node.setup  # a kept file of the overhaul is open: its setup is the node's
         if profile is None or setup is None or setup.get("verified") or self.host.busy:
             return
-        label = setup["config"].label
-
-        def work():
-            try:
-                return mod_service.preview_turn_off_overhaul(profile, loc=loc), ""
-            except Exception as e:
-                return None, str(e)
-
-        def got(result) -> None:
-            preview, why = result
-            if preview is None:
-                self._refuse(Refusal(tr("Can't turn it off"), why))
-                return
-            words = self.presenter.turn_off(preview)
-            if isinstance(words, Refusal):
-                self._refuse(words)
-                return
-
-            def answered(ok: bool, _option: bool) -> None:
-                if not ok or self.host.busy:
-                    return
-
-                def job(_launch, loc):
-                    from bayle.platform import logging as run_logging
-
-                    run_logging.start_log(f"launcher: turn off overhaul {label}", loc.game.key)
-                    mod_service.turn_off_overhaul(preview)
-
-                self.host.run_job(job, tr("Removing the overhaul setup of {label}...").format(label=label))
-
-            self.notifier.ask(words, answered, destructive=True)
-
-        self.host.run_in_background(work, got)
+        self._ask("mod_configs.turn_off", {"profile": str(profile)}, destructive=True)
 
     def _pick(self, words: Pick, rows: list[str], then) -> None:
         key = f"pick-{len(self._picks) + 1}"
@@ -822,18 +807,21 @@ class ModConfigsAdapter(QObject):
         got = self.host.pick_file(self._words["attach"], "")
         if got is None:
             return
-        mod_configs.attach(self.host.settings, node.target, got)
-        self._want = node.key
-        self.refresh()
+        params = {"target": str(node.target), "file": str(got)}
+        self._call("mod_configs.attach", params, lambda _r: self._tied(node.key))
 
     @Slot(str)
     def detachFile(self, path: str) -> None:
         node = self._node
         if node is None or node.target is None:
             return
-        mod_configs.detach(self.host.settings, node.target, Path(path))
-        self._want = node.key
         self._opened = None
+        params = {"target": str(node.target), "file": path}
+        self._call("mod_configs.detach", params, lambda _r: self._tied(node.key))
+
+    def _tied(self, node_key: str) -> None:
+        self.host.settings_changed("native_configs")
+        self._want = node_key
         self.refresh()
 
     # ---- Seamless Co-op: sharing with a friend
@@ -843,8 +831,11 @@ class ModConfigsAdapter(QObject):
             return
         from PySide6.QtGui import QGuiApplication
 
-        QGuiApplication.clipboard().setText(mod_configs.share_text(self._seamless.ini))
-        self.notifier.toast(self.presenter.copied())
+        def copy(r) -> None:
+            QGuiApplication.clipboard().setText(r.text)
+            self.notifier.toast(self.presenter.copied())
+
+        self._call("mod_configs.share", {"ini": str(self._seamless.ini)}, copy)
 
     @Slot()
     def pasteSettings(self) -> None:
@@ -855,11 +846,23 @@ class ModConfigsAdapter(QObject):
     @Slot()
     def loadSettings(self) -> None:
         got = self.host.pick_file(self._words["load"], "Settings (*.ini *.txt *.json)")
-        if got is not None:
+        if got is None:
+            return
+
+        def read():
             try:
-                self._take_shared(got.read_text(encoding="utf-8", errors="replace"))
+                return got.read_text(encoding="utf-8", errors="replace"), None
             except OSError as e:
-                self._refuse(self.presenter.not_settings(str(e)))
+                return None, e
+
+        def read_done(result) -> None:
+            text, err = result
+            if err is not None:
+                self._refuse(self.presenter.not_settings(str(err)))
+            else:
+                self._take_shared(text)
+
+        self.host.run_in_background(read, read_done)
 
     @Slot()
     def saveSettingsAs(self) -> None:
@@ -867,34 +870,23 @@ class ModConfigsAdapter(QObject):
             return
         got = self.host.save_file(self._words["saveAs"], "seamless-coop-settings.ini")
         if got is not None:
-            got.write_text(mod_configs.share_text(self._seamless.ini), encoding="utf-8")
-            self.notifier.toast(tr("Saved {name}").format(name=got.name))
+            self._call(
+                "mod_configs.export_share",
+                {"ini": str(self._seamless.ini), "to": str(got)},
+                lambda _r: self.notifier.toast(tr("Saved {name}").format(name=got.name)),
+            )
 
     def _take_shared(self, text: str) -> None:
         ini = self._seamless.ini if self._seamless else None
         if ini is None:
             return
-        try:
-            changes, unknown, opened = mod_configs.plan_paste(ini, text)
-        except Exception as e:
-            self._refuse(self.presenter.not_settings(str(e)))
-            return
-        if not changes:
-            self.notifier.toast(self.presenter.nothing_to_change(unknown))
-            return
 
-        def answered(ok: bool, _option: bool) -> None:
-            if not ok:
-                return
-            try:
-                mod_configs.apply_paste(opened, changes)
-            except Exception as e:
-                self._refuse(self.presenter.could_not_save(str(e)))
-                return
-            self.notifier.toast(self.presenter.saved(len(changes)))
+        def pasted(plan: Plan) -> None:
+            n = len(plan.words.changes) if isinstance(plan.words, Confirm) else 0
+            self.notifier.toast(self.presenter.saved(n))
             self._reopen()
 
-        self._guard(lambda: self.notifier.ask(self.presenter.paste(changes, unknown), answered))
+        self._ask("mod_configs.paste", {"ini": str(ini), "text": text}, guard=True, done=pasted)
 
     @Slot()
     def openFolder(self) -> None:

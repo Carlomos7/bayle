@@ -78,7 +78,7 @@ def test_another_profile_with_the_same_files_is_offered_and_ticking_replaces_its
     assert offer.prompt["kind"] == "pick" and offer.prompt["rows"] == ["b (has its own copy; ticking replaces it)"]
     assert offer.prompt["title"] == "Use grass in other profiles"
     assert refused(s, "mods.library_use", {**grass, "targets": []}).code == "nothing_chosen"
-    snap = s.jobs.get(s.run("mods.library_use", {**grass, "targets": [0]}))
+    snap = s.jobs.get(s.run("mods.library_use", {**grass, "targets": [0], "name": "grass"}))
     assert (snap.state, snap.title) == ("done", "Linking grass...")
     assert shared_mods.shared_count(loc, b, index_of(b, "grass")) == 2
 

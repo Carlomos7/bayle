@@ -32,14 +32,12 @@ from bayle.views.mods import ModsPresenter, ModsState, Notice, OverhaulMenu
 
 # ----------------------------------------------------------------------------- what the session remembers
 class NoticeBook:
-    """The InfoBars the player closed (per profile, for this session) and the interrupted changes put right as the
-    page opened (the last profile read: another profile has its own lines)."""
+    """The InfoBars the player closed (per profile, for this session). The interrupted changes put right at start-up
+    are the shell's notices, not the page's."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._closed: set[tuple[str, str]] = set()
-        self._recovered_for = ""
-        self._recovered: list[str] = []
 
     def close(self, profile: str, key: str) -> None:
         with self._lock:
@@ -48,16 +46,6 @@ class NoticeBook:
     def closed(self) -> frozenset[tuple[str, str]]:
         with self._lock:
             return frozenset(self._closed)
-
-    def recover(self, profile: str, lines: list[str]) -> None:
-        with self._lock:
-            if profile != self._recovered_for:
-                self._recovered_for, self._recovered = profile, []
-            self._recovered += lines
-
-    def recovered(self, profile: str) -> tuple[str, ...]:
-        with self._lock:
-            return tuple(self._recovered) if profile == self._recovered_for else ()
 
 
 def book(session: Session) -> NoticeBook:
@@ -145,7 +133,7 @@ def _overhaul_info(has: dict | None) -> OverhaulInfo | None:
 def snapshot(
     session: Session, profile: str = "", kind: str = "me3", source: str = "", no_profiles: bool = False
 ) -> ModsView:
-    """Reads only. Finishing an interrupted change is mods.recover, which the client runs first."""
+    """Reads only. Interrupted changes are put right by the session start-up (the shell), never by a read."""
     pres = ModsPresenter()
     running = session.jobs.game_running
     if not profile or not Path(profile).is_file():
@@ -171,7 +159,6 @@ def snapshot(
         got.scan,
         game_running=running,
         tool_to_allow=got.tool,
-        recovered=notes.recovered(profile),
         seamless=got.seamless,
         no_profiles=no_profiles,
         closed=notes.closed(),
@@ -195,21 +182,6 @@ def snapshot(
         tool_label=got.tool.label if got.tool is not None else "",
         folder_kind=got.facts.folder.kind,
     )
-
-
-class Recovered(Result):
-    lines: list[str]
-
-
-@operation("mods.recover", params=ProfileRef, result=Recovered, kind="command", writes=True)
-def recover(call: Call, p: ProfileRef) -> Recovered:
-    """Finish or undo an install, update or removal in the profile's folder that was interrupted, and remember the
-    lines for the page's notice. Nothing is looked at while a job holds the folder."""
-    if call.session.jobs.busy:
-        return Recovered(lines=[])
-    lines = mod_service.recover_interrupted(p.profile, timeout=0.5)
-    book(call.session).recover(p.profile, list(lines))
-    return Recovered(lines=list(lines))
 
 
 class Closed(Result):

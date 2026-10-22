@@ -199,7 +199,7 @@ def test_a_job_takes_its_title_from_its_params_and_is_refused_before_it_starts_w
         result=Sum,
         kind="job",
         writes=True,
-        title=lambda call, p: f"Adding {p.a}...",
+        title=lambda p: f"Adding {p.a}...",
         check=check,
         quiet=True,
     )

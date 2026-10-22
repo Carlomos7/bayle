@@ -8,6 +8,7 @@ titles) live here, not in coop/ (spec table, S7): the Widgets Co-op page uses th
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -161,6 +162,14 @@ def nested_title(path: str) -> str:
 
 def _nice(part: str) -> str:
     return part.strip().replace("_", " ").capitalize()
+
+
+@dataclass(frozen=True)
+class ModConfigsState:
+    """The page's snapshot: the profile it was read for ("" when there is none) and its mods with settings files."""
+
+    profile: str
+    nodes: tuple[mod_configs.ModNode, ...]
 
 
 class ModConfigsPresenter:

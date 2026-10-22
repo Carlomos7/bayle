@@ -25,7 +25,9 @@ class Host:
     game_running = False
     locations = er()
 
-    def run_job(self, job, status):
+    session = None
+
+    def follow_job(self, job_id, done):
         raise AssertionError("a drop only calls the twin's slot")
 
     def run_in_background(self, work, on_result):
@@ -154,18 +156,14 @@ def test_ctrl_c_then_ctrl_v_is_the_same_copy_as_the_drop():
     assert calls == [("copyFromLibrary", ("lib", "c1", 2, "B.co2", 3))]
 
 
-def test_import_of_several_files_imports_each_and_names_the_skipped(tmp_path, monkeypatch):
-    from bayle.ui.pages.saves import adapter as mod
-
+def test_import_of_several_files_is_one_job_and_the_skipped_are_named(tmp_path):
     a, calls, told = adapter()
-    jobs, added = [], []
-    a.host.run_job = lambda job, status: jobs.append(status)
+    asked = []
+    a.defaultName = lambda path: "A name"
+    a._job = lambda name, params, tell=True: asked.append((name, params))
     a._libs = {str(tmp_path): {}}
-    monkeypatch.setattr(mod.save_library, "add", lambda folder, src, name, game, action: added.append(src.name) or {})
-    monkeypatch.setattr(mod.save_library, "default_name", lambda src, game: src.stem)
-    a._game = lambda: None
     a._import_many([tmp_path / "a.sl2", tmp_path / "b.co2"])
-    assert jobs == ["Importing 2 files..."]
+    assert asked == [("saves.import_files", {"files": [str(tmp_path / "a.sl2"), str(tmp_path / "b.co2")]})]
     a.dropFiles([str(tmp_path / "a.sl2"), str(tmp_path / "x.txt")])  # one save file: asks for its name
     assert told and "x.txt" in told[0][0]
 
@@ -174,5 +172,6 @@ def test_import_is_allowed_while_the_game_runs():
     host = Host()
     host.game_running = True
     a, calls, told = adapter(host)
+    a.defaultName = lambda path: "A name"
     a._offer_import(Path("A.sl2"))
     assert told == []

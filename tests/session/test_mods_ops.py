@@ -3,7 +3,6 @@
 import pytest
 
 from bayle.config.settings import data_dir
-from bayle.services import mods as mod_service
 from bayle.services import shared_mods as library_service
 from bayle.services.errors import OperationError
 from bayle.session import EventBus, JobManager, PlanStore, Session
@@ -51,35 +50,13 @@ def test_no_profile_and_an_unreadable_one_say_why():
     assert not s.snapshot("mods", profile="C:/nowhere/x.me3").has_profile
 
 
-def test_an_interrupted_change_put_right_is_remembered_as_a_notice(profile, monkeypatch):
-    calls = []
-
-    def recover(prof, timeout=30.0):
-        calls.append(str(prof))
-        return ["the removal of flora was undone"]
-
-    monkeypatch.setattr(mod_service, "recover_interrupted", recover)
+def test_a_closed_notice_stays_closed_for_the_profile(profile):
     s = make()
-    assert s.run("mods.recover", {"profile": str(profile)}).lines == ["the removal of flora was undone"]
-    keys = [n.key for n in s.snapshot("mods", profile=str(profile)).state.notices]
-    assert "recovered" in keys
-    other = mods_profile(profile.parent.parent / "q")
-    assert "recovered" not in [n.key for n in s.snapshot("mods", profile=str(other)).state.notices]  # its own lines
-    assert len(calls) == 1
-
-
-def test_nothing_is_looked_at_while_a_job_holds_the_folder(profile, monkeypatch):
-    monkeypatch.setattr(mod_service, "recover_interrupted", lambda *a, **k: pytest.fail("looked"))
-    assert make(external_busy=lambda: True).run("mods.recover", {"profile": str(profile)}).lines == []
-
-
-def test_a_closed_notice_stays_closed_for_the_profile(profile, monkeypatch):
-    monkeypatch.setattr(mod_service, "recover_interrupted", lambda *a, **k: ["x"])
-    s = make()
-    s.run("mods.recover", {"profile": str(profile)})
-    assert "recovered" in [n.key for n in s.snapshot("mods", profile=str(profile)).state.notices]
-    s.run("mods.close_notice", {"profile": str(profile), "key": "recovered"})
-    assert "recovered" not in [n.key for n in s.snapshot("mods", profile=str(profile)).state.notices]
+    key = lambda: [n.key for n in s.snapshot("mods", profile=str(profile)).state.notices]  # noqa: E731
+    assert "dll-folders" in key()  # the sample profile's DLL sits loose in natives/
+    s.run("mods.close_notice", {"profile": str(profile), "key": "dll-folders"})
+    assert "dll-folders" not in key()
+    assert "dll-folders" in [n.key for n in make().snapshot("mods", profile=str(profile)).state.notices]  # per session
 
 
 def test_the_library_hint_waits_for_enough_wasted_space(profile, monkeypatch):

@@ -9,55 +9,31 @@ registered with `register_page` so the host can tell them to read again and ask 
 
 from __future__ import annotations
 
-import datetime
-import shutil
-import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from bayle.config.settings import data_dir
 from bayle.game import catalog as games
-from bayle.game.locate import installed_dir
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import play as core
-from bayle.services import run_health
-from bayle.services.jobs import Outcome
-from bayle.services.mods import me3_facts
-from bayle.services.settings import load_settings, save_game_settings
-from bayle.session import JobManager, PlanStore, Session
+from bayle.services.errors import Busy, OperationError
+from bayle.services.settings import load_settings
 from bayle.session import ops as _registered_operations  # noqa: F401  registers the program's operations
-from bayle.session.startup import recovery_steps
+from bayle.session.events import Event
+from bayle.session.shell.service import Shell
+from bayle.session.shell.state import Context
 from bayle.ui.host import Host
 from bayle.ui.jobs import Jobs, run_async
-from bayle.ui.launcher import launch
 from bayle.ui.launcher.instance import InstanceServer
-from bayle.ui.launcher.state import Context, LauncherState
-from bayle.ui.launcher.updates import UpdateFlow
-from bayle.ui.launcher.watch import GameWatch
 from bayle.ui.notifications import Notifier
 from bayle.updates import apply as updates
 from bayle.updates import inno as migration
 from bayle.updates import retitle
 from bayle.views import topbar
-
-# A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.
-PROGRESS_LINES = (
-    "steam:",
-    "launching",
-    "game ",
-    "regulation",
-    "done:",
-    "password",
-    "no dead",
-    "dead ",
-    "scaling",
-    "applied",
-)
 
 
 class Pickers(Protocol):
@@ -79,36 +55,6 @@ class NoPickers:
         return None
 
 
-class _FlowPorts:
-    """The Launch flow's ports, on the shell."""
-
-    def __init__(self, host: ShellHost):
-        self.h = host
-
-    def ask(self, ask: launch.Ask, on_answer: Callable[[str], None]) -> None:
-        self.h.notifier.choose(ask, on_answer)
-
-    def toast(self, text: str, error: bool = False) -> None:
-        self.h.notifier.toast(text, error)
-
-    def progress(self, label: str) -> None:
-        self.h.step = label
-        self.h.changed.emit()
-
-    def background(self, work: Callable[[], Any], on_result: Callable[[Any], None]) -> None:
-        self.h.run_in_background(work, on_result)
-
-    def run_job(self, job, label: str, kind: str, on_done: Callable[[bool], None] | None = None) -> None:
-        self.h.start(job, label, kind, on_done)
-
-    def save_pending(self) -> str | None:
-        save: Any = getattr(self.h.pages.get("modConfigs"), "save_pending_seamless", None)
-        return None if save is None else save()
-
-    def show_activity(self) -> None:
-        self.h.show_page("activity")
-
-
 class ShellHost(QObject):
     changed = Signal()  # anything the top bar shows (pill, status text, drop-downs, rail badge)
     gameChanged = Signal()  # another game is the current one
@@ -118,14 +64,17 @@ class ShellHost(QObject):
     quitRequested = Signal()
     forwardRequested = Signal()  # a second start asked this window to come forward
     checksChanged = Signal()  # the disk checks behind the pill came back different (or are slow)
-    _noticed = Signal(str)  # a job's notice (from a worker thread): shown as a toast
-    _line = Signal(str, str)  # a job's log line (from a worker thread) and its level
-    _session_event = Signal()  # the session's bus has events (from a worker thread)
+    _session_event = Signal()  # the shell's bus has events (from a worker thread)
 
     def __init__(self, ctx: Context, parent: QObject | None = None):
         super().__init__(parent)
-        self.state = LauncherState(ctx)
-        self.jobs = Jobs(self)
+        self.jobs = Jobs(self)  # the shell's background: results come back on this (the UI) thread
+        self.shell = Shell(ctx, background=self.jobs, restart=self.restart_for_update, open_url=desktop.open_path)
+        self.state = self.shell.state
+        self.session = self.shell.session
+        self.flow = self.shell.flow
+        self.updates = self.shell.updates
+        self.watch = self.shell.watch
         self.notifier = Notifier(self)  # the shell's own toasts and forks (a page's Notifier is its own)
         self.pickers: Pickers = NoPickers()
         self.pages: dict[str, Any] = {}  # registered page adapters, by registry name
@@ -135,101 +84,92 @@ class ShellHost(QObject):
         self.close_guard: Callable[[Callable[[], None]], None] = lambda proceed: proceed()
         # asks Save / Discard / Cancel about unsaved edits (words, what is about to happen, how to go on)
         self.guard_prompt: Callable[[list[str], str, Callable[[], None]], None] | None = None
-        self.step = ""  # the Launch flow's step before its job runs ("Backing up saves...")
-        self.job_detail = ""  # the newest line of the running job that says how it is going
-        self.steam_bad = False
-        self._slow: tuple[tuple, tuple[str, ...], tuple[str, ...], dict[str, bool]] | None = None  # the disk checks
-        self._check_running = self._check_late = self._check_dirty = False
-        self.dead_shells = 0
-        self.failed_job = ""  # a job that failed and was not looked at yet
-        self.unseen = 0  # failed jobs since Activity was last looked at (the rail badge)
-        self.me3_note = ""
-        self._me3_said = False
-        self.updates = UpdateFlow(
-            self.jobs,
-            lambda: self.state.settings,
-            self._update_toast,
-            self._cannot_update,
-            self.restart_for_update,
-            desktop.open_path,
-        )
-        self.flow = launch.LaunchFlow(self.state, _FlowPorts(self))
-        self._session_jobs: dict[str, str] = {}  # session jobs running, by id: their title
-        self._quiet_jobs: set[str] = set()  # session jobs whose end the page words itself (no "done" toast)
-        self._followers: dict[str, Callable[[bool, dict], None]] = {}  # job id -> the page's call when it ends
-        self._ended: dict[str, tuple[bool, dict]] = {}  # session jobs that ended before anyone followed them
-        self.session = Session(
-            JobManager(
-                game_running=lambda: self.state.game_running,
-                external_busy=lambda: self.flow.active or (self.state.busy and not self._session_jobs),
-            ),
-            plans=PlanStore(),
-            locations=lambda: self.state.locations,
-            startup_steps=recovery_steps(
-                self.state.locations
-            ),  # shortcut: not run here; the pages still recover on their own
-        )
-        self._events = self.session.jobs.bus.subscribe(notify=self._session_event.emit)
-        self._session_event.connect(self._drain_session)
-        self.watch = GameWatch(
-            self.jobs, lambda: self.state.locations, self._on_running, self._on_steam, self._on_shells
-        )
+        self._check_running = self._check_dirty = False
+        self._detail_seen = ""
+        self._session_jobs: dict[str, str] = {}  # jobs running, by id: their title
+        self._followers: dict[str, Callable[[Any], None]] = {}  # job id -> what to do with its end (follow_job)
+        self._quiet: set[str] = set()  # jobs whose end the page words itself: no generic "done" toast
+        self.shell.coop_unsaved = self.coop_unsaved
+        self.shell.save_pending = self._save_pending
+        self._events = self.shell.bus.subscribe(notify=self._session_event.emit)
+        self._session_event.connect(self._drain)
         self.instance = InstanceServer(self)
         self.instance.showRequested.connect(self.forwardRequested)
         self.instance.playRequested.connect(self._play_requested)
-        self._line.connect(self._on_line)
-        self._noticed.connect(self._on_notice)
-        core.NOTIFY = lambda title, msg: self.notifier.toast(f"{title}: {msg}", True)
 
-    # ---------------------------------------------------------------- session jobs
-    def _drain_session(self) -> None:
-        """The session's jobs (Undo, so far) as events, on the UI thread: the top bar follows them like the host's own."""
+    # ---------------------------------------------------------------- the shell's events
+    def _drain(self) -> None:
+        """What the shell published (job events, game.state, invalidated, notice, navigate, prompt), on the UI thread."""
         while (e := self._events.get(0)) is not None:
-            if e.job_id is None:
-                continue
-            st = self.state
-            if e.type == "started":
-                title = str(e.data.get("title") or "")
-                self._session_jobs[e.job_id] = title
-                if e.data.get("quiet"):
-                    self._quiet_jobs.add(e.job_id)
-                run_logging.attach_notice_sink(self._noticed.emit)
-                st.busy, st.job_label, st.job_kind, self.job_detail, self.step = True, title, "other", "", ""
+            if e.type == "prompt":
+                self._ask(e)
+            elif e.job_id is not None:
+                self._job_event(e)
+            elif e.type == "invalidated":
+                if "pages" in (e.data.get("what") or ()):
+                    self.refresh_pages()  # what a page may write depends on the game and the jobs
                 self.changed.emit()
-            elif e.type == "log":
-                self._on_line(str(e.data.get("text") or ""), str(e.data.get("level") or ""))
-            elif e.type == "progress":
-                self.job_detail = str(e.data.get("label") or "")[:120]
+            elif e.type == "game.state":
                 self.changed.emit()
-            elif e.type in ("finished", "failed", "cancelled"):
-                title = self._session_jobs.pop(e.job_id, "")
-                ok = e.type == "finished"
-                status = (
-                    "Finished" if ok else "Error (see details)" if e.data.get("unexpected") else "Stopped (see details)"
-                )
-                quiet = e.job_id in self._quiet_jobs
-                self._quiet_jobs.discard(e.job_id)
-                follower = self._followers.pop(e.job_id, None)
-                if follower is None:  # a page may follow it a moment later: keep how it ended
-                    self._ended[e.job_id] = (ok, dict(e.data))
-                    while len(self._ended) > 50:
-                        self._ended.pop(next(iter(self._ended)))
-                after = None if follower is None else (lambda _ok, f=follower, d=dict(e.data): f(_ok, d))
-                self._done(Outcome(ok, status), title, "page" if quiet or follower else "other", after)
+            elif e.type == "notice":
+                text = str(e.data.get("text") or "")
+                if e.data.get("details"):
+                    self.notifier.toast_action(text, tr("Details"), lambda: self.show_page("activity"))
+                else:
+                    self.notifier.toast(text, error=bool(e.data.get("error")))
+            elif e.type == "navigate":
+                self.show_page(str(e.data.get("page") or ""))
 
-    def follow_job(self, job_id: str, on_done: Callable[[bool, dict], None]) -> None:
-        """A page wants to know how a session job ended: on_done(ok, data) on the UI thread, once. data is the job's
-        finished event (result, undo) or its failed event (error: code, message, details)."""
-        ended = self._ended.pop(job_id, None)
-        if ended is not None:
-            on_done(*ended)
+    def _ask(self, e: Event) -> None:
+        """A question on the bus (the Launch flow's forks): shown as the shell's dialog, the answer goes back by id."""
+        prompts = self.shell.jobs.prompts
+        prompt_id = str(e.data.get("prompt_id") or "")
+        words = prompts.words(prompt_id)
+        if words is not None:
+            self.notifier.choose(words, lambda key: prompts.answer(prompt_id, key))
+
+    def _job_event(self, e: Event) -> None:
+        job_id = str(e.job_id)
+        if e.type == "started":
+            self._session_jobs[job_id] = str(e.data.get("title") or "")
+            if e.data.get("quiet"):
+                self._quiet.add(job_id)
+            self._detail_seen = ""
+            self.changed.emit()
+        elif e.type in ("log", "progress"):
+            if self.shell.job_detail != self._detail_seen:
+                self._detail_seen = self.shell.job_detail
+                self.changed.emit()
+        elif e.type in ("finished", "failed", "cancelled"):
+            label = self._session_jobs.pop(job_id, "")
+            kind = self.shell.kinds.get(job_id, "other")
+            quiet = job_id in self._quiet
+            self._quiet.discard(job_id)
+            if e.type != "finished":
+                status = "Error (see details)" if e.data.get("unexpected") else "Stopped (see details)"
+                self.notifier.toast_action(
+                    f"{label.rstrip('. ')}: {status}", tr("Details"), lambda: self.show_page("activity"), error=True
+                )
+            elif kind == "other" and not quiet:
+                self.notifier.toast(tr("{job}: done").format(job=label.rstrip(". ")))
+            self.changed.emit()
+            follower = self._followers.pop(job_id, None)
+            if follower is not None:
+                follower(self.session.jobs.get(job_id))
+
+    def follow_job(self, job_id: str, done: Callable[[Any], None]) -> None:
+        """done(JobSnapshot) on the UI thread when the session job ends (at once when it already has). A page tells
+        the job's result with it (a toast with Undo, a read of the page)."""
+        snap = self.session.jobs.get(job_id)
+        if snap is not None and snap.state != "running":
+            done(snap)
         else:
-            self._followers[job_id] = on_done
+            self._followers[job_id] = done
 
     # ---------------------------------------------------------------- the host contract: state
     @property
     def busy(self) -> bool:
-        return self.state.busy or self.flow.active
+        return self.shell.busy
 
     @property
     def game_running(self) -> bool:
@@ -255,6 +195,35 @@ class ShellHost(QObject):
     def game(self) -> games.Game:
         return self.state.game
 
+    # what the shell keeps for the top bar
+    @property
+    def step(self) -> str:
+        return self.shell.step
+
+    @property
+    def job_detail(self) -> str:
+        return self.shell.job_detail
+
+    @property
+    def steam_bad(self) -> bool:
+        return self.shell.steam_bad
+
+    @property
+    def dead_shells(self) -> int:
+        return self.shell.dead_shells
+
+    @property
+    def unseen(self) -> int:
+        return self.shell.unseen
+
+    @property
+    def failed_job(self) -> str:
+        return self.shell.failed_job
+
+    @property
+    def me3_note(self) -> str:
+        return self.shell.me3_note
+
     # ---------------------------------------------------------------- the host contract: work
     def run_job(self, job, status: str, on_done: Callable[[bool], None] | None = None) -> None:
         # on_done: the page speaks for itself (its own toast), so the generic "done" toast is skipped
@@ -270,52 +239,15 @@ class ShellHost(QObject):
     def start(self, job, status: str, kind: str = "other", on_done: Callable[[bool], None] | None = None) -> bool:
         """Run job as a logged job of the shell. One job at a time; nothing but clearing leftover processes runs
         while the game does."""
-        st = self.state
-        if st.busy:
+        try:
+            self.shell.start(job, status, kind, on_done=on_done)
+        except Busy as e:
+            if e.details.get("reason") == "game_running":
+                self.notifier.toast(
+                    tr("{game} is already running. Close it first.").format(game=self.state.game.name), error=True
+                )
             return False
-        if st.game_running and job is not core.job_clear:
-            self.notifier.toast(tr("{game} is already running. Close it first.").format(game=st.game.name), error=True)
-            return False
-        st.busy, st.job_label, st.job_kind, self.job_detail, self.step = True, status, kind, "", ""
-        run_logging.attach_sink(lambda msg, level="": self._line.emit(str(msg), level or ""))
-        run_logging.attach_notice_sink(self._noticed.emit)
-        launch_profile = st.launch_profile
-        loc = launch_profile.locations() if launch_profile is not None else st.locations
-        self.changed.emit()
-        self.jobs.start_job(
-            job, launch_profile, loc, status, lambda outcome: self._done(outcome, status, kind, on_done)
-        )
         return True
-
-    def _on_notice(self, text: str) -> None:
-        self.notifier.toast_action(text, tr("Details"), lambda: self.show_page("activity"))
-
-    def _on_line(self, msg: str, level: str) -> None:
-        shown = str(msg).strip()
-        if self.state.busy and shown.lower().startswith(PROGRESS_LINES):
-            self.job_detail = shown.splitlines()[0][:120]
-            self.changed.emit()
-
-    def _done(self, outcome, label: str, kind: str, on_done: Callable[[bool], None] | None) -> None:
-        st = self.state
-        st.busy, st.job_kind, self.job_detail = False, "", ""
-        ok = bool(outcome.ok)
-        if not ok:
-            self.failed_job = label
-        self.ctx_settings_again()
-        if kind != "launch" or not ok:
-            st.reload_profiles()  # an install may have changed the profiles
-        self._update_badge()
-        if not ok:
-            self.notifier.toast_action(
-                f"{label.rstrip('. ')}: {outcome.status}", tr("Details"), lambda: self.show_page("activity"), error=True
-            )
-        elif kind == "other":
-            self.notifier.toast(tr("{job}: done").format(job=label.rstrip(". ")))
-        self.refresh_pages()
-        self.changed.emit()
-        if on_done is not None:
-            on_done(ok)
 
     def ctx_settings_again(self) -> None:
         """Read the settings file again (a job, or another window, may have changed it)."""
@@ -375,6 +307,10 @@ class ShellHost(QObject):
         page = self.pages.get("modConfigs")
         pending: Any = getattr(page, "seamless_pending", None)
         return pending is not None and bool(pending())
+
+    def _save_pending(self) -> str | None:
+        save: Any = getattr(self.pages.get("modConfigs"), "save_pending_seamless", None)
+        return None if save is None else save()
 
     # ---------------------------------------------------------------- the host contract: hand-offs
     def profile_changed(self, note: str) -> None:
@@ -441,11 +377,7 @@ class ShellHost(QObject):
 
     def pick_profile(self, index: int) -> None:
         """Make the index'th profile the current one, as the profile drop-down does."""
-        if self.busy or not 0 <= index < len(self.state.launch_profiles) or index == self.state.index:
-            return
-        self.state.choose(index)
-        self.refresh_pages()
-        self.changed.emit()
+        self.shell.pick_profile(index)
 
     def seamless_offer(self) -> bool:
         """Seamless Co-op sits in the game folder: a new profile may take it along (moved into the profile)."""
@@ -459,43 +391,19 @@ class ShellHost(QObject):
 
     def new_profile(self, name: str, include_seamless: bool) -> bool:
         """File > New profile: a profile for this game (and Seamless Co-op moved into it when asked), as a logged job."""
-        from bayle.services import jobs as jobs_service
-        from bayle.services import mods as mods_service
-
-        g = self.state.game
-        name = name.strip() or tr("{game} mods").format(game=g.name)
-        made: list[str] = []
-
-        def job(_launch_profile, loc):
-            with jobs_service.run_logged("launcher: create profile", loc.game.key):
-                made.append(
-                    str(mods_service.create_first_profile(name, include_seamless, loc=loc, log=run_logging.log))
-                )
-
-        def done(ok: bool) -> None:
-            if ok and made:
-                core.remember_profile(made[0], g)
-                self.ctx_settings_again()
-                self.state.reload_profiles(select=made[0])
-                self.refresh_pages()
-                self.changed.emit()
-
-        return self.start(job, tr("Creating profile..."), "other", done)
+        try:
+            self.shell.new_profile(name, include_seamless)
+        except Busy:
+            return False
+        return True
 
     def add_profile(self, path: Path) -> bool:
         """File > Add existing profile: a .me3 profile or an installation.json becomes a profile of this game."""
-        launch_profile = core.launch_profile_from_path(path, self.state.locations)
-        if launch_profile is None:
+        if not self.shell.add_profile(path):
             self.notifier.toast(
                 tr("That file is not a .me3 profile, and it is not a launcher installation.json."), error=True
             )
             return False
-        self.state.reload_profiles(select=launch_profile.source)
-        if not any(core.same_source(s.source, launch_profile.source) for s in self.state.launch_profiles):
-            self.state.launch_profiles.append(launch_profile)
-            self.state.choose(len(self.state.launch_profiles) - 1)
-        self.refresh_pages()
-        self.changed.emit()
         return True
 
     # ---------------------------------------------------------------- pickers (the window supplies the dialogs)
@@ -511,16 +419,11 @@ class ShellHost(QObject):
     # ---------------------------------------------------------------- the game
     def set_game(self, key: str, remember: bool = True) -> bool:
         """Point every page at another game. Refused while a job runs."""
-        g = games.get(key)
-        if g is self.state.game:
-            return True
-        if self.busy:
-            self.notifier.toast(tr("Wait for the current job. Switch games once it finishes."))
+        try:
+            self.shell.set_game(key, remember)
+        except Busy as e:
+            self.notifier.toast(e.message)
             return False
-        self.state.select_game(g, remember)
-        self.step = ""
-        self.watch.look_now()
-        self.refresh_pages()
         self.gameChanged.emit()
         self.changed.emit()
         return True
@@ -552,19 +455,13 @@ class ShellHost(QObject):
     # ---------------------------------------------------------------- Launch
     def launch(self, mode: str | None = None, allow_without_backup: bool = False) -> bool:
         """Launch in `mode` (default: the one remembered for the game)."""
-        mode = mode or self.mode()
-        if mode != self.mode():
-            self.set_mode(mode)
-        return self.flow.start(mode, allow_without_backup)
+        return self.shell.launch(mode, allow_without_backup)
 
     def mode(self) -> str:
-        return topbar.mode_of(self.state.settings, self.state.game)
+        return self.shell.mode()
 
     def set_mode(self, mode: str) -> None:
-        if mode in topbar.MODES:
-            save_game_settings(self.state.game.key, launch_mode=mode)
-            self.ctx_settings_again()
-            self.changed.emit()
+        self.shell.set_mode(mode)
 
     def _play_requested(self, arg: str) -> None:
         """A Steam shortcut (--play) started while this window is open: Launch here, for that game. "<key>
@@ -593,24 +490,6 @@ class ShellHost(QObject):
         self.flow.start(topbar.PROFILE, allow_without_backup=flag == "allow-without-backup")
 
     # ---------------------------------------------------------------- the game watch
-    def _on_running(self, running: bool) -> None:
-        changed = running != self.state.game_running
-        self.state.game_running = running
-        if changed:
-            self.refresh_pages()  # what a page may write depends on it
-            self.changed.emit()
-
-    def _on_steam(self, bad: bool) -> None:
-        bad = bad and not self.busy
-        if bad != self.steam_bad:
-            self.steam_bad = bad
-            self.changed.emit()
-
-    def _on_shells(self, n: int) -> None:
-        if n != self.dead_shells:
-            self.dead_shells = n
-            self.changed.emit()
-
     def clear_dead_processes(self) -> None:
         self.start(core.job_clear, tr("Clearing leftover processes..."), "other")
 
@@ -619,46 +498,7 @@ class ShellHost(QObject):
 
     # ---------------------------------------------------------------- what the top bar shows
     def facts(self) -> topbar.Facts:
-        st = self.state
-        s = st.launch_profile
-        busy = self.busy
-        if self._slow is None:  # the very first read, before any window: nothing to show a wait on yet
-            self._slow = (self._checks_key(), *self._read_checks(s))
-        key, problems, warnings, _installed = self._slow
-        if key != self._checks_key():
-            problems, warnings = (), ()  # another profile than the one checked: say nothing until its check is back
-        return topbar.Facts(
-            game=st.game,
-            installed=bool(st.locations.game_dir()),
-            profile_count=len(st.launch_profiles),
-            problems=problems,
-            warnings=warnings,
-            checking=self._check_late and not busy,
-            busy=busy,
-            job_label=(self.job_detail or st.job_label) if st.busy else self.step,
-            job_kind=st.job_kind if st.busy else ("launch" if self.flow.active else ""),
-            game_running=st.game_running,
-            steam_bad=self.steam_bad,
-            dead_shells=self.dead_shells,
-            warn_dead_shells=bool(st.settings.warn_dead_shells),
-            coop_unsaved=self.coop_unsaved(),
-            me3_update=self.me3_note,
-            failed_job=self.failed_job,
-            mode=self.mode(),
-        )
-
-    def _checks_key(self) -> tuple:
-        s = self.state.launch_profile
-        return (id(s), str(s.profile) if s else "")
-
-    @staticmethod
-    def _read_checks(s) -> tuple[tuple[core.Problem, ...], tuple[core.Problem, ...], dict[str, bool]]:
-        """The disk reads behind the pill: the setup's problems and warnings, which games are installed."""
-        return (
-            tuple(s.problems()) if s else (),
-            tuple(s.warnings()) if s else (),
-            {g.key: bool(installed_dir(g)) for g in games.GAMES},
-        )
+        return self.shell.facts()
 
     def schedule_checks(self) -> None:
         """Read the disk checks again off the UI thread; the view updates when they are back, and says "Checking..."
@@ -668,43 +508,37 @@ class ShellHost(QObject):
         if self._check_running:
             self._check_dirty = True
             return
-        self._check_running, self._check_late = True, False
-        key, s = self._checks_key(), self.state.launch_profile
+        self._check_running, self.shell.checks_late = True, False
+        key, s = self.shell.checks_key(), self.state.launch_profile
         QTimer.singleShot(200, self._checks_late)
-        self.run_in_background(lambda: self._read_checks(s), lambda r: self._checks_back(key, r))
+        self.run_in_background(lambda: self.shell.read_checks(s), lambda r: self._checks_back(key, r))
 
     def _checks_late(self) -> None:
-        if self._check_running and not self._check_late:
-            self._check_late = True
+        if self._check_running and not self.shell.checks_late:
+            self.shell.checks_late = True
             self.checksChanged.emit()
 
     def _checks_back(self, key: tuple, result) -> None:
-        self._check_running, was_late, self._check_late = False, self._check_late, False
-        old = self._slow
-        self._slow = (key, *result)
-        if old != self._slow or was_late:
+        self._check_running, was_late, self.shell.checks_late = False, self.shell.checks_late, False
+        if self.shell.store_checks(key, result) or was_late:
             self.checksChanged.emit()
-        if self._check_dirty or key != self._checks_key():
+        if self._check_dirty or key != self.shell.checks_key():
             self._check_dirty = False
             self.schedule_checks()
 
     def installed_games(self) -> dict[str, bool]:
-        return self._slow[3] if self._slow else {}
+        return self.shell.installed_games()
 
     def mark_seen(self) -> None:
         self.session.run("activity.mark_seen")
         self.ctx_settings_again()
-        self.failed_job = ""
-        self._update_badge()
+        self.shell.failed_job = ""
+        self.shell.update_badge()
         self.changed.emit()
-
-    def _update_badge(self) -> None:
-        self.unseen = self.session.run("activity.unseen").count
 
     def me3_clicked(self) -> None:
         """The me3 update line was followed: it is not said again this session."""
-        self.me3_note = ""
-        self.changed.emit()
+        self.shell.me3_clicked()
 
     # ---------------------------------------------------------------- the Settings page's hand-offs
     def settings_changed(self, key: str) -> None:
@@ -739,16 +573,10 @@ class ShellHost(QObject):
     def dismiss_notice(self, notice_id: str) -> None:
         self.updates.dismiss(notice_id)
 
-    def _update_toast(self, title: str, body: str, kind: str) -> None:
-        self.notifier.toast(f"{title}: {body}" if body else title, error=kind == "error")
-
-    def _cannot_update(self) -> str:
-        return self.updates.cannot_update(self.game_running, self.state.game.name, self.busy)
-
     def restart_for_update(self, prepared) -> None:
         """Restart now: the shell closes cleanly (asking about a running job and unsaved edits), then the update is
         applied when this process exits."""
-        why = self._cannot_update()
+        why = self.shell.cannot_update()
         if why:
             self.notifier.toast(f"{tr('Cannot restart now')}: {why}", error=True)
             return
@@ -768,18 +596,13 @@ class ShellHost(QObject):
     def point_steam_shortcuts(self) -> None:
         def work(_progress):
             try:
-                record = load_settings().inno_migration or {}
-                if record.get("steam_pending") or (record.get("old_exe") and not record.get("steam_done")):
-                    changed = migration.finish_steam_step()
-                else:
-                    changed = migration.point_play_shortcuts_here()
-                return {"changed": [s.name for s in changed]}
-            except Exception as e:
-                return {"error": str(e)}
+                return {"changed": self.shell.point_steam_shortcuts()}
+            except OperationError as e:
+                return {"error": e.message}
 
         def done(result):
             if result.get("error"):
-                self.notifier.toast(f"{tr('Steam shortcuts not changed')}: {result['error']}", error=True)
+                self.notifier.toast(result["error"], error=True)
             elif result.get("changed"):
                 self.notifier.toast(
                     tr("Steam shortcuts updated. Now starting this copy: {names}.").format(
@@ -795,55 +618,41 @@ class ShellHost(QObject):
         where = self.pick_folder(tr("Save logs for support: pick a folder"))
         if where is None:
             return
-        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                run_logging.copy_logs(Path(tmp) / "logs")
-                out = shutil.make_archive(str(Path(where) / f"roundtable-souls-logs-{stamp}"), "zip", tmp)
-        except OSError as e:
-            self.notifier.toast(f"{tr('Could not save the logs')}: {e}", error=True)
-            return
-        self.notifier.toast(tr("Logs saved: {name}. User names and Steam IDs are masked.").format(name=Path(out).name))
-
-    def open_logs_folder(self) -> None:
-        logs = data_dir() / "logs"
-        try:
-            logs.mkdir(parents=True, exist_ok=True)
-            desktop.open_path(str(logs))
-        except OSError as e:
-            self.notifier.toast(f"{tr('Could not open the logs folder')}: {e}", error=True)
-
-    def me3_facts(self) -> dict:
-        """me3 asked now (runs me3 info: call it on a worker thread)."""
-        return me3_facts(self.state.launch_profile, self.state.locations)
-
-    def refresh_me3(self) -> None:
-        launch_profile, loc = self.state.launch_profile, self.state.locations
 
         def work(_progress):
             try:
-                return me3_facts(launch_profile, loc)
-            except Exception as e:
-                return {"error": str(e)}
+                return {"path": self.shell.save_logs(where)}
+            except OperationError as e:
+                return {"error": e.message}
 
-        self.jobs.start(work, on_result=self._on_me3)
+        def done(result):
+            if result.get("error"):
+                self.notifier.toast(result["error"], error=True)
+            else:
+                self.notifier.toast(
+                    tr("Logs saved: {name}. User names and Steam IDs are masked.").format(name=result["path"].name)
+                )
 
-    def _on_me3(self, f: dict) -> None:
-        if f.get("reload"):  # me3 reported its folders: its profile folder may be the one to use now
-            self.ctx_settings_again()
-        latest = (f.get("latest") or {}).get("version")
-        if f.get("update") and latest and not self._me3_said:
-            self._me3_said = True  # one me3-update line per session
-            self.me3_note = str(latest)
-        self.changed.emit()
+        self.jobs.start(work, on_result=done, name="support-logs")
+
+    def open_logs_folder(self) -> None:
+        try:
+            desktop.open_path(str(self.shell.logs_folder()))
+        except (OperationError, OSError) as e:
+            self.notifier.toast(str(getattr(e, "message", e)), error=True)
+
+    def me3_facts(self) -> dict:
+        """me3 asked now (runs me3 info: call it on a worker thread)."""
+        return self.shell.me3_facts()
+
+    def refresh_me3(self) -> None:
+        self.shell.refresh_me3()
 
     # ---------------------------------------------------------------- start and stop
     def start_background(self) -> None:
-        """What a running shell does from the start: the game watch, me3 and update checks."""
-        self._update_badge()
-        self.watch.start()
-        self.refresh_me3()
-        self.updates.check()
+        """What a running shell does from the start: the shell's start-up sequence (the recoveries, the game watch,
+        me3 and update checks), once."""
+        self.shell.startup()
 
     def after_show(self, mark_ready: Callable[[], dict | None] | None = None) -> None:
         """For a real start only (tests build the shell without it), once the first page is up: tell an update's
@@ -869,11 +678,6 @@ class ShellHost(QObject):
             except Exception as e:
                 return {"status": "failed", "reason": str(e)}
 
-        def found(lines):
-            for line in lines:
-                self._on_notice(line)
-
-        self.jobs.start(lambda _report: run_health.recover_all(), on_result=found, name="run-health")
         self.jobs.start(
             work, on_result=self.updates.migration, on_progress=self.updates.outcome, name="launcher-start-tasks"
         )
@@ -881,11 +685,11 @@ class ShellHost(QObject):
     def closing(self) -> dict:
         """What closing the window would lose: a running job (the save repair and cleanup after it are skipped, the
         game is left alone) and unsaved edits."""
-        return {"job": self.state.busy or self.flow.active, "unsaved": self.unsaved()}
+        return {"job": self.shell.busy, "unsaved": self.unsaved()}
 
     def shutdown(self) -> bool:
         """Stop the watch and give the pool 3 s; False when work is still running (the caller exits anyway)."""
-        self.watch.stop()
+        self.shell.stop()
         self._events.close()
         drained = self.jobs.shutdown()
         self.instance.release()

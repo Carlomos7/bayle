@@ -11,13 +11,16 @@ def test_recovery_steps_order_and_calls(monkeypatch):
         startup.mod_service, "recover_interrupted", lambda p, timeout: calls.append(("mods", p)) or ["x"]
     )
     monkeypatch.setattr(
-        startup.save_backups, "adopt_legacy_save_folders", lambda d, g, again: calls.append(("adopt", d))
+        startup.saves_page.save_backups, "adopt_legacy_save_folders", lambda d, g, again: calls.append(("adopt", d))
     )
     loc = SimpleNamespace(game="g", save_files=lambda: [Path("a/1.sl2"), Path("a/2.sl2"), Path("b/1.sl2")])
 
-    steps = startup.recovery_steps(loc, Path("p.json"))
+    steps = startup.recovery_steps(lambda: loc, lambda: Path("p.json"))
     assert [s.name for s in steps] == ["run_health", "interrupted_installs", "legacy_save_folders"]
     for s in steps:
         s.fn()
     assert calls == ["runs", ("mods", Path("p.json")), ("adopt", Path("a")), ("adopt", Path("b"))]
-    assert [s.name for s in startup.recovery_steps(loc)] == ["run_health", "legacy_save_folders"]
+    calls.clear()
+    for s in startup.recovery_steps(lambda: loc):  # no profile: that step does nothing
+        s.fn()
+    assert ("mods", Path("p.json")) not in calls

@@ -462,13 +462,12 @@ def _check_finish(call: Call, p: DraftRef) -> None:
     _finishing(call, p)
 
 
-def _finish_title(call: Call, p: DraftRef) -> str:
-    state = drafts(call.session).get(p.draft_id)
-    with state.lock:
-        d = state.draft
-        if d.overhaul_mode and state.preview is not None:
-            return tr("Installing {name} as an overhaul...").format(name=state.preview.label)
-        return tr("Installing {name}...").format(name=d.plan["name"])
+class FinishParams(DraftRef):
+    name: str = ""  # the name the dialog showed, for the job's title
+
+
+def _finish_title(p: FinishParams) -> str:
+    return tr("Installing {name}...").format(name=p.name or tr("the mod"))
 
 
 class Installed(Result):
@@ -479,14 +478,14 @@ class Installed(Result):
 
 @operation(
     "mods.install_finish",
-    params=DraftRef,
+    params=FinishParams,
     result=Installed,
     kind="job",
     writes=True,
     title=_finish_title,
     check=_check_finish,
 )
-def install_finish(call: Call, p: DraftRef) -> Installed:
+def install_finish(call: Call, p: FinishParams) -> Installed:
     """Install what the draft says, as one logged job with its Undo in Activity. The draft ends."""
     state = _finishing(call, p)
     d, preview, loc = state.draft, state.preview, call.session.locations()

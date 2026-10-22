@@ -22,6 +22,8 @@ from bayle.services.errors import Busy, Cancelled, ErrorInfo, OperationError
 from bayle.services.jobs import Event as RunnerEvent
 from bayle.services.jobs import JobResult
 from bayle.session.events import EventBus
+from bayle.session.plans import PromptBroker
+from bayle.views.common import Choose
 
 PROGRESS_INTERVAL = 0.1  # seconds: at most 10 progress events a second per job
 
@@ -36,9 +38,16 @@ def current_context() -> JobContext | None:
 class JobContext:
     """Handed to the work: report progress and prompts, look at the cancel token."""
 
-    def __init__(self, job_id: str, report: Callable[[str, dict], None], clock: Callable[[], float], interval: float):
+    def __init__(
+        self,
+        job_id: str,
+        report: Callable[[str, dict], None],
+        clock: Callable[[], float],
+        interval: float,
+        prompts: PromptBroker | None = None,
+    ):
         self.job_id = job_id
-        self._report, self._clock, self._interval = report, clock, interval
+        self._report, self._clock, self._interval, self._prompts = report, clock, interval, prompts
         self._cancel = threading.Event()
         self._last: float | None = None
 
@@ -49,7 +58,9 @@ class JobContext:
         if self._cancel.is_set():
             raise Cancelled()
 
-    def progress(self, done: float | None = None, total: float | None = None, label: str = "") -> None:
+    def progress(
+        self, done: float | None = None, total: float | None = None, label: str = "", detail: dict | None = None
+    ) -> None:
         """Coalesced to one event per interval (the final step, done >= total, always passes).
         shortcut: a step skipped by coalescing is not sent later; the next one (or the end) carries the state."""
         now = self._clock()
@@ -57,12 +68,20 @@ class JobContext:
         if self._last is not None and now - self._last < self._interval and not final:
             return
         self._last = now
-        self._report("progress", {"done": done, "total": total, "label": label})
+        self._report(
+            "progress", {"done": done, "total": total, "label": label, **({"detail": detail} if detail else {})}
+        )
 
     def prompt(self, data: dict[str, Any]) -> None:
-        """Ask the client something mid-job (never dropped).
-        shortcut: answers are not routed yet (plan/execute covers most flows); add the answer route with the launch flow."""
+        """Tell the client something mid-job that wants no answer (never dropped)."""
         self._report("prompt", dict(data))
+
+    def ask(self, words: Choose, timeout: float | None = None, default: str = "cancel") -> str:
+        """Ask the client which way to go and wait for the key it answers with (JobManager.prompts.answer, or
+        POST /v1/prompts/{id}). `default` when the timeout passes or the job is cancelled meanwhile."""
+        if self._prompts is None:
+            return default
+        return self._prompts.wait(words, timeout, default, self.job_id, self.cancelled)
 
 
 @dataclass(frozen=True)
@@ -115,14 +134,18 @@ class JobManager:
         spawn: Callable[[Callable[[], None], str | None], None] | None = None,
         game_running: Callable[[], bool] | None = None,
         external_busy: Callable[[], bool] | None = None,
+        observer: Callable[[str, dict, str | None], None] | None = None,
         progress_interval: float = PROGRESS_INTERVAL,
         keep: int = 50,
     ):
         """spawn: how work gets a thread (Runner's; tests pass a synchronous one). game_running: the writes gate.
-        keep: how many finished jobs get() still knows."""
+        keep: how many finished jobs get() still knows. observer(type, data, job_id): called on the emitting thread
+        before the event reaches the bus, so state it updates is current when a client reads after the event."""
         self.bus = bus or EventBus()
         self._clock, self._game_running, self._interval, self._keep = clock, game_running, progress_interval, keep
         self._external_busy = external_busy  # work that runs outside this manager (the window's own jobs)
+        self._observer = observer
+        self.prompts = PromptBroker(self._publish_prompt)
         self._runner = service_jobs.Runner(self._on_event, spawn)
         self._lock = threading.Lock()
         self._records: dict[str, _Record] = {}
@@ -132,28 +155,39 @@ class JobManager:
 
     # ------------------------------------------------------------------ start
     def start(
-        self, work: Callable[[JobContext], Any], *, title: str = "Job", writes: bool = True, quiet: bool = False
+        self,
+        work: Callable[[JobContext], Any],
+        *,
+        title: str = "Job",
+        writes: bool = True,
+        external: bool = False,
+        while_game_runs: bool = False,
+        quiet: bool = False,
     ) -> str:
-        """Run work(ctx) on a worker; return the job id. quiet: the client speaks for the job itself (its own words
-        when it ends), so a window need not announce it. Raises Busy (writes only) while another writing job runs or
-        the game is running. Whatever work returns is the result (a JobResult is used as it is); an exception ends the
+        """Run work(ctx) on a worker; return the job id. Raises Busy (writes only) while another writing job runs or
+        the game is running (while_game_runs: this job may, like clearing leftover processes). external: the caller
+        is the outside work external_busy counts (the Launch flow), so that count does not refuse it. quiet: the client
+        speaks for the job itself (its own words when it ends), so a window need not announce it. Whatever work
+        returns is the result (a JobResult is used as it is); an exception ends the
         job as failed/cancelled and never escapes."""
         with self._lock:
             if writes:
-                if self._game_running is not None and self._game_running():
+                if not while_game_runs and self._game_running is not None and self._game_running():
                     raise Busy("The game is running.", {"reason": "game_running"})
                 if self._writer is not None:
                     raise Busy("Another operation is running.", {"reason": "job", "job_id": self._writer})
-                if self._external_busy is not None and self._external_busy():
+                if not external and self._external_busy is not None and self._external_busy():
                     raise Busy("Another operation is running.", {"reason": "job"})
             self._count += 1
             job_id = f"j{self._count}"
-            ctx = JobContext(job_id, lambda t, d: self._progress[job_id]((job_id, t, d)), self._clock, self._interval)
+            ctx = JobContext(
+                job_id, lambda t, d: self._progress[job_id]((job_id, t, d)), self._clock, self._interval, self.prompts
+            )
             self._records[job_id] = _Record(job_id, title, ctx)
             if writes:
                 self._writer = job_id
             self._forget_old()
-        self.bus.publish("started", {"title": title, **({"quiet": True} if quiet else {})}, job_id)
+        self._emit("started", {"title": title, **({"quiet": True} if quiet else {})}, job_id)
 
         def run(progress: service_jobs.Progress) -> tuple[str, JobResult]:
             self._progress[job_id] = progress
@@ -174,11 +208,19 @@ class JobManager:
         return job_id
 
     def start_logged(
-        self, job: Callable[[Any, Locations], Any], launch: Any, loc: Locations, title: str = "Job", writes: bool = True
+        self,
+        job: Callable[[Any, Locations], Any],
+        launch: Any,
+        loc: Locations,
+        title: str = "Job",
+        writes: bool = True,
+        **gates: bool,
     ) -> str:
         """An old-style logged job (services.jobs.run_job_result): its log file, jobs-index record and undo record
         stay as they were, and its lines also reach the bus as log events."""
-        return self.start(lambda _ctx: service_jobs.run_job_result(job, launch, loc, title), title=title, writes=writes)
+        return self.start(
+            lambda _ctx: service_jobs.run_job_result(job, launch, loc, title), title=title, writes=writes, **gates
+        )
 
     # ------------------------------------------------------------------ facts
     @property
@@ -213,7 +255,7 @@ class JobManager:
             if type == "progress":
                 with self._lock:
                     self._records[job_id].progress = data
-            self.bus.publish(type, data, job_id)
+            self._emit(type, data, job_id)
         else:
             job_id, result = event.value
             self._finish(job_id, result)
@@ -230,10 +272,22 @@ class JobManager:
             if self._writer == job_id:
                 self._writer = None
         if result.state == "done":
-            self.bus.publish("finished", {"result": result.result, "undo": result.undo}, job_id)
+            self._emit("finished", {"result": result.result, "undo": result.undo}, job_id)
         else:
             data = {"error": _error_data(result.error), "unexpected": result.unexpected}
-            self.bus.publish(result.state == "cancelled" and "cancelled" or "failed", data, job_id)
+            self._emit(result.state == "cancelled" and "cancelled" or "failed", data, job_id)
+
+    def _emit(self, type: str, data: dict, job_id: str | None) -> None:
+        if self._observer is not None:
+            try:
+                self._observer(type, data, job_id)
+            except Exception:  # an observer never stops a job
+                run_logging.get_logger("job").exception("a job observer failed")
+        self.bus.publish(type, data, job_id)
+
+    def _publish_prompt(self, data: dict) -> None:
+        data = dict(data)
+        self._emit("prompt", data, data.pop("job_id", None))
 
     def _forget_old(self) -> None:
         over = len(self._records) - self._keep

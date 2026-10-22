@@ -61,17 +61,15 @@ def report_exception(exc_type, exc, tb, where="launcher"):
     """Every uncaught error, in the UI thread or a worker: to logs/launcher.log with its traceback (and the running
     job's log), then a message box."""
     run_logging.log_crash(exc_type, exc, tb, where)
-    if NOTIFY is not None:
-        try:
-            NOTIFY(TITLE, "Something went wrong:\n" + str(exc) + "\n\nDetails are in logs\\launcher.log")
-        except Exception:
-            pass
+    try:  # whoever listens for notices (the window's toast) shows it
+        run_logging.notice(f"{TITLE}: Something went wrong:\n{exc}\n\nDetails are in logs\\launcher.log")
+    except Exception:
+        pass
 
 
 TITLE = "Bayle"
 VERSION = __version__
 EXE_NAME = "RoundtableSouls"
-NOTIFY = None  # the window sets this to a function (title, message) that shows an error to the user
 
 
 def logo_kind(theme_dark: bool, logo: str = "auto") -> str:

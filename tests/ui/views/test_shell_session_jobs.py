@@ -1,5 +1,5 @@
-"""A page follows a session job to its end through the shell: once, whether it asks before or after the job ended;
-a quiet job (the page words its end) gets no generic "done" toast, a failed one always says so."""
+"""A page follows a session job to its end through the shell: once it has ended (at once when it already has); a quiet
+job (the page words its end) gets no generic "done" toast, a failed one always says so."""
 
 import time
 
@@ -23,27 +23,17 @@ def host(qt_app, tmp_path):
     return ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
 
 
-def test_a_follower_registered_before_the_end_is_called_once_with_the_result(host):
-    ended, toasts = [], []
+def test_a_follower_gets_the_snapshot_whether_it_asks_before_or_after_the_end(host):
+    toasts, ended = [], []
     host.notifier.toastRequested.connect(lambda text, error: toasts.append(text))
     job = host.session.start(lambda ctx: {"made": 1}, title="Making it...", quiet=True)
-    host.follow_job(job, lambda ok, data: ended.append((ok, data["result"])))
-    assert settled(lambda: ended)
-    assert ended == [(True, {"made": 1})] and toasts == []  # quiet: the page words it, no generic toast
-    assert settled(lambda: not host.state.busy)
+    host.follow_job(job, lambda snap: ended.append(snap.result))
+    assert settled(lambda: ended) and ended == [{"made": 1}] and toasts == []  # quiet: no generic toast
+    host.follow_job(job, lambda snap: ended.append(snap.state))  # after the end: at once
+    assert ended[-1] == "done"
 
 
-def test_a_follower_registered_after_the_end_still_hears_how_it_ended(host):
-    job = host.session.start(lambda ctx: {"made": 2}, title="Making it...", quiet=True)
-    assert settled(lambda: host.session.jobs.get(job).state == "done" and job in host._ended)
-    ended = []
-    host.follow_job(job, lambda ok, data: ended.append((ok, data["result"])))
-    assert ended == [(True, {"made": 2})]
-    host.follow_job(job, lambda ok, data: ended.append("again"))  # once only
-    assert ended == [(True, {"made": 2})]
-
-
-def test_a_job_that_is_not_quiet_says_done_and_a_failed_one_says_why_it_stopped(host):
+def test_a_job_that_is_not_quiet_says_done_and_a_failed_one_says_why(host):
     toasts = []
     host.notifier.toastRequested.connect(lambda text, error: toasts.append((text, error)))
     host.session.start(lambda ctx: None, title="Plain job...")
@@ -54,5 +44,5 @@ def test_a_job_that_is_not_quiet_says_done_and_a_failed_one_says_why_it_stopped(
 
     ended = []
     job = host.session.start(boom, title="Failing...", quiet=True)
-    host.follow_job(job, lambda ok, data: ended.append((ok, data["error"]["code"])))
-    assert settled(lambda: ended) and ended == [(False, "unexpected")]
+    host.follow_job(job, lambda snap: ended.append((snap.state, snap.error.code)))
+    assert settled(lambda: ended) and ended == [("failed", "unexpected")]

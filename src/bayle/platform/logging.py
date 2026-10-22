@@ -84,7 +84,6 @@ def use_job_store(store: JobStore | None) -> None:
 
 _current: contextvars.ContextVar[Job | None] = contextvars.ContextVar("roundtable_job", default=None)
 _app_handler: logging.Handler | None = None
-_sink_handler: logging.Handler | None = None
 _standalone: Job | None = None  # a job started outside run_job (the command line): closed at exit
 _dir_override: Path | None = None
 _serial = itertools.count(1)  # job ids stay unique within a process, however fast jobs follow each other
@@ -163,7 +162,7 @@ def setup_logging(level: str = "INFO", console: bool = True, directory: Path | N
     root.setLevel(logging.DEBUG)  # handlers decide what they keep
     root.propagate = False
     for h in list(root.handlers):
-        if h is not _sink_handler and not isinstance(h, _JobHandler):
+        if not isinstance(h, (_JobHandler, _ScopeHandler)):
             root.removeHandler(h)
             h.close()
     if console and sys.stderr is not None:  # a windowed exe has no console
@@ -202,7 +201,7 @@ def shutdown() -> None:
         _standalone = None
     root = get_logger()
     for h in list(root.handlers):
-        if h is not _sink_handler:
+        if not isinstance(h, _ScopeHandler):
             root.removeHandler(h)
             h.close()
     _app_handler = None
@@ -766,7 +765,7 @@ def start_log(title: str, game: str) -> None:
         start_standalone(title, game=game)
 
 
-# ----------------------------------------------------------------------------- the window
+# ----------------------------------------------------------------------------- clients
 def _sink_args(record: logging.LogRecord) -> tuple[str, str]:
     """(text, level word) of a record for a window or client sink."""
     level = "error" if record.levelno >= logging.ERROR else "warning" if record.levelno >= logging.WARNING else "info"
@@ -774,24 +773,6 @@ def _sink_args(record: logging.LogRecord) -> tuple[str, str]:
     if record.exc_info:
         text += "\n" + logging.Formatter().formatException(record.exc_info)
     return text, level
-
-
-class _SinkHandler(logging.Handler):
-    """Lines for the window: the current job's, and warnings and errors from anywhere."""
-
-    def __init__(self, sink: Callable[[str, str], None]) -> None:
-        super().__init__(logging.INFO)
-        self.sink = sink
-
-    def emit(self, record: logging.LogRecord) -> None:
-        if getattr(record, "shown", False):
-            return  # the window wrote it itself (see log_shown)
-        if _current.get() is None and record.levelno < logging.WARNING:
-            return
-        try:
-            self.sink(*_sink_args(record))
-        except Exception:  # noqa: BLE001 - a broken sink must never stop a job
-            pass
 
 
 _scope_sink: contextvars.ContextVar[Callable[[str, str], None] | None] = contextvars.ContextVar(
@@ -818,8 +799,8 @@ class _ScopeHandler(logging.Handler):
 
 @contextmanager
 def job_log_scope(sink: Callable[[str, str], None]) -> Iterator[None]:
-    """For the code run inside (this thread and context): every log line also goes to sink(message, level). Unlike
-    attach_sink there is no process-wide slot to replace, so each job (or test) has its own subscriber. Lines from
+    """For the code run inside (this thread and context): every log line also goes to sink(message, level). Each job (or
+    test) has its own subscriber, there is no process-wide slot. Lines from
     threads the job starts are not seen (a new thread has a new context), as with the current job."""
     global _scope_handler
     with _lock:
@@ -831,24 +812,6 @@ def job_log_scope(sink: Callable[[str, str], None]) -> Iterator[None]:
         yield
     finally:
         _scope_sink.reset(token)
-
-
-def attach_sink(sink: Callable[[str, str], None]) -> None:
-    """Send lines to a callable (message, level) as well: the window's log pane. Replaces any earlier sink. Compat
-    for the Qt window; new code uses job_log_scope."""
-    global _sink_handler
-    root = get_logger()
-    if _sink_handler is not None:
-        root.removeHandler(_sink_handler)
-    _sink_handler = _SinkHandler(sink)
-    root.addHandler(_sink_handler)
-
-
-def detach_sink() -> None:
-    global _sink_handler
-    if _sink_handler is not None:
-        get_logger().removeHandler(_sink_handler)
-        _sink_handler = None
 
 
 _notice_sink: Callable[[str], None] | None = None

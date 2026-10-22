@@ -40,6 +40,7 @@ class Plan:
     id: str
     words: Prompt
     expires_at: float  # on the store's clock
+    destructive: bool = False  # the change loses something (a replaced save): a window styles its button for it
 
     def to_dict(self) -> dict:
         return {"id": self.id, "expires_at": self.expires_at, "prompt": prompt_dict(self.words)}
@@ -53,6 +54,7 @@ class Proposal:
     words: Prompt
     run: Callable[[Answer], Any]
     stale: Callable[[], object] | None = None
+    destructive: bool = False
 
 
 @dataclass
@@ -70,12 +72,18 @@ class PlanStore:
         self._entries: dict[str, _Entry] = {}
         self._ids = itertools.count(1)
 
-    def add(self, words: Prompt, run: Callable[[Answer], Any], stale: Callable[[], object] | None = None) -> Plan:
+    def add(
+        self,
+        words: Prompt,
+        run: Callable[[Answer], Any],
+        stale: Callable[[], object] | None = None,
+        destructive: bool = False,
+    ) -> Plan:
         """Keep a question and what to do with its answer. stale: a cheap read of what the plan was made from (a
         profile's mtime, a version); execute() refuses when it no longer equals what it was now."""
         with self._lock:
             self._drop_expired()
-            plan = Plan(f"p{next(self._ids)}", words, self._clock() + self._ttl)
+            plan = Plan(f"p{next(self._ids)}", words, self._clock() + self._ttl, destructive)
             self._entries[plan.id] = _Entry(plan, run, stale, None if stale is None else stale())
         return plan
 
@@ -115,40 +123,59 @@ class PlanStore:
 
 
 class PromptBroker:
-    """A job's question as an event and the answer as a call. publish(data) sends the prompt out (a JobContext.prompt
-    or the bus); answer(prompt_id, key) resolves it. ask() has the shape of the Launch flow's Ports.ask."""
+    """A job's question as an event and the answer as a call. publish(data) sends the prompt out (the data carries
+    prompt_id, the words, and job_id when a job asks); answer(prompt_id, key) resolves it. ask() has the shape of the
+    Launch flow's Ports.ask; wait() blocks a job thread (JobContext.ask)."""
 
     def __init__(self, publish: Callable[[dict], None]):
         self._publish = publish
         self._lock = threading.Lock()
-        self._open: dict[str, Callable[[str], None]] = {}
+        self._open: dict[str, tuple[Choose, Callable[[str], None]]] = {}
         self._ids = itertools.count(1)
 
-    def ask(self, words: Choose, on_answer: Callable[[str], None]) -> str:
+    def ask(self, words: Choose, on_answer: Callable[[str], None], job_id: str | None = None) -> str:
         with self._lock:
             prompt_id = f"q{next(self._ids)}"
-            self._open[prompt_id] = on_answer
-        self._publish({"prompt_id": prompt_id, **prompt_dict(words)})
+            self._open[prompt_id] = (words, on_answer)
+        extra = {} if job_id is None else {"job_id": job_id}
+        self._publish({"prompt_id": prompt_id, **extra, **prompt_dict(words)})
         return prompt_id
+
+    def words(self, prompt_id: str) -> Choose | None:
+        """The question still open under prompt_id (a window shows it in its own way)."""
+        with self._lock:
+            got = self._open.get(prompt_id)
+        return None if got is None else got[0]
 
     def answer(self, prompt_id: str, key: str) -> bool:
         """False when nobody is waiting for it (unknown or already answered)."""
         with self._lock:
-            call = self._open.pop(prompt_id, None)
-        if call is None:
+            got = self._open.pop(prompt_id, None)
+        if got is None:
             return False
-        call(key)
+        got[1](key)
         return True
 
-    def wait(self, words: Choose, timeout: float | None = None, default: str = "cancel") -> str:
-        """Ask and block the calling (job) thread for the answer; `default` when the timeout passes."""
+    def wait(
+        self,
+        words: Choose,
+        timeout: float | None = None,
+        default: str = "cancel",
+        job_id: str | None = None,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> str:
+        """Ask and block the calling (job) thread for the answer; `default` when the timeout passes or the job is
+        cancelled meanwhile."""
         got: list[str] = []
         done = threading.Event()
-        prompt_id = self.ask(words, lambda key: (got.append(key), done.set()))
-        if not done.wait(timeout):
-            with self._lock:
-                self._open.pop(prompt_id, None)
-            return default
+        prompt_id = self.ask(words, lambda key: (got.append(key), done.set()), job_id)
+        waited = 0.0
+        while not done.wait(0.1):
+            waited += 0.1
+            if (cancelled is not None and cancelled()) or (timeout is not None and waited >= timeout):
+                with self._lock:
+                    self._open.pop(prompt_id, None)
+                return default
         return got[0]
 
     def pending(self) -> int:

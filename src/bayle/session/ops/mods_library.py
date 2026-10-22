@@ -86,6 +86,7 @@ def library_use_choices(call: Call, p: EntryRef) -> PickOffer:
 
 class UseParams(EntryRef):
     targets: list[int]  # the ticked rows of library_use_choices
+    name: str = ""  # the mod's name, for the job's title
 
 
 def _check_use(call: Call, p: UseParams) -> None:
@@ -99,7 +100,7 @@ def _check_use(call: Call, p: UseParams) -> None:
     result=Done,
     kind="job",
     writes=True,
-    title=lambda c, p: tr("Linking {name}...").format(name=_ref(c, p)[1]),
+    title=lambda p: tr("Linking {name}...").format(name=p.name),
     check=_check_use,
 )
 def library_use(call: Call, p: UseParams) -> Done:

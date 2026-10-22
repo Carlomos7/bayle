@@ -29,6 +29,9 @@ _STATUS = {
     "plan_stale": 409,
     "invalid_params": 422,
     "no_game": 409,
+    "no_shell": 409,
+    "unknown_prompt": 404,
+    "cannot_launch": 409,
     "cancelled": 409,
     "too_many_subscribers": 429,
 }

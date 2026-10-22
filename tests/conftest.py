@@ -207,7 +207,7 @@ def clean_logging(isolated_settings):
     if run_logging._standalone is not None:
         run_logging.end_job(run_logging._standalone)
         run_logging._standalone = None
-    run_logging.detach_sink()
+    run_logging.attach_notice_sink(None)
     run_logging._dir_override = None
 
 

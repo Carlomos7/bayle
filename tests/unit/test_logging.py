@@ -83,11 +83,11 @@ def test_an_unwritable_logs_folder_never_breaks_anything(tmp_path, monkeypatch):
     monkeypatch.setattr(rl, "_dir_override", blocker / "logs")
     rl.setup_logging(console=False)
     got = []
-    rl.attach_sink(lambda m, lvl: got.append((m, lvl)))
-    job = rl.begin_job("Play")
-    run_logging.log("steam: running")
-    rl.attachment("me3")
-    rl.end_job(job)
+    with rl.job_log_scope(lambda m, lvl: got.append((m, lvl))):
+        job = rl.begin_job("Play")
+        run_logging.log("steam: running")
+        rl.attachment("me3")
+        rl.end_job(job)
     rl.shutdown()
     assert job.path is None and ("steam: running", "info") in got and job.outcome == "done"
     assert rl.read_jobs() == []
@@ -148,25 +148,25 @@ def test_lines_from_other_threads_stay_out_of_a_job(logs):
     assert "launching me3" in text and "update check" not in text
 
 
-def test_the_window_gets_the_jobs_lines_and_warnings_from_anywhere(logs):
+def test_a_scope_gets_the_lines_logged_inside_it_only(logs):
     got = []
-    rl.attach_sink(lambda m, lvl: got.append((m, lvl)))
-    run_logging.log("background detail")  # no job: not for the pane
-    run_logging.log("warning: Steam is offline")  # a warning from anywhere is
-    job = rl.begin_job("Repair")
-    run_logging.log("repaired 2 saves")
-    run_logging.log("error: one save is locked")
-    rl.end_job(job)
+    run_logging.log("background detail")  # outside any scope: not for the client
+    with rl.job_log_scope(lambda m, lvl: got.append((m, lvl))):
+        run_logging.log("warning: Steam is offline")
+        job = rl.begin_job("Repair")
+        run_logging.log("repaired 2 saves")
+        run_logging.log("error: one save is locked")
+        rl.end_job(job)
     assert ("background detail", "info") not in got
     assert ("warning: Steam is offline", "warning") in got
     assert ("repaired 2 saves", "info") in got and ("error: one save is locked", "error") in got
 
 
 def test_a_broken_sink_never_stops_a_job(logs):
-    rl.attach_sink(lambda m, lvl: 1 / 0)
-    job = rl.begin_job("Play")
-    run_logging.log("still fine")
-    rl.end_job(job)
+    with rl.job_log_scope(lambda m, lvl: 1 / 0):
+        job = rl.begin_job("Play")
+        run_logging.log("still fine")
+        rl.end_job(job)
     assert "still fine" in job_text(job)
 
 
@@ -356,8 +356,8 @@ def test_a_crash_goes_to_launcher_log_and_the_running_job(logs):
 def test_lines_the_window_shows_itself_are_kept_but_not_echoed(logs):
     rl.setup_logging(console=False)
     got = []
-    rl.attach_sink(lambda m, lvl: got.append(m))
-    rl.log_shown("warning: password changed in ersc_settings.ini")
+    with rl.job_log_scope(lambda m, lvl: got.append(m)):
+        rl.log_shown("warning: password changed in ersc_settings.ini")
     rl.shutdown()
     assert got == [] and "password changed" in (logs / rl.APP_LOG).read_text(encoding="utf-8")
 

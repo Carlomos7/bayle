@@ -15,9 +15,12 @@ def test_recovery_steps_order_and_calls(monkeypatch):
     )
     loc = SimpleNamespace(game="g", save_files=lambda: [Path("a/1.sl2"), Path("a/2.sl2"), Path("b/1.sl2")])
 
-    steps = startup.recovery_steps(loc, Path("p.json"))
+    steps = startup.recovery_steps(lambda: loc, lambda: Path("p.json"))
     assert [s.name for s in steps] == ["run_health", "interrupted_installs", "legacy_save_folders"]
     for s in steps:
         s.fn()
     assert calls == ["runs", ("mods", Path("p.json")), ("adopt", Path("a")), ("adopt", Path("b"))]
-    assert [s.name for s in startup.recovery_steps(loc)] == ["run_health", "legacy_save_folders"]
+    calls.clear()
+    for s in startup.recovery_steps(lambda: loc):  # no profile: that step does nothing
+        s.fn()
+    assert ("mods", Path("p.json")) not in calls

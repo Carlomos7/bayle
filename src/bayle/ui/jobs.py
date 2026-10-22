@@ -68,6 +68,7 @@ class Jobs(QObject):
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self._calls: dict[int, tuple[Callable[[Any], None] | None, Callable[[Any], None] | None]] = {}
+        self._lock = threading.RLock()  # start() may be called from a worker thread (the shell's job observer)
         self._arrived.connect(self._deliver)
         self.runner = jobs.Runner(self._arrived.emit, lambda run, name: run_async(run, name))
 
@@ -80,24 +81,27 @@ class Jobs(QObject):
     ) -> int:
         """Run work(progress) on a worker thread; on_progress gets each step and on_result the return value, both on
         the UI thread."""
-        task = self.runner.start(work, name=name)
-        # Events are delivered from the event loop, which cannot run before this method returns: none is missed.
-        self._calls[task] = (on_progress, on_result)
+        with self._lock:  # an event is delivered only once the callbacks are in place
+            task = self.runner.start(work, name=name)
+            self._calls[task] = (on_progress, on_result)
         return task
 
     def start_job(self, job, launch, loc, title: str, on_done: Callable[[jobs.Outcome], None]) -> int:
         """A logged job (jobs.run_job); on_done gets its Outcome on the UI thread."""
-        task = self.runner.start_job(job, launch, loc, title)
-        self._calls[task] = (None, on_done)
+        with self._lock:
+            task = self.runner.start_job(job, launch, loc, title)
+            self._calls[task] = (None, on_done)
         return task
 
     def _deliver(self, event: jobs.Event) -> None:
-        on_progress, on_result = self._calls.get(event.task, (None, None))
+        with self._lock:
+            on_progress, on_result = self._calls.get(event.task, (None, None))
+            if event.kind != jobs.PROGRESS:
+                self._calls.pop(event.task, None)
         if event.kind == jobs.PROGRESS:
             if on_progress is not None:
                 on_progress(event.value)
             return
-        self._calls.pop(event.task, None)
         if on_result is not None:
             on_result(event.value)
 

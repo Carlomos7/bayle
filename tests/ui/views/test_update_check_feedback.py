@@ -5,8 +5,8 @@ import time
 import pytest
 from PySide6.QtCore import QCoreApplication
 
+from bayle.session.shell import updates as updates_mod
 from bayle.ui import self_test
-from bayle.ui.launcher import updates as updates_mod
 from bayle.ui.launcher.adapter import ShellAdapter
 from bayle.ui.launcher.host import ShellHost
 from bayle.updates import feed

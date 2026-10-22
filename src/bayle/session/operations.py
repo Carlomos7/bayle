@@ -250,6 +250,12 @@ class Session:
             raise OperationError("no_plans", "This session takes no plan answers.")
         return self.plans.answer(token, answers)
 
+    def answer_prompt(self, prompt_id: str, key: str) -> None:
+        """Answer a question a running job (or the Launch flow) asked on the bus. Raises unknown_prompt when nobody
+        waits for it any more."""
+        if not self.jobs.prompts.answer(prompt_id, key):
+            raise OperationError("unknown_prompt", "That question is no longer open.", {"prompt_id": prompt_id})
+
     def startup(self) -> list[StepReport]:
         """Run the start-up steps in order, once the process is set up and before clients read. A failing step is
         reported and logged, never stops the next."""

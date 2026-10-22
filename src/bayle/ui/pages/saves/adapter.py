@@ -207,8 +207,6 @@ class SavesAdapter(QObject):
         except Exception:
             names = {}
         files = loc.save_files()
-        for d in {p.parent for p in files}:  # older tools may still drop backup folders beside the saves
-            save_backups.adopt_legacy_save_folders(d, game, again=True)
         infos = [saves_service.save_info(p, game, loc=loc) for p in files]
         libs = {str(f): save_library.load(f) for f in sorted({p.parent for p in files})}
         try:

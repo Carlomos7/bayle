@@ -20,8 +20,8 @@ class Problem(BaseModel):
 
 
 # ---- events: the envelope of every SSE message is {seq, job_id, type, data}; `type` picks the data shape.
-# Declared here so the OpenAPI snapshot (and the generated client) carry the union. Push types added later
-# (game.state, invalidated...) join the union; until then the bus may carry them and the stream passes them as they are.
+# Declared here so the OpenAPI snapshot (and the generated client) carry the union. Push types (no job_id) tell a client
+# what changed outside any job: game.state, invalidated (re-read these pages), notice (say this), navigate.
 class _Envelope(BaseModel):
     seq: int
     job_id: str | None = None
@@ -64,6 +64,27 @@ class ResyncData(BaseModel):
     seq: int  # the newest seq
 
 
+class GameStateData(BaseModel):
+    game: str  # the game in use
+    running: bool
+    steam_problem: bool = False  # Steam runs but is not signed in
+    dead_shells: int = 0  # leftover game processes
+
+
+class InvalidatedData(BaseModel):
+    what: list[str]  # shell | pages | updates | game: read those again (GET /v1/pages/...)
+
+
+class NoticeData(BaseModel):
+    text: str
+    error: bool = False
+    details: bool = False  # the job log has more
+
+
+class NavigateData(BaseModel):
+    page: str
+
+
 class StartedEvent(_Envelope):
     type: Literal["started"] = "started"
     data: StartedData
@@ -104,8 +125,39 @@ class ResyncEvent(_Envelope):
     data: ResyncData
 
 
+class GameStateEvent(_Envelope):
+    type: Literal["game.state"] = "game.state"
+    data: GameStateData
+
+
+class InvalidatedEvent(_Envelope):
+    type: Literal["invalidated"] = "invalidated"
+    data: InvalidatedData
+
+
+class NoticeEvent(_Envelope):
+    type: Literal["notice"] = "notice"
+    data: NoticeData
+
+
+class NavigateEvent(_Envelope):
+    type: Literal["navigate"] = "navigate"
+    data: NavigateData
+
+
 ApiEvent = Annotated[
-    StartedEvent | ProgressEvent | LogEvent | PromptEvent | FinishedEvent | FailedEvent | CancelledEvent | ResyncEvent,
+    StartedEvent
+    | ProgressEvent
+    | LogEvent
+    | PromptEvent
+    | FinishedEvent
+    | FailedEvent
+    | CancelledEvent
+    | ResyncEvent
+    | GameStateEvent
+    | InvalidatedEvent
+    | NoticeEvent
+    | NavigateEvent,
     Field(discriminator="type"),
 ]
 
@@ -142,3 +194,11 @@ class PlanAnswer(BaseModel):
 
 class PlanExecuted(BaseModel):
     job_id: str | None = None  # the job the plan started (null when cancelled)
+
+
+class PromptAnswer(BaseModel):
+    choice: str  # the key of one of the prompt's choices
+
+
+class PromptAnswered(BaseModel):
+    ok: bool = True

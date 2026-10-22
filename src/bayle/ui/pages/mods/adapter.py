@@ -265,14 +265,14 @@ class ModsAdapter(QObject):
 
     def _build(self, snap: dict):
         profile, launch, loc = snap["profile"], snap["launch"], snap["loc"]
-        settings, game, recover = snap["settings"], snap["game"], not snap["busy"]
+        settings, game = snap["settings"], snap["game"]
         if profile is None or not Path(profile).is_file():
             return None, None, None, None, (), (False, None, False)
         try:
             self._seamless_found = coop_service.game_folder_seamless(launch) if launch is not None else None
         except Exception:  # a game folder that cannot be read: nothing to offer
             self._seamless_found = None
-        recovered = tuple(mod_service.recover_interrupted(profile, timeout=0.5)) if recover else ()
+        recovered: tuple[str, ...] = ()  # interrupted changes are put right by the session's start-up, not by a read
         facts = profile_mods.page_facts(profile, loc=loc, settings=settings)
         try:
             scan = mod_overview.overview(Path(profile), loc=loc)

@@ -3,6 +3,7 @@ installs, adopt older save folders, report unreported game runs. Existing servic
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from bayle.game.locate import Locations
@@ -12,17 +13,26 @@ from bayle.services import run_health
 from bayle.session.operations import StartupStep
 
 
-def recovery_steps(loc: Locations, profile: Path | None = None) -> list[StartupStep]:
-    """Order: reported runs first (they read settings only), then the profile's interrupted install, then saves."""
+def recover_profile(profile: Path | None) -> list[str]:
+    """Finish an interrupted change in the profile (what it says it did), or nothing when there is no profile."""
+    return [] if profile is None else list(mod_service.recover_interrupted(profile, timeout=0.5))
+
+
+def recovery_steps(
+    loc: Callable[[], Locations], profile: Callable[[], Path | None] = lambda: None
+) -> list[StartupStep]:
+    """Order: reported runs first (they read settings only), then the profile's interrupted install, then saves.
+    loc and profile are asked when a step runs, so they follow the game and profile in use."""
 
     def adopt() -> list[str]:
-        folders = sorted({p.parent for p in loc.save_files()})
+        here = loc()
+        folders = sorted({p.parent for p in here.save_files()})
         for d in folders:
-            save_backups.adopt_legacy_save_folders(d, loc.game, again=True)
+            save_backups.adopt_legacy_save_folders(d, here.game, again=True)
         return [str(d) for d in folders]
 
-    steps = [StartupStep("run_health", run_health.recover_all)]
-    if profile is not None:
-        steps.append(StartupStep("interrupted_installs", lambda: mod_service.recover_interrupted(profile, timeout=0.5)))
-    steps.append(StartupStep("legacy_save_folders", adopt))
-    return steps
+    return [
+        StartupStep("run_health", lambda: run_health.recover_all()),
+        StartupStep("interrupted_installs", lambda: recover_profile(profile())),
+        StartupStep("legacy_save_folders", adopt),
+    ]

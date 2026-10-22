@@ -33,7 +33,7 @@ def test_the_page_reads_opens_saves_and_pastes_through_the_session(tmp_path, mon
     )
     page = ModConfigsAdapter(host, notifier)  # pyright: ignore[reportArgumentType]
     page.refresh()
-    assert page.hasProfile and page.nodes[0]["key"] == "seamless"
+    assert page.hasProfile and page.nodes[0]["key"] == "seamless"  # pyright: ignore[reportIndexIssue]
     assert page.fileKind == "seamless" and page.selectedFile == str(ini)
     page.setValue("PASSWORD", "cooppassword", "new")
     assert page.dirty

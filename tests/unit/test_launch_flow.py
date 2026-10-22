@@ -8,8 +8,8 @@ from types import SimpleNamespace
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog
 from bayle.services import play as core
-from bayle.ui.launcher import launch
-from bayle.ui.launcher.launch import Ask, LaunchFlow, Services
+from bayle.session.shell import launch
+from bayle.session.shell.launch import Ask, LaunchFlow, Services
 from bayle.views.topbar import OFFLINE, PROFILE, VANILLA
 
 

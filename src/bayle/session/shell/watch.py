@@ -1,6 +1,6 @@
 """The game watch (technical specification §8.10: "the game watch drives the running state everywhere"): every few
 seconds, on a worker thread, whether the game runs, Steam's state and the leftover game processes; each answer is
-handed to the shell on the UI thread. "Running" is decided by threads, not memory (platform/paths.py): a starting
+handed to the shell (on the background's thread). "Running" is decided by threads, not memory (platform/paths.py): a starting
 game is small, a dead shell has none.
 
 Steam signed out: Steam running but not signed in for SIGN_IN_WAIT seconds is said (earlier it is just starting up)."""
@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 from bayle.services.play import steam_state
 from bayle.services.saves import dead_shells_count
-from bayle.ui.jobs import Jobs
+from bayle.session.shell.background import Background
 
 INTERVAL = 5  # seconds between looks
 SIGN_IN_WAIT = 20  # seconds Steam may be running and not signed in before it is called a problem
@@ -22,7 +22,7 @@ SIGN_IN_WAIT = 20  # seconds Steam may be running and not signed in before it is
 class GameWatch:
     def __init__(
         self,
-        jobs: Jobs,
+        jobs: Background,
         locations: Callable[[], object],
         on_running: Callable[[bool], None],
         on_steam: Callable[[bool], None],

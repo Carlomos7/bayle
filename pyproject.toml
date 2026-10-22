@@ -76,6 +76,7 @@ ignore = ["E501", "E731", "E741", "B008", "B905"]
 
 [tool.pyright]
 include = ["src", "scripts", "tests"]
+extraPaths = ["tests", "tests/unit"]  # what pytest's pythonpath puts on sys.path
 pythonVersion = "3.14"
 typeCheckingMode = "standard"
 # Qt and the dict-shaped save data trip these without pointing at bugs; they stay visible as warnings.

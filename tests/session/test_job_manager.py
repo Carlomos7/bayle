@@ -198,6 +198,6 @@ def test_finished_jobs_beyond_keep_are_forgotten(clock):
 
 
 def test_reset_process_globals_clears_the_wiring():
-    run_logging.attach_sink(lambda *_: None)
+    run_logging.attach_notice_sink(lambda _text: None)
     reset_process_globals()
-    assert run_logging._sink_handler is None
+    assert run_logging._notice_sink is None

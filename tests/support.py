@@ -81,3 +81,56 @@ class FakeActivityFacts:
     def mark_seen(self):
         self.seen_at += 1
         return self.seen_at
+
+
+class FakeShellContext:
+    """bayle.session.shell.state.Context over a temporary data folder: no database, no real
+    profile or save folder; settings go to the isolated settings file. What the shell tests build a Shell on."""
+
+    def __init__(self, data_dir: Path):
+        from bayle.config.settings import LauncherSettings
+        from bayle.services.settings import load_settings, save_settings
+
+        self._load = load_settings
+
+        (data_dir / "profiles").mkdir(exist_ok=True)
+        (data_dir / "saves").mkdir(exist_ok=True)
+        self.data_dir = data_dir
+        self.settings = LauncherSettings(
+            me3_profile_dir=str(data_dir / "profiles"), saves_dir=str(data_dir / "saves"), tips_seen=["launch", "rail"]
+        )
+        save_settings(me3_profile_dir=self.settings.me3_profile_dir, saves_dir=self.settings.saves_dir)
+        self.game = catalog.ELDEN_RING
+        self.locations = Locations.from_settings(self.settings, self.game)
+
+    def select_game(self, game):
+        self.game = game
+        self.locations = Locations.from_settings(self.settings, game)
+        return self.locations
+
+    def note_profile_saves(self, names):
+        return self.locations
+
+    def reload_settings(self):
+        self.settings = self._load()
+        return self.settings
+
+    def start_imports(self):
+        return None
+
+
+class InlineBackground:
+    """shell.background.Background that runs work at once on the caller's thread, except the named loops and checks
+    (the game watch, the update and me3 checks), which would loop or ask the network: those are only recorded."""
+
+    def __init__(self, skip=("game-watch", "launcher-update", "me3-facts")):
+        self.skip, self.started = tuple(skip), []
+
+    def start(self, work, on_result=None, on_progress=None, name=None):
+        self.started.append(name)
+        if name in self.skip:
+            return None
+        got = work(on_progress or (lambda _value: None))
+        if on_result is not None:
+            on_result(got)
+        return None

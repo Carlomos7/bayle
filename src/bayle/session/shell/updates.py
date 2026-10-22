@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 from bayle.config.settings import FROZEN, LauncherSettings
 from bayle.platform.text import tr
-from bayle.ui.jobs import Jobs
+from bayle.session.shell.background import Background
 from bayle.updates import apply as updates
 from bayle.updates import feed
 from bayle.views import settings as sp
@@ -22,7 +22,7 @@ from bayle.views import settings as sp
 class UpdateFlow:
     def __init__(
         self,
-        jobs: Jobs,
+        jobs: Background,
         settings: Callable[[], LauncherSettings],
         toast: Callable[[str, str, str], None],  # title, body, "info" | "error" | "ok"
         cannot_update: Callable[[], str],

@@ -1,6 +1,183 @@
 {
   "components": {
     "schemas": {
+      "CancelledEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FailedData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "cancelled",
+            "default": "cancelled",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "CancelledEvent",
+        "type": "object"
+      },
+      "ErrorData": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Details",
+            "type": "object"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorData",
+        "type": "object"
+      },
+      "FailedData": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorData"
+          },
+          "unexpected": {
+            "default": false,
+            "title": "Unexpected",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "FailedData",
+        "type": "object"
+      },
+      "FailedEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FailedData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "failed",
+            "default": "failed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "FailedEvent",
+        "type": "object"
+      },
+      "FinishedData": {
+        "properties": {
+          "result": {
+            "title": "Result"
+          },
+          "undo": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo"
+          }
+        },
+        "title": "FinishedData",
+        "type": "object"
+      },
+      "FinishedEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FinishedData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "finished",
+            "default": "finished",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "FinishedEvent",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "app_version": {
@@ -23,6 +200,369 @@
         ],
         "title": "Health",
         "type": "object"
+      },
+      "Job": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProgressData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "title": "Result"
+          },
+          "state": {
+            "enum": [
+              "running",
+              "done",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "undo": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "state"
+        ],
+        "title": "Job",
+        "type": "object"
+      },
+      "LogData": {
+        "properties": {
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "level"
+        ],
+        "title": "LogData",
+        "type": "object"
+      },
+      "LogEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LogData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "log",
+            "default": "log",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "LogEvent",
+        "type": "object"
+      },
+      "ProgressData": {
+        "properties": {
+          "done": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "title": "ProgressData",
+        "type": "object"
+      },
+      "ProgressEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProgressData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "progress",
+            "default": "progress",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "ProgressEvent",
+        "type": "object"
+      },
+      "PromptEvent": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "prompt",
+            "default": "prompt",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "PromptEvent",
+        "type": "object"
+      },
+      "ResyncData": {
+        "properties": {
+          "oldest": {
+            "title": "Oldest",
+            "type": "integer"
+          },
+          "requested": {
+            "title": "Requested",
+            "type": "integer"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requested",
+          "oldest",
+          "seq"
+        ],
+        "title": "ResyncData",
+        "type": "object"
+      },
+      "ResyncEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResyncData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "resync",
+            "default": "resync",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "ResyncEvent",
+        "type": "object"
+      },
+      "StartedData": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "StartedData",
+        "type": "object"
+      },
+      "StartedEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StartedData"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "started",
+            "default": "started",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "data"
+        ],
+        "title": "StartedEvent",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -38,6 +578,119 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/events": {
+      "get": {
+        "description": "Ordered job events. `id` is the seq, `event` the type. Reconnect with Last-Event-ID to continue.",
+        "operationId": "events",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "last-event-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "itemSchema": {
+                  "properties": {
+                    "data": {
+                      "contentMediaType": "application/json",
+                      "contentSchema": {
+                        "discriminator": {
+                          "mapping": {
+                            "cancelled": "#/components/schemas/CancelledEvent",
+                            "failed": "#/components/schemas/FailedEvent",
+                            "finished": "#/components/schemas/FinishedEvent",
+                            "log": "#/components/schemas/LogEvent",
+                            "progress": "#/components/schemas/ProgressEvent",
+                            "prompt": "#/components/schemas/PromptEvent",
+                            "resync": "#/components/schemas/ResyncEvent",
+                            "started": "#/components/schemas/StartedEvent"
+                          },
+                          "propertyName": "type"
+                        },
+                        "oneOf": [
+                          {
+                            "$ref": "#/components/schemas/StartedEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/ProgressEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/LogEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/PromptEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/FinishedEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/FailedEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/CancelledEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/ResyncEvent"
+                          }
+                        ],
+                        "title": "Streamitem Events"
+                      },
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "retry": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Events"
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health",
@@ -59,6 +712,95 @@
           }
         ],
         "summary": "Health"
+      }
+    },
+    "/v1/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job"
+      }
+    },
+    "/v1/jobs/{job_id}/cancel": {
+      "post": {
+        "description": "Ask the job to stop (it ends with a `cancelled` event). Idempotent: a job that is over just reports its state.",
+        "operationId": "cancel_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Job"
       }
     }
   }

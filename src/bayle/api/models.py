@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 CONTRACT_VERSION = "1"  # major of the /v1 contract; additive changes only within it
 
@@ -17,3 +17,104 @@ class Problem(BaseModel):
     code: str
     message: str
     details: dict[str, Any] = {}
+
+
+# ---- events: the envelope of every SSE message is {seq, job_id, type, data}; `type` picks the data shape.
+# Declared here so the OpenAPI snapshot (and the generated client) carry the union. Push types added later
+# (game.state, invalidated...) join the union; until then the bus may carry them and the stream passes them as they are.
+class _Envelope(BaseModel):
+    seq: int
+    job_id: str | None = None
+
+
+class ErrorData(BaseModel):
+    code: str
+    message: str
+    details: dict[str, Any] = {}
+
+
+class StartedData(BaseModel):
+    title: str
+
+
+class ProgressData(BaseModel):
+    done: float | None = None
+    total: float | None = None
+    label: str = ""
+
+
+class LogData(BaseModel):
+    text: str
+    level: str
+
+
+class FinishedData(BaseModel):
+    result: Any = None
+    undo: dict[str, Any] | None = None
+
+
+class FailedData(BaseModel):
+    error: ErrorData
+    unexpected: bool = False
+
+
+class ResyncData(BaseModel):
+    requested: int  # the Last-Event-ID the client sent
+    oldest: int  # the oldest seq still buffered
+    seq: int  # the newest seq
+
+
+class StartedEvent(_Envelope):
+    type: Literal["started"] = "started"
+    data: StartedData
+
+
+class ProgressEvent(_Envelope):
+    type: Literal["progress"] = "progress"
+    data: ProgressData
+
+
+class LogEvent(_Envelope):
+    type: Literal["log"] = "log"
+    data: LogData
+
+
+class PromptEvent(_Envelope):
+    type: Literal["prompt"] = "prompt"
+    data: dict[str, Any]
+
+
+class FinishedEvent(_Envelope):
+    type: Literal["finished"] = "finished"
+    data: FinishedData
+
+
+class FailedEvent(_Envelope):
+    type: Literal["failed"] = "failed"
+    data: FailedData
+
+
+class CancelledEvent(_Envelope):
+    type: Literal["cancelled"] = "cancelled"
+    data: FailedData
+
+
+class ResyncEvent(_Envelope):
+    type: Literal["resync"] = "resync"  # refetch your state (GET /v1/jobs/{id}...), then continue from this seq
+    data: ResyncData
+
+
+ApiEvent = Annotated[
+    StartedEvent | ProgressEvent | LogEvent | PromptEvent | FinishedEvent | FailedEvent | CancelledEvent | ResyncEvent,
+    Field(discriminator="type"),
+]
+
+
+class Job(BaseModel):
+    id: str
+    title: str
+    state: Literal["running", "done", "failed", "cancelled"]
+    progress: ProgressData | None = None
+    result: Any = None
+    error: ErrorData | None = None
+    undo: dict[str, Any] | None = None

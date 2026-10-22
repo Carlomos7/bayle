@@ -19,7 +19,7 @@ async def serve() -> None:
     app = create_app()  # BAYLE_API_TOKEN missing -> raises before anything is printed
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
-    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False))
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False, timeout_graceful_shutdown=2))
     loop = asyncio.get_running_loop()
 
     def watch_stdin() -> None:

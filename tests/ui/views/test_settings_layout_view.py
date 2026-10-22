@@ -8,14 +8,17 @@ from PySide6.QtCore import QEventLoop, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
+from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.pages.registry import QmlPage
 from bayle.ui.pages.settings.adapter import SettingsAdapter
 
 
 class SettingsHost:
     busy = False
-    game = None
-    locations = None
+
+    def __init__(self):
+        self.session = Session(JobManager(EventBus()), plans=PlanStore())
 
     def run_job(self, job, status, on_done=None):
         pass

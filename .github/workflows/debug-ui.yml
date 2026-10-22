@@ -17,9 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: Z1-all-with-test-fix, nofix: "0", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
-          - { name: Z2-all-with-test-fix-again, nofix: "0", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
-          - { name: Z3-all-with-test-fix-3, nofix: "0", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: Z1-all-with-test-fix, nofix: "1", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: Z2-all-with-test-fix-again, nofix: "1", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: Z3-all-with-test-fix-3, nofix: "1", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen

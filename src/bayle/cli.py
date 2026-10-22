@@ -21,6 +21,10 @@ def main() -> int:
         from bayle.platform import cpu
 
         return cpu.worker_main()
+    if "--backend" in sys.argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
+        from bayle.api.server import main as backend_main
+
+        return backend_main()
     if "--self-test" in sys.argv:  # first: before anything picks the data folder or starts Velopack's hooks
         return self_test()
     from bayle.app import use_data_folder

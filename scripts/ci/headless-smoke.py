@@ -12,6 +12,10 @@ for m in pkgutil.walk_packages(bayle.__path__, "bayle."):
         continue
     try:
         importlib.import_module(m.name)
+    except ModuleNotFoundError as e:
+        if m.name.startswith("bayle.api") and e.name in ("fastapi", "uvicorn", "pydantic_settings", "starlette"):
+            continue  # the api extra is not installed in this job
+        failed.append(f"{m.name}: {e!r}")
     except Exception as e:
         failed.append(f"{m.name}: {e!r}")
 if "PySide6" in sys.modules:

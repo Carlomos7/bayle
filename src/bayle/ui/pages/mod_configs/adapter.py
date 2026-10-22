@@ -16,6 +16,7 @@ from bayle.formats import config_model
 from bayle.overhauls import basic
 from bayle.services import mod_configs
 from bayle.services import mods as mod_service
+from bayle.services.errors import OperationError
 from bayle.ui.models import plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mod_configs.presenter import ModConfigsPresenter
@@ -514,9 +515,15 @@ class ModConfigsAdapter(QObject):
             else:
                 mod_configs.save_values(opened, dict(self._pending))
                 said = self.presenter.saved(len(self._pending))
+        except OperationError as e:
+            self._refuse(
+                self.presenter.empty_password()
+                if e.code == "password_empty"
+                else self.presenter.could_not_save(e.message)
+            )
+            return
         except ValueError as e:
-            empty = "password" in str(e).lower()
-            self._refuse(self.presenter.empty_password() if empty else self.presenter.could_not_save(str(e)))
+            self._refuse(self.presenter.could_not_save(str(e)))
             return
         except Exception as e:  # changed on disk, can't be written: nothing changed
             self._refuse(self.presenter.could_not_save(str(e)))

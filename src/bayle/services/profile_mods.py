@@ -27,7 +27,7 @@ from bayle.mods import rename as mod_rename
 from bayle.mods.overhaul_manifest import launcher_installed
 from bayle.platform import logging as run_logging
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.services import game_checks
+from bayle.services import game_checks, jobs
 from bayle.services import shared_mods as shared_service
 from bayle.services.mods import (
     install_mod,
@@ -576,14 +576,10 @@ def rebuild_job(profile, combine: bool | None = None):
     prof = Path(profile)
 
     def job(_launch, loc):
-        run_logging.start_log("launcher: rebuild combined parameters", loc.game.key)
-        try:
+        with jobs.run_logged("launcher: rebuild combined parameters", loc.game.key):
             out = mod_merge.rebuild(prof, run_logging.log, combine=combine, loc=loc)
             run_logging.set_undo(out.get("undo"))
             run_logging.log(f"done: combined parameters rebuilt by {out['backend']}; {out['profile_note']}")
-        except mod_merge.MergeError as e:
-            run_logging.log(f"error: {e}")
-            raise SystemExit(1) from e
 
     return job
 

@@ -20,6 +20,7 @@ from bayle.coop import share as coop_share
 from bayle.formats import config_model
 from bayle.mods import configs, profile_edit
 from bayle.platform.threads import assert_not_ui_thread
+from bayle.services.errors import OperationError
 from bayle.services.mods import overhaul_setup_of, profile_entries
 
 if TYPE_CHECKING:
@@ -437,9 +438,9 @@ def seamless(ini: Path) -> Seamless:
 
 def save_seamless(ini: Path, values: dict[str, str]) -> list[str]:
     """Write these keys (the password, the difficulty values, any setting) in place; returns the keys the file does
-    not have (nothing is appended). An empty password is refused (ValueError)."""
+    not have (nothing is appended). An empty password is refused (OperationError, code password_empty)."""
     if "cooppassword" in values and not str(values["cooppassword"]).strip():
-        raise ValueError("The Seamless Co-op password cannot be empty.")
+        raise OperationError("password_empty", "The Seamless Co-op password cannot be empty.")
     return coop_ini.write_keys(Path(ini), values)
 
 
@@ -503,5 +504,5 @@ def plan_paste(ini: Path, text: str):
 
 def apply_paste(opened: Opened, changes: dict[str, tuple[str, str]]) -> Path:
     if "cooppassword" in changes and not changes["cooppassword"][1].strip():
-        raise ValueError("The Seamless Co-op password cannot be empty.")
+        raise OperationError("password_empty", "The Seamless Co-op password cannot be empty.")
     return save_values(opened, {(None, k): new for k, (_old, new) in changes.items()})

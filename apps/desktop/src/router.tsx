@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter, redirect, type AnyRoute } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect, type AnyRoute } from "@tanstack/react-router";
 import { AppearanceControls } from "@/theme/AppearanceControls";
 import { TokenPreview } from "@/theme/TokenPreview";
 import { PAGES } from "@/shell/pages";
@@ -18,9 +18,11 @@ export function buildRouter(history?: Parameters<typeof createRouter>[0]["histor
     createRoute({
       getParentRoute: () => root,
       path: p.path,
-      component: () => (
-        <PlaceholderPage title={p.label}>{p.key === "settings" ? <AppearanceControls /> : null}</PlaceholderPage>
-      ),
+      component:
+        p.key === "modConfigs"
+          ? // the editor (CodeMirror) is the heavy part: loaded with the page
+            lazyRouteComponent(() => import("@/pages/mod-configs/ModConfigsPage"), "ModConfigsPage")
+          : () => <PlaceholderPage title={p.label}>{p.key === "settings" ? <AppearanceControls /> : null}</PlaceholderPage>,
     }),
   );
   const routes: AnyRoute[] = [index, ...pages];

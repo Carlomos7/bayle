@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: core defaults only; no shell, fs or opener permission",
+  "description": "Main window: core defaults, the open-file/folder dialog and closing itself; no shell, fs or opener permission",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-close", "dialog:allow-open"]
 }

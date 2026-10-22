@@ -132,3 +132,40 @@ def test_shutdown_logs_the_work_still_running_and_returns_false():
         release.set()
         ui_jobs.POOL.waitForDone(5000)
     assert any("slow-job" in ln for ln in lines)
+
+
+class Owner:
+    """A page adapter: it owns its Refresher, which is given the adapter's own methods."""
+
+    def __init__(self, host):
+        self.applied = []
+        self.refresher = Refresher(host, self._snapshot, self._build, self.applied.append, busy=self._busy)
+
+    def _snapshot(self):
+        return 7
+
+    def _build(self, snap):
+        return snap * 2
+
+    def _busy(self, on):
+        pass
+
+
+def test_the_refresher_does_not_keep_its_owner_alive():
+    # The adapter is a QObject: a cycle through its Refresher freed it (children, timers) at a later garbage
+    # collection, on any thread, and crashed CI's next QML load. It must go the moment its last reference does.
+    import gc
+    import weakref
+
+    host = Host()
+    gc.disable()
+    try:
+        owner = Owner(host)
+        owner.refresher.request()
+        host.turn()
+        assert owner.applied == [14]
+        gone = weakref.ref(owner)
+        del owner
+        assert gone() is None
+    finally:
+        gc.enable()

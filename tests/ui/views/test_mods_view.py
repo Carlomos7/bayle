@@ -10,6 +10,7 @@ from page_window import PageWindow
 from PySide6.QtCore import QEventLoop, QObject, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
+from shiboken6 import delete
 
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
@@ -197,6 +198,9 @@ def closed(w: PageWindow) -> None:
     warnings = list(w.warnings)
     w.dispose()
     settle()
+    delete(
+        w
+    )  # now, with its adapter and Notifier: a reference cycle through them would free them at a later collection
     assert warnings == []
 
 

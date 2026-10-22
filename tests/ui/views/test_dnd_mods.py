@@ -3,12 +3,13 @@ up, down, to the top and to the bottom from its grip; a move the dependencies wo
 drop spot and again after the drop; groups never mix; Esc cancels; a running job refuses; the page scrolls at the
 edge. Set S5_SHOTS to keep PNGs of the drag states."""
 
+import gc
 import os
 from pathlib import Path
 
 import pytest
 from page_window import PageWindow
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QObject, QPoint, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 from test_mods_view import Host, centre, closed, find, opened, settle
@@ -160,3 +161,23 @@ def test_the_keyboard_twin_moves_a_focused_row(qt_app, profile):
         QGuiApplication.processEvents()
     finally:
         closed(w)
+
+
+def test_a_closed_page_leaves_no_qobject_for_the_garbage_collector(qt_app, profile):
+    # A moved row offers Undo, a toast action closing over the adapter; kept by the Notifier the adapter owns, it was a
+    # cycle that freed the adapter and its models at a later collection, on any thread: CI's next QML load crashed.
+    w = opened(Host(profile))
+    try:
+        Drag(w, "grip_p4", "p3").release()
+        assert order(profile, "package") == ["p1", "p2", "p4", "p3"]
+    finally:
+        closed(w)
+    del w
+    gc.set_debug(gc.DEBUG_SAVEALL)  # what a collection finds is kept in gc.garbage, not freed
+    try:
+        gc.collect()
+        left = sorted({type(o).__name__ for o in gc.garbage if isinstance(o, QObject)})
+        gc.garbage.clear()
+    finally:
+        gc.set_debug(0)
+    assert left == []

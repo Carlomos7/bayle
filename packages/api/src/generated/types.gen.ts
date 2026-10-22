@@ -911,6 +911,24 @@ export type Handoff = {
 };
 
 /**
+ * Health
+ */
+export type Health = {
+    /**
+     * App Version
+     */
+    app_version: string;
+    /**
+     * Contract Version
+     */
+    contract_version: string;
+    /**
+     * Ready
+     */
+    ready?: boolean;
+};
+
+/**
  * IndexParams
  */
 export type IndexParams = {
@@ -1511,6 +1529,20 @@ export type Me3 = {
 };
 
 /**
+ * MergeHealth
+ */
+export type MergeHealth = {
+    /**
+     * Level
+     */
+    level: string;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * ModConfigsState
  *
  * The page's snapshot: the profile it was read for ("" when there is none) and its mods with settings files.
@@ -1627,7 +1659,7 @@ export type ModsState = {
      * Groups
      */
     groups: Array<Group>;
-    health: BayleViewsModsHealth | null;
+    health: MergeHealth | null;
     /**
      * Notices
      */
@@ -3928,24 +3960,6 @@ export type Warned = {
 };
 
 /**
- * Health
- */
-export type BayleApiModelsHealth = {
-    /**
-     * App Version
-     */
-    app_version: string;
-    /**
-     * Contract Version
-     */
-    contract_version: string;
-    /**
-     * Ready
-     */
-    ready?: boolean;
-};
-
-/**
  * Done
  */
 export type BayleSessionOpsModConfigsDone = {
@@ -4305,20 +4319,6 @@ export type BayleSessionOpsShellFolderParams = {
     folder: string;
 };
 
-/**
- * Health
- */
-export type BayleViewsModsHealth = {
-    /**
-     * Level
-     */
-    level: string;
-    /**
-     * Text
-     */
-    text: string;
-};
-
 export type EventsData = {
     body?: never;
     headers?: {
@@ -4359,7 +4359,7 @@ export type HealthResponses = {
     /**
      * Successful Response
      */
-    200: BayleApiModelsHealth;
+    200: Health;
 };
 
 export type HealthResponse = HealthResponses[keyof HealthResponses];

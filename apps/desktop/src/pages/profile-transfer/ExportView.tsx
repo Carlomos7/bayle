@@ -5,6 +5,7 @@ import { useApi } from "@/api/backend";
 import { pageKey } from "@/api/events";
 import type { PlanOffer } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { usePrompts } from "@/components/PromptHost";
 import { sonnerToasts, toProblem } from "@/components/toasts";
 import { bigWarning, doneText, LARGE_EXPORT, LARGE_MOD, progressText, readmeText, sizeText, total } from "./format";
@@ -264,7 +265,7 @@ export function ExportView({ profile, busy, gameRunning }: { profile: string; bu
             ) : (
               <textarea
                 aria-label={W.readme}
-                className={`${inputClass} h-52 py-2 font-mono`}
+                className={cn(inputClass, "h-52 py-2 font-mono")}
                 value={shownReadme}
                 disabled={running}
                 onChange={(e) => setReadme(e.target.value)}
@@ -276,7 +277,7 @@ export function ExportView({ profile, busy, gameRunning }: { profile: string; bu
             {showChangelog ? (
               <textarea
                 aria-label={W.changelog}
-                className={`${inputClass} h-36 py-2 font-mono`}
+                className={cn(inputClass, "h-36 py-2 font-mono")}
                 value={changelog}
                 disabled={running}
                 onChange={(e) => setChangelog(e.target.value)}

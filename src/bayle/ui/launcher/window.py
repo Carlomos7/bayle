@@ -216,8 +216,8 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
     from bayle.platform import logging as run_logging
     from bayle.services.play import report_exception
 
-    if identity.get().qt_platform:  # an isolated test build (Velopack starts it with the user's own environment)
-        os.environ["QT_QPA_PLATFORM"] = identity.get().qt_platform
+    if identity.get().display_platform:  # an isolated test build (Velopack starts it with the user's own environment)
+        os.environ["QT_QPA_PLATFORM"] = identity.get().display_platform
     app = QGuiApplication.instance() or QGuiApplication(sys.argv)
     app.setApplicationName(TITLE)
     app.setWindowIcon(QIcon(str(ASSETS_DIR / "app-crimson.png")))  # the window follows the chosen logo from then on

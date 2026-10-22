@@ -242,7 +242,7 @@ def main() -> None:
         "releases_page": f"{base}/releases",
         "advisory_url": f"{base}/advisory.json",
         "signing_key": key.public_text(),
-        "qt_platform": "offscreen",
+        "display_platform": "offscreen",
     }
     data_dir = INSTALL / "current" / "_internal" / "bayle" / "data"
     if not data_dir.is_dir():

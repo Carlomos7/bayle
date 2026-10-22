@@ -39,7 +39,7 @@ class Identity:
     inno_title: str = "Roundtable Souls"
     steam_root: str = ""  # empty = detect; test builds point it at a fake Steam folder
     instance_prefix: str = "RoundtableSouls"  # named mutexes and the window's local socket
-    qt_platform: str = ""  # test builds only: "offscreen" keeps their window off the screen, however they are started
+    display_platform: str = ""  # test builds only: "offscreen" keeps the window off screen
 
     @property
     def stub_name(self) -> str:

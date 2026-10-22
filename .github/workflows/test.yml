@@ -69,7 +69,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libglib2.0-0
 
     - name: Install dependencies (exactly as locked)
-      run: uv sync --locked
+      run: uv sync --locked --all-extras
 
     - name: Lint and format
       run: |
@@ -104,9 +104,29 @@ jobs:
         path: htmlcov/
         retention-days: 14
 
+  # The backend must install and import without Qt (no dev group: it carries the qt extra).
+  headless:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+
+    - name: Install without Qt
+      run: uv sync --locked --no-dev --no-extra qt
+
+    - name: Import smoke
+      run: |
+        uv run --no-sync python -c "import bayle.app, bayle.services.play"
+        uv run --no-sync python scripts/ci/headless-smoke.py
+
   # The one check main requires: passes when the tests passed, or were skipped because only docs changed.
   tests-passed:
-    needs: [changes, test]
+    needs: [changes, test, headless]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -114,7 +134,9 @@ jobs:
       env:
         CHANGES: ${{ needs.changes.result }}
         TESTS: ${{ needs.test.result }}
+        HEADLESS: ${{ needs.headless.result }}
       run: |
-        echo "changes: $CHANGES, tests: $TESTS"
+        echo "changes: $CHANGES, tests: $TESTS, headless: $HEADLESS"
         [ "$CHANGES" = "success" ] || exit 1
         [ "$TESTS" = "success" ] || [ "$TESTS" = "skipped" ] || exit 1
+        [ "$HEADLESS" = "success" ] || [ "$HEADLESS" = "skipped" ] || exit 1

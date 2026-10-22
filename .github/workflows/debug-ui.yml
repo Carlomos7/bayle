@@ -17,9 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: Y1-ui-then-send-then-mods, nofix: "1", fake: "0", qapp: "0", sel: "tests/ui/views/test_activity_view.py tests/session/test_dbg_trash.py tests/ui/views/test_dnd_mods.py tests/ui/views/test_mods_view.py" }
-          - { name: Y2-qapp-first-send-then-ui, nofix: "1", fake: "0", qapp: "1", sel: "tests/session/test_dbg_trash.py tests/ui" }
-          - { name: Y3-send-then-ui-control, nofix: "1", fake: "0", qapp: "0", sel: "tests/session/test_dbg_trash.py tests/ui" }
+          - { name: Z1-all-with-test-fix, nofix: "0", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: Z2-all-with-test-fix-again, nofix: "0", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
+          - { name: Z3-all-with-test-fix-3, nofix: "0", fake: "0", qapp: "0", sel: "tests/api tests/integration tests/session tests/ui" }
     name: ${{ matrix.name }}
     env:
       QT_QPA_PLATFORM: offscreen

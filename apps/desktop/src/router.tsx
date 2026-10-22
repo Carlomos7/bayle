@@ -3,6 +3,7 @@ import { AppearanceControls } from "@/theme/AppearanceControls";
 import { TokenPreview } from "@/theme/TokenPreview";
 import { PAGES } from "@/shell/pages";
 import { Shell } from "@/shell/Shell";
+import { ActivityPage } from "@/pages/activity/ActivityPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 
 export function buildRouter(history?: Parameters<typeof createRouter>[0]["history"]) {
@@ -18,7 +19,7 @@ export function buildRouter(history?: Parameters<typeof createRouter>[0]["histor
     createRoute({
       getParentRoute: () => root,
       path: p.path,
-      component: () => (
+      component: p.key === "activity" ? ActivityPage : () => (
         <PlaceholderPage title={p.label}>{p.key === "settings" ? <AppearanceControls /> : null}</PlaceholderPage>
       ),
     }),

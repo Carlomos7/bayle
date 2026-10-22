@@ -66,6 +66,7 @@ pub fn run() {
         }))
         // native file and folder pickers for the Install mod dialog (capability: dialog:allow-open only)
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(slot.clone())
         .manage(Engine(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![get_backend])

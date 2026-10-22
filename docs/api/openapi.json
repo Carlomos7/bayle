@@ -14,6 +14,22 @@
             "title": "Empty",
             "type": "string"
           },
+          "games": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "title": "Games",
+            "type": "array"
+          },
+          "kinds": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
           "summary": {
             "items": {
               "$ref": "#/components/schemas/SummaryCard"
@@ -25,6 +41,13 @@
             "default": 0,
             "title": "Unseen",
             "type": "integer"
+          },
+          "words": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Words",
+            "type": "object"
           }
         },
         "required": [

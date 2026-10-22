@@ -4,7 +4,9 @@ through tr()."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Protocol
 
 from bayle.platform.text import plural, tr
 from bayle.services import profile_transfer as pt
@@ -17,6 +19,66 @@ def size_text(n: int) -> str:
     if n >= 1024**2:
         return f"{n / 1024**2:.1f} MB"
     return f"{max(1, n // 1024)} KB" if n else "0 KB"
+
+
+class ModLike(Protocol):
+    """A mod of the profile as the export checklist lists it."""
+
+    @property
+    def key(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def size(self) -> int: ...
+    @property
+    def enabled(self) -> bool: ...
+
+
+class PreviewLike(Protocol):
+    """What an import preview tells the page (session.ops.profile_transfer.PreviewView)."""
+
+    @property
+    def cards(self) -> list[dict[str, Any]]: ...
+    @property
+    def skipped(self) -> list[str]: ...
+    @property
+    def notes(self) -> list[str]: ...
+    @property
+    def refusals(self) -> list[str]: ...
+    @property
+    def clashes(self) -> list[dict[str, Any]]: ...
+    @property
+    def lines(self) -> list[str]: ...
+    @property
+    def undecided(self) -> bool: ...
+    @property
+    def ok(self) -> bool: ...
+
+
+@dataclass
+class PageInputs:
+    """Everything the page's state is built from: the adapter's form fields and what the session last answered."""
+
+    profile: Path | None
+    ex: dict[str, Any]
+    mods: list[ModLike]
+    picked: set[str]
+    busy: bool  # another job runs
+    game_running: bool
+    working: bool
+    run: dict[str, Any]
+    incoming_file: str = ""  # the open file's one-line description ("" when none is open)
+    incoming_zip: bool = False
+    incoming_readme: str = ""
+    preview: PreviewLike | None = None
+    bundled: PreviewLike | None = None
+    ticked: set[str] = field(default_factory=set)
+    new_profile: bool = True
+    new_name: str = ""
+    error: str = ""
+    import_pct: int = -1
+    names: list[str] = field(default_factory=list)
+    which: int = 0
 
 
 class ProfileTransferPresenter:
@@ -96,6 +158,94 @@ class ProfileTransferPresenter:
             "pickOne": tr("Pick one to continue."),
             "suggested": tr("Suggested: the incoming copy has the higher version number."),
         }
+
+    def page_state(self, i: PageInputs) -> dict:
+        """The whole page state QML binds to: the export form with why it is off, the import view, the bundled view."""
+        words = self.words()
+        ex = dict(i.ex)
+        ex["mods"] = [
+            {
+                "key": m.key,
+                "name": m.name,
+                "size": size_text(m.size),
+                "checked": m.key in i.picked,
+                "large": m.size >= pt.LARGE_MOD,
+            }
+            for m in i.mods
+        ]
+        picked = [m for m in i.mods if m.key in i.picked]
+        size = sum(m.size for m in picked)
+        full = ex["kind"] == "full"
+        ex["total"] = self.total(len(picked), size)
+        name_ok, folder_ok, mods_ok = bool(ex["name"].strip()), bool(ex["folder"]), bool(picked) or not full
+        busy = (
+            tr("Another job is running. Wait for it to finish.")
+            if i.busy
+            else tr("Close the game first: exports run as launcher jobs.")
+            if i.game_running
+            else tr("Exporting...")
+            if i.working
+            else ""
+        )
+        ex["reason"] = self.reason(name_ok, folder_ok, mods_ok, busy)
+        ex["ready"] = ex["reason"] == ""
+        ex["nameError"], ex["folderError"], ex["modsError"] = not name_ok, not folder_ok, not mods_ok
+        ex["summary"] = self.summary(
+            full,
+            len(picked),
+            size,
+            bool(ex["withConfigs"]),
+            bool(ex["withSave"] and ex["saveName"]),
+            bool(ex["withPassword"]),
+        )
+        top = sorted(picked, key=lambda m: m.size, reverse=True)[:3]
+        ex["warn"] = self.big_warning(size, [(m.name, m.size) for m in top]) if full and size >= pt.LARGE_EXPORT else ""
+        ex["run"] = dict(i.run)
+        ex["fullLabel"] = f"{words['fullExport']} ({size_text(size)})" if picked else words["fullExport"]
+        prev = i.preview
+        cards = [{**c, "checked": c["key"] in i.ticked} for c in prev.cards] if prev else []
+        imp: dict[str, Any] = {
+            "file": i.incoming_file,
+            "isZip": i.incoming_zip,
+            "readme": i.incoming_readme,
+            "cards": cards,
+            "skipped": list(prev.skipped) if prev else [],
+            "notes": list(prev.notes) if prev else [],
+            "refusals": list(prev.refusals) if prev else [],
+            "newProfile": i.new_profile,
+            "newName": i.new_name,
+            "error": i.error,
+            "pct": i.import_pct,
+            "clashes": list(prev.clashes) if prev else [],
+        }
+        imp["canImport"] = bool(
+            prev and not prev.refusals and (i.ticked & {c["key"] for c in cards}) and not prev.undecided
+        )
+        b = i.bundled
+        bun = {
+            "names": i.names,
+            "which": i.which,
+            "lines": list(b.lines) if b else [],
+            "skipped": [],
+            "refusals": list(b.refusals) if b else [],
+            "newProfile": i.new_profile,
+            "newName": i.new_name,
+            "canImport": bool(b and b.ok and not b.undecided),
+            "clashes": list(b.clashes) if b else [],
+        }
+        return {
+            "hasProfile": i.profile is not None,
+            "profileName": i.profile.stem if i.profile else "",
+            "ex": ex,
+            "imp": imp,
+            "bun": bun,
+        }
+
+    def readme(self, name: str, version: str, author: str, picked: list[ModLike]) -> str:
+        return pt.readme_text(name, version, author, [(m.name, m.enabled) for m in picked])
+
+    def is_big(self, size: int) -> bool:
+        return size >= pt.LARGE_EXPORT
 
     def seconds(self, s: float) -> str:
         s = int(round(s))

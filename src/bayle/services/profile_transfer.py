@@ -19,7 +19,7 @@ import os
 import shutil
 import uuid
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -244,7 +244,8 @@ def _out_path(out_dir: Path, name: str, suffix: str) -> Path:
     return out
 
 
-def default_readme(name: str, version: str, author: str, chosen: list[Item]) -> str:
+def readme_text(name: str, version: str, author: str, mods: Iterable[tuple[str, bool]]) -> str:
+    """The starting README of an export; mods: (name, enabled) of the ticked mods."""
     lines = [f"# {name or 'Profile'}", ""]
     if version or author:
         lines += [
@@ -252,8 +253,12 @@ def default_readme(name: str, version: str, author: str, chosen: list[Item]) -> 
             "",
         ]
     lines += ["## Mods", ""]
-    lines += [f"- {it.entry['name']}" + ("" if it.entry["enabled"] else " (off)") for it in chosen]
+    lines += [f"- {n}" + ("" if on else " (off)") for n, on in mods]
     return "\n".join(lines) + "\n"
+
+
+def default_readme(name: str, version: str, author: str, chosen: list[Item]) -> str:
+    return readme_text(name, version, author, [(it.entry["name"], it.entry["enabled"]) for it in chosen])
 
 
 def save_candidate(profile: Path, *, loc: Locations) -> Path | None:

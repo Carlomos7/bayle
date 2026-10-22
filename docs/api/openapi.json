@@ -90,6 +90,83 @@
         "title": "BasicNative",
         "type": "object"
       },
+      "BigExportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "default": "",
+            "title": "Author",
+            "type": "string"
+          },
+          "changelog": {
+            "default": "",
+            "title": "Changelog",
+            "type": "string"
+          },
+          "chosen": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chosen",
+            "type": "array"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "kind": {
+            "default": "list",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "default": false,
+            "title": "Password",
+            "type": "boolean"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "readme": {
+            "default": "",
+            "title": "Readme",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "version": {
+            "default": "",
+            "title": "Version",
+            "type": "string"
+          },
+          "with_configs": {
+            "default": true,
+            "title": "With Configs",
+            "type": "boolean"
+          },
+          "with_save": {
+            "default": false,
+            "title": "With Save",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profile",
+          "name",
+          "folder",
+          "size"
+        ],
+        "title": "BigExportParams",
+        "type": "object"
+      },
       "CancelledEvent": {
         "properties": {
           "data": {
@@ -335,6 +412,19 @@
         "title": "Day",
         "type": "object"
       },
+      "Discarded": {
+        "properties": {
+          "found": {
+            "title": "Found",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "found"
+        ],
+        "title": "Discarded",
+        "type": "object"
+      },
       "Done": {
         "properties": {
           "ok": {
@@ -394,23 +484,25 @@
         "title": "ErrorData",
         "type": "object"
       },
-      "ExportParams": {
-        "additionalProperties": false,
+      "ExportListing": {
         "properties": {
-          "ini": {
-            "title": "Ini",
-            "type": "string"
+          "mods": {
+            "items": {
+              "$ref": "#/components/schemas/ModRow"
+            },
+            "title": "Mods",
+            "type": "array"
           },
-          "to": {
-            "title": "To",
+          "save_name": {
+            "default": "",
+            "title": "Save Name",
             "type": "string"
           }
         },
         "required": [
-          "ini",
-          "to"
+          "mods"
         ],
-        "title": "ExportParams",
+        "title": "ExportListing",
         "type": "object"
       },
       "FailedData": {
@@ -692,6 +784,28 @@
           "contract_version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "ImportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "skip": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Skip",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resource"
+        ],
+        "title": "ImportParams",
         "type": "object"
       },
       "IniParams": {
@@ -1202,6 +1316,34 @@
         "title": "ModNode",
         "type": "object"
       },
+      "ModRow": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "enabled",
+          "size"
+        ],
+        "title": "ModRow",
+        "type": "object"
+      },
       "Names": {
         "additionalProperties": false,
         "description": "The four folder names; None leaves one as it is.",
@@ -1254,6 +1396,47 @@
         "title": "Names",
         "type": "object"
       },
+      "OpenBundled": {
+        "additionalProperties": false,
+        "properties": {
+          "profiles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "staging": {
+            "default": "",
+            "title": "Staging",
+            "type": "string"
+          },
+          "unpacked": {
+            "title": "Unpacked",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unpacked",
+          "profiles"
+        ],
+        "title": "OpenBundled",
+        "type": "object"
+      },
+      "OpenFile": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "OpenFile",
+        "type": "object"
+      },
       "OpenParams": {
         "additionalProperties": false,
         "properties": {
@@ -1276,6 +1459,57 @@
           "path"
         ],
         "title": "OpenParams",
+        "type": "object"
+      },
+      "Opened": {
+        "properties": {
+          "file": {
+            "default": "",
+            "title": "File",
+            "type": "string"
+          },
+          "folder": {
+            "default": "",
+            "title": "Folder",
+            "type": "string"
+          },
+          "is_zip": {
+            "default": false,
+            "title": "Is Zip",
+            "type": "boolean"
+          },
+          "names": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "array"
+          },
+          "new_name": {
+            "default": "",
+            "title": "New Name",
+            "type": "string"
+          },
+          "new_profile": {
+            "default": true,
+            "title": "New Profile",
+            "type": "boolean"
+          },
+          "readme": {
+            "default": "",
+            "title": "Readme",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource"
+        ],
+        "title": "Opened",
         "type": "object"
       },
       "OverhaulForm": {
@@ -1414,6 +1648,114 @@
         "title": "PlanOffer",
         "type": "object"
       },
+      "PreviewParams": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Choices",
+            "type": "object"
+          },
+          "new_name": {
+            "default": "",
+            "title": "New Name",
+            "type": "string"
+          },
+          "new_profile": {
+            "default": true,
+            "title": "New Profile",
+            "type": "boolean"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "which": {
+            "default": 0,
+            "title": "Which",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resource",
+          "profile"
+        ],
+        "title": "PreviewParams",
+        "type": "object"
+      },
+      "PreviewView": {
+        "properties": {
+          "cards": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "clashes": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Clashes",
+            "type": "array"
+          },
+          "lines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "notes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "ok": {
+            "default": false,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "refusals": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Refusals",
+            "type": "array"
+          },
+          "skipped": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "undecided": {
+            "default": false,
+            "title": "Undecided",
+            "type": "boolean"
+          }
+        },
+        "title": "PreviewView",
+        "type": "object"
+      },
       "ProfileParams": {
         "additionalProperties": false,
         "properties": {
@@ -1543,6 +1885,20 @@
           "folder"
         ],
         "title": "RelocateParams",
+        "type": "object"
+      },
+      "ResourceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource"
+        ],
+        "title": "ResourceRef",
         "type": "object"
       },
       "ResyncData": {
@@ -2379,6 +2735,97 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "bayle__session__ops__mod_configs__ExportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "ini": {
+            "title": "Ini",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ini",
+          "to"
+        ],
+        "title": "ExportParams",
+        "type": "object"
+      },
+      "bayle__session__ops__profile_transfer__ExportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "default": "",
+            "title": "Author",
+            "type": "string"
+          },
+          "changelog": {
+            "default": "",
+            "title": "Changelog",
+            "type": "string"
+          },
+          "chosen": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chosen",
+            "type": "array"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "kind": {
+            "default": "list",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "default": false,
+            "title": "Password",
+            "type": "boolean"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "readme": {
+            "default": "",
+            "title": "Readme",
+            "type": "string"
+          },
+          "version": {
+            "default": "",
+            "title": "Version",
+            "type": "string"
+          },
+          "with_configs": {
+            "default": true,
+            "title": "With Configs",
+            "type": "boolean"
+          },
+          "with_save": {
+            "default": false,
+            "title": "With Save",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profile",
+          "name",
+          "folder"
+        ],
+        "title": "ExportParams",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -3000,7 +3447,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExportParams"
+                "$ref": "#/components/schemas/bayle__session__ops__mod_configs__ExportParams"
               }
             }
           },
@@ -3499,6 +3946,328 @@
         ]
       }
     },
+    "/v1/ops/profile_transfer.confirm_export": {
+      "post": {
+        "operationId": "op_profile_transfer_confirm_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BigExportParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.confirm_export (plan, writes)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
+    "/v1/ops/profile_transfer.discard": {
+      "post": {
+        "operationId": "op_profile_transfer_discard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Discarded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.discard (command, writes)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
+    "/v1/ops/profile_transfer.export": {
+      "post": {
+        "operationId": "op_profile_transfer_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/bayle__session__ops__profile_transfer__ExportParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.export (job, writes)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
+    "/v1/ops/profile_transfer.import": {
+      "post": {
+        "operationId": "op_profile_transfer_import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.import (job, writes)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
+    "/v1/ops/profile_transfer.open_bundled": {
+      "post": {
+        "operationId": "op_profile_transfer_open_bundled",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenBundled"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Opened"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.open_bundled (command, writes)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
+    "/v1/ops/profile_transfer.open_file": {
+      "post": {
+        "operationId": "op_profile_transfer_open_file",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenFile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Opened"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.open_file (command, writes)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
+    "/v1/ops/profile_transfer.preview": {
+      "post": {
+        "operationId": "op_profile_transfer_preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "profile_transfer.preview (command)",
+        "tags": [
+          "profile_transfer"
+        ]
+      }
+    },
     "/v1/ops/settings.clear_leftovers": {
       "post": {
         "operationId": "op_settings_clear_leftovers",
@@ -3892,6 +4661,54 @@
           }
         ],
         "summary": "Page Mod Configs",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/profile_transfer": {
+      "get": {
+        "operationId": "page_profile_transfer",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Profile",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportListing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Page Profile Transfer",
         "tags": [
           "pages"
         ]

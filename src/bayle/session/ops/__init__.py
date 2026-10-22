@@ -1,6 +1,6 @@
 """The operations the program registers on the default registry, one module per page. Importing this package
 registers them all (the API and the window session do)."""
 
-from bayle.session.ops import activity, mod_configs, settings
+from bayle.session.ops import activity, mod_configs, profile_transfer, settings
 
-__all__ = ["activity", "mod_configs", "settings"]
+__all__ = ["activity", "mod_configs", "profile_transfer", "settings"]

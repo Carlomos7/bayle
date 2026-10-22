@@ -1,21 +1,53 @@
+import { createMemoryHistory } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
-import { App } from "./App";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { expect, test } from "vitest";
+import { AppWithBackend } from "./App";
+import { buildRouter } from "./router";
+import { backend, BASE, server } from "./test/server";
 
-vi.mock("@tauri-apps/api/app", () => ({ getVersion: () => Promise.resolve("0.0.0") }));
-vi.mock("./api", async (original) => ({
-  ...(await original<typeof import("./api")>()),
-  getBackend: () =>
-    Promise.resolve({ base_url: "http://127.0.0.1:5", token: "t", app_version: "9", contract_version: "1" }),
-}));
+const shell = {
+  game_name: "Elden Ring",
+  game_ready: true,
+  game_running: false,
+  profiles: ["Vanilla", "Overhaul"],
+  profile_index: 1,
+  status: { text: "Ready to play", tone: "muted", busy: false },
+  pill: { text: "Play", state: "ready", can_launch: true, mode_text: "" },
+  unseen: 2,
+};
 
-afterEach(() => vi.unstubAllGlobals());
+function boot() {
+  server.use(
+    http.get(`${BASE}/v1/pages/shell`, () => HttpResponse.json(shell)),
+    http.get(`${BASE}/v1/events`, () => new HttpResponse(new ReadableStream(), { headers: { "Content-Type": "text/event-stream" } })),
+  );
+  const router = buildRouter(createMemoryHistory({ initialEntries: ["/"] }));
+  render(<AppWithBackend backend={backend} router={router} />);
+}
 
-test("shows engine health and versions", async () => {
-  const health = '{"app_version":"4.6.0","contract_version":"1","ready":true}';
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(health)));
-  render(<App />);
-  expect(await screen.findByText("Engine: ready")).toBeTruthy();
-  expect(screen.getByText("Engine version: 4.6.0")).toBeTruthy();
-  expect(screen.getByText("Shell version: 0.0.0")).toBeTruthy();
+test("the shell shows game, profile, status, the rail and lands on Mods", async () => {
+  boot();
+  expect(await screen.findByText("Elden Ring")).toBeInTheDocument();
+  expect(screen.getByLabelText("Profile")).toHaveTextContent("Overhaul");
+  expect(screen.getByRole("status")).toHaveTextContent("Ready to play");
+  expect(await screen.findByRole("heading", { name: "Mods" })).toBeInTheDocument();
+  const rail = screen.getByRole("navigation", { name: "Pages" });
+  expect(rail.querySelectorAll("a")).toHaveLength(6);
+  expect(screen.getByRole("link", { name: /Mods/ })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByLabelText("2 failed since you last looked")).toBeInTheDocument();
+});
+
+test("Ctrl+1..6 jump to the pages in rail order", async () => {
+  boot();
+  const user = userEvent.setup();
+  await screen.findByRole("heading", { name: "Mods" });
+  await user.keyboard("{Control>}3{/Control}");
+  expect(await screen.findByRole("heading", { name: "Saves" })).toBeInTheDocument();
+  await user.keyboard("{Control>}6{/Control}");
+  expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Theme")).toBeInTheDocument();
+  await user.keyboard("{Control>}4{/Control}");
+  expect(await screen.findByRole("heading", { name: "Profile transfer" })).toBeInTheDocument();
 });

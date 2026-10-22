@@ -30,9 +30,12 @@ export function ProfileTransfer({
   onLeave: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(tab === "import" ? "import" : "export");
-  useEffect(() => {
+  const [seenTab, setSeenTab] = useState(tab);
+  if (tab !== seenTab) {
+    // the menu asked for a tab while the page is open: adjusted while rendering
+    setSeenTab(tab);
     if (tab === "import" || tab === "export") setMode(tab);
-  }, [tab]);
+  }
   const [bundled, setBundled] = useState<BundledRequest | null>(takeBundled);
   useEffect(() => onBundled(() => setBundled(takeBundled())), []);
 

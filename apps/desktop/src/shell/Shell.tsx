@@ -180,7 +180,7 @@ export function Shell() {
       setModeMenuOpen,
       run,
     };
-  }, [op, shell, go, setTheme, pickFolder, railCollapsed, profileMenuOpen, modeMenuOpen]);
+  }, [op, shell, go, navigate, setTheme, pickFolder, railCollapsed, profileMenuOpen, modeMenuOpen]);
 
   // Qt's keys: Ctrl+L launch, Ctrl+Shift+L the mode menu, Ctrl+Tab the next game, Ctrl+N, Ctrl+Q, F1, Ctrl+1..5
   const actionsRef = useRef(actions);

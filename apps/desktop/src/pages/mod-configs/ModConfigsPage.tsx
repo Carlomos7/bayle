@@ -53,12 +53,15 @@ export function ModConfigsPage() {
 
   // Mods sends the player here with ?select=<mod name>: that mod is selected once the page has read it, then the link is cleaned
   const { select: selectName } = useSearch({ strict: false }) as { select?: string };
-  useEffect(() => {
-    const named = selectName ? state?.nodes.find((n) => n.name === selectName) : undefined;
-    if (!named) return;
+  const [handled, setHandled] = useState("");
+  const named = selectName ? state?.nodes.find((n) => n.name === selectName) : undefined;
+  if (selectName && named && handled !== selectName) {
+    setHandled(selectName);
     setWant(named.key);
-    void navigate({ to: "/mod-configs", search: {}, replace: true } as never);
-  }, [selectName, state?.nodes, navigate]);
+  } else if (!selectName && handled) setHandled("");
+  useEffect(() => {
+    if (selectName && handled === selectName) void navigate({ to: "/mod-configs", search: {}, replace: true } as never);
+  }, [selectName, handled, navigate]);
 
   // ---- which file is open: the one picked, else the first mod's first file
   const nodes = state?.nodes;

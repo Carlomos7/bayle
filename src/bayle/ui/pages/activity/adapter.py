@@ -64,22 +64,7 @@ class ActivityAdapter(QObject):
     title = Property(str, lambda self: self.words_.title, constant=True)
     subtitle = Property(str, lambda self: self.words_.subtitle, constant=True)
     failedOnlyText = Property(str, lambda self: self.words_.failed_only_text, constant=True)
-    words = Property(
-        dict,
-        lambda self: {
-            "showDetails": tr("Show details"),
-            "showDetailsTip": tr("Every line, including the fine detail kept for tracking down problems."),
-            "copy": tr("Copy"),
-            "copyTip": tr("Copy what is shown."),
-            "copySupport": tr("Copy for support"),
-            "copySupportTip": tr("Copy what is shown with your user name and Steam IDs masked, to paste in a report."),
-            "openFile": tr("Open file"),
-            "showLog": tr("Show this job's log"),
-            "hideLog": tr("Hide this job's log"),
-            "copied": tr("Copied"),
-        },
-        constant=True,
-    )
+    words = Property(dict, lambda self: view.log_words(), constant=True)
 
     # ---- models
     summary = Property(QObject, lambda self: self._summary, constant=True)

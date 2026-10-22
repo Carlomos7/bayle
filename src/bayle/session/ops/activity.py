@@ -13,7 +13,15 @@ from bayle.services.activity import undo as undo_job
 from bayle.services.errors import OperationError
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
 from bayle.session.plans import Proposal
-from bayle.views.activity import ActivityPresenter, ActivityState, LogText, Refusal
+from bayle.views.activity import (
+    ActivityPresenter,
+    ActivityState,
+    LogText,
+    Refusal,
+    game_choices,
+    kind_choices,
+    log_words,
+)
 
 
 class ActivityScope(Params):
@@ -88,7 +96,9 @@ def _view(log: LogText) -> LogView:
 @registry.page("activity", scope=ActivityScope, view=ActivityState)
 def snapshot(session: Session, game: str = "", group: str = "", failed_only: bool = False) -> ActivityState:
     state = _presenter(session).refresh(game, group, failed_only)
-    return dataclasses.replace(state, unseen=_facts(session).unseen())
+    return dataclasses.replace(
+        state, unseen=_facts(session).unseen(), games=game_choices(), kinds=kind_choices(), words=log_words()
+    )
 
 
 @operation("activity.log", params=LogParams, result=LogView)

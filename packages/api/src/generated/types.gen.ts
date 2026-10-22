@@ -17,6 +17,14 @@ export type ActivityState = {
      */
     empty: string;
     /**
+     * Games
+     */
+    games?: Array<Choice>;
+    /**
+     * Kinds
+     */
+    kinds?: Array<Choice>;
+    /**
      * Summary
      */
     summary: Array<SummaryCard>;
@@ -24,6 +32,12 @@ export type ActivityState = {
      * Unseen
      */
     unseen?: number;
+    /**
+     * Words
+     */
+    words?: {
+        [key: string]: string;
+    };
 };
 
 /**

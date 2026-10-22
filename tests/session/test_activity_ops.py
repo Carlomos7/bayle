@@ -36,6 +36,13 @@ def test_the_snapshot_lists_jobs_with_undo_and_the_unseen_count():
     assert state.unseen == 1
 
 
+def test_the_snapshot_carries_the_filter_choices_and_words_for_a_front_end():
+    state = make().snapshot("activity")
+    assert state.games[0].key == "" and len(state.games) > 1
+    assert [k.key for k in state.kinds] == ["", "Play", "Saves", "Mods", "Other"]
+    assert state.words["failedOnly"] and state.words["copiedSupport"]
+
+
 def test_the_snapshot_takes_filters():
     state = make().snapshot("activity", failed_only=True)
     assert [j.id for d in state.days for j in d.jobs] == ["r1"]

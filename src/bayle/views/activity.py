@@ -80,6 +80,9 @@ class ActivityState:
     days: tuple[Day, ...]
     empty: str  # what to say when no job is shown ("" when some are)
     unseen: int = 0  # failures since Activity was last looked at (the rail badge)
+    games: tuple[Choice, ...] = ()  # the filter drop-downs and the words around the log, for a front end that has none
+    kinds: tuple[Choice, ...] = ()
+    words: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -238,6 +241,27 @@ def words() -> ActivityWords:
         tr("A preview of the new Activity page, in its own window."),
         tr("Failed only"),
     )
+
+
+def log_words() -> dict[str, str]:
+    """The words around an opened log (buttons, tips, the copy toast)."""
+    return {
+        "showDetails": tr("Show details"),
+        "showDetailsTip": tr("Every line, including the fine detail kept for tracking down problems."),
+        "copy": tr("Copy"),
+        "copyTip": tr("Copy what is shown."),
+        "copySupport": tr("Copy for support"),
+        "copySupportTip": tr("Copy what is shown with your user name and Steam IDs masked, to paste in a report."),
+        "openFile": tr("Open file"),
+        "showLog": tr("Show this job's log"),
+        "hideLog": tr("Hide this job's log"),
+        "copied": tr("Copied"),
+        "copiedSupport": tr("Copied with your user name and Steam IDs masked"),
+        "fileGone": tr("That file is no longer there."),
+        "failedOnly": tr("Failed only"),
+        "gameFilter": tr("Game"),
+        "kindFilter": tr("Kind"),
+    }
 
 
 def game_choices() -> tuple[Choice, ...]:

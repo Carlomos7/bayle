@@ -17,6 +17,7 @@ from roundtable_souls.overhauls import basic
 from roundtable_souls.platform import logging as run_logging
 from roundtable_souls.services import mod_configs, profile_mods
 from roundtable_souls.services import mods as mod_service
+from roundtable_souls.ui.file_actions import shown_path
 from roundtable_souls.ui.notifications import Notifier
 from roundtable_souls.ui.pages.mods.install import InstallDraft
 from roundtable_souls.ui.pages.mods.install import words as install_words
@@ -398,11 +399,15 @@ class InstallAdapter(QObject):
                 d.texts = out.get("texts") or []
                 if d.preview is not None:
                     d.preview["notes"] += out.get("setup_notes") or []
+                    if any(not t["table"] for t in d.texts):  # said once per file below, not by the backend too
+                        d.preview["refusals"] = [
+                            r for r in d.preview["refusals"] if not r.startswith("Choose the table of ")
+                        ]
                     for t in d.texts:
                         if not t["table"]:
                             d.preview["refusals"].append(
                                 tr("Choose the table for the texts added to {file} before installing.").format(
-                                    file=t["file"]
+                                    file=shown_path(t["file"])
                                 )
                             )
         self.viewChanged.emit()

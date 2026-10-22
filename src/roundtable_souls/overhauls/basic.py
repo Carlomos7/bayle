@@ -250,6 +250,29 @@ def propose(folder: Path, version: str | None = None, game: str = "eldenring", g
     )
 
 
+def carry_over(new: Basic, saved: Basic, folder: Path, game: str = "eldenring") -> Basic:
+    """new (a proposal for folder) with the choices of an earlier setup of the same mod: each DLL's options by file
+    name, a texts entry's table by binder, the Files table's actions for the files still there (a path the earlier
+    download had without the package-root folder, such as mod/, is found under it). Nothing is written."""
+    gc = game_config.load(game)
+    regulation = games.BY_KEY[game].regulation.lower() if game in games.BY_KEY else games.REGULATION
+    files = files_of(folder)
+    root = package_root(files, set(gc.mod_folders), regulation)
+    have = {f.lower(): f for f in files}
+    old = {n.file.lower(): n for n in saved.natives}
+    natives = [
+        old[n.file.lower()].model_copy(update={"file": n.file}) if n.file.lower() in old else n for n in new.natives
+    ]
+    tables = {t.file.lower(): t.table for t in saved.texts if t.table}
+    texts = [t.model_copy(update={"table": tables.get(t.file.lower()) or t.table}) for t in new.texts]
+    chosen = {}
+    for k, act in saved.files.items():
+        hit = have.get(k.lower()) or (have.get(f"{root}/{k}".lower()) if root else None)
+        if hit:
+            chosen[hit] = act
+    return new.model_copy(update={"natives": natives, "texts": texts, "files": {**new.files, **chosen}})
+
+
 def leaves(f: str, skip: list[str]) -> bool:
     return any(f.lower() == s.lower() or _under(f, s) for s in skip)
 
@@ -365,7 +388,7 @@ def make(
     have = {f.lower() for f in everything}
     for t in basic.texts:
         if not t.table and not unset_tables:
-            raise ValueError(f"Choose the table of {t.file} that the texts are set in.")
+            raise ValueError(f"Choose the table of {t.file.replace('{each}', '<language>')} that the texts are set in.")
     stale = [n for n in (*basic.place, *basic.files) if n.lower() not in have]
     if stale:
         for n in stale:

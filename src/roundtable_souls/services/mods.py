@@ -491,6 +491,7 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     mod keeps its package id, so its entries are replaced), loading last, its top-level DLLs with no special
     options, the settings files beside them kept. Returns an overhauls.OverhaulConfig; raises ValueError when the
     folder has nothing to set up."""
+    from roundtable_souls import overhauls
     from roundtable_souls.mods import naming
     from roundtable_souls.overhauls import basic
 
@@ -498,12 +499,24 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     game = loc.game.key
     from roundtable_souls.config import layout
 
+    proposed = basic.propose(Path(folder), game=game, game_dir=loc.game_dir())
+    dlls = {n.file.lower() for n in proposed.natives}
+    for old in overhauls.load(game):  # a saved setup of this mod: its choices carry over (the file is not touched)
+        if old.basic is None or overhauls.verified(old.id):
+            continue
+        r = old.recognise
+        same_dlls = bool(dlls) and dlls == {n.file.lower() for n in old.basic.natives}
+        if same_dlls or ident in (old.id, naming.mod_id(r.folder)) or name.lower() in (old.id, r.folder.lower()):
+            proposed = basic.carry_over(proposed, old.basic, Path(folder), game)
+            ident = old.id if overhaul_id is None else ident
+            break
+
     return basic.make(
         reserved=layout.reserved_names(),
         id=ident,
         label=name,
         game=game,
-        basic=basic.propose(Path(folder), game=game, game_dir=loc.game_dir()),
+        basic=proposed,
         folder=Path(folder),
         unset_tables=True,
     )

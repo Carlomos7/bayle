@@ -544,48 +544,52 @@ ModalDialog {
             Repeater {
                 model: dlg.v.files || []
 
-                Row {
+                Column {
                     id: fileRow
 
                     required property var modelData
 
-                    spacing: Theme.sp8
+                    spacing: Theme.sp4
                     width: parent.width
 
-                    Txt {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: fileRow.modelData.file
-                        width: parent.width - 220 - Theme.sp8
-                    }
-                    DropButton {
-                        anchors.verticalCenter: parent.verticalCenter
-                        fixedWidth: 200
-                        implicitHeight: Theme.controlH
-                        objectName: "installFileAction"
-                        text: {
-                            const c = fileRow.modelData.choices.find(x => x.value === fileRow.modelData.action);
-                            return c ? c.label : fileRow.modelData.action;
+                    Row {
+                        spacing: Theme.sp8
+                        width: parent.width
+
+                        Txt {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: fileRow.modelData.file
+                            width: parent.width - 200 - Theme.sp8
                         }
+                        DropButton {
+                            anchors.verticalCenter: parent.verticalCenter
+                            fixedWidth: 200
+                            implicitHeight: Theme.controlH
+                            objectName: "installFileAction"
+                            text: {
+                                const c = fileRow.modelData.choices.find(x => x.value === fileRow.modelData.action);
+                                return c ? c.label : fileRow.modelData.action;
+                            }
 
-                        Repeater {
-                            model: fileRow.modelData.choices
+                            Repeater {
+                                model: fileRow.modelData.choices
 
-                            MenuEntry {
-                                required property var modelData
+                                MenuEntry {
+                                    required property var modelData
 
-                                checked: modelData.value === fileRow.modelData.action
-                                text: modelData.label
+                                    checked: modelData.value === fileRow.modelData.action
+                                    text: modelData.label
 
-                                onTriggered: dlg.inst.setFile(fileRow.modelData.file, modelData.value)
+                                    onTriggered: dlg.inst.setFile(fileRow.modelData.file, modelData.value)
+                                }
                             }
                         }
                     }
-                    TextBox {
-                        anchors.verticalCenter: parent.verticalCenter
+                    TextBox {  // on its own line: the path is long and the row has no room for it
                         objectName: "installFileTarget"
                         text: fileRow.modelData.target
                         visible: fileRow.modelData.action === "place"
-                        width: 220
+                        width: parent.width
 
                         onEditingFinished: dlg.inst.setFile(fileRow.modelData.file, "place:" + text)
                     }

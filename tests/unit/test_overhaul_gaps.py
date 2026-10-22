@@ -608,3 +608,23 @@ def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
     config = basic.make(id="m", label="M", game="eldenring", basic=b.model_copy(update={"files": {}}), folder=folder)
     (note,) = setup_notes(config.model_copy(update={"basic": b}), folder)
     assert "old/gone.ini is not in the mod's folder any more" in note
+
+
+def test_a_saved_setup_with_flat_paths_carries_over_to_a_download_with_a_package_root(tmp_path):
+    from roundtable_souls.overhauls.config import Basic, BasicNative
+    from roundtable_souls.ui.file_actions import shown_path
+
+    folder = make_folder(tmp_path, ["A.dll", "B.dll", "mod/regulation.bin", "mod/chr/c0000.anibnd.dcx", "cfg/a.ini"])
+    saved = Basic(
+        natives=[
+            BasicNative(file="b.DLL", initializer="Init", after_others=True),
+            BasicNative(file="A.dll", load_early=True, after_others=False),
+        ],
+        files={"chr/c0000.anibnd.dcx": "leave", "gone.bin": "leave", "cfg/a.ini": "keep"},
+    )
+    out = basic.carry_over(basic.propose(folder), saved, folder)
+    by = {n.file: n for n in out.natives}
+    assert by["A.dll"].load_early and not by["A.dll"].after_others
+    assert by["B.dll"].initializer == "Init"
+    assert out.files == {"mod/chr/c0000.anibnd.dcx": "leave", "cfg/a.ini": "keep"}
+    assert shown_path("msg/{each}/menu.msgbnd.dcx") == "msg/<language>/menu.msgbnd.dcx"

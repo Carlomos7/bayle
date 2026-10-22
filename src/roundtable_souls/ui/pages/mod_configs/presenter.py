@@ -13,7 +13,7 @@ from typing import Any
 
 from roundtable_souls.formats import config_model
 from roundtable_souls.services import mod_configs
-from roundtable_souls.ui.file_actions import file_action_text
+from roundtable_souls.ui.file_actions import file_action_text, shown_path
 from roundtable_souls.ui.pages.mods.presenter import Confirm, Pick, Refusal
 from roundtable_souls.ui.text import plural, tr
 
@@ -385,7 +385,7 @@ class ModConfigsPresenter:
         tables = (choice or {}).get("tables") or []
         shown = values.get("tables", {}).get(t.file, t.table)
         per = [(tr("other languages") if k == "*" else k) + ": " + v for k, v in t.texts.items()]
-        label = tr("Texts in {file}").format(file=t.file)
+        label = tr("Texts in {file}").format(file=shown_path(t.file))
         if tables:
             row = self._ov_row("texts", "table:" + t.file, label + " - " + tr("table"), "choice", shown)
             row["choices"] = [{"value": "", "label": tr("(choose a table)")}] if not shown else []

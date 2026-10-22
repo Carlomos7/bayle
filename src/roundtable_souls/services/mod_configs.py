@@ -337,7 +337,7 @@ def with_basic(
     texts = [t.model_copy(update={"table": (tables or {}).get(t.file) or t.table}) for t in old.texts] if old else []
     for t in texts:
         if not t.table:
-            raise ValueError(f"Choose the table of {t.file} that the texts are set in.")
+            raise ValueError(f"Choose the table of {t.file.replace('{each}', '<language>')} that the texts are set in.")
     if files is None and old is not None:
         keep = {"natives": [BasicNative(**n) for n in natives], "texts": texts}
         if health is not None:

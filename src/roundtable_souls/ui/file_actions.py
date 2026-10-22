@@ -4,6 +4,11 @@ Install mod dialog), by the kind of file (overhauls.basic.KINDS)."""
 from roundtable_souls.ui.text import tr
 
 
+def shown_path(path: str) -> str:
+    """A game path in words for the player: {each} (every text language) is written <language>."""
+    return path.replace("{each}", "<language>")
+
+
 def file_action_text(kind: str, action: str) -> str:
     if action == "merge":
         return (

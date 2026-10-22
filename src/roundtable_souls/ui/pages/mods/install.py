@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from roundtable_souls.ui.file_actions import file_action_text
+from roundtable_souls.ui.file_actions import file_action_text, shown_path
 from roundtable_souls.ui.text import tr
 
 
@@ -492,7 +492,7 @@ class InstallDraft:
             choices.insert(0, {"value": "", "label": tr("(choose a table)")})
         return {
             "file": t["file"],
-            "label": tr("Texts added to {file}").format(file=t["file"]),
+            "label": tr("Texts added to {file}").format(file=shown_path(t["file"])),
             "table": t["table"],
             "choices": choices,
             "chosen": next((c["label"] for c in choices if c["value"] == t["table"]), t["table"]),

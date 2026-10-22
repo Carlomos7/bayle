@@ -1,4 +1,4 @@
-"""Set the version in pyproject.toml and the package, ready to commit and tag.
+"""Set the version in pyproject.toml, the package and the desktop/api manifests, ready to commit and tag.
 
 Releases are normally cut by release-please (CONTRIBUTING.md); this is the manual fallback.
 
@@ -16,10 +16,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = r"\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?"
+JSON_VERSION = re.compile(rf'^  "version": "({VERSION})",?$', re.M)
 FILES = {
     ROOT / "pyproject.toml": re.compile(rf'^version = "({VERSION})"$', re.M),
     ROOT / "src" / "bayle" / "__init__.py": re.compile(
         rf'^__version__ = "({VERSION})"(?:  # x-release-please-version)?$', re.M
+    ),
+    # npm and Cargo take the same SemVer; the first match is the package's own version
+    ROOT / "package.json": JSON_VERSION,
+    ROOT / "apps" / "desktop" / "package.json": JSON_VERSION,
+    ROOT / "packages" / "api" / "package.json": JSON_VERSION,
+    ROOT / "apps" / "desktop" / "src-tauri" / "tauri.conf.json": JSON_VERSION,
+    ROOT / "apps" / "desktop" / "src-tauri" / "Cargo.toml": re.compile(rf'^version = "({VERSION})"$', re.M),
+    ROOT / "apps" / "desktop" / "src-tauri" / "Cargo.lock": re.compile(
+        rf'^name = "bayle-desktop"\nversion = "({VERSION})"$', re.M
     ),
 }
 

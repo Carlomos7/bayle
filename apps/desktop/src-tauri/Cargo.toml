@@ -1,6 +1,6 @@
 [package]
 name = "bayle-desktop"
-version = "0.0.0"
+version = "4.6.0-rc.3"
 description = "Bayle desktop shell"
 edition = "2024"
 license = "GPL-3.0-or-later"

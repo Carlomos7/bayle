@@ -14,7 +14,9 @@ const shell = {
   profiles: ["Vanilla", "Overhaul"],
   profile_index: 1,
   status: { text: "Ready to play", tone: "muted", busy: false },
-  pill: { text: "Play", state: "ready", can_launch: true, mode_text: "" },
+  pill: { text: "Play", state: "enabled", can_launch: true, mode_text: "Profile", mode: "profile" },
+  games: [],
+  modes: [],
   unseen: 2,
 };
 
@@ -39,17 +41,17 @@ test("the shell shows game, profile, status, the rail and lands on Mods", async 
   expect(screen.getByLabelText("2 failed since you last looked")).toBeInTheDocument();
 });
 
-test("Ctrl+1..6 jump to the pages in rail order", async () => {
+test("Ctrl+1..5 jump to the pages as the Qt app does", async () => {
   boot();
   const user = userEvent.setup();
   await screen.findByRole("heading", { name: "Mods" });
   await user.keyboard("{Control>}3{/Control}");
   expect(await screen.findByRole("heading", { name: "Saves" })).toBeInTheDocument();
-  await user.keyboard("{Control>}6{/Control}");
+  await user.keyboard("{Control>}5{/Control}");
   expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
   expect(screen.getByLabelText("Theme")).toBeInTheDocument();
   await user.keyboard("{Control>}4{/Control}");
-  expect(await screen.findByRole("heading", { name: "Profile transfer" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Activity" })).toBeInTheDocument();
 });
 
 test("a refused shell page (no game yet) shows the backend's message in the status line", async () => {

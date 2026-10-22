@@ -191,6 +191,22 @@ def test_support_logs_are_zipped_into_the_folder_asked(shell, tmp_path):
     assert got.path.endswith(".zip") and [p.suffix for p in out.iterdir()] == [".zip"]
 
 
+def test_a_new_profile_offer_and_an_unknown_folder(shell, monkeypatch):
+    offer = shell.session.run("shell.new_profile_offer", {})
+    assert offer.name.endswith("mods") and offer.seamless is False
+    opened = []
+    monkeypatch.setattr("bayle.session.shell.service.desktop.open_path", opened.append)
+    shell.session.run("shell.open_place", {"which": "steam"})
+    assert opened == ["steam://open/main"]
+    shell.session.run("shell.open_place", {"which": "readme"})
+    assert opened[-1].endswith("#readme")
+    assert shell.session.run("shell.stop_rebuild", {}).ok
+    monkeypatch.setattr(core, "places", lambda *_: {"game": None})
+    with pytest.raises(OperationError) as e:
+        shell.session.run("shell.open_place", {"which": "game"})
+    assert e.value.code == "folder_unknown"
+
+
 def test_a_session_without_a_shell_says_so():
     with pytest.raises(OperationError) as e:
         Session(JobManager()).snapshot("shell")

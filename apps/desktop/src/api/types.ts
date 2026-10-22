@@ -41,7 +41,7 @@ export type PromptWords =
       apply: string;
       none?: string;
       ticked?: number[];
-      /** The row labels. Not in the Python dataclass yet: the backend adds them next to the words. */
+      /** The row labels (views.common.Pick.rows). */
       rows?: string[];
     }
   | { kind: "choose"; title: string; lines: string[]; choices: ChoiceOption[]; warning?: string; safety?: string }

@@ -465,6 +465,34 @@ class Shell:
             raise OperationError("logs_not_found", f"{tr('Could not open the logs folder')}: {e}") from e
         return logs
 
+    def open_place(self, which: str) -> None:
+        """Show a folder (profile, game, logs), Steam or the README in the desktop, as the menu does."""
+        if which == "steam":
+            where = "steam://open/main"
+        elif which == "readme":  # How to use is the project's README
+            from bayle.config import identity
+
+            where = identity.get().releases_page.rsplit("/releases", 1)[0] + "#readme"
+        elif which == "logs":
+            where = str(self.logs_folder())
+        else:
+            found = core.places(self.state.launch_profile, self.state.locations).get(which)
+            if not found:
+                raise OperationError("folder_unknown", tr("That folder is not known yet."))
+            where = str(found)
+        desktop.open_path(where)
+
+    def new_profile_offer(self) -> dict:
+        """What the New profile dialog starts with: a suggested name and whether Seamless Co-op can come along."""
+        from bayle.services import coop as coop_service
+
+        g = self.state.game
+        try:
+            seamless = bool(g.coop_dll) and bool(coop_service.seamless_in_game_folder(self.state.locations))
+        except OSError:
+            seamless = False
+        return {"name": tr("{game} mods").format(game=g.name), "seamless": seamless}
+
     def point_steam_shortcuts(self) -> list[str]:
         """Steam shortcuts with --play that start another copy of this program now start this one; the names changed."""
         try:

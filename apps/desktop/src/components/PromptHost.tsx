@@ -2,7 +2,7 @@ import { createContext, use, useCallback, useMemo, useState, type ReactNode } fr
 import type { Answer, PlanOffer, PromptEventData, PromptWords } from "@/api/types";
 import { useApi } from "@/api/backend";
 import { PromptDialog } from "./PromptDialog";
-import { sonnerToasts, type Toasts } from "./toasts";
+import { sonnerToasts, toProblem, type Toasts } from "./toasts";
 
 interface Request {
   words: PromptWords;
@@ -59,7 +59,8 @@ export function PromptHost({ children, toasts = sonnerToasts }: { children: Reac
             setQueue((q) => q.slice(1));
             // a cancelled plan is never posted: the offer simply expires
             if (head.words.kind === "refusal" || (head.words.kind !== "choose" && !answer.ok)) return;
-            head.send(answer).catch(toasts.error);
+            // a question already answered (the other window, or the job ended) is nothing to tell the player
+            head.send(answer).catch((e: unknown) => toProblem(e).code === "unknown_prompt" || toasts.error(e));
           }}
         />
       ) : null}

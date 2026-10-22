@@ -165,8 +165,6 @@ def main() -> int:
     check_sqlite()
     if "--no-test" not in argv:
         run(py, "-m", "pytest", "-q")
-    if WINDOWS:
-        run(py, ROOT / "scripts" / "make_icon.py")
     shutil.rmtree(DIST / EXE_NAME, ignore_errors=True)
     folder = pyinstaller(py, identity_file)
     if "--no-pack" in argv:

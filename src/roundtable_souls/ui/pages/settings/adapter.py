@@ -104,7 +104,7 @@ CHOICES = {
     "theme": (("dark", "Dark"), ("tarnished", "Tarnished"), ("light", "Light"), ("system", "System")),
     "effects": (("full", "Full"), ("reduced", "Reduced"), ("off", "Off")),
     "grain": (("off", "Off"), ("subtle", "Subtle"), ("film", "Film")),
-    "logo": (("auto", "Follows theme"), ("dark", "Dark"), ("light", "Light")),
+    "logo": (("auto", "Follows theme"), ("crimson", "Crimson"), ("ice", "Ice"), ("gold", "Tarnished")),
     "log_level": (("normal", "Normal"), ("verbose", "Verbose")),
     "launcher_channel": (("stable", "Stable"), ("beta", "Beta")),
 }
@@ -201,7 +201,9 @@ class SettingsAdapter(QObject):
             "grain": tr("Grain"),
             "grainHelp": tr("Fine texture behind pages and panels."),
             "logo": tr("Logo"),
-            "logoHelp": "",
+            "logoHelp": tr(
+                "Sets the top bar emblem and the window icon. Follows theme is crimson on dark themes and ice on the light theme."
+            ),
             "updates": tr("Updates"),
             "channel": tr("Update channel"),
             "channelHelp": tr(

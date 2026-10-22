@@ -68,3 +68,11 @@ def test_settings_an_older_build_wrote_for_overhauls_still_load():
     settings.save_settings(theme="dark")
     written = json.loads(settings.settings_path().read_text(encoding="utf-8"))
     assert written["offline_strip_overhaul"] is True and "build_merges" not in written
+
+
+def test_logo_setting_migrates_old_values():
+    from roundtable_souls.config.settings import LauncherSettings
+
+    got = {v: LauncherSettings.from_raw({"logo": v}).logo for v in ("dark", "light", "gold", "ice", "bogus", None)}
+    assert got == {"dark": "crimson", "light": "ice", "gold": "gold", "ice": "ice", "bogus": "auto", None: "auto"}
+    assert LauncherSettings.from_raw({}).logo == "auto"

@@ -236,7 +236,7 @@ class LauncherSettings(BaseModel):
     effects: Literal["full", "reduced", "off"] = "full"  # the QML windows' glow, grain and blur
     grain: Literal["off", "subtle", "film"] = "subtle"
     log_level: Literal["normal", "verbose"] = "normal"  # verbose: debug lines in launcher.log, from the next start
-    logo: Literal["auto", "dark", "light"] = "auto"
+    logo: Literal["auto", "crimson", "ice", "gold"] = "auto"
     native_configs: dict[str, list[str]] = Field(default_factory=dict)  # DLL path -> settings files tied to it
     parameter_overlays: dict[str, Any] = Field(default_factory=dict)  # profile -> {package, rebuild} set in Options
     rebuild_approved: list[str] = Field(default_factory=list)  # rebuild tools the user allowed to run
@@ -317,6 +317,16 @@ class LauncherSettings(BaseModel):
         except ValidationError as e:
             bad = {err["loc"][0] for err in e.errors() if err["loc"]}
             return cls.model_validate({k: v for k, v in raw.items() if k not in bad})
+
+    @field_validator("logo", mode="before")
+    @classmethod
+    def _logo_ok(cls, v: Any) -> Any:
+        # Older builds saved dark and light; anything else unknown falls back to following the theme.
+        return (
+            {"dark": "crimson", "light": "ice"}.get(v, v)
+            if v in ("dark", "light", "crimson", "ice", "gold")
+            else "auto"
+        )
 
     @field_validator("profiles_root", mode="before")
     @classmethod

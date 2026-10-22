@@ -86,7 +86,10 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 fillMode: Image.PreserveAspectFit
                 height: 18
-                source: root.shell.logoMode === "light" || (root.shell.logoMode === "auto" && !Theme.dark) ? root.shell.logoLight : root.shell.logoDark
+                source: {
+                    const m = root.shell.logoMode === "auto" ? (Theme.dark ? "crimson" : "ice") : root.shell.logoMode;
+                    return m === "gold" ? root.shell.logoGold : m === "ice" ? root.shell.logoIce : root.shell.logoCrimson;
+                }
                 sourceSize: Qt.size(36, 36)
                 width: 18
             }

@@ -22,7 +22,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from roundtable_souls.platform import instance
 from roundtable_souls.resources import ASSETS_DIR
-from roundtable_souls.services.play import TITLE
+from roundtable_souls.services.play import TITLE, app_icon_path
 from roundtable_souls.ui import cpu_pool, stall
 from roundtable_souls.ui.launcher.adapter import ShellAdapter
 from roundtable_souls.ui.launcher.host import ShellHost
@@ -178,6 +178,10 @@ class ShellWindow(QObject):
         scheme = {"light": Qt.ColorScheme.Light, "system": Qt.ColorScheme.Unknown}.get(theme, Qt.ColorScheme.Dark)
         if hints is not None and hints.colorScheme() != scheme:
             hints.setColorScheme(scheme)
+        dark = hints is None or hints.colorScheme() != Qt.ColorScheme.Light
+        app = QGuiApplication.instance()
+        if app is not None:
+            app.setWindowIcon(QIcon(str(app_icon_path(dark, self.host.state.settings.logo))))
 
     def _quit(self) -> None:
         app = QGuiApplication.instance()
@@ -216,7 +220,7 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
         os.environ["QT_QPA_PLATFORM"] = identity.get().qt_platform
     app = QGuiApplication.instance() or QGuiApplication(sys.argv)
     app.setApplicationName(TITLE)
-    app.setWindowIcon(QIcon(str(ASSETS_DIR / "icon.ico")))
+    app.setWindowIcon(QIcon(str(ASSETS_DIR / "app-crimson.png")))  # the window follows the chosen logo from then on
     hold = instance.acquire(instance.WINDOW)
     if hold is None and instance.send("show"):
         return 0  # the open window came forward

@@ -88,10 +88,14 @@ def test_share_text_roundtrip_and_validation(tmp_path):
 
 
 def test_logo_follows_theme_unless_locked():
-    assert g.logo_kind(True, "auto") == "dark" and g.logo_kind(False, "auto") == "light"
-    assert g.logo_kind(True, "light") == "light" and g.logo_kind(False, "dark") == "dark"
-    assert g.logo_path(True, "auto").name == "logo-dark.png"
-    assert g.logo_path(False, "auto").name == "logo-light.png"
+    assert g.logo_kind(True, "auto") == "crimson" and g.logo_kind(False, "auto") == "ice"
+    assert g.logo_kind(True, "ice") == "ice" and g.logo_kind(False, "crimson") == "crimson"
+    assert g.logo_kind(False, "gold") == "gold" and g.logo_kind(True, "nonsense") == "crimson"
+    assert g.logo_path(True, "auto").name == "logo-crimson.png"
+    assert g.logo_path(False, "auto").name == "logo-ice.png"
+    assert g.app_icon_path(False, "gold").name == "app-gold.png"
+    for kind in ("crimson", "ice", "gold"):
+        assert g.logo_path(True, kind).is_file() and g.app_icon_path(True, kind).is_file()
     assert g.TITLE == "Bayle" and g.EXE_NAME == "RoundtableSouls"
 
 

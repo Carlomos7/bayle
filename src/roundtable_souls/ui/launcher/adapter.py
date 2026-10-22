@@ -243,8 +243,9 @@ class ShellAdapter(QObject):
     effects = Property(str, lambda self: self.host.state.settings.effects, notify=appearanceChanged)
     grain = Property(str, lambda self: self.host.state.settings.grain, notify=appearanceChanged)
     logoMode = Property(str, lambda self: self.host.state.settings.logo, notify=appearanceChanged)
-    logoDark = Property(QUrl, lambda self: QUrl.fromLocalFile(str(ASSETS_DIR / "logo-dark.png")), constant=True)
-    logoLight = Property(QUrl, lambda self: QUrl.fromLocalFile(str(ASSETS_DIR / "logo-light.png")), constant=True)
+    logoCrimson = Property(QUrl, lambda self: QUrl.fromLocalFile(str(ASSETS_DIR / "logo-crimson.png")), constant=True)
+    logoIce = Property(QUrl, lambda self: QUrl.fromLocalFile(str(ASSETS_DIR / "logo-ice.png")), constant=True)
+    logoGold = Property(QUrl, lambda self: QUrl.fromLocalFile(str(ASSETS_DIR / "logo-gold.png")), constant=True)
 
     def _appearance_changed(self) -> None:
         self.appearanceChanged.emit()

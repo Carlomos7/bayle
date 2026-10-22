@@ -1,27 +1,25 @@
-"""The Export / Import profile page's adapter: the thin QObject the QML page binds to. What to show comes from the
-presenter, what a button does from services/profile_transfer.py (and services/mods.py for a profile a download
-ships). The page has three views: Export, Import (a share list or a full export someone sent) and the bundled-profile
-view (a mod download that also holds a .me3). Reading, previewing and exporting run on the host's worker; the import
-itself is a logged job, so it shows in Activity with its Undo."""
+"""The Export / Import profile page's adapter: the thin QObject the QML page binds to. It holds the form (what is
+ticked, the fields), asks the session for everything else (the export listing, opening and previewing a file, the
+export and the import as jobs) and shows what the presenter makes of it. The unpacked zip and a download's staging
+folder are the backend's resources: the page keeps only an id. The page has three views: Export, Import (a share list
+or a full export someone sent) and the bundled-profile view (a mod download that also holds a .me3)."""
 
 from __future__ import annotations
 
-import shutil
-import threading
 import time
 from pathlib import Path
 from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from bayle.mods import naming, profile_import
-from bayle.mods.profile_edit import ModError
+from bayle.mods import profile_import
 from bayle.platform.text import tr
-from bayle.services import mods as mod_service
-from bayle.services import profile_transfer as pt
+from bayle.services.errors import OperationError
+from bayle.session import Session
+from bayle.session.ops.profile_transfer import ExportListing, Opened, PreviewView
 from bayle.ui.notifications import Notifier
 from bayle.ui.refresh import Refresher
-from bayle.views.profile_transfer import ProfileTransferPresenter, size_text
+from bayle.views.profile_transfer import PageInputs, ProfileTransferPresenter
 
 EXPORT, IMPORT, BUNDLED = "export", "import", "bundled"
 
@@ -38,19 +36,25 @@ class ProfileTransferHost(Protocol):
     @property
     def profile(self) -> Path | None: ...
     @property
-    def settings(self) -> Any: ...
+    def session(self) -> Session: ...
     def run_in_background(self, work, on_result) -> None: ...
-    def run_job(self, job, status: str) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None: ...
     def pick_folder(self, title: str) -> Path | None: ...
     def open_path(self, path: Path) -> None: ...
     def profile_changed(self, note: str) -> None: ...
 
 
+def _call(session: Session, name: str, params: dict) -> Any:
+    """session.run on a worker: the result, or the OperationError to show."""
+    try:
+        return session.run(name, params)
+    except OperationError as e:
+        return e
+
+
 class ProfileTransferAdapter(QObject):
     changed = Signal()
-    _progressed = Signal(object, object, str, int, int)  # emitted on the export's worker, delivered on the UI thread
-    _bytes_in = Signal(object, object)  # an import's bytes unpacked of the total, likewise
+    _events_ready = Signal()  # the session's bus has events (from a worker thread)
 
     def __init__(
         self,
@@ -68,7 +72,7 @@ class ProfileTransferAdapter(QObject):
         self._working = False
         self._profile: Path | None = None
         # export
-        self._items: list[pt.Item] = []
+        self._mods: list[Any] = []  # session.ops.profile_transfer.ModRow
         self._picked: set[str] = set()
         self._ex: dict[str, Any] = {
             "kind": "list",
@@ -84,29 +88,29 @@ class ProfileTransferAdapter(QObject):
             "saveName": "",
             "folder": "",
         }
-        # import
-        self._incoming: pt.Incoming | None = None
-        self._preview: pt.Preview | None = None
+        # import: the backend resource (an unpacked zip or a download's staging folder) is only an id here
+        self._res = ""
+        self._opened: Opened | None = None
+        self._preview: PreviewView | None = None
         self._ticked: set[str] = set()
         self._choices: dict[str, str] = {}  # per mod that differs from an installed one: incoming | mine | both
         self._new_profile = True
         self._new_name = ""
-        # a profile a download ships
-        self._staging: Path | None = None
-        self._unpacked: Path | None = None
-        self._names: list[str] = []
+        self._names: list[str] = []  # a profile a download ships
         self._which = 0
-        self._bundled: Any = None
+        self._bundled: PreviewView | None = None
         self._error = ""
-        self._result: dict[str, Any] = {}
-        # a running or finished export: phase idle | running | done | error | cancelled
+        self._import_pct = -1  # -1: no byte count (reading, or a share list)
+        # the running or finished export: phase idle | running | done | error | cancelled
         self._run: dict[str, Any] = {"phase": "idle"}
-        self._cancel = threading.Event()
+        self._job = ""  # the session job this page follows: "export" | "import" once started
+        self._job_id = ""
+        self._starting = False  # a job is being started: its first events may arrive before its id does
+        self._early: list[Any] = []
         self._started = 0.0
         self._refresher = Refresher(host, self._snapshot, self._build, self._apply_items)
-        self._progressed.connect(self._on_progress)
-        self._import_pct = -1  # -1: no byte count (reading, or a share list)
-        self._bytes_in.connect(self._on_unpacked)
+        self._events = host.session.jobs.bus.subscribe(notify=self._events_ready.emit)
+        self._events_ready.connect(self._drain)
 
     # ---- what QML reads
     title = Property(str, lambda self: self._words["title"], constant=True)
@@ -116,91 +120,31 @@ class ProfileTransferAdapter(QObject):
     state = Property(dict, lambda self: self._state(), notify=changed)
 
     def _state(self) -> dict:
-        ex = dict(self._ex)
-        ex["mods"] = [
-            {
-                "key": it.key,
-                "name": it.entry["name"],
-                "size": size_text(it.size),
-                "checked": it.key in self._picked,
-            }
-            for it in self._items
-        ]
-        picked = [it for it in self._items if it.key in self._picked]
-        size = sum(it.size for it in picked)
-        full = ex["kind"] == "full"
-        for row, it in zip(ex["mods"], self._items, strict=True):
-            row["large"] = it.size >= pt.LARGE_MOD
-        ex["total"] = self.presenter.total(len(picked), size)
-        name_ok, folder_ok, mods_ok = bool(ex["name"].strip()), bool(ex["folder"]), bool(picked) or not full
-        busy = (
-            tr("Another job is running. Wait for it to finish.")
-            if self.host.busy
-            else tr("Close the game first: exports run as launcher jobs.")
-            if self.host.game_running
-            else tr("Exporting...")
-            if self._working
-            else ""
+        o, b = self._opened, self._bundled
+        return self.presenter.page_state(
+            PageInputs(
+                profile=self._profile,
+                ex=self._ex,
+                mods=self._mods,
+                picked=self._picked,
+                busy=self.host.busy,
+                game_running=self.host.game_running,
+                working=self._working,
+                run=self._run,
+                incoming_file=o.file if o else "",
+                incoming_zip=bool(o and o.is_zip),
+                incoming_readme=o.readme if o else "",
+                preview=self._preview,
+                bundled=b,
+                ticked=self._ticked,
+                new_profile=self._new_profile,
+                new_name=self._new_name,
+                error=self._error,
+                import_pct=self._import_pct,
+                names=self._names,
+                which=self._which,
+            )
         )
-        ex["reason"] = self.presenter.reason(name_ok, folder_ok, mods_ok, busy)
-        ex["ready"] = ex["reason"] == ""
-        ex["nameError"], ex["folderError"], ex["modsError"] = not name_ok, not folder_ok, not mods_ok
-        ex["summary"] = self.presenter.summary(
-            full,
-            len(picked),
-            size,
-            bool(ex["withConfigs"]),
-            bool(ex["withSave"] and ex["saveName"]),
-            bool(ex["withPassword"]),
-        )
-        top = sorted(picked, key=lambda it: it.size, reverse=True)[:3]
-        ex["warn"] = (
-            self.presenter.big_warning(size, [(it.entry["name"], it.size) for it in top])
-            if full and size >= pt.LARGE_EXPORT
-            else ""
-        )
-        ex["run"] = dict(self._run)
-        ex["fullLabel"] = f"{self._words['fullExport']} ({size_text(size)})" if picked else self._words["fullExport"]
-        prev = self._preview
-        imp: dict[str, Any] = {
-            "file": self.presenter.file_line(self._incoming) if self._incoming else "",
-            "isZip": bool(self._incoming and self._incoming.kind == "zip"),
-            "readme": self._incoming.readme if self._incoming else "",
-            "cards": [{**c, "checked": c["key"] in self._ticked} for c in self.presenter.cards(prev)] if prev else [],
-            "skipped": list(prev.skipped) if prev else [],
-            "notes": list(prev.notes) if prev else [],
-            "refusals": list(prev.refusals) if prev else [],
-            "newProfile": self._new_profile,
-            "newName": self._new_name,
-            "error": self._error,
-            "pct": self._import_pct,
-            "clashes": self.presenter.clashes(prev.zip_preview, self._new_profile) if prev and prev.zip_preview else [],
-        }
-        imp["canImport"] = bool(
-            prev
-            and not prev.refusals
-            and (self._ticked & {c["key"] for c in imp["cards"]})
-            and not (prev.zip_preview and prev.zip_preview.undecided)
-        )
-        b = self._bundled
-        bun = {
-            "names": self._names,
-            "which": self._which,
-            "lines": list(b.lines) if b else [],
-            "skipped": [],
-            "refusals": list(b.refusals) if b else [],
-            "newProfile": self._new_profile,
-            "newName": self._new_name,
-            "canImport": bool(b and b.ok and not b.undecided),
-            "clashes": self.presenter.clashes(b, self._new_profile) if b else [],
-        }
-        return {
-            "hasProfile": self._profile is not None,
-            "profileName": self._profile.stem if self._profile else "",
-            "ex": ex,
-            "imp": imp,
-            "bun": bun,
-        }
 
     def _emit(self) -> None:
         self.changed.emit()
@@ -214,29 +158,45 @@ class ProfileTransferAdapter(QObject):
 
     def open_profile_import(self, unpacked: Path, profiles: list[str], staging: Path | None = None) -> None:
         """The bundled-profile view for a download that ships .me3 profiles (E1): unpacked is the unpacked download,
-        profiles the .me3 paths in it. staging: the folder to delete when the view is done."""
+        profiles the .me3 paths in it. staging: the folder the backend deletes when the view is done."""
         self._release()
         self._mode = BUNDLED
-        self._unpacked, self._staging = Path(unpacked), Path(staging) if staging else None
         self._names = list(profiles)
         self._which = 0
         self._new_profile = True
         self._new_name = Path(self._names[0]).stem if self._names else ""
-        self._bundled = None
         self.refresh()
-        self._preview_bundled()
+        session = self.host.session
+        want = {"unpacked": str(unpacked), "profiles": self._names, "staging": str(staging) if staging else ""}
+
+        def opened(got) -> None:
+            if isinstance(got, OperationError):
+                self._error = got.message
+            elif self._mode == BUNDLED:
+                self._res = got.resource
+                self._preview_bundled()
+            else:  # the player moved on before it was open
+                self._drop(got.resource)
+            self._emit()
+
+        self.host.run_in_background(lambda: _call(session, "profile_transfer.open_bundled", want), opened)
+
+    def _drop(self, resource: str) -> None:
+        session = self.host.session
+        self.host.run_in_background(
+            lambda: _call(session, "profile_transfer.discard", {"resource": resource}), lambda _: None
+        )
 
     def _release(self) -> None:
-        """Let go of what an earlier view held: the unpacked zip, the download's staging folder."""
-        if self._incoming is not None:
-            pt.discard(self._incoming)
-        if self._staging is not None:
-            shutil.rmtree(self._staging, ignore_errors=True)
-        self._incoming = self._preview = self._bundled = None
-        self._staging = self._unpacked = None
+        """Let go of what an earlier view held: the backend deletes the unpacked zip and the download's staging folder."""
+        if self._res:
+            self._drop(self._res)
+        self._res = ""
+        self._opened = self._preview = self._bundled = None
         self._ticked = set()
         self._choices = {}
         self._error = ""
+        self._names = []
 
     # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
     COMMANDS = {
@@ -261,65 +221,47 @@ class ProfileTransferAdapter(QObject):
     @Slot()
     def refresh(self) -> None:
         """Read the profile and what an export lists (also the host's call after a job)."""
-        self._finished()
         profile = self.host.profile
         before, self._profile = self._profile, Path(profile) if profile else None
         if before is not None and before != self._profile:  # another profile in the top bar: name and readme start over
             self._ex.update(name="", readme="", readmeEdited=False)
         self._emit()
-        if self._mode == IMPORT and self._incoming is not None:  # the top bar's profile may have changed
+        if self._mode == IMPORT and self._res:  # the top bar's profile may have changed
             self._make_preview()
         if self._mode != EXPORT or self._profile is None or self._working:
             return
         self._refresher.request()
 
     def _snapshot(self) -> tuple:
-        return self.host.locations, self._profile
+        return self.host.session, self.host.locations, self._profile
 
     @staticmethod
     def _build(snap: tuple):
-        loc, profile = snap
+        session, loc, profile = snap
         if loc is None or profile is None:
-            return [], None, profile
-        return pt.items(profile, full=True), pt.save_candidate(profile, loc=loc), profile
+            return None, profile
+        return session.snapshot("profile_transfer", profile=str(profile)), profile
 
     def _apply_items(self, result) -> None:
-        self._items, save, profile = result
-        if profile is None or profile != self._profile:  # the top bar moved on: its own read follows
+        listing: ExportListing | None
+        listing, profile = result
+        if listing is None or profile is None or profile != self._profile:  # none, or the top bar moved on
+            if listing is None:
+                self._mods = []
+                self._emit()
             return
-        self._picked = {it.key for it in self._items}
+        self._mods = listing.mods
+        self._picked = {m.key for m in self._mods}
         self._ex["name"] = self._ex["name"] or profile.stem
-        self._ex["saveName"] = save.name if save else ""
+        self._ex["saveName"] = listing.save_name
         if not self._ex["readmeEdited"]:
-            self._ex["readme"] = pt.default_readme(self._ex["name"], "", "", self._items)
+            self._ex["readme"] = self._default_readme()
         self._emit()
 
-    def _finished(self) -> None:
-        """After an import job: say how it went."""
-        res, self._result = self._result, {}
-        if not res:
-            return
-        self._working = False
-        self._import_pct = -1
-        if res.get("kind") == "export":
-            took = time.monotonic() - self._started
-            if res.get("cancelled"):
-                self._run = {"phase": "cancelled", "text": self.presenter.cancelled()}
-            elif res.get("error"):
-                self._run = {"phase": "error", "text": self.presenter.failed(res["error"])}
-            else:
-                text = self.presenter.done_text(res["path"], res["size"], took)
-                self._run = {"phase": "done", "text": text, "path": str(res["path"])}
-            self._emit()
-            return
-        if res.get("error"):
-            self.notifier.toast(self.presenter.import_failed(res["error"]), error=True)
-        else:
-            self.notifier.toast(self.presenter.imported(res["name"]))
-            self._release()
-            self._preview = None
-            self._mode = IMPORT if self._mode == BUNDLED else self._mode
-            self.host.profile_changed(f"imported {res['name']}")
+    def _default_readme(self) -> str:
+        ex = self._ex
+        picked = [m for m in self._mods if m.key in self._picked]
+        return self.presenter.readme(ex["name"], ex["version"], ex["author"], picked)
 
     @Slot(str)
     def setMode(self, mode: str) -> None:
@@ -336,12 +278,7 @@ class ProfileTransferAdapter(QObject):
             if field == "readme":
                 self._ex["readmeEdited"] = True
             elif field in ("name", "version", "author") and not self._ex["readmeEdited"]:
-                self._ex["readme"] = pt.default_readme(
-                    self._ex["name"],
-                    self._ex["version"],
-                    self._ex["author"],
-                    [i for i in self._items if i.key in self._picked],
-                )
+                self._ex["readme"] = self._default_readme()
             self._emit()
 
     @Slot(str, bool)
@@ -364,97 +301,154 @@ class ProfileTransferAdapter(QObject):
             self._ex["folder"] = str(got)
             self._emit()
 
+    def _export_params(self) -> dict[str, Any]:
+        ex = self._ex
+        return dict(
+            profile=str(self._profile),
+            kind=ex["kind"],
+            name=ex["name"],
+            version=ex["version"],
+            author=ex["author"],
+            readme=ex["readme"],
+            changelog=ex["changelog"],
+            chosen=sorted(self._picked),
+            folder=ex["folder"],
+            with_configs=bool(ex["withConfigs"]),
+            with_save=bool(ex["withSave"]),
+            password=bool(ex["withPassword"]),
+        )
+
     @Slot()
     def exportNow(self) -> None:
-        ex, profile, loc = self._ex, self._profile, self.host.locations
+        profile, loc = self._profile, self.host.locations
         st = self._state()["ex"]
         if profile is None or loc is None or self._working or not st["ready"]:
             if st["reason"]:
                 self.notifier.toast(st["reason"], error=True)
             return
-        if ex["kind"] == "full":
-            size = sum(it.size for it in self._items if it.key in self._picked)
-            if size >= pt.LARGE_EXPORT:  # asked once, here, for a big one
-                words = self.presenter.confirm_big(size, self._words["export"])
-                self.notifier.confirm(words, lambda ok: ok and self._start_export())
+        size = sum(m.size for m in self._mods if m.key in self._picked)
+        if self._ex["kind"] == "full" and self.presenter.is_big(size):  # asked once, here, for a big one
+            self._ask_big({**self._export_params(), "size": size})
+            return
+        self._start("export", lambda session: _call(session, "profile_transfer.export", self._export_params()))
+
+    def _ask_big(self, params: dict) -> None:
+        session = self.host.session
+
+        def shown(plan) -> None:
+            if isinstance(plan, OperationError):
+                self.notifier.toast(plan.message, error=True)
                 return
-        self._start_export()
+            self.notifier.confirm(plan.words, lambda ok: self._answer_big(plan.id, ok))
 
-    def _start_export(self) -> None:
-        ex, profile, loc, settings = self._ex, self._profile, self.host.locations, self.host.settings
-        if profile is None or loc is None or self._working or self.host.busy:
+        self.host.run_in_background(lambda: _call(session, "profile_transfer.confirm_export", params), shown)
+
+    def _answer_big(self, plan_id: str, ok: bool) -> None:
+        if not ok:
             return
-        picked = set(self._picked)
+        self._start("export", lambda session: self._answer(session, plan_id))
+
+    @staticmethod
+    def _answer(session: Session, plan_id: str) -> Any:
+        try:
+            return session.answer(plan_id, {"ok": True})
+        except OperationError as e:  # busy, expired
+            return e
+
+    def _start(self, kind: str, call) -> None:
+        """Start the export or the import: call(session) on a worker gives the job id, then the bus tells how it goes."""
+        if self._working or self.host.busy:
+            return
         self._working = True
-        self._cancel.clear()
+        self._job = kind
+        self._starting = True
+        self._early = []
         self._started = time.monotonic()
-        self._run = {"phase": "running", "pct": 0, "title": "", "bytes": "", "eta": "", "file": "", "cancelling": False}
+        if kind == "export":
+            self._run = {
+                "phase": "running",
+                "pct": 0,
+                "title": "",
+                "bytes": "",
+                "eta": "",
+                "file": "",
+                "cancelling": False,
+            }
+        else:
+            self._import_pct = 0
         self._emit()
-        box = self._result
-        args = dict(
-            loc=loc,
-            settings=settings,
-            name=ex["name"].strip(),
-            version=ex["version"].strip(),
-            author=ex["author"].strip(),
-            password=bool(ex["withPassword"]),
-        )
-        full, folder = ex["kind"] == "full", Path(ex["folder"])
-        extra = dict(
-            readme=ex["readme"],
-            changelog=ex["changelog"],
-            chosen=picked,
-            out_dir=folder,
-            with_configs=bool(ex["withConfigs"]),
-            with_save=bool(ex["withSave"]),
-        )
-        last = [0.0]
+        session = self.host.session
 
-        def report(done, total, current, n, count) -> None:  # on the worker: at most ten times a second
-            now = time.monotonic()
-            if now - last[0] >= 0.1 or done >= total:
-                last[0] = now
-                self._progressed.emit(done, total, current, n, count)
+        def started(got) -> None:
+            self._starting = False
+            if isinstance(got, OperationError) or not got:
+                self._ended(got.message if isinstance(got, OperationError) else "", cancelled=got is None)
+                return
+            self._job_id = got
+            early, self._early = self._early, []
+            for e in early:
+                self._on_event(e)
 
-        def job(_launch, _loc):
-            from bayle.platform import logging as run_logging
+        self.host.run_in_background(lambda: call(session), started)
 
-            run_logging.start_log(f"launcher: export profile {args['name']}", loc.game.key)
-            try:
-                if full:
-                    out = pt.full_export(profile, progress=report, cancelled=self._cancel.is_set, **extra, **args)
-                else:
-                    doc, _ = pt.share_list(profile, **args)
-                    if not ex["withConfigs"]:
-                        doc["configs"] = {}
-                    out = pt.write_share_list(doc, folder)
-                box.update(kind="export", path=out, size=out.stat().st_size)
-            except pt.ExportCancelled:
-                box.update(kind="export", cancelled=True)
-                run_logging.log("export cancelled; the partial zip was removed")
-                raise SystemExit(130) from None
-            except Exception as e:
-                box.update(kind="export", error=str(e) or type(e).__name__)
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
+    # ---- the session's job events
+    def _drain(self) -> None:
+        while (e := self._events.get(0)) is not None:
+            if e.job_id is None:
+                continue
+            if self._starting:
+                self._early.append(e)  # the job id is not known yet: hold its events until it is
+            elif e.job_id == self._job_id:
+                self._on_event(e)
 
-        self.host.run_job(job, tr("Exporting a profile..."))
-
-    def _on_progress(self, done, total, current: str, n: int, count: int) -> None:
-        if self._run.get("phase") != "running":
+    def _on_event(self, e) -> None:
+        if e.job_id != self._job_id:
             return
-        shown = self.presenter.progress(done, total, n, count, time.monotonic() - self._started)
-        self._run.update(shown, file=current.rsplit("/", 1)[-1])
-        self._emit()
+        if e.type == "progress":
+            done, total = e.data.get("done") or 0, e.data.get("total") or 0
+            if self._job == "export":
+                d = e.data.get("detail") or {}
+                shown = self.presenter.progress(
+                    done, total, d.get("n", 0), d.get("count", 0), time.monotonic() - self._started
+                )
+                self._run.update(shown, file=str(e.data.get("label") or "").rsplit("/", 1)[-1])
+            else:
+                self._import_pct = int(100 * done / total) if total else 0
+            self._emit()
+        elif e.type == "finished":
+            self._ended("", result=e.data.get("result") or {})
+        elif e.type == "failed":
+            self._ended((e.data.get("error") or {}).get("message") or tr("Failed."))
+        elif e.type == "cancelled":
+            self._ended("", cancelled=True)
 
-    def _on_unpacked(self, done, total) -> None:
-        self._import_pct = int(100 * done / total) if total else 0
+    def _ended(self, why: str, result: dict | None = None, cancelled: bool = False) -> None:
+        kind, self._job, self._job_id, self._working, self._import_pct = self._job, "", "", False, -1
+        if kind == "export":
+            if cancelled:
+                self._run = {"phase": "cancelled", "text": self.presenter.cancelled()}
+            elif why:
+                self._run = {"phase": "error", "text": self.presenter.failed(why)}
+            elif result:
+                took = time.monotonic() - self._started
+                text = self.presenter.done_text(Path(result["path"]), result["size"], took)
+                self._run = {"phase": "done", "text": text, "path": result["path"]}
+            else:
+                self._run = {"phase": "idle"}
+        elif why:
+            self.notifier.toast(self.presenter.import_failed(why), error=True)
+        elif result:
+            self.notifier.toast(self.presenter.imported(result["name"]))
+            self._res = ""  # the backend let go of it when the import worked
+            self._release()
+            self._mode = IMPORT if self._mode == BUNDLED else self._mode
+            self.host.profile_changed(f"imported {result['name']}")
         self._emit()
 
     @Slot()
     def cancelExport(self) -> None:
-        if self._run.get("phase") == "running":
-            self._cancel.set()
+        if self._run.get("phase") == "running" and self._job_id:
+            self.host.session.jobs.cancel(self._job_id)
             self._run["cancelling"] = True
             self._emit()
 
@@ -475,65 +469,55 @@ class ProfileTransferAdapter(QObject):
         got = self.host.pick_file(self._words["openFile"], "Profile files (*.json *.zip)")
         if got is None or self._working:
             return
-        loc = self.host.locations
         self._release()
         self._working = True
         self._emit()
-
-        def work():
-            try:
-                return pt.read(got, loc=loc), ""
-            except Exception as e:
-                return None, str(e)
+        session = self.host.session
 
         def done(result) -> None:
             self._working = False
-            incoming, why = result
-            if incoming is None:
-                self._error = self.presenter.unreadable(why)
+            if isinstance(result, OperationError):
+                self._error = self.presenter.unreadable(result.message)
                 self._emit()
                 return
-            self._incoming = incoming
-            self._new_profile = incoming.kind == "zip"
-            self._new_name = incoming.share.name or incoming.path.stem
+            self._res, self._opened = result.resource, result
+            self._new_profile, self._new_name = result.new_profile, result.new_name
             self._make_preview()
 
-        self.host.run_in_background(work, done)
+        self.host.run_in_background(lambda: _call(session, "profile_transfer.open_file", {"path": str(got)}), done)
+
+    def _preview_params(self) -> dict[str, Any]:
+        return dict(
+            resource=self._res,
+            profile=str(self._profile),
+            new_profile=self._new_profile,
+            new_name=self._new_name,
+            choices=dict(self._choices),
+            which=self._which,
+        )
 
     def _make_preview(self) -> None:
-        incoming, profile, loc, settings = self._incoming, self._profile, self.host.locations, self.host.settings
-        if incoming is None or profile is None:
+        if not self._res or self._profile is None:
             return
-        new_name = self._new_name.strip() if incoming.kind == "zip" and self._new_profile else None
-        choices = self._choices
+        want, session = self._preview_params(), self.host.session
         self._working = True
         self._emit()
 
-        def work():
-            try:
-                if incoming.kind == "zip" and self._new_profile and not new_name:
-                    raise ModError(tr("Give the new profile a name."))
-                if new_name and not naming.mod_id(new_name):
-                    raise ModError(tr("Give the new profile a name."))
-                return pt.preview(
-                    incoming, profile, loc=loc, settings=settings, new_name=new_name, choices=dict(choices)
-                ), ""
-            except Exception as e:
-                return None, str(e)
-
         def done(result) -> None:
             self._working = False
-            prev, why = result
-            self._error = why
+            if self._res != want["resource"]:  # the player left that file
+                return
+            prev = None if isinstance(result, OperationError) else result
+            self._error = result.message if isinstance(result, OperationError) else ""
             before = (
-                ({c.key for c in self._preview.cards}, set(self._ticked)) if self._preview else None
+                ({c["key"] for c in self._preview.cards}, set(self._ticked)) if self._preview else None
             )  # a new look after a choice keeps what was unticked
             self._preview = prev
-            keys = {c.key for c in prev.cards} if prev else set()
+            keys = {c["key"] for c in prev.cards} if prev else set()
             self._ticked = {k for k in keys if before is None or k not in before[0] or k in before[1]}
             self._emit()
 
-        self.host.run_in_background(work, done)
+        self.host.run_in_background(lambda: _call(session, "profile_transfer.preview", want), done)
 
     @Slot(str, bool)
     def toggleCard(self, key: str, on: bool) -> None:
@@ -572,7 +556,7 @@ class ProfileTransferAdapter(QObject):
     def _retarget(self) -> None:
         if self._mode == BUNDLED:
             self._preview_bundled()
-        elif self._incoming is not None:
+        elif self._res:
             self._make_preview()
 
     @Slot()
@@ -582,32 +566,8 @@ class ProfileTransferAdapter(QObject):
             if self.host.busy:
                 self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        skip = {c.key for c in prev.cards} - self._ticked
-        box = self._result
-        self._working = True
-        self._import_pct = 0
-        self._emit()
-        last = [0.0]
-
-        def report(done, total) -> None:  # on the worker: at most ten times a second
-            now = time.monotonic()
-            if now - last[0] >= 0.1 or done >= total:
-                last[0] = now
-                self._bytes_in.emit(done, total)
-
-        def job(_launch, loc):
-            from bayle.platform import logging as run_logging
-
-            run_logging.start_log(f"launcher: import a shared profile into {prev.profile.name}", loc.game.key)
-            try:
-                out = pt.apply(prev, skip, progress=report)
-                box.update(name=Path(out["profile"]).name)
-            except Exception as e:
-                box.update(error=str(e) or type(e).__name__)
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-
-        self.host.run_job(job, tr("Importing a profile..."))
+        want = {"resource": self._res, "skip": sorted({c["key"] for c in prev.cards} - self._ticked)}
+        self._start("import", lambda session: _call(session, "profile_transfer.import", want))
 
     # ---- a profile a download ships (S3g)
     @Slot(int)
@@ -618,33 +578,21 @@ class ProfileTransferAdapter(QObject):
             self._preview_bundled()
 
     def _preview_bundled(self) -> None:
-        profile, loc = self._profile, self.host.locations
-        if self._unpacked is None or profile is None or not self._names:
+        if not self._res or self._profile is None or not self._names:
             return
-        unpacked, me3 = self._unpacked, self._names[self._which]
-        new_name = self._new_name.strip() if self._new_profile else None
-        choices = self._choices
+        want, session = self._preview_params(), self.host.session
         self._working = True
         self._emit()
 
-        def work():
-            try:
-                if self._new_profile and not new_name:
-                    raise ModError(tr("Give the new profile a name."))
-                return mod_service.preview_profile_import(
-                    unpacked, me3, profile, loc=loc, new_name=new_name, choices=dict(choices)
-                ), ""
-            except Exception as e:
-                return None, str(e)
-
         def done(result) -> None:
             self._working = False
-            prev, why = result
-            self._bundled = prev
-            self._error = why
+            if self._res != want["resource"]:
+                return
+            self._bundled = None if isinstance(result, OperationError) else result
+            self._error = result.message if isinstance(result, OperationError) else ""
             self._emit()
 
-        self.host.run_in_background(work, done)
+        self.host.run_in_background(lambda: _call(session, "profile_transfer.preview", want), done)
 
     @Slot()
     def importBundled(self) -> None:
@@ -654,32 +602,16 @@ class ProfileTransferAdapter(QObject):
         if self.host.busy:
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        box = self._result
-        self._working = True
-        self._emit()
-
-        def job(_launch, loc):
-            from bayle.platform import logging as run_logging
-
-            run_logging.start_log(f"launcher: import profile {prev.profile.name}", loc.game.key)
-            try:
-                out = mod_service.import_profile(prev)
-                box.update(name=Path(out["profile"]).name)
-            except Exception as e:
-                box.update(error=str(e) or type(e).__name__)
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-
-        self.host.run_job(job, tr("Importing a profile..."))
+        want = {"resource": self._res, "skip": []}
+        self._start("import", lambda session: _call(session, "profile_transfer.import", want))
 
     @Slot()
     def cancel(self) -> None:
-        """Leave the import: the unpacked zip and the download's staging folder go."""
+        """Leave the import: the backend deletes the unpacked zip and the download's staging folder."""
         self._release()
-        self._preview = None
         self._emit()
 
     @Slot()
     def openZipFolder(self) -> None:
-        if self._incoming is not None:
-            self.host.open_path(self._incoming.path.parent)
+        if self._opened is not None and self._opened.folder:
+            self.host.open_path(Path(self._opened.folder))

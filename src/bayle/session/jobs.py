@@ -49,7 +49,9 @@ class JobContext:
         if self._cancel.is_set():
             raise Cancelled()
 
-    def progress(self, done: float | None = None, total: float | None = None, label: str = "") -> None:
+    def progress(
+        self, done: float | None = None, total: float | None = None, label: str = "", detail: dict | None = None
+    ) -> None:
         """Coalesced to one event per interval (the final step, done >= total, always passes).
         shortcut: a step skipped by coalescing is not sent later; the next one (or the end) carries the state."""
         now = self._clock()
@@ -57,7 +59,9 @@ class JobContext:
         if self._last is not None and now - self._last < self._interval and not final:
             return
         self._last = now
-        self._report("progress", {"done": done, "total": total, "label": label})
+        self._report(
+            "progress", {"done": done, "total": total, "label": label, **({"detail": detail} if detail else {})}
+        )
 
     def prompt(self, data: dict[str, Any]) -> None:
         """Ask the client something mid-job (never dropped).

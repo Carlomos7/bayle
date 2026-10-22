@@ -6,10 +6,10 @@ import struct
 import pytest
 from fakegame import bnd, dcx, files_of, fmg, texts_of
 
-from roundtable_souls import formats
-from roundtable_souls.game import archives as gamearchive
-from roundtable_souls.merging import merger
-from roundtable_souls.merging.rules import fmg as fmg_rule
+from bayle import formats
+from bayle.game import archives as gamearchive
+from bayle.merging import merger
+from bayle.merging.rules import fmg as fmg_rule
 
 GAME = {"a.hkx": b"walk", "b.hkx": b"run", "c.hkx": b"roll"}
 

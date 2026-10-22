@@ -14,8 +14,8 @@ import time
 
 import pytest
 
-from roundtable_souls.platform.filelock import ReadWriteLock
-from roundtable_souls.storage import db, models
+from bayle.platform.filelock import ReadWriteLock
+from bayle.storage import db, models
 
 HEAD = db.head_revision()  # the newest real revision; test revisions (9xxx) are added after it
 
@@ -27,8 +27,8 @@ HOLDER = textwrap.dedent(
     """
     import sys
     from pathlib import Path
-    from roundtable_souls.platform.filelock import ReadWriteLock
-    from roundtable_souls.storage import db
+    from bayle.platform.filelock import ReadWriteLock
+    from bayle.storage import db
 
     folder, mode = Path(sys.argv[1]), sys.argv[2]
     if mode == "open":
@@ -343,7 +343,7 @@ def test_everything_the_migration_scripts_import_is_imported_by_storage_db():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 wanted.add(node.module)
     probe = (
-        "import sys, roundtable_souls.storage.db\n"
+        "import sys, bayle.storage.db\n"
         f"missing = [m for m in {sorted(wanted)!r} if m not in sys.modules]\n"
         "print(missing)\n"
     )
@@ -404,7 +404,7 @@ def test_only_a_failure_of_the_migration_code_stops_start_up():
 # ----------------------------------------------------------------------------- the application
 @needs_sqlite
 def test_create_app_opens_the_database_in_the_data_folder(tmp_path):
-    from roundtable_souls.app import create_app
+    from bayle.app import create_app
 
     ctx = create_app()
     try:
@@ -415,7 +415,7 @@ def test_create_app_opens_the_database_in_the_data_folder(tmp_path):
 
 
 def test_create_app_runs_on_without_storage_when_it_is_refused(monkeypatch):
-    from roundtable_souls import app
+    from bayle import app
 
     def refuse(_folder):
         raise db.StorageUnavailable("storage is off for this run")
@@ -426,10 +426,10 @@ def test_create_app_runs_on_without_storage_when_it_is_refused(monkeypatch):
 
 
 def test_a_failed_upgrade_stops_start_up_and_play_reports_nothing_ready(monkeypatch):
-    from roundtable_souls import app, cli
-    from roundtable_souls.game import catalog as games
-    from roundtable_souls.platform import instance
-    from roundtable_souls.updates import apply as updates
+    from bayle import app, cli
+    from bayle.game import catalog as games
+    from bayle.platform import instance
+    from bayle.updates import apply as updates
 
     def fail(_folder):
         raise db.MigrationFailed("The database upgrade failed (broken); the database was restored from x.")
@@ -446,7 +446,7 @@ def test_a_failed_upgrade_stops_start_up_and_play_reports_nothing_ready(monkeypa
 
 @needs_sqlite
 def test_check_storage_reports_the_database_it_opened(capsys):
-    from roundtable_souls import cli
+    from bayle import cli
 
     assert cli.check_storage() == 0
     out = capsys.readouterr().out

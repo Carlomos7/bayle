@@ -4,8 +4,8 @@ what it could not take is refused. Small regulation files built here."""
 import pytest
 from test_param_merge import pack, regulation, row, rows_of, table, vanilla
 
-from roundtable_souls import formats
-from roundtable_souls.merging.rules import param as pm
+from bayle import formats
+from bayle.merging.rules import param as pm
 
 
 def test_a_table_the_game_does_not_know_is_reported_by_the_pack_that_adds_it():

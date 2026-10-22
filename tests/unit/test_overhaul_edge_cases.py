@@ -12,12 +12,12 @@ from fakegame import bnd, dcx, fmg
 from test_overhaul_gaps import TALK, revive_shaped, texts_setup
 from test_overhaul_install import World, files, set_up
 
-from roundtable_souls import overhauls
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import overhaul_install
-from roundtable_souls.mods.overhaul_install import OverhaulError
-from roundtable_souls.overhauls import basic
+from bayle import overhauls
+from bayle.game.locate import Locations, Overrides
+from bayle.merging import build as B
+from bayle.mods import overhaul_install
+from bayle.mods.overhaul_install import OverhaulError
+from bayle.overhauls import basic
 
 
 @pytest.fixture
@@ -142,7 +142,7 @@ def test_the_download_is_never_moved_or_changed(world):
 
 # ----------------------------------------------------------------------------- 4: no game folder
 def test_no_game_folder_refuses_in_the_preview_and_writes_nothing(world, monkeypatch):
-    from roundtable_souls.game import locate
+    from bayle.game import locate
 
     folder = revive_shaped(world)
     monkeypatch.setattr(locate, "installed_dir", lambda _game: None)

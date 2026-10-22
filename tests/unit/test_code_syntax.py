@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from roundtable_souls.ui.code_syntax import first_error, highlight_line, language_for
+from bayle.ui.code_syntax import first_error, highlight_line, language_for
 
 
 def roles(language: str, text: str) -> list[tuple[str, str]]:

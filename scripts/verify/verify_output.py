@@ -36,7 +36,7 @@ import _common
 import _readers
 from calibrate import calibrate
 
-from roundtable_souls import formats
+from bayle import formats
 
 REMOVED = None
 
@@ -125,7 +125,7 @@ def tae_intended(game: bytes, copies: list[bytes]) -> tuple:
 
 
 def check_file(entry: dict, pkg: Path, game: Path, dec, read, fmg, failures: list, notes: list) -> dict:
-    from roundtable_souls.game import archives as gamearchive
+    from bayle.game import archives as gamearchive
 
     rel = entry["rel"]
     raw = (pkg / rel).read_bytes()
@@ -216,7 +216,7 @@ def check_file(entry: dict, pkg: Path, game: Path, dec, read, fmg, failures: lis
 
 
 def check_regulation(record: dict, pkg: Path, dec, failures: list, notes: list) -> dict:
-    from roundtable_souls.merging.rules import param as param_merge
+    from bayle.merging.rules import param as param_merge
 
     base, packs = Path(record["base"]), record.get("packs") or []
     for src in [{"path": record["base"], "sha256": record["base_sha256"]}, *packs]:
@@ -296,7 +296,7 @@ def main() -> int:
     game = _common.game_dir(args.game)
     out = _common.output_dir(args.out, "verify-output", game)
     _common.sandbox_launcher(out, game)
-    from roundtable_souls.game.oodle import find_oodle
+    from bayle.game.oodle import find_oodle
 
     dec = find_oodle(game)
     ss = _readers.soulstruct()

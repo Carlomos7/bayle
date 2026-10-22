@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 
-from roundtable_souls.ui import theme_tokens
+from bayle.ui import theme_tokens
 
 
 def test_theme_tokens_imports_nothing_but_future():

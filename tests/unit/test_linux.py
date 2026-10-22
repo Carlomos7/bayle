@@ -1,11 +1,11 @@
 """Linux and Steam Deck detection, exercised on fake home folders so it runs on any OS."""
 
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.platform import paths as common
-from roundtable_souls.platform import proc as process_list
-from roundtable_souls.platform import steam as steam_detect
-from roundtable_souls.updates import apply as updates
+from bayle.game import catalog
+from bayle.game.locate import Locations
+from bayle.platform import paths as common
+from bayle.platform import proc as process_list
+from bayle.platform import steam as steam_detect
+from bayle.updates import apply as updates
 
 
 def linux(monkeypatch, home):

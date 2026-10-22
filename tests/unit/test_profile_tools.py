@@ -2,8 +2,8 @@
 
 import pytest
 
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.services import play as g
+from bayle.config.settings import LauncherSettings
+from bayle.services import play as g
 
 P = g.profile_tools
 M = g.me3_info

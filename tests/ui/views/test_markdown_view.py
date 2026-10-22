@@ -3,7 +3,7 @@
 from PySide6.QtCore import QUrl
 from PySide6.QtQml import QQmlComponent, QQmlEngine
 
-from roundtable_souls.ui.qml_env import QML_DIR
+from bayle.ui.qml_env import QML_DIR
 
 
 def _size(engine, text, markdown):

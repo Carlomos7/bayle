@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from roundtable_souls.mods import rebuild
-from roundtable_souls.storage import db, models
-from roundtable_souls.storage.rebuild_runs import RebuildRuns, fingerprint
+from bayle.mods import rebuild
+from bayle.storage import db, models
+from bayle.storage.rebuild_runs import RebuildRuns, fingerprint
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
 

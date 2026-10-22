@@ -25,7 +25,7 @@ from pathlib import Path
 
 import _common
 
-from roundtable_souls import formats
+from bayle import formats
 
 ARCHIVES = (
     "msg/engus/menu_dlc02.msgbnd.dcx",
@@ -52,8 +52,8 @@ def first_difference(a: bytes, b: bytes) -> int | None:
 
 
 def binder_of(raw: bytes, dec) -> bytes:
-    from roundtable_souls.formats.dcx import dcx_decompress
-    from roundtable_souls.formats.regulation import decrypt_regulation
+    from bayle.formats.dcx import dcx_decompress
+    from bayle.formats.regulation import decrypt_regulation
 
     return dcx_decompress(decrypt_regulation(raw), dec)
 
@@ -70,7 +70,7 @@ def rows_of(data: bytes) -> list[tuple[int, int, bytes, str]]:
 
 
 def check_archives(game: Path, dec, files) -> list[dict]:
-    from roundtable_souls.game import archives as gamearchive
+    from bayle.game import archives as gamearchive
 
     results = []
     for rel in files:
@@ -96,9 +96,9 @@ def check_archives(game: Path, dec, files) -> list[dict]:
 
 
 def check_regulation(body: bytes) -> dict:
-    from roundtable_souls.formats.bnd4 import bnd4_files
-    from roundtable_souls.formats.param import param_row_ids
-    from roundtable_souls.merging.rules import param as param_merge
+    from bayle.formats.bnd4 import bnd4_files
+    from bayle.formats.param import param_row_ids
+    from bayle.merging.rules import param as param_merge
 
     problems: list[str] = []
     b = formats.regulation.read_binder(body)
@@ -180,7 +180,7 @@ def main() -> int:
     out = _common.output_dir(args.out, "bnd4-roundtrip", game)
     _common.sandbox_launcher(out, game)
 
-    from roundtable_souls.game.oodle import find_oodle
+    from bayle.game.oodle import find_oodle
 
     dec = find_oodle(game)
     started = time.time()

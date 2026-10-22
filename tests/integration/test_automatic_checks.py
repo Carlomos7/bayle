@@ -3,11 +3,11 @@ DLC.bdt next to the game. Runs on COPIES of a real co-op save (skipped without o
 
 import pytest
 
-from roundtable_souls.game import locate
-from roundtable_souls.saves import layout as save_layout_check
-from roundtable_souls.saves import vanilla as save_vanilla
-from roundtable_souls.services import play as g
-from roundtable_souls.services import saves as saves_service
+from bayle.game import locate
+from bayle.saves import layout as save_layout_check
+from bayle.saves import vanilla as save_vanilla
+from bayle.services import play as g
+from bayle.services import saves as saves_service
 from support import copy_live_save as _copy
 from support import er, er_items
 

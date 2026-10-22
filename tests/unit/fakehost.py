@@ -15,8 +15,8 @@ import subprocess
 import time as _real_time
 from dataclasses import dataclass, field
 
-from roundtable_souls.platform import proc, processes, session, steam
-from roundtable_souls.services import play
+from bayle.platform import proc, processes, session, steam
+from bayle.services import play
 
 GAME_THREADS = 120  # a running game has threads; a dead shell has none (platform.paths.dead_exe_shells)
 STEAM_EXE = r"C:\Program Files (x86)\Steam\steam.exe"

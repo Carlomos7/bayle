@@ -2,9 +2,9 @@
 
 import pytest
 
-from roundtable_souls.platform import paths
-from roundtable_souls.saves import backups as save_backups
-from roundtable_souls.services import saves as saves_service
+from bayle.platform import paths
+from bayle.saves import backups as save_backups
+from bayle.services import saves as saves_service
 from support import er
 
 

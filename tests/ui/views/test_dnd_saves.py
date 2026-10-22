@@ -12,7 +12,7 @@ from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtTest import QTest
 from test_mods_view import centre, closed, find, settle
 
-from roundtable_souls.ui.pages.registry import page as registered
+from bayle.ui.pages.registry import page as registered
 
 
 class Host:
@@ -52,7 +52,7 @@ def info(kind, name, chars):
 
 @pytest.fixture
 def page(qt_app, monkeypatch):
-    monkeypatch.setattr("roundtable_souls.saves.library.default_name", lambda path, game: "A name")
+    monkeypatch.setattr("bayle.saves.library.default_name", lambda path, game: "A name")
     host = Host()
     w = PageWindow(registered("saves"), host)
     assert w.build(), w.warnings

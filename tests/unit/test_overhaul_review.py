@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from roundtable_souls.mods import engine
-from roundtable_souls.overhauls import basic
-from roundtable_souls.overhauls.config import Basic
+from bayle.mods import engine
+from bayle.overhauls import basic
+from bayle.overhauls.config import Basic
 
 
 def make_folder(root: Path, names: list[str]) -> Path:
@@ -50,8 +50,8 @@ def test_the_engine_refuses_a_step_path_outside_its_folder(tmp_path):
 
 # ----------------------------------------------------------------------------- saving with no Files table
 def test_saving_without_the_mods_folder_keeps_the_old_lists_and_files():
-    from roundtable_souls.overhauls.config import OverhaulConfig
-    from roundtable_souls.services import mod_configs
+    from bayle.overhauls.config import OverhaulConfig
+    from bayle.services import mod_configs
 
     old = Basic(keep=["a.ini"], place={"x.bnd": "map/x.bnd"}, skip=["junk"], files={"b.ini": "keep"})
     config = OverhaulConfig.model_construct(basic=old)
@@ -63,8 +63,8 @@ def test_saving_without_the_mods_folder_keeps_the_old_lists_and_files():
 
 # ----------------------------------------------------------------------------- reserved folder names
 def test_an_overhaul_cannot_take_the_name_of_the_players_own_packages_folder(tmp_path, monkeypatch):
-    from roundtable_souls.config import layout
-    from roundtable_souls.overhauls import basic
+    from bayle.config import layout
+    from bayle.overhauls import basic
 
     folder = make_folder(tmp_path / "dl", ["M.dll"])
     kw = {"label": "M", "game": "eldenring", "basic": basic.propose(folder), "folder": folder}
@@ -114,7 +114,7 @@ def test_undo_restores_the_other_profiles_exact_bytes_first_even_when_the_main_t
     import base64
     import hashlib
 
-    from roundtable_souls.mods import operations, undo
+    from bayle.mods import operations, undo
 
     raw = b"name = '\xe9\xff'\n"  # not UTF-8
     other = tmp_path / "other.me3"
@@ -143,7 +143,7 @@ def test_undo_restores_the_other_profiles_exact_bytes_first_even_when_the_main_t
 
 # ----------------------------------------------------------------------------- a DLL and a package with one name
 def test_an_entry_is_found_by_kind_so_a_dll_and_a_package_named_alike_stay_apart():
-    from roundtable_souls.mods import overhaul_install
+    from bayle.mods import overhaul_install
 
     class W:
         def entries(self):

@@ -5,12 +5,12 @@ import json
 
 import pytest
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.platform import paths as common
-from roundtable_souls.saves import library as Lib
-from roundtable_souls.saves import regulation
-from roundtable_souls.services import play as core
-from roundtable_souls.services import saves as saves_service
+from bayle.game import catalog as games
+from bayle.platform import paths as common
+from bayle.saves import library as Lib
+from bayle.saves import regulation
+from bayle.services import play as core
+from bayle.services import saves as saves_service
 from support import er
 
 ER = games.ELDEN_RING

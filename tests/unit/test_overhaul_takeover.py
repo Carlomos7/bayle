@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from test_overhaul_install import PROFILE, World, files, legacy
 
-from roundtable_souls.mods import overhaul_install, overhaul_takeover
-from roundtable_souls.mods.overhaul_install import Leftover, OverhaulError
+from bayle.mods import overhaul_install, overhaul_takeover
+from bayle.mods.overhaul_install import Leftover, OverhaulError
 
 
 @pytest.fixture
@@ -130,7 +130,7 @@ def test_a_setup_the_launcher_made_is_removed_not_taken_over(world):
 
 
 def test_the_service_flags_take_over_for_an_installer_setup(world):
-    from roundtable_souls.services import mods as service
+    from bayle.services import mods as service
 
     legacy(world)
     assert service.profile_overhaul(world.profile, loc=world.loc)["takeover"] is True
@@ -170,7 +170,7 @@ def live_stray(world, how="manifest"):
 
 
 def test_the_installers_records_show_what_changed_and_only_the_ticked_go(world):
-    from roundtable_souls.services import mods as service
+    from bayle.services import mods as service
 
     live_stray(world)
     assert service.profile_overhaul(world.profile, loc=world.loc) == {
@@ -232,8 +232,8 @@ def test_a_copy_of_the_installers_folder_is_a_leftover_while_the_setup_is_live(w
 
 
 def test_the_ui_menu_entry_and_the_reinstall_question(world):
-    from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
-    from roundtable_souls.ui.pages.mods.take_over import reinstall_words
+    from bayle.ui.pages.mods.presenter import ModsPresenter
+    from bayle.ui.pages.mods.take_over import reinstall_words
 
     menu = ModsPresenter().overhaul_menu
     assert menu(True, {"label": "X", "takeover": True}, False).can_take_over

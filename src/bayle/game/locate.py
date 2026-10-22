@@ -1,0 +1,154 @@
+"""Where one game is on this machine: its install folder and exe, its saves, whether it runs, and the me3 that
+launches it, with the Settings > Locations overrides applied.
+
+A Locations value answers for one game. The app context (app.py) holds the one for the game the window shows and
+makes a new one when the game, the settings or the profile in use change; code that needs a location is handed one
+instead of reading a global. On Linux (desktop or Steam Deck) the game runs through Proton, so its saves live inside
+the game's Proton prefix and the game process is a Wine process whose command line names the game's exe.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+
+from bayle.config.settings import LauncherSettings, game_setting
+from bayle.game import catalog
+from bayle.platform import paths
+
+PATH_SETTINGS = ("me3_path", "game_exe", "me3_profile_dir", "saves_dir")  # Settings > Locations; blank = detect
+
+
+def saves_dir_problem(folder: str | Path, game: catalog.Game) -> str:
+    """Why folder can't be this game's save folder, or "" when it can: it must hold an account folder with one of
+    the game's save files. A wrong folder here would send backups and repairs somewhere that isn't the saves."""
+    path = Path(folder)
+    if not path.is_dir():
+        return "That folder does not exist."
+    for account in path.iterdir():
+        if account.is_dir() and any((account / name).is_file() for name in game.save_names):
+            return ""
+    return f"No {game.name} save was found in it. Pick the folder that holds your Steam account's folder."
+
+
+@dataclass(frozen=True)
+class Overrides:
+    """The Settings > Locations values for one game (blank = detect): a custom me3, a custom game exe (me3 launches
+    it with --exe) and a custom me3 profile folder, which falls back to what `me3 info` last reported."""
+
+    me3_exe: str = ""
+    game_exe: str = ""
+    profiles_dir: str = ""
+    saves_dir: str = ""  # the folder holding the per-account save folders
+
+    @classmethod
+    def from_settings(cls, settings: LauncherSettings, game: catalog.Game) -> Overrides:
+        return cls(
+            me3_exe=settings.me3_path.strip(),
+            game_exe=str(game_setting(settings, game.key, "game_exe") or "").strip(),
+            saves_dir=str(game_setting(settings, game.key, "saves_dir") or "").strip(),
+            profiles_dir=settings.me3_profile_dir.strip()
+            or str(settings.me3_info_cache.get("profile_dir") or "").strip(),
+        )
+
+    def in_effect(self) -> dict:
+        """What Settings > Locations shows as set: me3, game_exe, profile_dir (blank = detect)."""
+        return {
+            "me3": self.me3_exe,
+            "game_exe": self.game_exe,
+            "profile_dir": self.profiles_dir,
+            "saves_dir": self.saves_dir,
+        }
+
+
+@dataclass(frozen=True, eq=False)
+class Locations:
+    game: catalog.Game
+    overrides: Overrides = field(default_factory=Overrides)
+    # Save names the profile in use configures beyond the defaults (me3's savefile, Seamless Co-op's
+    # save_file_extension): role -> file name, so those files are listed and repaired too.
+    profile_save_names: Mapping[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_settings(cls, settings: LauncherSettings, game: catalog.Game) -> Locations:
+        return cls(game, Overrides.from_settings(settings, game))
+
+    def with_profile_save_names(self, names: Mapping[str, str]) -> Locations:
+        """names: role -> file name, e.g. {"standard": "ER0000.sl2", "coop": "ER0000.co3"}."""
+        return replace(self, profile_save_names={k: v for k, v in names.items() if v})
+
+    def for_game(self, game: catalog.Game, settings: LauncherSettings) -> Locations:
+        """The same machine's answers for another game (its own exe override; no setup save names yet)."""
+        return Locations.from_settings(settings, game)
+
+    # ------------------------------------------------------------------ the game
+    def game_exe_name(self) -> str:
+        return Path(self.overrides.game_exe).name if self.overrides.game_exe else self.game.exe
+
+    def game_running(self) -> bool:
+        return paths.exe_running(self.game_exe_name())
+
+    def dead_game_shells(self) -> list[int]:
+        """Leftover zero-memory copies of the game. A Windows problem; Proton cleans up after itself."""
+        return paths.dead_exe_shells(self.game_exe_name())
+
+    def game_dir(self) -> Path | None:
+        if self.overrides.game_exe and Path(self.overrides.game_exe).is_file():
+            return Path(self.overrides.game_exe).parent
+        return installed_dir(self.game)
+
+    def regulation_bin(self) -> Path | None:
+        game = self.game_dir()
+        if game and (game / self.game.regulation).exists():
+            return game / self.game.regulation
+        return None
+
+    # ------------------------------------------------------------------ saves
+    def save_roots(self, game: catalog.Game | None = None) -> list[Path]:
+        """Folders that hold the per-account save folders: %APPDATA%\\<game> on Windows, the same folder inside the
+        game's Proton prefix on Linux (in whichever Steam library the prefix lives)."""
+        game = game or self.game
+        if self.overrides.saves_dir and game is self.game:  # the override is for this Locations' game
+            return [Path(self.overrides.saves_dir)]
+        return paths.save_roots_for(game.save_dir, game.app_id)
+
+    def save_names(self) -> list[str]:
+        """The default names (ER0000.sl2, ER0000.co2) and any the profile in use configures, without repeats."""
+        out: list[str] = []
+        for n in (*self.game.save_names, *self.profile_save_names.values()):
+            if n.lower() not in (x.lower() for x in out):
+                out.append(n)
+        return out
+
+    def save_files(self) -> list[Path]:
+        """Every save the game or the profile in use uses in the game's save folders, one folder per Steam account."""
+        names = self.save_names()
+        found: list[Path] = []
+        for root in self.save_roots():
+            for profile in sorted(root.glob("*")):
+                if profile.is_dir():
+                    found.extend(p for p in (profile / n for n in names) if p.exists())
+        return found
+
+    # ------------------------------------------------------------------ me3
+    def me3_exe(self) -> Path | None:
+        return paths.me3_exe(self.overrides.me3_exe)
+
+    def me3_profiles_dir(self) -> Path | None:
+        return paths.me3_profiles_dir(self.overrides.profiles_dir)
+
+    def me3_profiles(self, game: catalog.Game | None = None) -> list[Path]:
+        """User-made .me3 profiles for the game (the *-default.me3 ones me3 generates are skipped). A profile that
+        names no game in [[supports]] counts for Elden Ring, the only game older profiles were written for."""
+        from bayle.config import layout
+
+        game = game or self.game
+        home = self.me3_profiles_dir()
+        also = [layout.game_root(home, game.key)] if home is not None else []
+        return paths.find_profiles(home, game.key, catalog.ELDEN_RING.key, also)
+
+
+def installed_dir(game: catalog.Game) -> Path | None:
+    """The folder with this game's exe in any Steam library, or None (cached per game for the session)."""
+    return paths.find_installed(game.key, game.install_dir, game.exe)

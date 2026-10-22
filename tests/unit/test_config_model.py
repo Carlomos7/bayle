@@ -3,7 +3,7 @@ its own lines, TOML through tomlkit: nested tables, dotted keys, inline tables, 
 
 import pytest
 
-from roundtable_souls.formats import config_model
+from bayle.formats import config_model
 
 INI = (
     "﻿; top note\r\n"

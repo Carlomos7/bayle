@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.config import settings
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.mods import library, migrate, move_in, profile_edit, profile_rename, shared_mods
-from roundtable_souls.platform import trash
-from roundtable_souls.services import profile_transfer
+from bayle.config import settings
+from bayle.game import catalog
+from bayle.game.locate import Locations, Overrides
+from bayle.mods import library, migrate, move_in, profile_edit, profile_rename, shared_mods
+from bayle.platform import trash
+from bayle.services import profile_transfer
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -183,7 +183,7 @@ def test_duplicate_refuses_a_record_it_cannot_read_and_leaves_nothing(home):
 
 
 def test_custom_names_are_reserved_and_split_by_the_settings_names(home, monkeypatch):
-    from roundtable_souls.mods import folder_split, naming
+    from bayle.mods import folder_split, naming
 
     monkeypatch.setattr(
         settings,

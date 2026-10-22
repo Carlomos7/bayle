@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import install, operations
+from bayle.merging import build as B
+from bayle.mods import install, operations
 from support import er
 
 PROFILE = (
@@ -238,9 +238,9 @@ def test_seamless_is_never_taken_out_by_an_undo(profile, tmp_path):
 
 
 def test_an_unfinished_operation_blocks_play(profile, tmp_path):
-    from roundtable_souls.game import catalog
-    from roundtable_souls.game.locate import Locations
-    from roundtable_souls.services import play
+    from bayle.game import catalog
+    from bayle.game.locate import Locations
+    from bayle.services import play
 
     op = operations.start(profile, "install of grass")  # prepared, never applied: as a crash leaves it
     s = play.LaunchProfile("me3", str(profile), loc=Locations(catalog.ELDEN_RING))
@@ -251,7 +251,7 @@ def test_an_unfinished_operation_blocks_play(profile, tmp_path):
 
 
 def test_activity_takes_an_install_and_an_update_back(profile, tmp_path):
-    from roundtable_souls.mods import undo
+    from bayle.mods import undo
 
     before = profile.read_bytes()
     first = do_install(profile, source(tmp_path, "1"))
@@ -270,8 +270,8 @@ def test_activity_takes_an_install_and_an_update_back(profile, tmp_path):
 
 def test_an_install_with_a_rebuild_hands_the_rebuild_the_games_locations(profile, tmp_path, monkeypatch):
     """The rebuild inside the operation is the game's: the service passes on the Locations it is given."""
-    from roundtable_souls.mods import rebuild
-    from roundtable_souls.services import mods as service
+    from bayle.mods import rebuild
+    from bayle.services import mods as service
 
     seen = []
     monkeypatch.setattr(rebuild, "rebuild", lambda prof, log, combine=None, *, loc: seen.append(loc))
@@ -282,7 +282,7 @@ def test_an_install_with_a_rebuild_hands_the_rebuild_the_games_locations(profile
 
 
 def test_rolling_back_an_update_that_rebuilt_rebuilds_for_the_same_game(profile, tmp_path, monkeypatch):
-    from roundtable_souls.mods import rebuild, undo
+    from bayle.mods import rebuild, undo
 
     do_install(profile, source(tmp_path, "1"))
     second = do_install(profile, source(tmp_path, "2"))
@@ -295,7 +295,7 @@ def test_rolling_back_an_update_that_rebuilt_rebuilds_for_the_same_game(profile,
 
 
 def test_removal_interrupted_before_the_folder_went_is_undone(profile, tmp_path, monkeypatch):
-    from roundtable_souls.mods import remove
+    from bayle.mods import remove
 
     do_install(profile, source(tmp_path, "1"))
     before = files(profile.parent)
@@ -319,7 +319,7 @@ def test_removal_interrupted_before_the_folder_went_is_undone(profile, tmp_path,
 
 
 def test_removal_interrupted_after_the_folder_went_is_finished(profile, tmp_path, monkeypatch):
-    from roundtable_souls.mods import remove
+    from bayle.mods import remove
 
     do_install(profile, source(tmp_path, "1"))
     index = next(e["index"] for e in install.entries(profile) if e["name"] == "grass")
@@ -335,7 +335,7 @@ def test_removal_interrupted_after_the_folder_went_is_finished(profile, tmp_path
 
 
 def test_failed_removal_leaves_the_mod_installed(profile, tmp_path, monkeypatch):
-    from roundtable_souls.mods import remove
+    from bayle.mods import remove
 
     do_install(profile, source(tmp_path, "1"))
     before = files(profile.parent)
@@ -364,7 +364,7 @@ def test_importing_a_bundled_profile_renames_a_clash_keeps_the_rest_and_undo_put
     import difflib
     import tomllib
 
-    from roundtable_souls.mods import profile_import, undo
+    from bayle.mods import profile_import, undo
 
     p = tmp_path / "prof" / "my.me3"
     (p.parent / "mod" / "flora").mkdir(parents=True)
@@ -430,8 +430,8 @@ def tree(root):
 def world(tmp_path):
     import json
 
-    from roundtable_souls.config import settings
-    from roundtable_souls.mods import library, profile_settings
+    from bayle.config import settings
+    from bayle.mods import library, profile_settings
 
     root = tmp_path / "prof"
     for name in ("Alpha", "beta", "gamma"):
@@ -454,14 +454,14 @@ def world(tmp_path):
 
 
 def snapshot(p):
-    from roundtable_souls.config import settings
-    from roundtable_souls.mods import profile_settings
+    from bayle.config import settings
+    from bayle.mods import profile_settings
 
     return tree(p.parent), p.read_bytes(), profile_settings.path(p).read_bytes(), settings.settings_path().read_bytes()
 
 
 def entry_index(p, name):
-    from roundtable_souls.formats import me3_profile
+    from bayle.formats import me3_profile
 
     return next(e["index"] for e in me3_profile.entries(p.read_text(encoding="utf-8")) if e["name"] == name)
 
@@ -477,8 +477,8 @@ def test_rename_then_undo_is_byte_exact(world):
     import json
     import tomllib
 
-    from roundtable_souls.config import settings
-    from roundtable_souls.mods import profile_settings, rename, undo
+    from bayle.config import settings
+    from bayle.mods import profile_settings, rename, undo
 
     p, before = world, snapshot(world)
     pre = rename.preview(p, entry_index(p, "alpha"), "flora", loc=er())
@@ -510,7 +510,7 @@ def test_rename_then_undo_is_byte_exact(world):
 
 
 def do_rename(p, name, new, **kw):
-    from roundtable_souls.mods import rename
+    from bayle.mods import rename
 
     pre = rename.preview(p, entry_index(p, name), new, loc=er())
     assert pre.ok, pre.refusals
@@ -574,8 +574,8 @@ def _edit_profile(p, extra):
 def test_a_refused_rename_changes_nothing(world, monkeypatch, case):
     import json
 
-    from roundtable_souls.game.locate import Locations
-    from roundtable_souls.mods import profile_settings, rename
+    from bayle.game.locate import Locations
+    from bayle.mods import profile_settings, rename
 
     p = world
     new, name = "flora", "alpha"
@@ -610,7 +610,7 @@ def test_a_refused_rename_changes_nothing(world, monkeypatch, case):
 
 
 def test_a_rename_is_refused_when_the_profile_changed_since_the_preview(world):
-    from roundtable_souls.mods import rename
+    from bayle.mods import rename
 
     p = world
     pre = rename.preview(p, entry_index(p, "alpha"), "flora", loc=er())
@@ -626,8 +626,8 @@ def test_a_rename_is_refused_when_the_profile_changed_since_the_preview(world):
 def test_undoing_a_rename_does_not_overwrite_later_changes(world, tmp_path):
     import json
 
-    from roundtable_souls.config import settings
-    from roundtable_souls.mods import undo
+    from bayle.config import settings
+    from bayle.mods import undo
 
     p = world
     out = do_rename(p, "alpha", "flora")
@@ -654,7 +654,7 @@ def test_undoing_a_rename_does_not_overwrite_later_changes(world, tmp_path):
 
 @pytest.mark.skipif(os.name != "nt", reason="a case-only rename is one folder only on Windows")
 def test_a_case_only_rename_works_and_undoes(world):
-    from roundtable_souls.mods import undo
+    from bayle.mods import undo
 
     p, before = world, snapshot(world)
     out = do_rename(p, "beta", "Beta")
@@ -670,8 +670,8 @@ def test_renaming_makes_the_merged_build_stale_without_touching_its_record_and_n
 ):
     from test_mod_merge import World
 
-    from roundtable_souls.mods import rebuild as merge
-    from roundtable_souls.mods import rename
+    from bayle.mods import rebuild as merge
+    from bayle.mods import rename
 
     w = World(tmp_path, monkeypatch)
     w.pack("params")
@@ -690,7 +690,7 @@ def test_renaming_makes_the_merged_build_stale_without_touching_its_record_and_n
 def test_the_old_name_ops_folder_and_lock_are_retired_safely(profile):
     """Safety (players' files): an old .roundtable-ops folder moves into .bayle/ops (finished entries kept, none
     overwritten, an unfinished one undone first), and its lock is removed only when nobody holds it."""
-    from roundtable_souls.platform import filelock
+    from bayle.platform import filelock
 
     root = profile.parent
     done = B.Operation(root, "install", ops=B.LEGACY_OPS)

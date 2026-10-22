@@ -7,12 +7,12 @@ import json
 import pytest
 from fakehost import STEAM_EXE, FakeHost, launch_profile_for
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.platform import session
-from roundtable_souls.services import jobs
-from roundtable_souls.services import play as core
+from bayle.game import catalog as games
+from bayle.game.locate import Locations
+from bayle.platform import logging as run_logging
+from bayle.platform import session
+from bayle.services import jobs
+from bayle.services import play as core
 from support import er
 
 EXE = "eldenring.exe"
@@ -344,7 +344,7 @@ def test_after_play_me3s_failed_dlc_loading_is_said(play, lines, monkeypatch, tm
 
 
 def test_running_and_dead_shell_go_by_threads_not_memory(monkeypatch):
-    from roundtable_souls.platform import paths, proc
+    from bayle.platform import paths, proc
 
     monkeypatch.setattr(paths, "IS_WINDOWS", True)
     monkeypatch.setattr(proc, "processes", lambda _name: [(1, 0)])  # no threads: a corpse

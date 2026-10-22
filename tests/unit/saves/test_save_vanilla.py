@@ -8,10 +8,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls.saves import analyze as A
-from roundtable_souls.saves import fix as F
-from roundtable_souls.saves import layout as L
-from roundtable_souls.saves import vanilla as V
+from bayle.saves import analyze as A
+from bayle.saves import fix as F
+from bayle.saves import layout as L
+from bayle.saves import vanilla as V
 
 GAME_IDS = {A.UNARMED_WEAPON, 100, 10000}  # what the fake catalog calls the game's own items
 SAVE_SIZE = L.HEADER + F.SLOT_STRIDE + 0x400  # enough for slot 0's signed body and the rows the test writes

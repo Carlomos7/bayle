@@ -2,9 +2,9 @@
 
 from types import SimpleNamespace
 
-from roundtable_souls.overhauls import basic
-from roundtable_souls.overhauls.config import BasicNative
-from roundtable_souls.ui.pages.mods.install_adapter import InstallAdapter
+from bayle.overhauls import basic
+from bayle.overhauls.config import BasicNative
+from bayle.ui.pages.mods.install_adapter import InstallAdapter
 
 
 def test_dll_options_changed_in_the_dialog_go_into_the_config_and_ask_for_a_new_preview(qt_app, tmp_path):

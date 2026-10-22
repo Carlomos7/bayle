@@ -2,7 +2,7 @@
 
     uv run python scripts/theme/gen_atmosphere.py
 
-Writes into src/roundtable_souls/ui/assets/atmosphere/ (Pillow only, no numpy; the PNGs are committed, so a build
+Writes into src/bayle/ui/assets/atmosphere/ (Pillow only, no numpy; the PNGs are committed, so a build
 never needs this):
     bloom-dark-a.png      gold #F9C043, radial, alpha peaking at 6 % (ceiling 8: at 8 the bloom was pointable), radius 700 px, centre at 1/3 of the
                           image so the whole falloff fits (placed near the inset's top-left corner)
@@ -27,7 +27,7 @@ from pathlib import Path
 from PIL import Image
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE.parents[1] / "src" / "roundtable_souls" / "ui" / "assets" / "atmosphere"
+OUT = HERE.parents[1] / "src" / "bayle" / "ui" / "assets" / "atmosphere"
 SIZE = 1024
 BLOOM_RADIUS = 700
 

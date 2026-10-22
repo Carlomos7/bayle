@@ -7,7 +7,7 @@ from PySide6.QtCore import QEventLoop, QPoint, Qt, QTimer
 from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtTest import QTest
 
-from roundtable_souls.ui import theme_tokens
+from bayle.ui import theme_tokens
 
 THEMES = ("dark", "tarnished", "light")
 WIDTHS = (740, 1100)
@@ -88,7 +88,7 @@ def test_the_page_renders_in_every_theme_at_both_sizes(qt_app, activity_entry, h
 
 
 def test_a_click_on_a_job_opens_its_log_and_a_second_closes_it(qt_app, activity_entry, host, monkeypatch):
-    from roundtable_souls.platform import logging as run_logging
+    from bayle.platform import logging as run_logging
 
     entries = [{"time": "11:00:02.000", "level": "info", "source": "me3", "text": "game exited (0)"}]
     monkeypatch.setattr(run_logging, "read_job_log", lambda name: {"entries": entries, "cut": False, "missing": False})

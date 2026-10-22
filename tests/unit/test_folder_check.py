@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import folder_check as fc
-from roundtable_souls.mods import folder_split as fs
-from roundtable_souls.mods import library, operations, undo
-from roundtable_souls.platform import trash
+from bayle.game import catalog
+from bayle.game.locate import Locations, Overrides
+from bayle.merging import build as B
+from bayle.mods import folder_check as fc
+from bayle.mods import folder_split as fs
+from bayle.mods import library, operations, undo
+from bayle.platform import trash
 
 NEW = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 

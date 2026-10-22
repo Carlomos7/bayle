@@ -4,11 +4,11 @@ memory."""
 
 from types import SimpleNamespace
 
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.game import catalog
-from roundtable_souls.services import play as core
-from roundtable_souls.ui.launcher import menu, topbar
-from roundtable_souls.ui.launcher.topbar import Facts
+from bayle.config.settings import LauncherSettings
+from bayle.game import catalog
+from bayle.services import play as core
+from bayle.ui.launcher import menu, topbar
+from bayle.ui.launcher.topbar import Facts
 
 ER = catalog.ELDEN_RING
 
@@ -129,9 +129,9 @@ class _Page:
 
 
 def test_the_unsaved_rule_asks_before_leaving_and_discard_or_save_goes_on(tmp_path):
-    from roundtable_souls.ui import self_test
-    from roundtable_souls.ui.launcher.adapter import ShellAdapter
-    from roundtable_souls.ui.launcher.host import ShellHost
+    from bayle.ui import self_test
+    from bayle.ui.launcher.adapter import ShellAdapter
+    from bayle.ui.launcher.host import ShellHost
 
     host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
     shell = ShellAdapter(host)

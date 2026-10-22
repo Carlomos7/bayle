@@ -1,9 +1,9 @@
 """The app context and a game's Locations: values handed to the code that needs them, instead of module globals."""
 
-from roundtable_souls.app import create_app
-from roundtable_souls.config import settings
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations, Overrides
+from bayle.app import create_app
+from bayle.config import settings
+from bayle.game import catalog
+from bayle.game.locate import Locations, Overrides
 
 
 def test_a_custom_game_exe_decides_the_game_folder_and_the_process_name(tmp_path):

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.mods import checks, extract, install, remove
-from roundtable_souls.services import play as g
+from bayle.mods import checks, extract, install, remove
+from bayle.services import play as g
 from support import er
 
 M = g.mod_manage
@@ -360,7 +360,7 @@ def test_create_and_delete_profile(tmp_path):
     assert c == tmp_path / "profiles" / "b-eldenring" / "copy" / "copy.me3" and "flora" in c.read_text(encoding="utf-8")
     assert (c.parent / "mod" / "flora" / "f.dcx").read_bytes() == b"f"  # the mods come along
     gone = M.delete_profile(c)
-    from roundtable_souls.platform import data_folder
+    from bayle.platform import data_folder
 
     assert not c.exists() and gone.parent == data_folder.deleted_profiles(c.parent) and gone.suffix == ".me3"
     assert '"from"' in Path(str(gone) + ".json").read_text(encoding="utf-8")  # a note of where it lived
@@ -440,7 +440,7 @@ def test_entry_problems_follow_me3_rules(tmp_path):
 
 
 def test_conflicts_count_only_what_the_game_can_ask_for(tmp_path):
-    from roundtable_souls.mods import profile as P
+    from bayle.mods import profile as P
 
     p = tmp_path / "my.me3"
     p.write_text(

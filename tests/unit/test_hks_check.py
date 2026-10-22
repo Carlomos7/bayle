@@ -5,11 +5,11 @@ import struct
 
 import pytest
 
-from roundtable_souls import formats
-from roundtable_souls.formats import hks
-from roundtable_souls.game import knowledge
-from roundtable_souls.overhauls import hks_check
-from roundtable_souls.overhauls.hooks import Hook, compose
+from bayle import formats
+from bayle.formats import hks
+from bayle.game import knowledge
+from bayle.overhauls import hks_check
+from bayle.overhauls.hooks import Hook, compose
 
 ENTRY = "action/script/c0000.hks"
 

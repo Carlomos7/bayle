@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.resources import DATA_DIR
+from bayle.resources import DATA_DIR
 
 SCRIPTS = DATA_DIR  # where the package keeps the watchdog scripts
 windows_only = pytest.mark.skipif(sys.platform != "win32", reason="PowerShell watchdog")

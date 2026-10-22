@@ -3,8 +3,8 @@ launcher's own writers, and a stand-in for the game's archives (game.archives.re
 
 import struct
 
-from roundtable_souls import formats
-from roundtable_souls.game import archives as gamearchive
+from bayle import formats
+from bayle.game import archives as gamearchive
 
 BND_HEADER = (
     b"BND4\0\0\0\0\0\0\x01\0"

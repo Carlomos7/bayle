@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from roundtable_souls.services import layout
-from roundtable_souls.services import mods as mod_service
+from bayle.services import layout
+from bayle.services import mods as mod_service
 
 
 def test_move_all_records_one_multi_undo_last_first(monkeypatch):

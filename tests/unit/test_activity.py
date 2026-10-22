@@ -2,8 +2,8 @@
 
 import os
 
-from roundtable_souls.platform import logging as rl
-from roundtable_souls.platform import logging as run_logging
+from bayle.platform import logging as rl
+from bayle.platform import logging as run_logging
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"  # always, whatever the shell sets: no real windows
 

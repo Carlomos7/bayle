@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from roundtable_souls.platform import steam_shortcuts
-from roundtable_souls.updates import inno, retitle
+from bayle.platform import steam_shortcuts
+from bayle.updates import inno, retitle
 
 
 def _lnk(folder: Path, name: str) -> Path:

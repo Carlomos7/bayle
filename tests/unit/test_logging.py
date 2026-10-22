@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.platform import logging as rl
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.services import jobs
-from roundtable_souls.services import play as core
+from bayle.game import catalog as games
+from bayle.game.locate import Locations
+from bayle.platform import logging as rl
+from bayle.platform import logging as run_logging
+from bayle.services import jobs
+from bayle.services import play as core
 
 
 @pytest.fixture

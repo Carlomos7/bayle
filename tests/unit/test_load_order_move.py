@@ -5,9 +5,9 @@ entries keep their place and can be moved; the write goes through the profile wr
 
 from pathlib import Path
 
-from roundtable_souls.mods import history, order
-from roundtable_souls.services import profile_mods
-from roundtable_souls.services.mods import profile_entries
+from bayle.mods import history, order
+from bayle.services import profile_mods
+from bayle.services.mods import profile_entries
 from support import er
 
 PROFILE = (

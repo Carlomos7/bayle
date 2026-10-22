@@ -3,13 +3,13 @@ right writes. The repair test runs on a temporary COPY of a real save (skipped w
 
 import pytest
 
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.saves import fix as F
-from roundtable_souls.saves import layout as L
-from roundtable_souls.services import saves as service
-from roundtable_souls.ui.notifications import Notifier
-from roundtable_souls.ui.pages.saves.adapter import SavesAdapter, apply_repairs
-from roundtable_souls.ui.pages.saves.presenter import SavesPresenter
+from bayle.game.locate import Locations
+from bayle.saves import fix as F
+from bayle.saves import layout as L
+from bayle.services import saves as service
+from bayle.ui.notifications import Notifier
+from bayle.ui.pages.saves.adapter import SavesAdapter, apply_repairs
+from bayle.ui.pages.saves.presenter import SavesPresenter
 from support import copy_live_save, er
 
 

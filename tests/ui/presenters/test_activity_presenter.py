@@ -9,9 +9,9 @@ import sys
 
 import pytest
 
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.ui import text
-from roundtable_souls.ui.pages.activity import presenter as act
+from bayle.platform import logging as run_logging
+from bayle.ui import text
+from bayle.ui.pages.activity import presenter as act
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 
@@ -45,7 +45,7 @@ def presenter(jobs=JOBS, available=lambda u: bool(u)):
 
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
-        "import sys; import roundtable_souls.ui.pages.activity.presenter; "
+        "import sys; import bayle.ui.pages.activity.presenter; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
@@ -184,7 +184,7 @@ def test_undo_plans_say_what_each_kind_of_undo_changes(tmp_path):
 
 def test_the_undo_job_runs_the_undo_and_records_it(monkeypatch):
     calls = []
-    from roundtable_souls.mods import undo as mod_undo
+    from bayle.mods import undo as mod_undo
 
     monkeypatch.setattr(mod_undo, "run", lambda u, log, loc: calls.append(("run", u["type"], loc)) or "undid it")
     monkeypatch.setattr(run_logging, "start_log", lambda title, game: calls.append(("title", title)))

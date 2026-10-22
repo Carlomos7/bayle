@@ -7,10 +7,10 @@ import sys
 import pytest
 from test_mod_merge import TALK, World
 
-from roundtable_souls.mods import conflicts as overview
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.mods import remove, undo
-from roundtable_souls.platform import trash
+from bayle.mods import conflicts as overview
+from bayle.mods import rebuild as merge
+from bayle.mods import remove, undo
+from bayle.platform import trash
 from support import er
 
 PROFILE = """profileVersion = "v1"

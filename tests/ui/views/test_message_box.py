@@ -5,7 +5,7 @@ import pytest
 from PySide6.QtCore import QMetaObject, QTimer
 from PySide6.QtGui import QGuiApplication
 
-from roundtable_souls.ui import message_box
+from bayle.ui import message_box
 
 
 def _poke(action) -> None:

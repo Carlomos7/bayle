@@ -9,11 +9,11 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from roundtable_souls.services import profile_mods
-from roundtable_souls.services.profile_mods import PageFacts, Removal
-from roundtable_souls.ui import text
-from roundtable_souls.ui.pages.mods import load_order
-from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
+from bayle.services import profile_mods
+from bayle.services.profile_mods import PageFacts, Removal
+from bayle.ui import text
+from bayle.ui.pages.mods import load_order
+from bayle.ui.pages.mods.presenter import ModsPresenter
 
 PROFILE = Path("C:/mods/eldenring-mods/main.me3")
 
@@ -84,7 +84,7 @@ def rows(state, kind="package"):
 
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
-        "import sys; import roundtable_souls.ui.pages.mods.presenter; "
+        "import sys; import bayle.ui.pages.mods.presenter; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
@@ -162,7 +162,7 @@ def test_the_parameters_card():
 
 
 def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
-    from roundtable_souls.services.game_checks import Fingerprint
+    from bayle.services.game_checks import Fingerprint
 
     p = ModsPresenter()
     stale = {"state": "stale", "packs": ["a"], "backend": "t", "reasons": []}

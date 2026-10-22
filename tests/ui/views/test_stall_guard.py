@@ -6,7 +6,7 @@ import time
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
 
-from roundtable_souls.ui import stall
+from bayle.ui import stall
 
 
 def slow_handler():

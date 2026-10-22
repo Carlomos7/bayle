@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls import overhauls
-from roundtable_souls.overhauls import install_plan
-from roundtable_souls.overhauls.install_plan import Change, apply, check, plan
+from bayle import overhauls
+from bayle.overhauls import install_plan
+from bayle.overhauls.install_plan import Change, apply, check, plan
 
 PROFILE = Path("C:/Games/me3/profiles/my.me3")
 OWN = PROFILE.parent / "ExampleOverhaul"
@@ -333,7 +333,7 @@ def test_a_requirement_switched_off_is_switched_on_only_when_allowed():
 
 
 def test_one_place_decides_whether_a_requirement_is_met():
-    from roundtable_souls.overhauls import requirements
+    from bayle.overhauls import requirements
 
     req = overhauls.Requirement(native="Helper.DLL")
     on = {"kind": "native", "path": "x/helper.dll"}
@@ -391,7 +391,7 @@ def test_a_second_overhaul_in_one_profile_is_refused():
 
 
 def test_one_place_says_which_overhaul_owns_an_entry():
-    from roundtable_souls.overhauls import requirements
+    from bayle.overhauls import requirements
 
     example_config, _ = example()
     fake_config, _ = fake()

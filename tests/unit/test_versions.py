@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls import __version__
-from roundtable_souls.updates import feed
+from bayle import __version__
+from bayle.updates import feed
 
 ROOT = Path(__file__).resolve().parents[2]
 

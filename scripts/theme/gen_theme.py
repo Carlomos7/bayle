@@ -3,8 +3,8 @@
     uv run python scripts/theme/gen_theme.py [--check | --dump]
 
 Writes
-    src/roundtable_souls/ui/qml/Theme/Theme.qml   the QML singleton (module Theme), with its qmldir
-    src/roundtable_souls/ui/theme_tokens.py       the same roles as plain Python data
+    src/bayle/ui/qml/Theme/Theme.qml   the QML singleton (module Theme), with its qmldir
+    src/bayle/ui/theme_tokens.py       the same roles as plain Python data
 
 Hand edits to either output are a bug: edit tokens.json and rerun. `--check` writes nothing and exits 1 when an
 output is not current (a CI gate). `--dump` prints every colour role per theme with its OKLCH.
@@ -37,7 +37,7 @@ from colour import Rgba, composite, oklch_to_srgb, parse_hex, qt_hex, shift_ligh
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 TOKENS = HERE / "tokens.json"
-UI = ROOT / "src" / "roundtable_souls" / "ui"
+UI = ROOT / "src" / "bayle" / "ui"
 OUT_QML = UI / "qml" / "Theme" / "Theme.qml"
 OUT_QMLDIR = UI / "qml" / "Theme" / "qmldir"
 OUT_PY = UI / "theme_tokens.py"

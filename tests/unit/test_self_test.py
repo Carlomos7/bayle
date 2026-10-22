@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.resources import PACKAGE_DIR
-from roundtable_souls.ui import self_test
+from bayle.resources import PACKAGE_DIR
+from bayle.ui import self_test
 
 QML = PACKAGE_DIR / "ui" / "qml"
 
@@ -66,8 +66,8 @@ def test_a_missing_file_is_a_failure_not_a_skip():
 def test_compiled_qml_is_cached_inside_this_runs_data_folder(monkeypatch, tmp_path):
     """Qt names its QML cache folder after the program, which for the packaged build is the real data folder's name;
     use_qml_cache_folder() keeps it inside the data folder this run uses (the conftest's temporary one here)."""
-    from roundtable_souls.platform import data_folder
-    from roundtable_souls.ui import qml_env
+    from bayle.platform import data_folder
+    from bayle.ui import qml_env
 
     for name in ("QML_DISK_CACHE_PATH", "QML_DISABLE_DISK_CACHE"):  # registered, so the test puts them back
         monkeypatch.setenv(name, "")
@@ -91,7 +91,7 @@ def test_the_self_test_passes_from_source(tmp_path):
     report = tmp_path / "report.txt"
     env = {k: v for k, v in os.environ.items() if k != "ROUNDTABLE_SOULS_DATA"}
     done = subprocess.run(
-        [sys.executable, "-m", "roundtable_souls", "--self-test", str(report)],
+        [sys.executable, "-m", "bayle", "--self-test", str(report)],
         capture_output=True,
         text=True,
         encoding="utf-8",

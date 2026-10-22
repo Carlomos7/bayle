@@ -244,7 +244,7 @@ def main() -> None:
         "signing_key": key.public_text(),
         "qt_platform": "offscreen",
     }
-    data_dir = INSTALL / "current" / "_internal" / "roundtable_souls" / "data"
+    data_dir = INSTALL / "current" / "_internal" / "bayle" / "data"
     if not data_dir.is_dir():
         fail(f"{data_dir} is not there: the installed layout changed")
     (data_dir / "build-identity.json").write_text(json.dumps(override, indent=1), encoding="utf-8")

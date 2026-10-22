@@ -5,11 +5,11 @@ import time
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-from roundtable_souls.ui import self_test
-from roundtable_souls.ui.launcher import updates as updates_mod
-from roundtable_souls.ui.launcher.adapter import ShellAdapter
-from roundtable_souls.ui.launcher.host import ShellHost
-from roundtable_souls.updates import feed
+from bayle.ui import self_test
+from bayle.ui.launcher import updates as updates_mod
+from bayle.ui.launcher.adapter import ShellAdapter
+from bayle.ui.launcher.host import ShellHost
+from bayle.updates import feed
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
 pytestmark = pytest.mark.ui_stall_ok
@@ -73,7 +73,7 @@ def _toast(w) -> str:
 
 
 def test_the_real_shell_renders_the_check_toast_and_other_pages_toasts(qt_app, tmp_path, monkeypatch):
-    from roundtable_souls.ui.launcher.window import ShellWindow
+    from bayle.ui.launcher.window import ShellWindow
 
     monkeypatch.setattr(updates_mod.feed, "check_launcher_update", lambda force=False: feed.UpdateCheck("fresh"))
     monkeypatch.setattr(updates_mod.feed, "check_advisory", lambda force=False: None)

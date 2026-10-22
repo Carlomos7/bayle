@@ -3,11 +3,11 @@ backup back after backing the current file up. Writes happen on temporary files 
 
 import pytest
 
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.mods import undo
-from roundtable_souls.saves import backups as save_backups
-from roundtable_souls.saves import repair as save_repair
-from roundtable_souls.services import saves as service
+from bayle.game.locate import Locations
+from bayle.mods import undo
+from bayle.saves import backups as save_backups
+from bayle.saves import repair as save_repair
+from bayle.services import saves as service
 from support import copy_live_save, er
 
 

@@ -5,12 +5,12 @@ flow runs over fakes: no Qt, no game, no files."""
 from pathlib import Path
 from types import SimpleNamespace
 
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.game import catalog
-from roundtable_souls.services import play as core
-from roundtable_souls.ui.launcher import launch
-from roundtable_souls.ui.launcher.launch import Ask, LaunchFlow, Services
-from roundtable_souls.ui.launcher.topbar import OFFLINE, PROFILE, VANILLA
+from bayle.config.settings import LauncherSettings
+from bayle.game import catalog
+from bayle.services import play as core
+from bayle.ui.launcher import launch
+from bayle.ui.launcher.launch import Ask, LaunchFlow, Services
+from bayle.ui.launcher.topbar import OFFLINE, PROFILE, VANILLA
 
 
 class LaunchProfile:
@@ -186,7 +186,7 @@ def test_a_blocked_state_starts_nothing():
 
 # T7: Vanilla
 def test_vanilla_starts_through_steam_without_me3_a_profile_or_the_save_repair(monkeypatch):
-    from roundtable_souls.game.locate import Locations as RealLocations
+    from bayle.game.locate import Locations as RealLocations
 
     opened = []
     forbidden = lambda *a, **k: (_ for _ in ()).throw(AssertionError("Vanilla must not call this"))  # noqa: E731
@@ -232,7 +232,7 @@ class RebuildPorts(Ports):
 
 
 def stale_flow(answers=(), auto=True, blocked="", fail=False, tool_ok=True):
-    from roundtable_souls.mods import rebuild as mod_merge
+    from bayle.mods import rebuild as mod_merge
 
     ports, calls = RebuildPorts(answers, fail), Calls()
     services = calls.services()

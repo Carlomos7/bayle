@@ -4,10 +4,10 @@ entries me3 would refuse. Uses the small regulation files and profiles of the co
 from test_mod_merge import TALK, World
 from test_param_merge import pack, set_word, vanilla
 
-from roundtable_souls.game import locate
-from roundtable_souls.mods import conflicts as overview
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.platform import paths as common
+from bayle.game import locate
+from bayle.mods import conflicts as overview
+from bayle.mods import rebuild as merge
+from bayle.platform import paths as common
 from support import er
 
 

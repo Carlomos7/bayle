@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.saves import fix as save_fix
-from roundtable_souls.saves import layout as L
-from roundtable_souls.saves import library
-from roundtable_souls.saves import transfer as T
+from bayle.game import catalog as games
+from bayle.saves import fix as save_fix
+from bayle.saves import layout as L
+from bayle.saves import library
+from bayle.saves import transfer as T
 
 UD10 = L.HEADER + 10 * save_fix.SLOT_STRIDE  # where the profile summary (USER_DATA_10) starts
 ACTIVE = UD10 + 0x10  # ten active flags, then the profile summary entries

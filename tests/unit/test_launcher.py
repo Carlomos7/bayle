@@ -5,14 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.platform import paths
-from roundtable_souls.services import coop as coop_service
-from roundtable_souls.services import mods as mods_service
-from roundtable_souls.services import play as g
-from roundtable_souls.services import saves as saves_service
-from roundtable_souls.ui.pages.mod_configs import presenter as mod_configs_words
+from bayle.config.settings import LauncherSettings
+from bayle.game.locate import Locations, Overrides
+from bayle.platform import paths
+from bayle.services import coop as coop_service
+from bayle.services import mods as mods_service
+from bayle.services import play as g
+from bayle.services import saves as saves_service
+from bayle.ui.pages.mod_configs import presenter as mod_configs_words
 from support import er
 
 INI = (

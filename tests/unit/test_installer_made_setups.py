@@ -7,10 +7,10 @@ from pathlib import Path
 
 from test_engine import PROFILE, Example
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.services import play
+from bayle.game import catalog as games
+from bayle.game.locate import Locations, Overrides
+from bayle.mods import rebuild as merge
+from bayle.services import play
 from support import er
 
 

@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from roundtable_souls.platform import trash
+from bayle.platform import trash
 
 pytestmark = pytest.mark.skipif(not trash.available(), reason="no trash on this system")
 

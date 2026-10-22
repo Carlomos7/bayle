@@ -7,9 +7,9 @@ import os
 import pytest
 from test_mod_merge import World
 
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import history, operations
-from roundtable_souls.mods import profile_writer as W
+from bayle.merging import build as B
+from bayle.mods import history, operations
+from bayle.mods import profile_writer as W
 from support import er
 
 PROFILE = (
@@ -36,7 +36,7 @@ def profile(tmp_path):
 
 def names(w_or_text) -> list[str]:
     text = w_or_text if isinstance(w_or_text, str) else w_or_text.text
-    from roundtable_souls.formats import me3_profile
+    from bayle.formats import me3_profile
 
     return [e["name"] for e in me3_profile.entries(text)]
 
@@ -306,7 +306,7 @@ def test_the_overhaul_configs_requirements_are_the_default_source(profile):
     """An entry an overhaul owns needs what its author's config declares (here a made-up overhaul's local config):
     switching that off is refused while the overhaul is on; the player's own entries need nothing, and an overhaul
     that declares nothing (Example) needs nothing."""
-    from roundtable_souls import overhauls
+    from bayle import overhauls
 
     local = overhauls.local_dir()
     assert local is not None

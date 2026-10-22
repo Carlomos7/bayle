@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = r"\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?"
 FILES = {
     ROOT / "pyproject.toml": re.compile(rf'^version = "({VERSION})"$', re.M),
-    ROOT / "src" / "roundtable_souls" / "__init__.py": re.compile(
+    ROOT / "src" / "bayle" / "__init__.py": re.compile(
         rf'^__version__ = "({VERSION})"(?:  # x-release-please-version)?$', re.M
     ),
 }

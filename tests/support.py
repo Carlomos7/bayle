@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.saves.analyze import GameItems
+from bayle.game import catalog
+from bayle.game.locate import Locations
+from bayle.saves.analyze import GameItems
 
 
 def er() -> Locations:

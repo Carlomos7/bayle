@@ -7,10 +7,10 @@ import shutil
 
 import pytest
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.saves import backups as save_backups
-from roundtable_souls.saves import library as Lib
-from roundtable_souls.saves import regulation
+from bayle.game import catalog as games
+from bayle.saves import backups as save_backups
+from bayle.saves import library as Lib
+from bayle.saves import regulation
 
 ER = games.ELDEN_RING
 

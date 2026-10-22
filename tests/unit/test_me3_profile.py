@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-from roundtable_souls.coop import ini as coop_ini
-from roundtable_souls.formats import me3_profile
-from roundtable_souls.mods import profile as profile_tools
-from roundtable_souls.mods import profile_edit
-from roundtable_souls.services import mods as mods_service
+from bayle.coop import ini as coop_ini
+from bayle.formats import me3_profile
+from bayle.mods import profile as profile_tools
+from bayle.mods import profile_edit
+from bayle.services import mods as mods_service
 
 BLOCKS = (
     'profileVersion = "v1"\n\n'

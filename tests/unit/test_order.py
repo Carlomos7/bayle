@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.mods import order
+from bayle.mods import order
 
 CASES = json.loads((Path(__file__).parent / "order_cases.json").read_text(encoding="utf-8"))
 

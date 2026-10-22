@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls.platform import instance
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.updates import apply, feed, headless
+from bayle.platform import instance
+from bayle.platform import logging as run_logging
+from bayle.updates import apply, feed, headless
 
 
 @pytest.fixture

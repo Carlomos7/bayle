@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls.saves import nightreign as nightreign_repair
-from roundtable_souls.saves import regulation
-from roundtable_souls.saves import repair as after_play
+from bayle.saves import nightreign as nightreign_repair
+from bayle.saves import regulation
+from bayle.saves import repair as after_play
 
 
 @pytest.fixture

@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.platform import data_folder, paths
-from roundtable_souls.saves import backups as save_backups
-from roundtable_souls.saves import layout as save_layout_check
-from roundtable_souls.services import play as g
-from roundtable_souls.services import saves as saves_service
+from bayle.config.settings import LauncherSettings
+from bayle.game.locate import Locations
+from bayle.platform import data_folder, paths
+from bayle.saves import backups as save_backups
+from bayle.saves import layout as save_layout_check
+from bayle.services import play as g
+from bayle.services import saves as saves_service
 from support import copy_live_save as _copy
 from support import er
 

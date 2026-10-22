@@ -2,8 +2,8 @@
 
 import pytest
 
-from roundtable_souls.ui.launcher import chrome_hit as ht
-from roundtable_souls.ui.launcher.chrome_hit import Rect
+from bayle.ui.launcher import chrome_hit as ht
+from bayle.ui.launcher.chrome_hit import Rect
 
 SIZE = (1000, 700)
 BUTTONS = {ht.HTMINBUTTON: Rect(868, 0, 44, 32), ht.HTMAXBUTTON: Rect(912, 0, 44, 32), ht.HTCLOSE: Rect(956, 0, 44, 32)}

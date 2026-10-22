@@ -16,9 +16,9 @@ pytest.importorskip("PySide6.QtQuick")
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
-from roundtable_souls.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
-from roundtable_souls.ui.pages.activity.presenter import ActivityPresenter  # noqa: E402
-from roundtable_souls.ui.pages.registry import QmlPage  # noqa: E402
+from bayle.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
+from bayle.ui.pages.activity.presenter import ActivityPresenter  # noqa: E402
+from bayle.ui.pages.registry import QmlPage  # noqa: E402
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 
@@ -108,14 +108,14 @@ def shots(tmp_path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _ui_stall_guard(request, qt_app):
-    from roundtable_souls.ui import stall
+    from bayle.ui import stall
 
     limit = float(os.environ.get("RS_UI_STALL_MS", stall.TEST_MS))
     if limit <= 0 or request.node.get_closest_marker("ui_stall_ok"):
         yield
         return
     request.node.ui_stalls = found = []
-    watch = stall.StallWatch(limit, lambda ms, stack: found.append((ms, stack)), only_in="roundtable_souls")
+    watch = stall.StallWatch(limit, lambda ms, stack: found.append((ms, stack)), only_in="bayle")
     watch.begin()
     yield
     watch.end()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from roundtable_souls.config.settings import LauncherSettings, folder_name_problem, game_folder_problem, layout_problems
+from bayle.config.settings import LauncherSettings, folder_name_problem, game_folder_problem, layout_problems
 
 
 def test_defaults_are_the_layout():

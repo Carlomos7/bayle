@@ -9,7 +9,7 @@ from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalServer
 
-from roundtable_souls.platform import filelock, instance
+from bayle.platform import filelock, instance
 
 
 @pytest.fixture
@@ -71,9 +71,9 @@ def test_a_second_start_reaches_the_window(name):
 
 
 def test_play_from_a_shortcut_hands_off_or_holds_the_play_name(monkeypatch):
-    from roundtable_souls import cli
-    from roundtable_souls.game import catalog as games
-    from roundtable_souls.services import play as core
+    from bayle import cli
+    from bayle.game import catalog as games
+    from bayle.services import play as core
 
     played, sent = [], []
     monkeypatch.setattr(
@@ -107,7 +107,7 @@ def test_file_lock_excludes_a_second_holder(tmp_path):
 
 
 def test_the_open_window_runs_a_shortcut_play_and_ignores_anything_else():
-    from roundtable_souls.ui.launcher.instance import InstanceServer
+    from bayle.ui.launcher.instance import InstanceServer
 
     server, got = InstanceServer(), []
     server.showRequested.connect(lambda: got.append("show"))

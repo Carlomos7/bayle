@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls.game import oodle
+from bayle.game import oodle
 
 
 class FakeFn:

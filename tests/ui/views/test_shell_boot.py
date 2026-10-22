@@ -3,12 +3,12 @@ and its first page loaded; when either fails, nothing is reported and the start 
 
 import pytest
 
-from roundtable_souls.platform import instance
-from roundtable_souls.ui import self_test
-from roundtable_souls.ui.launcher import window
-from roundtable_souls.ui.launcher.host import ShellHost
-from roundtable_souls.updates import apply as updates
-from roundtable_souls.updates import inno as migration
+from bayle.platform import instance
+from bayle.ui import self_test
+from bayle.ui.launcher import window
+from bayle.ui.launcher.host import ShellHost
+from bayle.updates import apply as updates
+from bayle.updates import inno as migration
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
 pytestmark = pytest.mark.ui_stall_ok

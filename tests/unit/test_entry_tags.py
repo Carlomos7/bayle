@@ -2,8 +2,8 @@
 entry pointing at the profile's own folder or at a folder that only holds other mods) and "Outside the library" (an
 entry of a library profile whose folder lies outside rs-<game>/)."""
 
-from roundtable_souls.mods import checks
-from roundtable_souls.services.mods import profile_entries
+from bayle.mods import checks
+from bayle.services.mods import profile_entries
 
 
 def write(path, text):

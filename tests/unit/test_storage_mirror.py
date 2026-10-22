@@ -8,9 +8,9 @@ import sqlite3
 
 import pytest
 
-from roundtable_souls.mods import history
-from roundtable_souls.saves import backups
-from roundtable_souls.storage import db, mirror
+from bayle.mods import history
+from bayle.saves import backups
+from bayle.storage import db, mirror
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
 
@@ -120,7 +120,7 @@ def test_history_index_is_mirrored_and_an_older_writer_is_harmless(mir, tmp_path
 
 
 def test_library_manifest_is_mirrored_from_a_real_shaped_old_folder(mir, tmp_path):
-    from roundtable_souls.saves import library
+    from bayle.saves import library
 
     save_dir = tmp_path / "saves" / "76561198000000000"
     save_dir.mkdir(parents=True)

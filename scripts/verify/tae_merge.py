@@ -41,11 +41,11 @@ def main() -> int:
     out = _common.output_dir(args.out, "tae-merge", game)
     _common.sandbox_launcher(out, game)
 
-    from roundtable_souls import formats
-    from roundtable_souls.game import archives
-    from roundtable_souls.game import oodle as game_oodle
-    from roundtable_souls.merging import merger
-    from roundtable_souls.mods import profile as profile_tools
+    from bayle import formats
+    from bayle.game import archives
+    from bayle.game import oodle as game_oodle
+    from bayle.merging import merger
+    from bayle.mods import profile as profile_tools
 
     started = time.time()
     dec = game_oodle.find_oodle(game)

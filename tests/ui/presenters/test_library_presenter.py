@@ -5,9 +5,9 @@ from pathlib import Path
 
 from test_mods_presenter import facts
 
-from roundtable_souls.mods import shared_mods
-from roundtable_souls.ui.pages.mods.install import InstallDraft
-from roundtable_souls.ui.pages.mods.presenter import ModsPresenter
+from bayle.mods import shared_mods
+from bayle.ui.pages.mods.install import InstallDraft
+from bayle.ui.pages.mods.presenter import ModsPresenter
 
 P = ModsPresenter()
 

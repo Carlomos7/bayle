@@ -19,7 +19,7 @@ from pathlib import Path
 
 import _common
 
-from roundtable_souls import formats
+from bayle import formats
 
 
 def main() -> int:
@@ -30,8 +30,8 @@ def main() -> int:
     out = _common.output_dir(args.out, "param-rows", game)
     _common.sandbox_launcher(out, game)
 
-    from roundtable_souls.game.oodle import find_oodle
-    from roundtable_souls.merging.rules import param as param_merge
+    from bayle.game.oodle import find_oodle
+    from bayle.merging.rules import param as param_merge
 
     dec = find_oodle(game)
     source = args.regulation or game / "regulation.bin"

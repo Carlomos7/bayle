@@ -10,20 +10,20 @@ import threading
 
 import pytest
 
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.mods import shared_mods
-from roundtable_souls.platform import cpu
-from roundtable_souls.saves import analyze, caches, item_names
-from roundtable_souls.services import jobs, saves
+from bayle.game import catalog
+from bayle.game.locate import Locations
+from bayle.mods import shared_mods
+from bayle.platform import cpu
+from bayle.saves import analyze, caches, item_names
+from bayle.services import jobs, saves
 
 
 def test_a_task_runs_inline_without_a_backend():
-    assert cpu.run_cpu("roundtable_souls.platform.cpu:probe", {"value": 1}).result()["value"] == 2
+    assert cpu.run_cpu("bayle.platform.cpu:probe", {"value": 1}).result()["value"] == 2
 
 
 def test_only_the_packages_own_public_functions_are_tasks():
-    for bad in ("os:getcwd", "roundtable_souls.platform.cpu:_backend", "roundtable_souls.platform.cpu:", "nonsense"):
+    for bad in ("os:getcwd", "bayle.platform.cpu:_backend", "bayle.platform.cpu:", "nonsense"):
         with pytest.raises(ValueError):
             cpu.call(bad, {})
 
@@ -32,17 +32,17 @@ def test_an_installed_backend_gets_the_task_and_none_goes_back_to_inline():
     seen = []
     cpu.install(lambda task, args: seen.append((task, args)) or cpu.run_inline(task, args))
     try:
-        cpu.run_cpu("roundtable_souls.platform.cpu:probe", {"value": 5}).result()
+        cpu.run_cpu("bayle.platform.cpu:probe", {"value": 5}).result()
     finally:
         cpu.install(None)
-    assert seen == [("roundtable_souls.platform.cpu:probe", {"value": 5})]
+    assert seen == [("bayle.platform.cpu:probe", {"value": 5})]
 
 
 def test_a_real_worker_process_answers_and_never_loads_qt():
     lines = [
-        {"id": 1, "task": "roundtable_souls.platform.cpu:probe", "args": {"value": 1}},
-        {"id": 2, "task": "roundtable_souls.platform.cpu:nothing", "args": {}},
-        {"id": 3, "task": "roundtable_souls.platform.cpu:probe", "args": {"value": 9}},
+        {"id": 1, "task": "bayle.platform.cpu:probe", "args": {"value": 1}},
+        {"id": 2, "task": "bayle.platform.cpu:nothing", "args": {}},
+        {"id": 3, "task": "bayle.platform.cpu:probe", "args": {"value": 9}},
     ]
     done = subprocess.run(
         cpu.worker_command(),
@@ -93,9 +93,9 @@ def ui_thread():
 
 def test_cpu_work_on_the_ui_thread_raises_in_strict_mode(ui_thread):
     with pytest.raises(cpu.UiThreadError):
-        cpu.run_cpu("roundtable_souls.platform.cpu:probe", {})
+        cpu.run_cpu("bayle.platform.cpu:probe", {})
     got = {}
-    t = threading.Thread(target=lambda: got.update(f=cpu.run_cpu("roundtable_souls.platform.cpu:probe", {})))
+    t = threading.Thread(target=lambda: got.update(f=cpu.run_cpu("bayle.platform.cpu:probe", {})))
     t.start()
     t.join()
     assert got["f"].result()["value"] == 1  # another thread is fine
@@ -104,11 +104,11 @@ def test_cpu_work_on_the_ui_thread_raises_in_strict_mode(ui_thread):
 def test_outside_strict_mode_it_runs_inline_and_warns_once_per_call_site(ui_thread, monkeypatch, caplog):
     monkeypatch.delenv("PYTEST_CURRENT_TEST")
     monkeypatch.delenv("ROUNDTABLE_SOULS_STRICT_CPU", raising=False)
-    monkeypatch.setattr("roundtable_souls.platform.logging.get_logger", lambda name=None: logging.getLogger("rs.cpu"))
+    monkeypatch.setattr("bayle.platform.logging.get_logger", lambda name=None: logging.getLogger("rs.cpu"))
     with caplog.at_level(logging.WARNING, logger="rs.cpu"):
         for _ in range(3):
-            assert cpu.run_cpu("roundtable_souls.platform.cpu:probe", {}).result()["value"] == 1
-        cpu.run_cpu("roundtable_souls.platform.cpu:probe", {})  # a second call site
+            assert cpu.run_cpu("bayle.platform.cpu:probe", {}).result()["value"] == 1
+        cpu.run_cpu("bayle.platform.cpu:probe", {})  # a second call site
     warned = [r for r in caplog.records if "UI thread" in r.getMessage()]
     assert len(warned) == 2 and "test_cpu.py" in warned[0].getMessage()
 
@@ -120,7 +120,7 @@ def test_invalidate_goes_to_the_workers_and_forget_clears_the_caches(monkeypatch
         cpu.invalidate("item_names")
     finally:
         cpu.install(None)
-    assert sent == [("roundtable_souls.saves.caches:forget", {"kind": "item_names"})]
+    assert sent == [("bayle.saves.caches:forget", {"kind": "item_names"})]
     monkeypatch.setattr(item_names, "_CACHE", ("k", "v"))
     monkeypatch.setattr(analyze, "_GAME_IDS", ("s", frozenset({1})))
     caches.forget("item_names")

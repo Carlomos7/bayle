@@ -5,17 +5,17 @@ import struct
 
 import pytest
 
-from roundtable_souls.config import settings
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations, Overrides, installed_dir
-from roundtable_souls.platform import paths as common
-from roundtable_souls.platform import steam
-from roundtable_souls.saves import container
-from roundtable_souls.saves import nightreign as nr
-from roundtable_souls.services import coop as coop_service
-from roundtable_souls.services import play as core
-from roundtable_souls.services import saves
+from bayle.config import settings
+from bayle.config.settings import LauncherSettings
+from bayle.game import catalog as games
+from bayle.game.locate import Locations, Overrides, installed_dir
+from bayle.platform import paths as common
+from bayle.platform import steam
+from bayle.saves import container
+from bayle.saves import nightreign as nr
+from bayle.services import coop as coop_service
+from bayle.services import play as core
+from bayle.services import saves
 
 NR = games.NIGHTREIGN
 ER = games.ELDEN_RING

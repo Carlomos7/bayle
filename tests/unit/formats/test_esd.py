@@ -5,8 +5,8 @@ import struct
 
 import pytest
 
-from roundtable_souls.formats import FormatError
-from roundtable_souls.formats.esd import ESD, Command, Condition, State, read_esd, write_esd
+from bayle.formats import FormatError
+from bayle.formats.esd import ESD, Command, Condition, State, read_esd, write_esd
 
 TRUE = b"\x41\xa1"  # EZL for "true"; condition tests and command arguments are kept as opaque bytes
 EXTERNAL = 0x6C  # the external header's size: internal offsets start after it

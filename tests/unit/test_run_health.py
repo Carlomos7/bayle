@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls.game import catalog
-from roundtable_souls.game import exe as game_exe
-from roundtable_souls.overhauls.config import Health
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.services import run_health
+from bayle.game import catalog
+from bayle.game import exe as game_exe
+from bayle.overhauls.config import Health
+from bayle.platform import logging as run_logging
+from bayle.services import run_health
 
 
 def fake_exe(path, stamp=1788261400, image=0x5000000):
@@ -118,9 +118,9 @@ def test_notice_goes_to_the_sink_and_the_log(monkeypatch):
 
 
 def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatch):
-    from roundtable_souls import overhauls
-    from roundtable_souls.config.settings import load_settings
-    from roundtable_souls.overhauls.config import OverhaulConfig
+    from bayle import overhauls
+    from bayle.config.settings import load_settings
+    from bayle.overhauls.config import OverhaulConfig
 
     cfg = OverhaulConfig.model_validate(
         {
@@ -150,8 +150,8 @@ def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatc
 
 
 def test_the_setup_form_texts_become_a_health_entry_and_back():
-    from roundtable_souls.overhauls.config import Basic
-    from roundtable_souls.services import mod_configs
+    from bayle.overhauls.config import Basic
+    from bayle.services import mod_configs
 
     (entry,) = mod_configs.health_of_form({"log": "Mod.log", "fail": "failed (code 3)", "ok": r"re:started\b"})
     assert entry.fail == [r"failed\ \(code\ 3\)"] and entry.ok == r"started\b"  # plain text is escaped, re: is not

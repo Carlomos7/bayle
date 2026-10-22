@@ -1,8 +1,8 @@
 """overhauls.lua_check: a composed character script is compiled as Lua 5.1 (never run) before a build is used; a
 broken one is refused naming the file, the line and the part that introduced it. Texts only."""
 
-from roundtable_souls.overhauls import lua_check
-from roundtable_souls.overhauls.hooks import Hook, compose
+from bayle.overhauls import lua_check
+from bayle.overhauls.hooks import Hook, compose
 
 ENTRY = "action/script/c0000.hks"
 BASE = "-- the game's script\nfunction Update()\n    Move()\nend\n"

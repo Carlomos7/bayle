@@ -9,11 +9,11 @@ signature of it (`.minisig`), made in the release workflow with the key in the `
 the trusted comment `roundtable-souls <version> <os>`. `SHA256SUMS.txt` (every file) is signed too, with
 `roundtable-souls <version>`, for people checking downloads by hand.
 
-The launcher ships the public key (`src/roundtable_souls/data/release-signing.pub`, key ID `7E6CB2F456375629`) and
+The launcher ships the public key (`src/bayle/data/release-signing.pub`, key ID `7E6CB2F456375629`) and
 Update now (`updates.download_update`) installs nothing unless:
 
 - the feed's signature verifies with that key (both minisign signature kinds are accepted;
-  `src/roundtable_souls/signing.py`);
+  `src/bayle/signing.py`);
 - the trusted comment, which the signature also covers, names the version being installed and this system;
 - that version is newer than the running copy and has not failed to start here before;
 - every entry is for this launcher's app ID, with a plain file name, a size and a SHA-256;
@@ -46,7 +46,7 @@ If the secret key is lost or exposed:
 
 1. Make a new pair without a password: `minisign -G -W -p roundtable-souls.pub -s roundtable-souls.key`, outside the
    repository. Keep an offline copy of the `.key` file.
-2. Put the `.pub` file's contents in `src/roundtable_souls/data/release-signing.pub` and update the key ID above.
+2. Put the `.pub` file's contents in `src/bayle/data/release-signing.pub` and update the key ID above.
 3. Set the secret: `gh secret set MINISIGN_KEY < roundtable-souls.key`.
 4. Release. Copies older than this release only trust the old key: an exposed key can sign for them until they update,
    so say so in the release notes and ask for a manual update from the releases page. A lost (not exposed) key only

@@ -12,11 +12,11 @@ from __future__ import annotations
 import argparse
 import sys
 
-from roundtable_souls.app import use_data_folder
-from roundtable_souls.game import catalog
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.platform import paths, processes
-from roundtable_souls.platform.logging import log
+from bayle.app import use_data_folder
+from bayle.game import catalog
+from bayle.platform import logging as run_logging
+from bayle.platform import paths, processes
+from bayle.platform.logging import log
 
 
 def main():

@@ -2,7 +2,7 @@
 
 import json
 
-from roundtable_souls.config import settings
+from bayle.config import settings
 
 
 def test_defaults_when_missing_or_broken(tmp_path):
@@ -71,7 +71,7 @@ def test_settings_an_older_build_wrote_for_overhauls_still_load():
 
 
 def test_logo_setting_migrates_old_values():
-    from roundtable_souls.config.settings import LauncherSettings
+    from bayle.config.settings import LauncherSettings
 
     got = {v: LauncherSettings.from_raw({"logo": v}).logo for v in ("dark", "light", "gold", "ice", "bogus", None)}
     assert got == {"dark": "crimson", "light": "ice", "gold": "gold", "ice": "ice", "bogus": "auto", None: "auto"}

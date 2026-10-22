@@ -8,8 +8,8 @@ from PySide6.QtCore import QEventLoop, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
-from roundtable_souls.ui.pages.registry import QmlPage
-from roundtable_souls.ui.pages.settings.adapter import SettingsAdapter
+from bayle.ui.pages.registry import QmlPage
+from bayle.ui.pages.settings.adapter import SettingsAdapter
 
 
 class SettingsHost:

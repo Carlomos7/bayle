@@ -1,0 +1,155 @@
+"""Merging one file that several mods ship, against the game's own copy of it.
+
+Each mod's copy is the game's file with that mod's changes. For an archive (BND4) the merger finds, inner file by
+inner file, what each mod changed, added or left out (removed) compared with the game's copy, and applies all of
+them in load order into one archive. For a text table (FMG) it does the same entry by entry. Where two mods changed
+the same inner file, and that file is itself an archive, a text table, a talk script (ESD) or animation events (TAE,
+animation by animation), it is merged the same way inside; otherwise the later mod's version is used and the merge
+reports it as a clash. Any other file is not merged: the later mod's copy is used whole (a clash when several changed
+it).
+
+The result keeps the game's layout (the archive's format, the file's compression), so it differs from the game's
+copy only where the mods did.
+"""
+
+from __future__ import annotations
+
+import struct
+import zlib
+
+from bayle import formats
+from bayle.game import knowledge
+from bayle.merging.changes import Result
+from bayle.merging.rules import bnd4 as bnd4_rule
+from bayle.merging.rules import esd as esd_rule
+from bayle.merging.rules import fmg as fmg_rule
+from bayle.merging.rules import tae as tae_rule
+
+# Talk scripts (ESD) are merged by merging.rules.esd (on since a merged grace menu was checked in game, 2026-10-02).
+# False: they are handled as any other file (the later mod's copy, a clash when several changed it).
+ESD_MERGING = True
+# Animation events (TAE) are merged animation by animation by merging.rules.tae (S3t; a dash mod and an overhaul
+# merged were checked in game, 2026-10-05). False: they are handled as any other file.
+TAE_MERGING = True
+
+
+def mergeable(body: bytes) -> bool:
+    return (
+        formats.bnd4.is_bnd4(body)
+        or formats.fmg.is_fmg(body)
+        or ESD_MERGING
+        and esd_rule.is_esd(body)
+        or TAE_MERGING
+        and tae_rule.is_tae(body)
+    )
+
+
+def merge(
+    vanilla: bytes | None,
+    layers: list[tuple[str, bytes]],
+    oodle=None,
+    compressor=None,
+    dflt_fallback: bool = False,
+    name: str = "",
+    lists: knowledge.Lists | None = None,
+) -> Result:
+    """Merge the mods' copies of one file (as stored: DCX-compressed or not), in load order, against the game's own
+    copy (None when the game has no such file: the first mod's copy is then the base). name: the file's game path
+    ("parts/bd_m_1000.partsbnd.dcx"); an archive's kind, which says how the game finds its inner files, comes from it.
+    lists: the installed game's exe-derived lists (game.knowledge.exe_lists); given, each mod's changed or added talk
+    script is checked against them and what the game doesn't have is a warning (none when None)."""
+    if not layers:
+        raise ValueError("nothing to merge")
+    if vanilla is None:
+        vanilla, layers = layers[0][1], layers
+    damaged = (struct.error, ValueError, IndexError, UnicodeDecodeError, zlib.error)
+    try:
+        base, how = formats.dcx.unpack(vanilla, oodle)
+    except damaged as e:
+        raise formats.FormatError(f"the game's own copy could not be read ({e})") from e
+    bodies = []
+    for label, raw in layers:
+        try:
+            bodies.append((label, formats.dcx.unpack(raw, oodle)[0]))
+        except damaged as e:
+            raise formats.FormatError(f"{label}'s copy is damaged or not in the format it claims ({e})") from e
+    try:
+        result = _merge_body(base, bodies, "", name, _inspector(lists))
+    except formats.FormatError:
+        raise
+    except damaged as e:
+        raise formats.FormatError(f"a copy is damaged or not in the format it claims ({e})") from e
+    if not result.merged:
+        return Result(
+            layers[-1][1],
+            result.changed,
+            result.clashes,
+            False,
+            result.removed,
+            result.notes,
+            result.warnings,
+            result.omissions,
+        )
+    result.data = formats.dcx.pack(result.data, how, compressor, dflt_fallback) if result.data != base else vanilla
+    return result
+
+
+def _merge_body(
+    base: bytes, bodies: list[tuple[str, bytes]], where: str, name: str = "", inspect: bnd4_rule.Inspect | None = None
+) -> Result:
+    if formats.bnd4.is_bnd4(base) and all(formats.bnd4.is_bnd4(b) for _, b in bodies):
+
+        def nested(base: bytes, bodies: list[tuple[str, bytes]], where: str) -> Result | None:
+            """An inner file several mods changed: merged the same way when it is itself a format with a rule."""
+            return _merge_body(base, bodies, where, inspect=inspect) if mergeable(base) else None
+
+        return bnd4_rule.merge(base, bodies, where, nested, knowledge.binder_kind(where or name), inspect)
+    if formats.fmg.is_fmg(base) and all(formats.fmg.is_fmg(b) for _, b in bodies):
+        return fmg_rule.merge(base, bodies, where)
+    if ESD_MERGING and esd_rule.is_esd(base) and all(esd_rule.is_esd(b) for _, b in bodies):
+        return esd_rule.merge(base, bodies, where)
+    if TAE_MERGING and tae_rule.is_tae(base) and all(tae_rule.is_tae(b) for _, b in bodies):
+        return tae_rule.merge(base, bodies, where)
+    changed = [(label, b) for label, b in bodies if b != base]
+    out = Result(changed[-1][1] if changed else base, merged=False)
+    if changed:
+        out.changed[where or "/"] = [label for label, _ in changed]
+        if len({b for _, b in changed}) > 1:
+            out.clashes[where or "/"] = [label for label, _ in changed]
+    return out
+
+
+EXAMPLES = 3  # IDs named in a warning; the rest are counted
+
+
+def _inspector(lists: knowledge.Lists | None) -> bnd4_rule.Inspect | None:
+    """The game-level checks run on each mod's changed or added inner file: talk scripts' command and function IDs
+    against the game's (backlog E1)."""
+    if lists is None:
+        return None
+    commands, functions = set(lists.lists.talk_command_ids), set(lists.lists.talk_function_ids)
+    caveat = f" ({lists.caveat})" if lists.caveat else ""
+
+    def inspect(path: str, mod: str, data: bytes) -> list[str]:
+        if not esd_rule.is_esd(data):
+            return []
+        try:
+            found = esd_rule.unknown_ids(data, commands, functions)
+        except esd_rule.Unsupported, formats.FormatError, struct.error, ValueError, IndexError:
+            return []  # a script the launcher can't read is reported by the merge itself
+        out = []
+        for kind, said in (
+            ("command", "talk commands the game doesn't have, which do nothing in game"),
+            ("function", "talk functions the game doesn't have, so what those tests give is unknown"),
+        ):
+            hits = [
+                f"{what.split(' ', 1)[1]} (machine {m}, state {s})" for m, s, what in found if what.startswith(kind)
+            ]
+            if hits:
+                shown = ", ".join(hits[:EXAMPLES]) + (
+                    f" and {len(hits) - EXAMPLES} more" if len(hits) > EXAMPLES else ""
+                )
+                out.append(f"{mod} uses {said}: {shown}{caveat}")
+        return out
+
+    return inspect

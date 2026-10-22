@@ -26,11 +26,11 @@ from urllib.request import url2pathname
 
 import pytest
 
-from roundtable_souls.config import settings
-from roundtable_souls.platform import data_folder, instance
-from roundtable_souls.platform import paths as common
-from roundtable_souls.saves import backups as save_backups
-from roundtable_souls.saves import item_names
+from bayle.config import settings
+from bayle.platform import data_folder, instance
+from bayle.platform import paths as common
+from bayle.saves import backups as save_backups
+from bayle.saves import item_names
 
 _WRITABLE: list[str] = []  # while a test runs: the folders it may write in; empty = not guarding
 _WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_TRUNC
@@ -124,8 +124,8 @@ def isolated_settings(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def example_overhaul_shipped(monkeypatch):
     """The launcher ships no overhaul config; the tests ship an invented one (tests/data/overhauls)."""
-    from roundtable_souls.overhauls import config as overhaul_config
-    from roundtable_souls.overhauls import writer as overhaul_writer
+    from bayle.overhauls import config as overhaul_config
+    from bayle.overhauls import writer as overhaul_writer
 
     here = Path(__file__).parent / "data" / "overhauls"
     monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", here)
@@ -135,7 +135,7 @@ def example_overhaul_shipped(monkeypatch):
 @pytest.fixture(autouse=True)
 def installed_me3_not_asked(monkeypatch):
     """A rebuild records the installed me3's version by running it: tests never run the developer's me3."""
-    from roundtable_souls.mods.backends import builtin
+    from bayle.mods.backends import builtin
 
     monkeypatch.setattr(builtin, "_me3_version", lambda _loc: "0.13.0")
 
@@ -144,7 +144,7 @@ def installed_me3_not_asked(monkeypatch):
 def no_programs_running(monkeypatch):
     """Tests never list this machine's processes (whether Steam or the game runs here): nothing is running unless a
     test says so. Listing them took about a second each time on Windows."""
-    from roundtable_souls.platform import proc
+    from bayle.platform import proc
 
     monkeypatch.setattr(proc, "processes", lambda name: [])
 
@@ -153,7 +153,7 @@ def no_programs_running(monkeypatch):
 def saves_written_without_waiting(monkeypatch):
     """The save lock waits until a save has been unchanged for 4 seconds; a test's save was always just written, so
     every write waited. Tests that check the wait set services.saves.SETTLE_SECONDS themselves."""
-    from roundtable_souls.services import saves
+    from bayle.services import saves
 
     monkeypatch.setattr(saves, "SETTLE_SECONDS", 0.0)
 
@@ -170,7 +170,7 @@ def recycle_bin_left_clean(monkeypatch, tmp_path):
     """Removing a mod sends its folder to the trash. On Windows that is the real Recycle Bin: every item a test sends
     there is purged after it, so the bin is left as it was. Elsewhere the desktop trash is a folder the launcher
     writes itself, so each test gets its own in its temporary folder (the real one is never touched)."""
-    from roundtable_souls.platform import trash
+    from bayle.platform import trash
 
     if sys.platform != "win32":
         own = tmp_path / "Trash"
@@ -198,7 +198,7 @@ def recycle_bin_left_clean(monkeypatch, tmp_path):
 def clean_logging(isolated_settings):
     """No job, sink or standalone run survives a test, so one test's lines never reach another's files. Ended while
     the test's own data folder is still in place (isolated_settings), where the job's index is written."""
-    from roundtable_souls.platform import logging as run_logging
+    from bayle.platform import logging as run_logging
 
     yield
     job = run_logging.current_job()
@@ -222,8 +222,8 @@ def no_installed_mod_names(request, monkeypatch):
 def records_back_to_their_files():
     """create_app points the hash cache and the activity log at its database; every test ends with them back on their
     files, so no test writes through another test's (closed) database."""
-    from roundtable_souls.mods import rebuild
-    from roundtable_souls.platform import logging as run_logging
+    from bayle.mods import rebuild
+    from bayle.platform import logging as run_logging
 
     yield
     rebuild.use_hash_store(None)
@@ -252,6 +252,6 @@ def _no_cpu_workers_left_over():
     """A test that starts the window's worker pool must not leave it installed for the next test (CI runs the unit
     and ui tests in one process, so the window's thread would count as the UI thread for every later test)."""
     yield
-    from roundtable_souls.platform import cpu
+    from bayle.platform import cpu
 
     cpu.install(None)

@@ -6,11 +6,11 @@ import struct
 
 import pytest
 
-from roundtable_souls.platform import paths
-from roundtable_souls.saves import layout as save_layout_check
-from roundtable_souls.saves import loading as save_loading
-from roundtable_souls.services import play as g
-from roundtable_souls.services import saves as saves_service
+from bayle.platform import paths
+from bayle.saves import layout as save_layout_check
+from bayle.saves import loading as save_loading
+from bayle.services import play as g
+from bayle.services import saves as saves_service
 from support import copy_live_save as _copy
 from support import er
 

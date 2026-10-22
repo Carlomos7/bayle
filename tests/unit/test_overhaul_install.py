@@ -13,15 +13,15 @@ from fakegame import bnd, dcx, fmg
 from test_engine import ARCHIVES, GAME_CLIPS, PAYLOAD, game_files
 from test_param_merge import pack, set_word, vanilla
 
-from roundtable_souls import overhauls
-from roundtable_souls.game import catalog, locate
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import library, operations, overhaul_install, records, undo
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.mods.overhaul_install import OverhaulError
-from roundtable_souls.platform import paths as common
-from roundtable_souls.platform import trash as real_trash
+from bayle import overhauls
+from bayle.game import catalog, locate
+from bayle.game.locate import Locations, Overrides
+from bayle.merging import build as B
+from bayle.mods import library, operations, overhaul_install, records, undo
+from bayle.mods import rebuild as merge
+from bayle.mods.overhaul_install import OverhaulError
+from bayle.platform import paths as common
+from bayle.platform import trash as real_trash
 
 PROFILE = """profileVersion = "v1"
 start_online = true
@@ -341,7 +341,7 @@ def test_a_profile_changed_after_the_preview_is_not_overwritten(world):
 
 
 def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
-    from roundtable_souls.mods import engine
+    from bayle.mods import engine
 
     before = files(world.base)
 
@@ -543,9 +543,9 @@ def test_without_choices_an_installer_setups_side_effects_stay(world):
 
 # ----------------------------------------------------------------------------- the services the pages call
 def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch):
-    from roundtable_souls.config import settings
-    from roundtable_souls.platform import logging as run_logging
-    from roundtable_souls.services import mods as service
+    from bayle.config import settings
+    from bayle.platform import logging as run_logging
+    from bayle.services import mods as service
 
     assert not service.overhaul_preview_on(world.loc)  # the switch is off by default
     settings.save_settings(overhaul_install=True)
@@ -576,7 +576,7 @@ def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch)
 def test_a_profile_its_overhauls_installer_made_cannot_be_deleted_one_the_launcher_made_can(world):
     from types import SimpleNamespace
 
-    from roundtable_souls.services import profile_mods as pm
+    from bayle.services import profile_mods as pm
 
     def refusal(kind="me3", source=None):
         return pm.delete_refusal(
@@ -596,7 +596,7 @@ def test_a_profile_its_overhauls_installer_made_cannot_be_deleted_one_the_launch
 
 
 def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
-    from roundtable_souls.services import mods as service
+    from bayle.services import mods as service
 
     legacy(world)
     assert service.profile_overhaul(world.profile, loc=world.loc)["legacy"] is True
@@ -611,7 +611,7 @@ def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
 
 
 def test_the_switch_and_button_words_come_from_the_configs(world):
-    from roundtable_souls.services import mods as service
+    from bayle.services import mods as service
 
     assert service.installable_overhauls("eldenring") == ["Example Overhaul LITE 0.1.33-rc3"]
     assert service.installable_overhauls("nightreign") == []
@@ -634,7 +634,7 @@ def mixed_mod(world) -> Path:
 
 
 def set_up(world) -> tuple[Path, Path, dict]:
-    from roundtable_souls.overhauls import basic
+    from bayle.overhauls import basic
 
     folder = mixed_mod(world)
     config = basic.make(id="mixed-mod", label="Mixed Mod", game="eldenring", basic=basic.propose(folder), folder=folder)
@@ -688,9 +688,9 @@ def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
 
 # ----------------------------------------------------------------------------- the generic setup needs no shipped config
 def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(world, monkeypatch, tmp_path):
-    from roundtable_souls.config import settings
-    from roundtable_souls.overhauls import config as overhaul_config
-    from roundtable_souls.services import mods as service
+    from bayle.config import settings
+    from bayle.overhauls import config as overhaul_config
+    from bayle.services import mods as service
 
     empty = tmp_path / "no-shipped"
     empty.mkdir()
@@ -705,9 +705,9 @@ def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(wor
 
 
 def test_a_local_config_the_player_made_is_listed(world, monkeypatch, tmp_path):
-    from roundtable_souls import overhauls
-    from roundtable_souls.overhauls import config as overhaul_config
-    from roundtable_souls.services import mods as service
+    from bayle import overhauls
+    from bayle.overhauls import config as overhaul_config
+    from bayle.services import mods as service
 
     shipped = overhaul_config.SHIPPED_DIR / "example-overhaul.toml"
     empty = tmp_path / "no-shipped"

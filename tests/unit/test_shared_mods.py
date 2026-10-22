@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.formats import me3_profile
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import library, operations, profile_rename, shared_mods, undo
-from roundtable_souls.platform import trash
+from bayle.formats import me3_profile
+from bayle.game import catalog
+from bayle.game.locate import Locations, Overrides
+from bayle.merging import build as B
+from bayle.mods import library, operations, profile_rename, shared_mods, undo
+from bayle.platform import trash
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -462,8 +462,8 @@ def download(tmp_path: Path, folder: str, data: bytes) -> Path:
 
 
 def test_install_hook_updates_a_shared_mod_here_or_everywhere(world, tmp_path):
-    from roundtable_souls.services import mods as mod_service
-    from roundtable_souls.services import profile_mods
+    from bayle.services import mods as mod_service
+    from bayle.services import profile_mods
 
     loc, home, root, lib, a, b, c = world
     for p in (a, b):
@@ -483,8 +483,8 @@ def test_install_hook_updates_a_shared_mod_here_or_everywhere(world, tmp_path):
 
 
 def test_install_hook_offers_to_share_identical_copies_and_shares_them(world, tmp_path):
-    from roundtable_souls.services import mods as mod_service
-    from roundtable_souls.services import profile_mods
+    from bayle.services import mods as mod_service
+    from bayle.services import profile_mods
 
     loc, home, root, lib, a, b, c = world
     for p in (a, b):
@@ -504,8 +504,8 @@ def test_install_hook_offers_to_share_identical_copies_and_shares_them(world, tm
 
 
 def test_duplicate_can_share_with_the_original_and_an_export_names_shared_mods_by_name(world, tmp_path):
-    from roundtable_souls.services import profile_rename as rename_service
-    from roundtable_souls.services import profile_transfer
+    from bayle.services import profile_rename as rename_service
+    from bayle.services import profile_transfer
 
     loc, home, root, lib, a, b, c = world
     out = rename_service.duplicate(a, loc=loc, share=True)
@@ -518,7 +518,7 @@ def test_duplicate_can_share_with_the_original_and_an_export_names_shared_mods_b
 
 def recorded(monkeypatch) -> dict:
     """What a job leaves as its undo record (run_logging.set_undo)."""
-    from roundtable_souls.platform import logging as run_logging
+    from bayle.platform import logging as run_logging
 
     got: dict = {}
     monkeypatch.setattr(run_logging, "set_undo", lambda data: got.update(data=data))
@@ -526,8 +526,8 @@ def recorded(monkeypatch) -> dict:
 
 
 def test_share_through_the_install_prompt_leaves_one_undo_for_everything(world, tmp_path, monkeypatch):
-    from roundtable_souls.services import mods as mod_service
-    from roundtable_souls.services import profile_mods
+    from bayle.services import mods as mod_service
+    from bayle.services import profile_mods
 
     loc, home, root, lib, a, b, c = world
     for p in (a, b):
@@ -547,7 +547,7 @@ def test_share_through_the_install_prompt_leaves_one_undo_for_everything(world, 
 
 
 def test_duplicate_with_share_leaves_one_undo_for_the_sharing_and_the_copy(world, monkeypatch):
-    from roundtable_souls.services import profile_rename as rename_service
+    from bayle.services import profile_rename as rename_service
 
     loc, home, root, lib, a, b, c = world
     before = tree(home)
@@ -560,7 +560,7 @@ def test_duplicate_with_share_leaves_one_undo_for_the_sharing_and_the_copy(world
 
 
 def test_a_shared_update_that_ships_regulation_is_marked_blocked(world, tmp_path):
-    from roundtable_souls.services import mods as mod_service
+    from bayle.services import mods as mod_service
 
     loc, home, root, lib, a, b, c = world
     (root / "a" / "packages" / "grass" / "parts").mkdir(parents=True)
@@ -599,7 +599,7 @@ def test_two_profiles_in_one_folder_are_not_twins_and_a_scan_hashes_each_folder_
 
 
 def test_the_hint_scan_runs_once_until_a_profile_file_changes(world, monkeypatch):
-    from roundtable_souls.services import shared_mods as library_service
+    from bayle.services import shared_mods as library_service
 
     loc, home, root, lib, a, b, c = world
     library_service._scanned.clear()

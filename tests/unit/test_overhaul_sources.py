@@ -8,10 +8,10 @@ import random
 import pytest
 from pydantic import ValidationError
 
-from roundtable_souls import overhauls
-from roundtable_souls.mods import records
-from roundtable_souls.overhauls import sources
-from roundtable_souls.overhauls.config import Build
+from bayle import overhauls
+from bayle.mods import records
+from bayle.overhauls import sources
+from bayle.overhauls.config import Build
 
 LANGS = ["araae", "deude", "engus", "frafr", "itait", "jpnjp", "korkr", "polpl", "porbr", "rusru", "spaar", "spaes",
          "thath", "zhocn", "zhotw"]  # fmt: skip
@@ -247,34 +247,32 @@ def _imports(module: str) -> set[str]:
     out = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
-            # from roundtable_souls import formats -> roundtable_souls.formats
-            out |= (
-                {f"{node.module}.{a.name}" for a in node.names} if node.module == "roundtable_souls" else {node.module}
-            )
+            # from bayle import formats -> bayle.formats
+            out |= {f"{node.module}.{a.name}" for a in node.names} if node.module == "bayle" else {node.module}
         elif isinstance(node, ast.Import):
             out |= {a.name for a in node.names}
-    return {m for m in out if m.startswith("roundtable_souls")}
+    return {m for m in out if m.startswith("bayle")}
 
 
 @pytest.mark.parametrize(
     ("module", "allowed"),
     [
-        ("roundtable_souls.overhauls.sources", ("roundtable_souls.overhauls",)),
+        ("bayle.overhauls.sources", ("bayle.overhauls",)),
         (
-            "roundtable_souls.overhauls.config",
-            ("roundtable_souls.overhauls", "roundtable_souls.resources", "roundtable_souls.platform"),
+            "bayle.overhauls.config",
+            ("bayle.overhauls", "bayle.resources", "bayle.platform"),
         ),  # fmt: skip
-        ("roundtable_souls.merging.record", ("roundtable_souls.game", "roundtable_souls.formats")),
-        ("roundtable_souls.game.archives", ("roundtable_souls.game", "roundtable_souls.platform")),
-        ("roundtable_souls.mods.naming", ("roundtable_souls.config.layout",)),
-        ("roundtable_souls.mods.records", ("roundtable_souls.resources",)),
+        ("bayle.merging.record", ("bayle.game", "bayle.formats")),
+        ("bayle.game.archives", ("bayle.game", "bayle.platform")),
+        ("bayle.mods.naming", ("bayle.config.layout",)),
+        ("bayle.mods.records", ("bayle.resources",)),
         (
-            "roundtable_souls.mods.library",
+            "bayle.mods.library",
             (
-                "roundtable_souls.formats",
-                "roundtable_souls.platform",
-                "roundtable_souls.game.locate",
-                "roundtable_souls.config.layout",
+                "bayle.formats",
+                "bayle.platform",
+                "bayle.game.locate",
+                "bayle.config.layout",
             ),
         ),  # fmt: skip
     ],
@@ -284,4 +282,4 @@ def test_the_new_modules_keep_the_layers(module, allowed):
     services. (lint-imports checks the whole tree; this pins the modules the library foundations added or moved.)"""
     found = _imports(module)
     assert all(m.startswith(allowed) for m in found), found - {m for m in found if m.startswith(allowed)}
-    assert not any(m.startswith(("PySide6", "roundtable_souls.ui", "roundtable_souls.services")) for m in found)
+    assert not any(m.startswith(("PySide6", "bayle.ui", "bayle.services")) for m in found)

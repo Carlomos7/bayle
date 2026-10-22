@@ -44,8 +44,8 @@ def settings() -> dict:
 def game_dir(given: Path | None) -> Path:
     game = given or (Path(settings()["game"]) if "game" in settings() else None)
     if game is None:
-        from roundtable_souls.game import catalog
-        from roundtable_souls.game.locate import Locations
+        from bayle.game import catalog
+        from bayle.game.locate import Locations
 
         game = Locations(catalog.ELDEN_RING).game_dir()
     if game is None or not (Path(game) / "eldenring.exe").is_file():
@@ -93,14 +93,14 @@ def sandbox_launcher(out: Path, game: Path):
     """Point the launcher's code at a data folder inside `out` and at `game`. Its settings, caches, history and logs
     then live there (run from source, the launcher would otherwise keep them beside the code). Returns the Locations
     to hand the mods code: Elden Ring in `game`."""
-    from roundtable_souls.config import settings
+    from bayle.config import settings
 
     data = out / "launcher-data"
     data.mkdir(parents=True, exist_ok=True)
     settings.data_dir = lambda: data
-    from roundtable_souls.game import catalog
-    from roundtable_souls.game.locate import Locations, Overrides
-    from roundtable_souls.platform import data_folder, paths
+    from bayle.game import catalog
+    from bayle.game.locate import Locations, Overrides
+    from bayle.platform import data_folder, paths
 
     data_folder.use(data)
     paths.clear_detection_cache()

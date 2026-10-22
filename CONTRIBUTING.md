@@ -52,7 +52,7 @@ does it.
 
 1. Commits land on `main` by squash-merged pull requests.
 2. Each push to `main` opens or updates the **release pull request**: the next version (from the commit types), the
-   `CHANGELOG.md` entry, `pyproject.toml`, `src/roundtable_souls/__init__.py` and `uv.lock`.
+   `CHANGELOG.md` entry, `pyproject.toml`, `src/bayle/__init__.py` and `uv.lock`.
 3. Merging that pull request makes release-please tag `vX.Y.Z` and create a draft GitHub release holding the
    changelog entry. The same workflow then starts `release.yml` on the tag (a tag made by `GITHUB_TOKEN` does not
    trigger workflows by itself, so it is dispatched explicitly).

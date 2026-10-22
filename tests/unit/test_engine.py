@@ -12,14 +12,14 @@ from fakegame import bnd, dcx, files_of, fmg, texts_of
 from test_esd_merge import game_script, options, with_option
 from test_param_merge import pack, rows_of, set_word, vanilla
 
-from roundtable_souls import overhauls
-from roundtable_souls.formats.esd import write_esd
-from roundtable_souls.game import config as game_config
-from roundtable_souls.game import locate
-from roundtable_souls.mods import backends, engine
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.mods.backends import launcher_build
-from roundtable_souls.platform import paths as common
+from bayle import overhauls
+from bayle.formats.esd import write_esd
+from bayle.game import config as game_config
+from bayle.game import locate
+from bayle.mods import backends, engine
+from bayle.mods import rebuild as merge
+from bayle.mods.backends import launcher_build
+from bayle.platform import paths as common
 from support import er
 
 PROFILE = """profileVersion = "v1"
@@ -262,7 +262,7 @@ def test_the_manifest_lists_the_sources_and_keeps_the_rest(world):
 
 
 def test_the_previous_build_is_kept_and_undo_swaps_it_back(world):
-    from roundtable_souls.mods import undo
+    from bayle.mods import undo
 
     out = world.build()
     assert (out["previous"] / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
@@ -275,8 +275,8 @@ def test_the_previous_build_is_kept_and_undo_swaps_it_back(world):
 
 
 def test_a_kill_between_the_two_renames_is_recovered_and_no_journal_means_no_touching(world, monkeypatch):
-    from roundtable_souls.merging import build as B
-    from roundtable_souls.mods import operations
+    from bayle.merging import build as B
+    from bayle.mods import operations
 
     real, calls = B._move, []
 
@@ -316,7 +316,7 @@ def test_a_build_can_be_left_staged_for_an_operation_to_put_in_place(world):
 
 
 def test_a_failed_merge_leaves_the_build_in_place_and_no_staging(world, monkeypatch):
-    from roundtable_souls.merging import merger
+    from bayle.merging import merger
 
     def fail(*args, **kwargs):
         raise RuntimeError("could not read the archive")
@@ -668,8 +668,8 @@ def _stale(world) -> list[str]:
 
 
 def test_the_build_records_the_game_the_config_and_the_merger(world):
-    from roundtable_souls.merging import record
-    from roundtable_souls.mods import records
+    from bayle.merging import record
+    from bayle.mods import records
 
     world.build()
     m = json.loads((world.own / "installation.json").read_text())
@@ -710,7 +710,7 @@ def test_a_changed_config_makes_the_build_out_of_date(world):
 
 
 def test_a_new_merger_revision_makes_the_build_out_of_date(world, monkeypatch):
-    from roundtable_souls.merging import record
+    from bayle.merging import record
 
     _built(world)
     with monkeypatch.context() as m:
@@ -719,7 +719,7 @@ def test_a_new_merger_revision_makes_the_build_out_of_date(world, monkeypatch):
 
 
 def test_a_build_from_before_3_21_is_rebuilt_once(world):
-    from roundtable_souls.merging import record
+    from bayle.merging import record
 
     _built(world)
     m = json.loads((world.own / "installation.json").read_text())
@@ -748,7 +748,7 @@ def test_havok_only_syntax_in_the_mods_script_is_a_warning_in_the_report(world):
 
 def test_the_parameter_checks_reach_the_builds_report(world):
     """A row the game's lookup never finds is a warning in the report (3.22-B, P2); the build goes ahead."""
-    from roundtable_souls import formats
+    from bayle import formats
 
     def negative(p):
         p.rows.append(formats.param.Row(0xFFFFFFFF, p.rows[0].data, ""))
@@ -763,7 +763,7 @@ def test_the_parameter_checks_reach_the_builds_report(world):
 
 
 def test_a_regulation_the_game_could_not_read_is_refused_and_the_build_kept(world, monkeypatch):
-    from roundtable_souls.merging.rules import param as param_merge
+    from bayle.merging.rules import param as param_merge
 
     monkeypatch.setattr(param_merge, "MAX_ROWS", 1)
     with pytest.raises(engine.EngineError, match=r"regulation.bin could not be merged: EquipParamWeapon would have"):
@@ -775,7 +775,7 @@ def test_the_composed_scripts_calls_are_checked_against_the_game(world, monkeypa
     """3.22-B H2: a call defined nowhere the game looks is a warning in the build's report; the build goes ahead."""
     from test_hks_check import hks_bytecode
 
-    from roundtable_souls.overhauls import hks_check
+    from bayle.overhauls import hks_check
 
     real = hks_check.gamearchive.read
     shared = hks_bytecode("ExecTalk")

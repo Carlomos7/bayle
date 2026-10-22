@@ -14,10 +14,10 @@ import pytest
 pytest.importorskip("PySide6.QtCore")
 from PySide6.QtGui import QGuiApplication
 
-from roundtable_souls.platform import cpu
-from roundtable_souls.ui.cpu_pool import CpuPool
+from bayle.platform import cpu
+from bayle.ui.cpu_pool import CpuPool
 
-PROBE = "roundtable_souls.platform.cpu:probe"
+PROBE = "bayle.platform.cpu:probe"
 
 
 @pytest.fixture

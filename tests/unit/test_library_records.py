@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from roundtable_souls.mods import records
-from roundtable_souls.mods.records import (
+from bayle.mods import records
+from bayle.mods.records import (
     BuildRecord,
     OverhaulRecord,
     RecordError,

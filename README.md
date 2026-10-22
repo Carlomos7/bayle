@@ -105,7 +105,7 @@ You need [uv](https://docs.astral.sh/uv/); it installs Python 3.14 for you.
 git clone https://github.com/Carlomos7/roundtable-souls.git
 cd roundtable-souls
 uv sync
-uv run roundtable-souls
+uv run bayle
 ```
 
 ### Tests and checks
@@ -132,7 +132,7 @@ uv run python scripts/build.py --identity test.json  # an isolated test build (o
 ## Project layout
 
 ```text
-src/roundtable_souls/
+src/bayle/
 â”œâ”€â”€ ui/          Qt Quick shell, pages, presenters (Qt-free) and adapters
 â”œâ”€â”€ services/    what the pages call: launch, mods, saves, settings, transfers
 â”œâ”€â”€ mods/        profiles, the profile writer, install, library, rename, undo, operations

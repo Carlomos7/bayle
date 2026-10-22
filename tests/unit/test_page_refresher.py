@@ -4,8 +4,8 @@ import threading
 
 import pytest
 
-from roundtable_souls.platform import threads
-from roundtable_souls.ui.refresh import Refresher, stat_key
+from bayle.platform import threads
+from bayle.ui.refresh import Refresher, stat_key
 
 
 class Host:
@@ -117,8 +117,8 @@ def test_io_on_the_ui_thread_is_refused_unless_it_stands_in_for_a_worker():
 
 def test_shutdown_logs_the_work_still_running_and_returns_false():
     pytest.importorskip("PySide6.QtCore")
-    from roundtable_souls.platform import logging as run_logging
-    from roundtable_souls.ui import jobs as ui_jobs
+    from bayle.platform import logging as run_logging
+    from bayle.ui import jobs as ui_jobs
 
     release, started, lines = threading.Event(), threading.Event(), []
     ui_jobs.run_async(lambda: (started.set(), release.wait(5)), "slow-job")

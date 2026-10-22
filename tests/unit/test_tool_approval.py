@@ -4,9 +4,9 @@ older key (no fingerprint) counts once and moves to the new key."""
 
 from pathlib import Path
 
-from roundtable_souls.config.settings import load_settings, save_settings
-from roundtable_souls.mods import rebuild
-from roundtable_souls.mods.backends import Recipe, Tool, program_fingerprint
+from bayle.config.settings import load_settings, save_settings
+from bayle.mods import rebuild
+from bayle.mods.backends import Recipe, Tool, program_fingerprint
 
 
 def tool(tmp_path: Path, program: str = "refresh.exe") -> Tool:

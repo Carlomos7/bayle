@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.ui.notifications import Notifier
-from roundtable_souls.ui.pages.mods.presenter import Refusal
-from roundtable_souls.ui.pages.saves.adapter import SavesAdapter
-from roundtable_souls.ui.pages.saves.presenter import Drop, SavesPresenter
+from bayle.ui.notifications import Notifier
+from bayle.ui.pages.mods.presenter import Refusal
+from bayle.ui.pages.saves.adapter import SavesAdapter
+from bayle.ui.pages.saves.presenter import Drop, SavesPresenter
 from support import er
 
 CHAR = {"type": "character", "path": "A.sl2", "slot": 2}
@@ -155,7 +155,7 @@ def test_ctrl_c_then_ctrl_v_is_the_same_copy_as_the_drop():
 
 
 def test_import_of_several_files_imports_each_and_names_the_skipped(tmp_path, monkeypatch):
-    from roundtable_souls.ui.pages.saves import adapter as mod
+    from bayle.ui.pages.saves import adapter as mod
 
     a, calls, told = adapter()
     jobs, added = [], []

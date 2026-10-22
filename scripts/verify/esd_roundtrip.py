@@ -25,7 +25,7 @@ from pathlib import Path
 
 import _common
 
-from roundtable_souls import formats
+from bayle import formats
 
 # Talk archives of the base game and the DLC, tried by name; those the game does not have are skipped.
 GAME_TALK = ["script/talk/m00_00_00_00.talkesdbnd.dcx"] + [
@@ -98,7 +98,7 @@ def soulstruct_reader():
 
 
 def check(name: str, data: bytes, other) -> dict:
-    from roundtable_souls.formats.esd import read_esd, write_esd
+    from bayle.formats.esd import read_esd, write_esd
 
     row: dict = {"esd": name, "bytes": len(data)}
     try:
@@ -131,8 +131,8 @@ def main() -> int:
     out = _common.output_dir(args.out, "esd-roundtrip", game)
     _common.sandbox_launcher(out, game)
 
-    from roundtable_souls.game import archives as gamearchive
-    from roundtable_souls.game.oodle import find_oodle
+    from bayle.game import archives as gamearchive
+    from bayle.game.oodle import find_oodle
 
     dec = find_oodle(game)
     other = soulstruct_reader()

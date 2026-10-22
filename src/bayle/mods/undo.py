@@ -1,0 +1,452 @@
+"""Taking a job back, from what it recorded (run_logging.set_undo) in the jobs index.
+
+    remove   an entry removed from a profile: its text and where it was, and the folder when it went to the
+             Recycle Bin (see system.trash). Restore puts both back.
+    install  a fresh install, update an update, rollback a rollback (see mods.operations): the operation's own
+             folder (.roundtable/ops/<id>, older ones .roundtable-ops/<id>) says what to take back. An install is
+             undone (the profile's exact previous bytes, the files it created that nobody changed); an update or a
+             rollback is rolled back as a set, with a rebuild when the install asked for one.
+    rebuild  a rebuild of combined parameters: the profile as it was before (mods.history), the combined output it
+             replaced (kept in the data folder), and the rebuild tool's own backup (its restore.json). Undo swaps each
+             back by renaming, so it takes no time or space, and doing it again redoes the rebuild.
+
+available() says whether it still can be done (the profile is still there, the folder is still in the bin, the
+entry is not back already), so the Activity page only offers what works; run() does it and says what it did.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bayle.game.locate import Locations
+
+import base64
+import hashlib
+from collections.abc import Callable
+from pathlib import Path
+
+from bayle.mods import profile_edit as mod_manage
+from bayle.mods import profile_settings as ps
+from bayle.mods import profile_writer
+from bayle.platform import files
+
+LABEL = {
+    "remove": "Restore",
+    "rebuild": "Undo rebuild",
+    "install": "Undo install",
+    "update": "Roll back",
+    "rollback": "Roll back again",
+    "overhaul-install": "Undo install",
+    "overhaul-update": "Roll back",
+    "overhaul-reapply": "Roll back",
+    "overhaul-remove": "Restore",
+    "overhaul-turn-off": "Undo turn off",
+    "profile-import": "Undo import",
+    "rename": "Undo rename",
+    "profile-rename": "Undo rename",
+    "profile-duplicate": "Undo copy",
+    "profile-folders": "Undo move",
+    "layout-relocate": "Undo move",
+    "layout-rename": "Undo rename",
+    "profile-move-in": "Undo move",
+    "folder-rename": "Undo rename",
+    "folder-split": "Undo split",
+    "dll-folders": "Undo move",
+    "save-restore": "Undo",
+    "library-share": "Undo share",
+    "library-use": "Undo",
+    "library-separate": "Undo",
+    "library-update": "Undo update",
+    "library-clean": "Undo",
+    "multi": "Undo",
+}
+LIBRARY = ("library-share", "library-use", "library-separate", "library-update", "library-clean")  # mods.shared_mods
+OPERATIONS = ("install", "update", "rollback")
+# An overhaul's install or update with the launcher, and its removal (mods.overhaul_install): the operation's folder
+# says what to take back; the removal's folders come back from the Recycle Bin.
+OVERHAUL = ("overhaul-install", "overhaul-update", "overhaul-remove", "overhaul-turn-off", "overhaul-reapply")
+
+
+# Undo types a layer above this one does (saves: services.saves registers "save-restore" when it is imported):
+# type -> (available(undo), run(undo, log, loc)).
+EXTERNAL: dict[str, tuple[Callable[[dict], bool], Callable[[dict, Callable, Locations], str]]] = {}
+
+
+class UndoError(RuntimeError):
+    pass
+
+
+def label(undo: dict | None) -> str:
+    undo = undo or {}
+    if undo.get("type") == "rebuild" and undo.get("redo"):
+        return "Redo rebuild"
+    return LABEL.get(undo.get("type", ""), "Undo")
+
+
+def _listed(profile: Path, path: str) -> bool:
+    if not path:
+        return False
+    try:
+        want = mod_manage.resolve(profile, path)
+        return any(
+            e.get("path") and mod_manage.resolve(profile, e["path"]) == want for e in mod_manage.entries(profile)
+        )
+    except OSError:
+        return False
+
+
+def _in_bin(undo: dict) -> bool:
+    from bayle.platform import trash
+
+    return trash.exists(undo.get("trash"))
+
+
+def available(undo: dict | None) -> bool:
+    if not undo:
+        return False
+    if undo.get("type") in EXTERNAL:
+        return EXTERNAL[undo["type"]][0](undo)
+    if undo.get("type") == "multi":  # several changes made by one job: all of them still can be taken back
+        return bool(undo.get("undos")) and all(available(u) for u in undo["undos"])
+    if undo.get("type") == "remove":
+        profile = Path(undo.get("profile") or "")
+        if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
+            return False
+        return not _listed(profile, undo.get("path") or "") or _in_bin(undo)
+    if undo.get("type") in (*OPERATIONS, *OVERHAUL, "profile-import", "rename"):
+        from bayle.merging import build
+
+        op = Path(str(undo.get("operation") or ""))
+        if not undo.get("operation") or build._state(op) != build.ACTIVE:
+            return False
+        return not undo.get("profile") or Path(undo["profile"]).is_file()
+    if undo.get("type") in (
+        "profile-rename",
+        "profile-duplicate",
+        "profile-folders",
+        "profile-move-in",
+        "folder-rename",
+        "folder-split",
+        "dll-folders",
+        "layout-relocate",
+        "layout-rename",
+        *LIBRARY,
+    ):
+        from bayle.merging import build
+
+        return bool(undo.get("operation")) and build._state(Path(str(undo["operation"]))) == build.ACTIVE
+    if undo.get("type") == "rebuild":
+        profile = Path(undo.get("profile") or "")
+        if not undo.get("profile") or not profile.is_file():
+            return False
+        return any(
+            [
+                bool(undo.get("profile_before")) and Path(undo["profile_before"]).is_file(),
+                bool(undo.get("combined_before")) and Path(undo["combined_before"]).is_dir(),
+                bool(undo.get("tool_restore")) and _tool_swaps(undo) is not None,
+            ]
+        )
+    return False
+
+
+def run(undo: dict, log, *, loc: Locations) -> str:
+    """Do it. Returns a line saying what was done. Raises UndoError when it cannot be done any more, and
+    FileExistsError when a folder is back at the old place already (nothing is overwritten)."""
+    if undo.get("type") in EXTERNAL:
+        return EXTERNAL[undo["type"]][1](undo, log, loc)
+    if undo.get("type") == "multi":
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'This'} can no longer be taken back.")
+        return "; ".join(run(u, log, loc=loc) for u in undo["undos"])  # the last change first
+    if undo.get("type") == "remove":
+        return _restore_removed(undo, log, loc)
+    if undo.get("type") == "rebuild":
+        return _undo_rebuild(undo, log)
+    if undo.get("type") in OPERATIONS:
+        return _take_back(undo, log, loc)
+    if undo.get("type") in OVERHAUL:
+        return _overhaul_back(undo, log)
+    if undo.get("type") == "profile-import":
+        from bayle.mods import profile_import
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
+        return profile_import.undo_import(Path(undo["operation"]), log)
+    if undo.get("type") == "rename":
+        from bayle.mods import operations
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'The rename'} can no longer be taken back.")
+        try:
+            return operations.take_back(Path(undo["operation"]), log)
+        except operations.OperationError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in ("profile-rename", "profile-duplicate"):
+        from bayle.mods import profile_rename
+
+        if not available(undo):
+            raise UndoError(f"{undo.get('name') or 'The change'} can no longer be taken back.")
+        try:
+            if undo["type"] == "profile-rename":
+                return profile_rename.undo_rename(Path(undo["operation"]), log)
+            return profile_rename.undo_duplicate(Path(undo["operation"]), log)
+        except (profile_rename.ProfileRenameError, ps.Unreadable) as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in LIBRARY:
+        from bayle.mods import shared_mods
+
+        if not available(undo):
+            raise UndoError("This change to the library can no longer be taken back.")
+        try:
+            return shared_mods.undo(Path(undo["operation"]), log)
+        except (shared_mods.LibraryError, ps.Unreadable) as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") == "profile-move-in":
+        from bayle.mods import move_in
+
+        if not available(undo):
+            raise UndoError("The move into Bayle's folder can no longer be taken back.")
+        try:
+            return move_in.undo_move_in(Path(undo["operation"]), log)
+        except (move_in.MoveInError, ps.Unreadable) as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in ("folder-rename", "folder-split"):
+        from bayle.mods import folder_check, folder_split
+
+        if not available(undo):
+            raise UndoError("The change to the profile's folder can no longer be taken back.")
+        try:
+            if undo["type"] == "folder-rename":
+                return folder_check.undo_rename(Path(undo["operation"]), log)
+            return folder_split.undo_split(Path(undo["operation"]), log)
+        except folder_check.FolderError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") == "dll-folders":
+        from bayle.mods import dll_folders
+
+        if not available(undo):
+            raise UndoError("The move of the DLL mods into folders can no longer be taken back.")
+        try:
+            return dll_folders.undo_move(Path(undo["operation"]), log)
+        except dll_folders.DllFolderError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") == "profile-folders":
+        from bayle.mods import migrate
+
+        if not available(undo):
+            raise UndoError("The move into profile folders can no longer be taken back.")
+        try:
+            return migrate.undo_migration(Path(undo["operation"]), log)
+        except migrate.MigrateError as e:
+            raise UndoError(str(e)) from e
+    if undo.get("type") in ("layout-relocate", "layout-rename"):
+        from bayle.mods import layout
+
+        if not available(undo):
+            raise UndoError("This change to the profiles folders can no longer be taken back.")
+        try:
+            return layout.undo_layout(Path(undo["operation"]), loc)
+        except layout.LayoutError as e:
+            raise UndoError(str(e)) from e
+    raise UndoError(f"Nothing to undo for {undo.get('type')!r}.")
+
+
+def check_removed(undo: dict) -> None:
+    """Whether a removal can be taken back exactly, for the toast's Undo: raises UndoError saying why not, before
+    anything is touched. (Activity is lenient: it also brings back only the entry when the folder is gone.)"""
+    from bayle.platform import trash
+
+    profile = Path(undo.get("profile") or "")
+    name = undo.get("name") or "the mod"
+    if not undo.get("profile") or not profile.is_file() or not undo.get("entry_text"):
+        raise UndoError(f"{profile.name or 'The profile'} is no longer there.")
+    if _listed(profile, undo.get("path") or ""):
+        raise UndoError(f"{name} is already back in {profile.name}.")
+    rec = undo.get("trash")
+    if rec and not trash.exists(rec):
+        raise UndoError(f"{name}'s folder is no longer in the Recycle Bin.")
+    if rec and Path(str(rec.get("original") or "")).exists():
+        raise UndoError(f"A folder is already at {rec['original']}.")
+
+
+def _restore_removed(undo: dict, log, loc: Locations) -> str:
+    from bayle.platform import trash
+
+    profile = Path(undo.get("profile") or "")
+    name = undo.get("name") or "the mod"
+    if not undo.get("profile") or not profile.is_file():
+        raise UndoError(f"{profile.name or 'The profile'} is no longer there.")
+    said = []
+    record = undo.get("trash")
+    if record:
+        if trash.exists(record):
+            back = trash.restore(record)
+            log(f"restore: {name}'s folder is back at {back}")
+            said.append("its folder")
+        elif not Path(str(record.get("original") or "")).exists():
+            log(f"warning: {name}'s folder is no longer in the Recycle Bin; only the entry comes back")
+    if _listed(profile, undo.get("path") or ""):
+        log(f"restore: {name} is already in {profile.name}")
+    else:
+        w = profile_writer.ProfileWriter(profile, loc)  # loc: the mod that must stay last is kept last
+        w.restore_entry(undo["entry_text"], undo.get("where") or {})
+        w.write(f"before restoring {name}")
+        log(f"restore: {name}'s entry is back in {profile.name}, where it was")
+        said.insert(0, "its entry")
+    return f"restored {name}" + (f" ({' and '.join(said)})" if said else "")
+
+
+def _take_back(undo: dict, log, loc: Locations) -> str:
+    from bayle.mods import operations
+
+    if not available(undo):
+        raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
+    op = Path(undo["operation"])
+    if undo["type"] == "install":
+        return operations.undo_install(op, log)
+
+    def rebuild_after() -> None:
+        from bayle.mods import rebuild
+
+        rebuild.rebuild(Path(undo["profile"]), log, loc=loc)
+
+    try:
+        return operations.rollback(op, log, rebuild_after if undo.get("rebuild") else None)
+    except operations.OperationError as e:
+        raise UndoError(str(e)) from e
+
+
+def _overhaul_back(undo: dict, log) -> str:
+    from bayle.mods import operations, overhaul_install
+
+    if not available(undo):
+        raise UndoError(f"{undo.get('name') or 'It'} can no longer be taken back.")
+    try:
+        if undo["type"] in ("overhaul-remove", "overhaul-turn-off"):
+            return overhaul_install.undo_remove(undo, log)
+        said = ""
+        for other in undo.get("others") or []:  # profiles that only had their entries changed: their earlier bytes
+            path = Path(other["profile"])
+            try:
+                if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == other["after"]:
+                    before = (
+                        base64.b64decode(other["before_b64"])
+                        if "before_b64" in other
+                        else other["before"].encode("utf-8")  # a record from an older version
+                    )
+                    files.atomic_write(path, before)
+                    log(f"undo: {path.name} has its earlier entries back")
+                else:
+                    said += f"; {path.name} was changed since and is left as it is"
+            except OSError as e:  # the main one is still taken back below
+                said += f"; {path.name} could not be restored ({e})"
+        return operations.take_back(Path(undo["operation"]), log) + said
+    except overhaul_install.OverhaulError as e:
+        raise UndoError(str(e)) from e
+
+
+# ----------------------------------------------------------------------------- rebuilds
+def _inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return path.resolve() != root.resolve()
+
+
+def _tool_swaps(undo: dict) -> list[tuple[Path, Path]] | None:
+    """The (live, backup) pairs the tool's restore list names, when all of them are inside the profile's folder and
+    exist; else None (nothing is touched outside the profile's folder, and a half-there backup is not used)."""
+    import json
+
+    listing = Path(str(undo.get("tool_restore") or ""))
+    profile = Path(str(undo.get("profile") or ""))
+    if not undo.get("tool_restore") or not listing.is_file() or not undo.get("profile"):
+        return None
+    try:
+        data = json.loads(listing.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return None
+    root = profile.parent
+    pairs = []
+    for key in ("files", "directories"):
+        for row in data.get(key) or []:
+            if not isinstance(row, dict) or not row.get("path") or not row.get("original"):
+                return None
+            live = Path(row["path"])
+            backup = Path(row["original"])
+            if not backup.is_absolute():
+                backup = listing.parent / backup
+            if not (_inside(live, root) and _inside(backup, root)) or not backup.exists():
+                return None
+            pairs.append((live, backup))
+    return pairs or None
+
+
+def _move(src: Path, dst: Path) -> None:
+    """A rename on the same drive (instant); a move across drives."""
+    import os
+    import shutil
+
+    try:
+        os.replace(src, dst)
+    except OSError:
+        shutil.move(str(src), str(dst))
+
+
+def _swap(a: Path, b: Path) -> None:
+    """Exchange two files or folders (renames on one drive); put everything back if a step fails."""
+    if not a.exists():
+        _move(b, a)
+        return
+    tmp = a.with_name(a.name + ".undo-swap")
+    _move(a, tmp)
+    try:
+        _move(b, a)
+    except OSError:
+        _move(tmp, a)
+        raise
+    try:
+        _move(tmp, b)
+    except OSError:
+        _move(a, b)
+        _move(tmp, a)
+        raise
+
+
+def _undo_rebuild(undo: dict, log) -> str:
+    from bayle.mods import history
+
+    profile = Path(undo["profile"])
+    said = []
+    # The profile as it is now, before anything is swapped (a tool's own backup may swap the profile file too):
+    # the copy doing it again puts back.
+    now = history.snapshot(profile, "before redoing the rebuild" if undo.get("redo") else "before undoing the rebuild")
+    pairs = _tool_swaps(undo) if undo.get("tool_restore") else None
+    if pairs:
+        for live, backup in pairs:
+            _swap(live, backup)
+        log(f"undo: the rebuild tool's output is back as it was ({len(pairs)} item(s) swapped with its backup)")
+        said.append("the rebuild tool's output")
+    combined_before = Path(str(undo.get("combined_before") or ""))
+    folder = Path(str(undo.get("combined_folder") or ""))
+    if undo.get("combined_before") and undo.get("combined_folder") and combined_before.is_dir() and folder.is_dir():
+        for f in sorted(combined_before.rglob("*")):
+            if f.is_file():
+                live = folder / f.relative_to(combined_before)
+                live.parent.mkdir(parents=True, exist_ok=True)
+                _swap(live, f)
+        log("undo: the combined files are back as they were")
+        said.append("the combined files")
+    before = Path(str(undo.get("profile_before") or ""))
+    if undo.get("profile_before") and before.is_file():
+        history.restore(profile, before)
+        undo["profile_before"] = str(now) if now else None  # so doing it again swaps back (redo)
+        log(f"undo: {profile.name} is back as it was {'after' if undo.get('redo') else 'before'} the rebuild")
+        said.append("the profile")
+    if not said:
+        raise UndoError("What the rebuild replaced is no longer kept.")
+    if undo.get("redo"):
+        return "redid the rebuild: " + ", ".join(said) + " as the rebuild left them"
+    return "undid the rebuild: " + ", ".join(said) + " back as before"

@@ -3,7 +3,7 @@
   "release-type": "python",
   "packages": {
     ".": {
-      "package-name": "roundtable-souls",
+      "package-name": "bayle",
       "include-component-in-tag": false,
       "include-v-in-tag": true,
       "draft": true,
@@ -11,7 +11,7 @@
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": false,
       "extra-files": [
-        "src/roundtable_souls/__init__.py",
+        "src/bayle/__init__.py",
         {
           "type": "toml",
           "path": "uv.lock",

@@ -1,4 +1,4 @@
-"""Regenerates the grain textures: grain-dark.png and grain-light.png in src/roundtable_souls/ui/assets/atmosphere/.
+"""Regenerates the grain textures: grain-dark.png and grain-light.png in src/bayle/ui/assets/atmosphere/.
 
 Why it is built this way:
   - BLUE noise, not white noise. White noise has energy at every scale, so neighbouring pixels clump into blotches
@@ -89,7 +89,7 @@ def texture(ranks: np.ndarray, ref: int) -> Image.Image:
 
 
 if __name__ == "__main__":
-    here = Path(__file__).resolve().parents[2] / "src" / "roundtable_souls" / "ui" / "assets" / "atmosphere"
+    here = Path(__file__).resolve().parents[2] / "src" / "bayle" / "ui" / "assets" / "atmosphere"
     r = void_and_cluster(N, SIGMA)
     assert sorted(r.flat) == list(range(N * N))
     texture(r, REF_DARK).save(here / "grain-dark.png", optimize=True)

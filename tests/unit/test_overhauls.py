@@ -5,11 +5,11 @@ launch's strip read the configs and still do what they did."""
 import json
 from pathlib import Path
 
-from roundtable_souls import overhauls
-from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.overhauls import config as overhaul_config
-from roundtable_souls.services import play
+from bayle import overhauls
+from bayle.game import catalog as games
+from bayle.game.locate import Locations, Overrides
+from bayle.overhauls import config as overhaul_config
+from bayle.services import play
 
 TOY = """overhaul = 1
 id = "toy"
@@ -159,7 +159,7 @@ def test_the_writer_reads_back_and_never_overwrites_a_file_changed_since_it_was_
 
     import pytest
 
-    from roundtable_souls.overhauls import basic, writer
+    from bayle.overhauls import basic, writer
 
     (example,) = overhauls.load()
     back = overhaul_config.OverhaulConfig.model_validate(tomllib.loads(writer.render(example)))

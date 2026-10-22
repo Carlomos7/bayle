@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.game import catalog
-from roundtable_souls.mods import profile_writer
-from roundtable_souls.services import coop
+from bayle.game import catalog
+from bayle.mods import profile_writer
+from bayle.services import coop
 
 PROFILE = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 

@@ -7,8 +7,8 @@ import struct
 import pytest
 from fakegame import bnd, dcx, files_of
 
-from roundtable_souls import formats
-from roundtable_souls.formats.tae import (
+from bayle import formats
+from bayle.formats.tae import (
     IMPORT,
     STANDARD,
     TAE,
@@ -22,8 +22,8 @@ from roundtable_souls.formats.tae import (
     write_tae,
     written_as,
 )
-from roundtable_souls.merging import merger
-from roundtable_souls.merging.rules import tae as rule
+from bayle.merging import merger
+from bayle.merging.rules import tae as rule
 
 FOREVER = 3.4028234663852886e38  # float.MaxValue: an event that lasts to the animation's end
 FLAGS = b"\x01\x00\x01\x02\x02\x01\x01\x01"

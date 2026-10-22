@@ -1,7 +1,7 @@
 """What counts as a game item, the Tarnished Edition rule, labels for foreign items, and the report gate."""
 
-from roundtable_souls.services import play as g
-from roundtable_souls.services import saves as saves_service
+from bayle.services import play as g
+from bayle.services import saves as saves_service
 
 A = g.save_analyze
 NO_NAMES = A.mod_item_names.ItemNames({})

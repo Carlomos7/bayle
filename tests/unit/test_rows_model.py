@@ -1,7 +1,7 @@
 """RowsModel.set_rows tells the views as little as it can: nothing for the same rows, dataChanged for the rows that
 differ when the count is the same, a reset otherwise (a reset rebuilds every delegate)."""
 
-from roundtable_souls.ui.models import RowsModel
+from bayle.ui.models import RowsModel
 
 
 def watch(model: RowsModel) -> list:

@@ -15,12 +15,12 @@ import time
 import pytest
 from sqlalchemy import select
 
-from roundtable_souls.mods import rebuild
-from roundtable_souls.platform import logging as rl
-from roundtable_souls.storage import activity as act
-from roundtable_souls.storage import db, models
-from roundtable_souls.storage.cache import HashCache
-from roundtable_souls.storage.imports import run_imports
+from bayle.mods import rebuild
+from bayle.platform import logging as rl
+from bayle.storage import activity as act
+from bayle.storage import db, models
+from bayle.storage.cache import HashCache
+from bayle.storage.imports import run_imports
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
 
@@ -281,7 +281,7 @@ def test_two_processes_importing_and_writing_at_once_lose_and_double_nothing(dat
         """
         import json, sys, time
         from pathlib import Path
-        from roundtable_souls.storage import activity, db
+        from bayle.storage import activity, db
         folder, jobs, tag = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
         d = db.open_database(folder, log=lambda line: None)
         log = activity.ActivityLog(d)
@@ -320,7 +320,7 @@ def test_the_reader_prefers_the_more_finished_state_and_takes_undo_from_the_file
 
 # ----------------------------------------------------------------------------- the application
 def test_create_app_wires_both_areas_and_imports_after_ready(data):
-    from roundtable_souls.app import create_app
+    from bayle.app import create_app
 
     _write_lines([_rec(1)])
     ctx = create_app()
@@ -337,7 +337,7 @@ def test_create_app_wires_both_areas_and_imports_after_ready(data):
 
 
 def test_create_app_without_storage_bypasses_the_cache_and_keeps_activity_in_the_file(data, monkeypatch, tmp_path):
-    from roundtable_souls import app
+    from bayle import app
 
     def refuse(_folder):
         raise db.StorageUnavailable("busy", "busy")

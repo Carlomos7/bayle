@@ -11,9 +11,9 @@ from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from roundtable_souls.ui.notifications import Notifier
-from roundtable_souls.ui.pages.registry import QmlPage
-from roundtable_souls.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
+from bayle.ui.notifications import Notifier
+from bayle.ui.pages.registry import QmlPage
+from bayle.ui.qml_env import QML_DIR, load_fonts, use_qml_cache_folder
 
 WINDOW_QML = Path(__file__).resolve().parent / "PageWindow.qml"
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.platform import desktop
+from bayle.platform import desktop
 
 
 def test_windows_uses_startfile(monkeypatch, tmp_path):

@@ -27,8 +27,8 @@ import time
 
 import _common
 
-from roundtable_souls import formats
-from roundtable_souls.game import oodle as game_oodle
+from bayle import formats
+from bayle.game import oodle as game_oodle
 
 LAYOUTS = {"6/6": (b"KRAK", 6, 6), "4/4": (b"KRAK", 4, 4), "4/6": (b"KRAK", 4, 6), "dflt": (b"DFLT", 9, 9)}
 SAVE = "RoundtableTest.sl2"
@@ -60,11 +60,11 @@ def main() -> int:
     out = _common.output_dir(args.out, "ingame-" + label.replace("/", "-"), game)
     loc = _common.sandbox_launcher(out, game)
 
-    from roundtable_souls.game import archives as gamearchive
-    from roundtable_souls.game.oodle import find_oodle
-    from roundtable_souls.mods import rebuild as merge
-    from roundtable_souls.mods.backends import builtin
-    from roundtable_souls.platform import paths
+    from bayle.game import archives as gamearchive
+    from bayle.game.oodle import find_oodle
+    from bayle.mods import rebuild as merge
+    from bayle.mods.backends import builtin
+    from bayle.platform import paths
 
     # A Rebuild refuses while the game runs because it rewrites files the game may have open. Everything here is
     # written inside the output folder, which the game does not use, and the game's own files are only read, so that

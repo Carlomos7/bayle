@@ -7,7 +7,7 @@ records move into it area by area, starting with the file-hash cache, the activi
 
 The launcher keeps the records that belong to it alone in `roundtable.db` in its data folder: SQLite, used through
 SQLAlchemy 2 (synchronous; typed models with `DeclarativeBase`, `Mapped[]`, `mapped_column`), with the schema
-managed by Alembic migrations that run in code at start-up. All of it is in `src/roundtable_souls/storage/`;
+managed by Alembic migrations that run in code at start-up. All of it is in `src/bayle/storage/`;
 nothing else writes SQL.
 
 What stays a file: the settings file (an older version restored after a failed update must read it), saves, me3

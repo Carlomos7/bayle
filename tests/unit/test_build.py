@@ -3,7 +3,7 @@ so the previous build stands. On temporary folders only."""
 
 import pytest
 
-from roundtable_souls.merging import build as B
+from bayle.merging import build as B
 
 RECORD = "record.json"
 

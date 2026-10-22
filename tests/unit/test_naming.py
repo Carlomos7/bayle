@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from roundtable_souls.mods import naming, profile_edit, profile_writer
+from bayle.mods import naming, profile_edit, profile_writer
 
 
 @pytest.mark.parametrize(

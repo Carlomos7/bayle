@@ -3,11 +3,11 @@
 import py_compile
 from pathlib import Path
 
-import roundtable_souls
+import bayle
 
 
 def test_every_module_compiles():
-    root = Path(roundtable_souls.__file__).resolve().parent
+    root = Path(bayle.__file__).resolve().parent
     files = sorted(root.rglob("*.py"))
     assert any(p.name == "window.py" and p.parent.name == "launcher" for p in files)
     for p in files:

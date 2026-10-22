@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.config.settings import load_settings, save_settings
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import history, library, naming, operations, profile_rename
-from roundtable_souls.mods import profile_settings as ps
-from roundtable_souls.mods.profile_rename import ProfileRenameError
-from roundtable_souls.mods.rebuild import _key
-from roundtable_souls.platform import trash
+from bayle.config.settings import load_settings, save_settings
+from bayle.game import catalog
+from bayle.game.locate import Locations, Overrides
+from bayle.merging import build as B
+from bayle.mods import history, library, naming, operations, profile_rename
+from bayle.mods import profile_settings as ps
+from bayle.mods.profile_rename import ProfileRenameError
+from bayle.mods.rebuild import _key
+from bayle.platform import trash
 
 ME3 = (
     'profileVersion = "v1"\r\n\r\n[[supports]]\r\ngame = "eldenring"\r\n\r\n'

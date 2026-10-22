@@ -13,7 +13,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 from test_mods_view import Host, centre, closed, find, opened, settle
 
-from roundtable_souls.services.mods import profile_entries
+from bayle.services.mods import profile_entries
 
 PROFILE = (
     'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n\n'

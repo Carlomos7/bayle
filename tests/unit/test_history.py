@@ -4,9 +4,9 @@ import time
 
 import pytest
 
-from roundtable_souls.mods import history, remove
-from roundtable_souls.mods import profile_edit as M
-from roundtable_souls.services import mods as service
+from bayle.mods import history, remove
+from bayle.mods import profile_edit as M
+from bayle.services import mods as service
 from support import er
 
 SF_VOICE = """profileVersion = "v1"

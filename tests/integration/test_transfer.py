@@ -6,11 +6,11 @@ import struct
 
 import pytest
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.saves import fix as F
-from roundtable_souls.saves import layout as L
-from roundtable_souls.saves import library as Lib
-from roundtable_souls.saves import transfer as T
+from bayle.game import catalog as games
+from bayle.saves import fix as F
+from bayle.saves import layout as L
+from bayle.saves import library as Lib
+from bayle.saves import transfer as T
 from support import copy_live_save as _copy
 
 ER = games.ELDEN_RING

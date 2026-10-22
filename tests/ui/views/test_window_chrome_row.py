@@ -2,9 +2,9 @@
 
 import pytest
 
-from roundtable_souls.ui import self_test
-from roundtable_souls.ui.launcher.host import ShellHost
-from roundtable_souls.ui.launcher.window import ShellWindow
+from bayle.ui import self_test
+from bayle.ui.launcher.host import ShellHost
+from bayle.ui.launcher.window import ShellWindow
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
 pytestmark = pytest.mark.ui_stall_ok

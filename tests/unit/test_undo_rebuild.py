@@ -9,11 +9,11 @@ import time
 from test_mod_merge import World
 from test_param_merge import pack, set_word, vanilla
 
-from roundtable_souls.game import locate
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.mods import undo
-from roundtable_souls.mods.backends import builtin
-from roundtable_souls.platform import logging as rl
+from bayle.game import locate
+from bayle.mods import rebuild as merge
+from bayle.mods import undo
+from bayle.mods.backends import builtin
+from bayle.platform import logging as rl
 from support import er
 
 
@@ -45,7 +45,7 @@ def tool_that_backs_itself_up(w: World):
 
 def test_undo_swaps_the_tools_output_and_the_profile_back_and_redo_swaps_again(tmp_path, monkeypatch):
     w = World(tmp_path, monkeypatch)
-    monkeypatch.setattr("roundtable_souls.mods.backends.Tool.run", lambda b, log: tool_that_backs_itself_up(w)(b))
+    monkeypatch.setattr("bayle.mods.backends.Tool.run", lambda b, log: tool_that_backs_itself_up(w)(b))
     w.pack("params")
     output_before = (w.winner / "regulation.bin").read_bytes()
     profile_before = w.profile.read_text(encoding="utf-8")
@@ -80,7 +80,7 @@ def test_a_restore_list_pointing_outside_the_profile_is_not_used(tmp_path, monke
 
 
 def test_the_combine_keeps_its_earlier_outputs_and_undo_puts_one_back(tmp_path, monkeypatch):
-    from roundtable_souls.platform import paths as common
+    from bayle.platform import paths as common
 
     game = tmp_path / "Game"
     game.mkdir()
@@ -110,7 +110,7 @@ def test_the_combine_keeps_its_earlier_outputs_and_undo_puts_one_back(tmp_path, 
 
 
 def test_old_tool_backups_go_to_the_recycle_bin_keeping_the_newest(tmp_path, monkeypatch):
-    from roundtable_souls.platform import trash
+    from bayle.platform import trash
 
     if not trash.available():
         return

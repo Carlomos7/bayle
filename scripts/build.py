@@ -5,7 +5,7 @@ uv run python scripts/build.py                     everything
 uv run python scripts/build.py --no-test           skip the test run
 uv run python scripts/build.py --no-pack           PyInstaller only (dist/RoundtableSouls), no vpk
 uv run python scripts/build.py --identity t.json   bake an identity override into the build (isolated test builds:
-                                                   own app ID, title, feed and key; see src/roundtable_souls/config/identity.py)
+                                                   own app ID, title, feed and key; see src/bayle/config/identity.py)
 
 vpk must match the velopack package in uv.lock (VPK_VERSION); it is found as $VPK, then on PATH. Windows builds
 pack for win-x64 (Setup.exe, a portable zip, packages), Linux builds an AppImage for linux-x64. A previous release's
@@ -22,7 +22,7 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PKG = ROOT / "src" / "roundtable_souls"
+PKG = ROOT / "src" / "bayle"
 BUILD = ROOT / "build"
 DIST = ROOT / "dist"
 EXE_NAME = "RoundtableSouls"
@@ -61,13 +61,13 @@ def pyinstaller(py: str, identity_file: Path | None) -> Path:
         staged = BUILD / "identity" / "build-identity.json"
         staged.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(identity_file, staged)
-        extra = ["--add-data", f"{staged}{os.pathsep}roundtable_souls/data"]
+        extra = ["--add-data", f"{staged}{os.pathsep}bayle/data"]
     # Alembic loads the migration scripts by path, so they ship as files (--collect-data leaves .py files out).
-    extra += ["--add-data", f"{PKG / 'storage' / 'migrations'}{os.pathsep}roundtable_souls/storage/migrations"]
+    extra += ["--add-data", f"{PKG / 'storage' / 'migrations'}{os.pathsep}bayle/storage/migrations"]
     run(
         py, "-m", "PyInstaller", "--noconfirm", "--onedir", "--windowed", "--name", EXE_NAME,
         "--icon", PKG / "assets" / "icon.ico", "--paths", ROOT / "src",
-        "--collect-data", "roundtable_souls", "--collect-all", "py7zr",
+        "--collect-data", "bayle", "--collect-all", "py7zr",
         "--collect-all", "velopack", "--exclude-module", "tkinter",
         "--exclude-module", "PySide6.QtWidgets",  # nothing imports it any more (the packaged --self-test is the check)
         *extra,
@@ -118,7 +118,7 @@ def check_sqlite() -> None:
     import sqlite3
 
     sys.path.insert(0, str(ROOT / "src"))
-    from roundtable_souls.storage.db import sqlite_problem
+    from bayle.storage.db import sqlite_problem
 
     problem = sqlite_problem(sqlite3.sqlite_version)
     if problem:
@@ -132,7 +132,7 @@ def load_identity(path: Path | None):
     from dataclasses import fields
 
     sys.path.insert(0, str(ROOT / "src"))
-    from roundtable_souls.config.identity import Identity
+    from bayle.config.identity import Identity
 
     if path is None:
         return Identity()

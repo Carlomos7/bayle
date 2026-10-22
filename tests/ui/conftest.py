@@ -12,8 +12,8 @@ import os
 
 import pytest
 
-from roundtable_souls.platform import threads
-from roundtable_souls.ui import stall
+from bayle.platform import threads
+from bayle.ui import stall
 
 STALL_MS = float(os.environ.get("RS_UI_STALL_MS", stall.TEST_MS))
 

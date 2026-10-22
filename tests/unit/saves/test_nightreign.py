@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.platform import paths as common
-from roundtable_souls.saves import container
-from roundtable_souls.saves import nightreign as nr
-from roundtable_souls.services import saves
+from bayle.platform import paths as common
+from bayle.saves import container
+from bayle.saves import nightreign as nr
+from bayle.services import saves
 from support import er
 
 LIVE_NR = Path.home() / "AppData" / "Roaming" / "Nightreign"
@@ -95,7 +95,7 @@ def test_healthy_save_repair_does_not_write(tmp_path, monkeypatch):
     before = p.read_bytes()
     assert nr.repair(p, log=lambda *_: None) is False
     assert p.read_bytes() == before
-    from roundtable_souls.saves import backups as save_backups
+    from bayle.saves import backups as save_backups
 
     assert not save_backups.backups(tmp_path).exists()
 
@@ -138,8 +138,8 @@ def _stale(data: bytes) -> bytes:
 
 
 def test_library_copy_and_swap_work_on_whole_nightreign_files(tmp_path):
-    from roundtable_souls.game import catalog as games
-    from roundtable_souls.saves import library
+    from bayle.game import catalog as games
+    from bayle.saves import library
 
     good = nr.pack_save(_payloads(), ivs=_ivs())
     live = tmp_path / "NR0000.co2"
@@ -155,9 +155,9 @@ def test_library_copy_and_swap_work_on_whole_nightreign_files(tmp_path):
 
 
 def test_service_repair_backs_up_then_undo_restores(tmp_path, monkeypatch):
-    from roundtable_souls.game import catalog as games
-    from roundtable_souls.game.locate import Locations
-    from roundtable_souls.saves import repair as save_repair
+    from bayle.game import catalog as games
+    from bayle.game.locate import Locations
+    from bayle.saves import repair as save_repair
 
     monkeypatch.setattr(Locations, "game_running", lambda self: False)
     monkeypatch.setattr(saves, "SETTLE_SECONDS", 0)

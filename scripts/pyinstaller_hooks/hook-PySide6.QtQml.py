@@ -1,7 +1,7 @@
 """PyInstaller hook for PySide6.QtQml, in place of PyInstaller's own (scripts/build.py passes this folder with
 --additional-hooks-dir, which takes precedence). PyInstaller's hook collects every QML module Qt ships, Qt WebEngine,
 Qt 3D and Qt Quick 3D included: about 290 MB the launcher never loads. This one collects the QML modules the
-launcher imports (src/roundtable_souls/data/self-test.json's qml_modules, what pyside6-qmlimportscanner finds in
+launcher imports (src/bayle/data/self-test.json's qml_modules, what pyside6-qmlimportscanner finds in
 ui/qml) and the modules those depend on, read from their qmldir files (import and depends lines) and from the imports
 in their own .qml files. `--self-test` on the build proves the set is complete: a missing module fails it."""
 
@@ -12,9 +12,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks.qt import add_qt6_dependencies, pyside6_library_info
 
 ROOT = Path(__file__).resolve().parents[2]
-WANTED = json.loads((ROOT / "src" / "roundtable_souls" / "data" / "self-test.json").read_text(encoding="utf-8"))[
-    "qml_modules"
-]
+WANTED = json.loads((ROOT / "src" / "bayle" / "data" / "self-test.json").read_text(encoding="utf-8"))["qml_modules"]
 # Qt itself loads QtQuick.Controls (not only the .Basic style) for the shared ToolTip: without it ToolTip.toolTip is
 # null in the build. No .qml file imports it, so the scanner list above never has it.
 WANTED = [*WANTED, "QtQuick.Controls"]

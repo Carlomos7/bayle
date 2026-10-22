@@ -6,14 +6,14 @@ import struct
 
 import pytest
 
-from roundtable_souls import formats
-from roundtable_souls.game import locate
-from roundtable_souls.merging.rules import param as pm
-from roundtable_souls.mods import profile_edit as M
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.mods import remove
-from roundtable_souls.mods.backends import builtin
-from roundtable_souls.platform import paths as common
+from bayle import formats
+from bayle.game import locate
+from bayle.merging.rules import param as pm
+from bayle.mods import profile_edit as M
+from bayle.mods import rebuild as merge
+from bayle.mods import remove
+from bayle.mods.backends import builtin
+from bayle.platform import paths as common
 from support import er
 
 DCX = (  # the 0x4C header of the game's regulation (sizes are filled in on write)
@@ -314,7 +314,7 @@ def test_with_an_overlay_tool_the_combine_sits_right_before_it_and_feeds_it(tmp_
 def test_the_combined_package_is_listed_for_the_overlay_so_me3_loads_it_before_it(tmp_path, monkeypatch):
     from test_mod_merge import World
 
-    from roundtable_souls.mods import profile as P
+    from bayle.mods import profile as P
 
     w = World(tmp_path, monkeypatch)
     (w.game / "regulation.bin").write_bytes(vanilla())

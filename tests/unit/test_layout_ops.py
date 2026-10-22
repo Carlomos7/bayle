@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls.config import settings
-from roundtable_souls.merging import build as B
-from roundtable_souls.mods import layout
+from bayle.config import settings
+from bayle.merging import build as B
+from bayle.mods import layout
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -258,7 +258,7 @@ def test_rename_refusals(world):
 
 
 def test_the_activity_undo_records_take_a_relocation_and_a_rename_back(world):
-    from roundtable_souls.mods import undo
+    from bayle.mods import undo
 
     before = tree(world.root)
     r = layout.rename_layout(world.loc, shared="common")

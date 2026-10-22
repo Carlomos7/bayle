@@ -10,12 +10,12 @@ from pathlib import Path
 import pytest
 from test_mod_merge import World, _pack_source
 
-from roundtable_souls.game import locate
-from roundtable_souls.mods import install, profile_settings, remove
-from roundtable_souls.mods import order as mod_order
-from roundtable_souls.mods import profile as profile_tools
-from roundtable_souls.mods import profile_edit as M
-from roundtable_souls.mods import rebuild as merge
+from bayle.game import locate
+from bayle.mods import install, profile_settings, remove
+from bayle.mods import order as mod_order
+from bayle.mods import profile as profile_tools
+from bayle.mods import profile_edit as M
+from bayle.mods import rebuild as merge
 from support import er
 
 PROFILE = """profileVersion = "v1"
@@ -159,7 +159,7 @@ def test_removing_a_mod_drops_it_from_the_list(world):
 
 def test_undoing_a_removal_lists_the_mod_again(world):
     """The entry comes back where it was, and the mod that must stay last loads after it again."""
-    from roundtable_souls.mods import undo
+    from bayle.mods import undo
 
     mod_order.fix(world.profile, loc=er())
     parts = next(e for e in M.entries(world.profile) if e.get("id") == "parts")

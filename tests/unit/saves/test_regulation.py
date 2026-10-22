@@ -6,8 +6,8 @@ import sys
 
 import pytest
 
-from roundtable_souls.saves import regulation as reg_mod
-from roundtable_souls.saves.regulation import (
+from bayle.saves import regulation as reg_mod
+from bayle.saves.regulation import (
     BLOCK,
     FILE_SIZE,
     HEALTHY_HEADER,
@@ -107,7 +107,7 @@ def test_a_rebuilt_block_is_signed_and_the_right_size():
 
 
 def test_backup_is_the_save_fix_backup_with_its_note(monkeypatch, tmp_path):
-    from roundtable_souls.saves import fix as save_fix
+    from bayle.saves import fix as save_fix
 
     seen = []
     monkeypatch.setattr(save_fix, "backup", lambda save, manifest: seen.append((save, manifest)) or "done")
@@ -165,10 +165,10 @@ def test_an_output_path_leaves_the_original_and_takes_no_backup(tmp_path, lines,
 
 def run_main(monkeypatch, argv, *, game_running=False, regulation=None, saves=()):
     """The command line with a fake install: its saves and regulation.bin come from the test."""
-    from roundtable_souls.config import settings
-    from roundtable_souls.game import locate
-    from roundtable_souls.platform import data_folder
-    from roundtable_souls.platform import logging as run_logging
+    from bayle.config import settings
+    from bayle.game import locate
+    from bayle.platform import data_folder
+    from bayle.platform import logging as run_logging
 
     class FakeLocations:
         def __init__(self, game):

@@ -6,9 +6,9 @@ import struct
 
 import pytest
 
-from roundtable_souls import formats
-from roundtable_souls.formats import dcx
-from roundtable_souls.game import archives, config
+from bayle import formats
+from bayle.formats import dcx
+from bayle.game import archives, config
 
 KRAK_HEADER = (
     b"DCX\0"

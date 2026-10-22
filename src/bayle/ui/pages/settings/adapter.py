@@ -1,0 +1,776 @@
+"""The Settings page's adapter: the thin QObject the QML page binds to (technical specification §8.10, Settings). It
+holds no decisions: the words and rules come from the presenter; its slots save through config.settings and tell the
+host (the Widgets launcher until the shell, S9) to follow; folder and file picks, jobs and the updater run through
+the host's existing paths. The page never calls the updater: Update now and Restart now are notice buttons, and the
+host runs them with its own checks (the game and jobs stopped, the program's identity, the prepared package)."""
+
+from __future__ import annotations
+
+import threading
+from pathlib import Path
+from typing import Any, Protocol
+
+from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtGui import QGuiApplication
+
+from bayle.config.settings import data_dir, game_setting, load_settings, save_game_settings, save_settings
+from bayle.game import catalog as games
+from bayle.game.locate import saves_dir_problem
+from bayle.platform import data_folder, desktop
+from bayle.platform.threads import assert_not_ui_thread
+from bayle.services import layout as layout_service
+from bayle.services import mods as mod_service
+from bayle.services import play as play_service
+from bayle.ui.models import RowsModel
+from bayle.ui.notifications import Notifier
+from bayle.ui.pages.settings import presenter as sp
+from bayle.ui.refresh import Refresher
+from bayle.ui.text import tr
+
+KEEP_RANGE = (5, 200)
+# draft field -> (settings key, layout_problems keyword, label)
+LAYOUT = {
+    "pattern": ("game_folder_pattern", "pattern", "Game folder"),
+    "packages": ("packages_folder", "packages", "Game-file mods"),
+    "natives": ("natives_folder", "natives", "DLL mods"),
+    "shared": ("shared_folder", "shared", "Shared mods"),
+}
+
+
+class SettingsHost(Protocol):
+    """What the page needs from the window that hosts it."""
+
+    @property
+    def busy(self) -> bool: ...
+    @property
+    def game(self) -> Any: ...
+    @property
+    def locations(self) -> Any: ...
+    def run_job(self, job, status: str) -> None: ...
+    def run_in_background(self, work, on_result) -> None: ...
+    def open_path(self, path: Path) -> None: ...
+    def pick_folder(self, title: str) -> Path | None: ...
+    def pick_file(self, title: str, filters: str) -> Path | None: ...
+    def settings_changed(self, key: str) -> None:
+        """key was saved: the window reads the settings again and follows (its switches, locations, theme)."""
+
+    def set_appearance(self) -> None:
+        """The saved theme, effects and grain, applied to every window."""
+
+    def check_for_updates(self) -> None: ...
+    def point_steam_shortcuts(self) -> None: ...
+    def save_logs_for_support(self) -> None: ...
+    def open_logs_folder(self) -> None: ...
+    def me3_facts(self) -> dict: ...
+    def update_state(self) -> dict: ...
+    def watch_updates(self, call) -> None: ...
+    def notice_action(self, notice_id: str, key: str) -> None: ...
+    def dismiss_notice(self, notice_id: str) -> None: ...
+
+
+# key, title, help, is a folder, file filter
+LOCATIONS = (
+    (
+        "me3_path",
+        "me3",
+        "Leave empty to find me3 automatically. Set it only if you keep me3 somewhere unusual, such as a portable copy.",
+        False,
+        "me3 (me3.exe)",
+    ),
+    (
+        "game_exe",
+        "Game executable",
+        "Leave empty to use the game from your Steam library. Set it only to launch a different copy of the game. Saved per game.",
+        False,
+        "Game (*.exe)",
+    ),
+    (
+        "me3_profile_dir",
+        "me3 profiles folder",
+        "Where me3 keeps its own profiles. Leave empty to use the folder me3 uses.",
+        True,
+        "",
+    ),
+    (
+        "saves_dir",
+        "Saves folder",
+        "Leave empty to find your saves automatically. Set it only if the game keeps them somewhere else. The Saves page, "
+        "backups and repairs all use this folder. Saved per game.",
+        True,
+        "",
+    ),
+)
+CHOICES = {
+    "theme": (("dark", "Dark"), ("tarnished", "Tarnished"), ("light", "Light"), ("system", "System")),
+    "effects": (("full", "Full"), ("reduced", "Reduced"), ("off", "Off")),
+    "grain": (("off", "Off"), ("subtle", "Subtle"), ("film", "Film")),
+    "logo": (("auto", "Follows theme"), ("crimson", "Crimson"), ("ice", "Ice"), ("gold", "Tarnished")),
+    "log_level": (("normal", "Normal"), ("verbose", "Verbose")),
+    "launcher_channel": (("stable", "Stable"), ("beta", "Beta")),
+}
+
+
+class SettingsAdapter(QObject):
+    changed = Signal()
+    updatesChanged = Signal()
+    me3Changed = Signal()
+
+    def __init__(self, host: SettingsHost, notifier: Notifier, parent=None):
+        super().__init__(parent)
+        self.host = host
+        self.notifier = notifier
+        self._me3 = sp.Me3Line(tr("Checking me3..."), "muted", "", "", "", "", False)
+        self._update: dict = {"line": "", "tone": "muted", "notices": []}
+        self._locations = RowsModel(("key", "title", "help", "value", "placeholder", "isDir", "menu"), self)
+        self._switches = {
+            g: RowsModel(("key", "title", "blurb", "help", "checked", "shown"), self)
+            for g in ("launch", "offline", "updates", "me3")
+        }
+        self._notices = RowsModel(("id", "level", "title", "body", "closable", "actions"), self)
+        self._choices = {k: RowsModel(("key", "label"), self) for k in CHOICES}
+        for k, rows in CHOICES.items():
+            self._choices[k].set_rows([{"key": a, "label": tr(b)} for a, b in rows])
+        self._saved_layout: dict[str, str] = {}
+        # what the page shows until the first read lands (it is built on a worker)
+        self._values: dict[str, Any] = {
+            **dict.fromkeys(
+                (
+                    "theme",
+                    "effects",
+                    "grain",
+                    "logo",
+                    "log_level",
+                    "launcher_channel",
+                    "backups_location",
+                    "profiles_root",
+                    "steam_target",
+                    "steam_options",
+                    "data_folder",
+                    "launcher_line",
+                ),
+                "",
+            ),
+            "backups_keep": 20,
+            "labels": dict.fromkeys(CHOICES, ""),
+        }
+        self._draft: dict[str, str] = {}
+        self._cancel = threading.Event()
+        self._moving = False
+        self._refresher = Refresher(host, self._snapshot, self._build, self._apply)
+        self.refresh()
+        try:
+            host.watch_updates(self._on_update_state)
+        except Exception:
+            pass
+
+    # ---- the words
+    title = Property(str, lambda self: tr("Settings"), constant=True)
+    words = Property(
+        dict,
+        lambda self: {
+            "locations": tr("Locations"),
+            "launch": tr("Launch"),
+            "launchHint": tr("Steps that run around Launch. Each can be turned off; Launch itself always runs."),
+            "offline": sp.OFFLINE_TITLE,
+            "offlineBlurb": sp.OFFLINE_BLURB,
+            "offlineHelp": sp.OFFLINE_HELP,
+            "steam": tr("Steam shortcut"),
+            "steamHelp": tr("Launches from Steam without this window. One shortcut per game."),
+            "copyTarget": tr("Copy target"),
+            "copyOptions": tr("Copy launch options"),
+            "pointSteam": tr("Point Steam shortcuts here"),
+            "pointSteamTip": tr(
+                "Makes Steam shortcuts that start an older install start this copy instead. Close Steam first. Each "
+                "changed file is backed up."
+            ),
+            "leftover": tr("Leftover processes"),
+            "leftoverHelp": tr("Hidden copies of the game left running after it closes."),
+            "clearNow": tr("Clear now"),
+            "backups": tr("Backups"),
+            "backupsLocation": tr("Location"),
+            "backupsLocationHelp": tr("Inside the launcher's data folder."),
+            "backupsKeep": tr("How many to keep"),
+            "backupsKeepHelp": tr(
+                "Per save file. Backups from the last 7 days and any you marked Keep are kept as well."
+            ),
+            "appearance": tr("Appearance"),
+            "theme": tr("Theme"),
+            "themeHelp": tr("System follows Windows. Tarnished is a dark olive theme."),
+            "effects": tr("Effects"),
+            "effectsHelp": tr("Off has no blur or grain. Reduced has no blur and lighter grain."),
+            "grain": tr("Grain"),
+            "grainHelp": tr("Fine texture behind pages and panels."),
+            "logo": tr("Logo"),
+            "logoHelp": tr(
+                "Sets the top bar emblem and the window icon. Follows theme is crimson on dark themes and ice on the light theme."
+            ),
+            "updates": tr("Updates"),
+            "channel": tr("Update channel"),
+            "channelHelp": tr(
+                "Beta also offers pre-releases, which get less testing. Going back to Stable never installs an older "
+                "version."
+            ),
+            "check": tr("Check for updates"),
+            "releases": tr("Releases"),
+            "releasesTip": tr("Every version, with notes and downloads."),
+            "logs": tr("Logs"),
+            "logsFolder": tr("Logs folder"),
+            "openFolder": tr("Open folder"),
+            "saveLogs": tr("Save logs for support"),
+            "saveLogsHelp": tr("A zip of recent logs with user names and Steam IDs masked."),
+            "save": tr("Save..."),
+            "settingsFolder": tr("Settings folder"),
+            "logLevel": tr("Log level"),
+            "logLevelHelp": tr("Verbose adds fine detail to launcher.log."),
+            "about": tr("About"),
+            "aboutHelp": tr(
+                "GPL-3.0. Built on PySide6 and me3. Bayle is an unofficial fan project and is not affiliated with or endorsed by FromSoftware or Bandai Namco."
+            ),
+            "licence": tr("Licence"),
+            "notices": tr("Third-party notices"),
+            "browse": tr("Browse..."),
+            "more": tr("More"),
+            "profilesFolder": tr("Profiles folder"),
+            "profilesFolderHelp": tr("Where Bayle keeps its profiles and mods."),
+            "change": tr("Change..."),
+            "moveAll": tr("Move all..."),
+            "otherProfiles": tr("Profiles outside Bayle"),
+            "moveAllTip": tr("Moves every me3 profile of this game into Bayle's folder."),
+            "folderNames": tr("Folder names"),
+            "gameFolder": tr("Game folder"),
+            "gameFiles": tr("Game-file mods"),
+            "dllMods": tr("DLL mods"),
+            "sharedMods": tr("Shared mods"),
+            "apply": tr("Apply"),
+            "cancel": tr("Cancel"),
+            "moving": tr("Moving..."),
+            "dismiss": tr("Dismiss"),
+        },
+        constant=True,
+    )
+
+    # ---- models
+    locations = Property(QObject, lambda self: self._locations, constant=True)
+    launchSwitches = Property(QObject, lambda self: self._switches["launch"], constant=True)
+    offlineSwitches = Property(QObject, lambda self: self._switches["offline"], constant=True)
+    updateSwitches = Property(QObject, lambda self: self._switches["updates"], constant=True)
+    me3Switches = Property(QObject, lambda self: self._switches["me3"], constant=True)
+    notices = Property(QObject, lambda self: self._notices, constant=True)
+    themes = Property(QObject, lambda self: self._choices["theme"], constant=True)
+    effectsChoices = Property(QObject, lambda self: self._choices["effects"], constant=True)
+    grains = Property(QObject, lambda self: self._choices["grain"], constant=True)
+    logos = Property(QObject, lambda self: self._choices["logo"], constant=True)
+    logLevels = Property(QObject, lambda self: self._choices["log_level"], constant=True)
+    channels = Property(QObject, lambda self: self._choices["launcher_channel"], constant=True)
+
+    # ---- values
+    theme = Property(str, lambda self: self._values["theme"], notify=changed)
+    effects = Property(str, lambda self: self._values["effects"], notify=changed)
+    grain = Property(str, lambda self: self._values["grain"], notify=changed)
+    logo = Property(str, lambda self: self._values["logo"], notify=changed)
+    logLevel = Property(str, lambda self: self._values["log_level"], notify=changed)
+    channel = Property(str, lambda self: self._values["launcher_channel"], notify=changed)
+    backupsKeep = Property(int, lambda self: self._values["backups_keep"], notify=changed)
+    backupsLocation = Property(str, lambda self: self._values["backups_location"], notify=changed)
+    keepFrom = Property(int, lambda self: KEEP_RANGE[0], constant=True)
+    keepTo = Property(int, lambda self: KEEP_RANGE[1], constant=True)
+    profilesRoot = Property(str, lambda self: self._values["profiles_root"], notify=changed)
+    layoutDraft = Property(dict, lambda self: dict(self._draft), notify=changed)
+    layoutErrors = Property(dict, lambda self: self._layout_errors(), notify=changed)
+    gamePreview = Property(
+        str, lambda self: sp.game_preview(self._draft.get("pattern", ""), self._game().key), notify=changed
+    )
+    layoutDirty = Property(bool, lambda self: self._layout_changes() != {}, notify=changed)
+    layoutValid = Property(bool, lambda self: not self._layout_errors(), notify=changed)
+    moving = Property(bool, lambda self: self._moving, notify=changed)
+    labels = Property(dict, lambda self: self._values["labels"], notify=changed)
+    steamTarget = Property(str, lambda self: self._values["steam_target"], notify=changed)
+    steamOptions = Property(str, lambda self: self._values["steam_options"], notify=changed)
+    dataFolder = Property(str, lambda self: self._values["data_folder"], notify=changed)
+    versionText = Property(str, lambda self: f"{sp.TITLE} {sp.VERSION}", constant=True)
+    launcherLine = Property(
+        str, lambda self: self._update.get("line") or self._values["launcher_line"], notify=updatesChanged
+    )
+    updateChecking = Property(bool, lambda self: bool(self._update.get("checking")), notify=updatesChanged)
+    launcherTone = Property(str, lambda self: self._update.get("tone", "muted"), notify=updatesChanged)
+    me3Text = Property(str, lambda self: self._me3.text, notify=me3Changed)
+    me3Tone = Property(str, lambda self: self._me3.tone, notify=me3Changed)
+
+    # ---- reading the settings again
+    def _game(self):
+        return getattr(self.host, "game", None) or games.ELDEN_RING
+
+    @staticmethod
+    def _detected(key: str, loc) -> str:
+        """What Blank detects now, for the field's placeholder."""
+        if loc is None:
+            return tr("detected")
+        try:
+            found: Path | None = None
+            if key == "me3_path":
+                found = loc.me3_exe()
+            elif key == "game_exe":
+                found = loc.game_dir()
+            elif key == "me3_profile_dir":
+                found = loc.me3_profiles_dir()
+            elif key == "saves_dir":
+                found = next(iter(loc.save_roots()), None)
+            return tr("detected: {path}").format(path=found) if found else tr("detected")
+        except Exception:
+            return tr("detected")
+
+    @staticmethod
+    def _me3_profiles(loc) -> str:
+        try:
+            found = loc.me3_profiles_dir() if loc is not None else None
+        except Exception:
+            found = None
+        return str(found) if found else tr("me3's folder")
+
+    def _menu(self, key: str) -> list[dict]:
+        """The row's overflow: the folder opener (the page twin of the File menu's) and, for me3, its facts."""
+        opener = {
+            "me3_path": ("me3", tr("Open me3 folder")),
+            "game_exe": ("game", tr("Open game folder")),
+            "me3_profile_dir": ("profiles", tr("Open me3 profiles folder")),
+            "saves_dir": ("saves", tr("Open saves folder")),
+        }[key]
+        out = [{"key": opener[0], "label": opener[1], "enabled": True}]
+        if key == "me3_path":
+            out += [
+                {"key": "me3-logs", "label": tr("Open me3 logs"), "enabled": bool(self._me3.logs)},
+                {"key": "me3-releases", "label": tr("me3 releases"), "enabled": True},
+                {"key": "me3-rescan", "label": tr("Read me3 again"), "enabled": True},
+            ]
+        return out
+
+    # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
+    COMMANDS = {
+        "checkForUpdates": "checkForUpdates",
+        "saveLogs": "saveLogs",
+    }
+
+    def command(self, name: str, args) -> bool:
+        """Run a menu command; False when this page has none by that name."""
+        method = self.COMMANDS.get(name)
+        if method is None:
+            return False
+        getattr(self, method)(*args)
+        return True
+
+    @Slot()
+    def refresh(self) -> None:
+        self._refresher.request()
+
+    def _snapshot(self) -> tuple:
+        return self._game(), self.host.locations
+
+    def _build(self, snap: tuple) -> dict:
+        """Everything the page reads from the disk or the system (on a worker)."""
+        assert_not_ui_thread("Settings facts")
+        game, loc = snap
+        s = load_settings()
+        try:
+            overhaul = mod_service.overhaul_switch_text(game.key)
+        except Exception:
+            overhaul = ""
+        try:
+            target, options = play_service.play_command(game)
+        except Exception:
+            target, options = "", ""
+        return {
+            "s": s,
+            "game": game,
+            "detected": {key: self._detected(key, loc) for key, *_ in LOCATIONS},
+            "overhaul": overhaul,
+            "target": target,
+            "options": options,
+            "backups": str(self._backups_folder()),
+            "me3_profiles": s.profiles_root or self._me3_profiles(loc),
+            "data_folder": sp.data_location(),
+            "launcher_line": f"{sp.TITLE} {sp.VERSION}  ·  {sp.install_kind()}",
+        }
+
+    def _apply(self, facts: dict) -> None:
+        s, game = facts["s"], facts["game"]
+        rows = []
+        for key, title, help_text, is_dir, _filter in LOCATIONS:
+            value = (
+                str(game_setting(s, game.key, key) or "")
+                if key in ("game_exe", "saves_dir")
+                else str(getattr(s, key) or "")
+            )
+            rows.append(
+                {
+                    "key": key,
+                    "title": tr(title),
+                    "help": tr(help_text),
+                    "value": value,
+                    "placeholder": facts["detected"][key],
+                    "isDir": is_dir,
+                    "menu": self._menu(key),
+                }
+            )
+        self._locations.set_rows(rows)
+        grouped: dict[str, list[dict]] = {g: [] for g in self._switches}
+        for spec in sp.switches(facts["overhaul"], game.key):
+            attr = play_service.repair_key(game) if spec.key == "play_repair_after" else spec.key
+            grouped[spec.group].append(
+                {
+                    "key": spec.key,
+                    "title": spec.title,
+                    "blurb": spec.blurb,
+                    "help": spec.help,
+                    "checked": bool(getattr(s, attr, False)),
+                    "shown": bool(spec.blurb) or spec.key != "overhaul_install",
+                }
+            )
+        for g, rows_ in grouped.items():
+            self._switches[g].set_rows(rows_)
+        self._values = {
+            "theme": s.theme,
+            "effects": s.effects,
+            "grain": s.grain,
+            "logo": s.logo,
+            "log_level": s.log_level,
+            "launcher_channel": s.launcher_channel,
+            "backups_keep": s.backups_keep if KEEP_RANGE[0] <= s.backups_keep <= KEEP_RANGE[1] else 20,
+            "backups_location": facts["backups"],
+            "profiles_root": facts["me3_profiles"],
+            "steam_target": facts["target"],
+            "steam_options": facts["options"],
+            "data_folder": facts["data_folder"],
+            "labels": {
+                which: next((tr(b) for k, b in CHOICES[which] if k == getattr(s, which)), "") for which in CHOICES
+            },
+            "launcher_line": facts["launcher_line"],
+        }
+        edited = self._layout_changes() != {}
+        self._saved_layout = {k: str(getattr(s, v[0])) for k, v in LAYOUT.items()}
+        if not edited:
+            self._draft = dict(self._saved_layout)
+        try:
+            self._update = self.host.update_state()
+        except Exception:
+            pass
+        self._show_notices()
+        self.changed.emit()
+        self.updatesChanged.emit()
+
+    @staticmethod
+    def _backups_folder() -> Path:
+        try:
+            return data_folder.data_root() / "saves"
+        except RuntimeError:  # the data folder is set when the program starts
+            return data_dir() / "saves"
+
+    def _on_update_state(self) -> None:
+        self._update = self.host.update_state()
+        self._show_notices()
+        self.updatesChanged.emit()
+
+    def _show_notices(self) -> None:
+        self._notices.set_rows(
+            [
+                {
+                    "id": n.id,
+                    "level": n.level,
+                    "title": n.title,
+                    "body": n.body,
+                    "closable": n.closable,
+                    "actions": [
+                        {"key": a.key, "label": a.label, "primary": a.primary, "tip": a.tip} for a in n.actions
+                    ],
+                }
+                for n in self._update.get("notices", [])
+            ]
+        )
+
+    # ---- switches and choices
+    @Slot(str, bool)
+    def setSwitch(self, key: str, on: bool) -> None:
+        game = self._game()
+        attr = play_service.repair_key(game) if key == "play_repair_after" else key
+        save_settings(**{attr: bool(on)})
+        self.host.settings_changed(attr)
+        self.refresh()
+
+    @Slot(str, str)
+    def setChoice(self, which: str, key: str) -> None:
+        if which not in CHOICES or key not in dict(CHOICES[which]):
+            return
+        save_settings(**{which: key})
+        if which in ("theme", "effects", "grain"):
+            self.host.set_appearance()
+        else:
+            self.host.settings_changed(which)
+        if which == "launcher_channel":
+            self.host.check_for_updates()
+        if which == "log_level":
+            self.notifier.toast(tr("The log level applies from the next start."))
+        self.refresh()
+
+    @Slot(int)
+    def setBackupsKeep(self, n: int) -> None:
+        n = max(KEEP_RANGE[0], min(KEEP_RANGE[1], int(n)))
+        save_settings(backups_keep=n)
+        self.refresh()
+
+    # ---- locations
+    def _problem(self, key: str, value: str) -> str:
+        is_dir = next(r[3] for r in LOCATIONS if r[0] == key)
+        if key == "saves_dir":
+            return saves_dir_problem(value, self._game())
+        if is_dir:
+            return "" if Path(value).is_dir() else tr("That folder does not exist.")
+        return "" if Path(value).is_file() else tr("That file does not exist.")
+
+    @Slot(str, str)
+    def setLocation(self, key: str, value: str) -> None:
+        value = value.strip()
+        if value:
+            problem = self._problem(key, value)
+            if problem:
+                self.notifier.toast(problem, error=True)
+                self.refresh()
+                return
+        if key in ("game_exe", "saves_dir"):
+            save_game_settings(self._game().key, **{key: value})
+        else:
+            save_settings(**{key: value})
+        self.host.settings_changed(key)
+        self.refresh()
+        self.notifier.toast(
+            tr("Location updated") + (" " + Path(value).name if value else " " + tr("Detecting again."))
+        )
+
+    @Slot(str)
+    def browse(self, key: str) -> None:
+        _key, title, _help, is_dir, filt = next(r for r in LOCATIONS if r[0] == key)
+        picked = (
+            self.host.pick_folder(tr("Pick the folder"))
+            if is_dir
+            else self.host.pick_file(tr("Pick the file"), filt + ";;All files (*)")
+        )
+        if picked:
+            self.setLocation(key, str(picked))
+
+    @Slot(str)
+    def clearLocation(self, key: str) -> None:
+        self.setLocation(key, "")
+
+    def _folder(self, kind: str) -> Path | None:
+        loc = self.host.locations
+        try:
+            if kind == "me3" and loc is not None:
+                exe = loc.me3_exe()
+                return Path(exe).parent if exe else None
+            if kind == "game" and loc is not None:
+                return loc.game_dir()
+            if kind == "profiles" and loc is not None:
+                return loc.me3_profiles_dir()
+            if kind == "saves" and loc is not None:
+                return next((r for r in loc.save_roots() if r.is_dir()), None)
+        except Exception:
+            return None
+        if kind == "backups":
+            return self._backups_folder()
+        if kind == "settings":
+            return data_dir()
+        if kind == "me3-logs":
+            return Path(self._me3.logs) if self._me3.logs else None
+        return None
+
+    @Slot(str)
+    def openFolder(self, kind: str) -> None:
+        if kind == "logs":
+            self.host.open_logs_folder()
+            return
+        if kind == "backups":
+            self._backups_folder().mkdir(parents=True, exist_ok=True)
+        folder = self._folder(kind)
+        if folder is None or not Path(folder).exists():
+            self.notifier.toast(tr("That folder was not found on this PC."), error=True)
+            return
+        self.host.open_path(Path(folder))
+
+    @Slot(str, str)
+    def rowAction(self, key: str, action: str) -> None:
+        """An item of a Locations row's overflow."""
+        if action == "me3-releases":
+            desktop.open_path(sp.ME3_RELEASES_URL)
+        elif action == "me3-rescan":
+            self.readMe3()
+        else:
+            self.openFolder(action)
+
+    @Slot()
+    def readMe3(self) -> None:
+        """Ask me3 for its version and folders (it runs me3 info, so on a worker thread)."""
+
+        def done(facts: dict) -> None:
+            self._me3 = sp.me3_line(facts)
+            self.me3Changed.emit()
+            self.refresh()
+
+        self.host.run_in_background(lambda: self._safe_me3(), done)
+
+    def _safe_me3(self) -> dict:
+        try:
+            return self.host.me3_facts()
+        except Exception as e:
+            return {"error": str(e)}
+
+    # ---- where profiles live, and what the folders are called
+    def _layout_changes(self) -> dict[str, tuple[str, str]]:
+        return {
+            tr(LAYOUT[k][2]): (self._saved_layout[k], v)
+            for k, v in self._draft.items()
+            if v != self._saved_layout.get(k)
+        }
+
+    def _layout_errors(self) -> dict[str, str]:
+        return sp.name_errors(self._draft)
+
+    @Slot(str, str)
+    def editLayout(self, field: str, value: str) -> None:
+        if field in LAYOUT:
+            self._draft[field] = value
+            self.changed.emit()
+
+    @Slot()
+    def applyLayout(self) -> None:
+        changes = self._layout_changes()
+        if not changes or self._layout_errors() or self._moving:
+            return
+        names = {LAYOUT[k][1]: v for k, v in self._draft.items() if v != self._saved_layout[k]}
+
+        def answered(ok: bool) -> None:
+            if ok:
+                self._run(lambda loc: layout_service.rename_layout(loc, **names), tr("Renaming folders..."))
+
+        self.notifier.confirm(*sp.rename_confirm(changes), answered)
+
+    @Slot()
+    def changeProfilesFolder(self) -> None:
+        picked = self.host.pick_folder(tr("Pick the profiles folder"))
+        if not picked or self.host.locations is None:
+            return
+        loc = self.host.locations
+
+        def facts() -> tuple[int, int, int | None]:
+            n, size = layout_service.profiles_facts(loc)
+            return n, size, layout_service.free_bytes(picked)
+
+        def ask(found: tuple[int, int, int | None]) -> None:
+            def answered(ok: bool) -> None:
+                if ok:
+                    self._moving = True
+                    self._cancel.clear()
+                    self.changed.emit()
+                    self._run(
+                        lambda loc: layout_service.relocate(loc, picked, cancel=self._cancel.is_set),
+                        tr("Moving profiles and mods..."),
+                    )
+
+            self.notifier.confirm(*sp.relocate_confirm(str(picked), *found), answered)
+
+        self.host.run_in_background(facts, ask)
+
+    @Slot()
+    def cancelMove(self) -> None:
+        self._cancel.set()
+
+    @Slot()
+    def moveAll(self) -> None:
+        loc = self.host.locations
+        if loc is None:
+            return
+
+        def ask(found: list[Path]) -> None:
+            if not found:
+                self.notifier.toast(tr("No profiles are outside Bayle's folder."))
+                return
+
+            def answered(ok: bool) -> None:
+                if ok:
+                    self._run(lambda loc: layout_service.move_all(loc, found), tr("Moving profiles..."))
+
+            self.notifier.confirm(*sp.move_all_confirm([p.stem for p in found]), answered)
+
+        self.host.run_in_background(lambda: layout_service.plain_profiles(loc), ask)
+
+    def _run(self, work, status: str) -> None:
+        if self.host.busy:
+            self.notifier.toast(tr("Wait for the current job."), error=True)
+            self._moving = False
+            self.changed.emit()
+            return
+
+        def job(_launch, loc):
+            work(loc)
+
+        def done(ok: bool) -> None:
+            self._moving = False
+            self.host.settings_changed("layout")
+            self.refresh()
+            if ok:
+                self.notifier.toast(tr("Done. Undo in Activity."))
+            else:
+                self.notifier.toast(tr("Nothing was changed. Details are in Activity."), error=True)
+
+        self.host.run_job(job, status, done)
+
+    # ---- launch
+    def _copy(self, text: str) -> None:
+        QGuiApplication.clipboard().setText(text)
+        self.notifier.toast(tr("Copied"))
+
+    @Slot(str)
+    def copySteam(self, which: str) -> None:
+        self._copy(self._values["steam_target"] if which == "target" else self._values["steam_options"])
+
+    @Slot()
+    def pointSteamShortcuts(self) -> None:
+        self.host.point_steam_shortcuts()
+
+    @Slot()
+    def clearLeftovers(self) -> None:
+        if self.host.busy:
+            self.notifier.toast(tr("Wait for the current job."), error=True)
+            return
+        self.host.run_job(play_service.job_clear, tr("Clearing leftover processes..."))
+
+    # ---- updates, logs, about
+    @Slot()
+    def checkForUpdates(self) -> None:
+        self.host.check_for_updates()
+
+    @Slot()
+    def openReleases(self) -> None:
+        desktop.open_path(sp.RELEASES_URL)
+
+    @Slot()
+    def saveLogs(self) -> None:
+        self.host.save_logs_for_support()
+
+    @Slot(str)
+    def openLicence(self, file: str) -> None:
+        if file in sp.LICENCE_FILES:
+            desktop.open_path(sp.licence_url(file))
+
+    @Slot(str, str)
+    def noticeAction(self, notice_id: str, key: str) -> None:
+        self.host.notice_action(notice_id, key)
+
+    @Slot(str)
+    def dismissNotice(self, notice_id: str) -> None:
+        self.host.dismiss_notice(notice_id)
+
+    # ---- for tests and the self-test
+    def snapshot(self) -> dict:
+        return {
+            "locations": self._locations.rows(),
+            "launch": self._switches["launch"].rows(),
+            "values": dict(self._values),
+        }

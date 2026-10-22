@@ -14,7 +14,7 @@ from __future__ import annotations
 import struct
 from collections.abc import Callable
 
-from roundtable_souls import formats
+from bayle import formats
 
 Parts = dict[str, tuple[int, int, bytes]]  # inner path (lower case, /) -> (ID, flags, contents)
 

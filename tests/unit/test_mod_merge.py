@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.game import locate
-from roundtable_souls.mods import backends, install, remove
-from roundtable_souls.mods import profile_edit as M
-from roundtable_souls.mods import rebuild as merge
-from roundtable_souls.platform import paths as common
+from bayle.game import locate
+from bayle.mods import backends, install, remove
+from bayle.mods import profile_edit as M
+from bayle.mods import rebuild as merge
+from bayle.platform import paths as common
 from support import er
 
 TALK = "script/talk/m00_00_00_00.talkesdbnd.dcx"

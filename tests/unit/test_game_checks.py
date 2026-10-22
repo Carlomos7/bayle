@@ -5,9 +5,9 @@ import hashlib
 
 import pytest
 
-from roundtable_souls.game import catalog as games
-from roundtable_souls.game.locate import Locations, Overrides
-from roundtable_souls.services import game_checks
+from bayle.game import catalog as games
+from bayle.game.locate import Locations, Overrides
+from bayle.services import game_checks
 
 PROFILE = """profileVersion = "v1"
 {online}
@@ -131,7 +131,7 @@ def test_me3s_failed_dlc_loading_is_said_once_or_as_the_likely_cause():
 
 
 def test_the_shipped_dlc_key_is_recognised():
-    from roundtable_souls.game import config as game_config
+    from bayle.game import config as game_config
 
     pem = dict(game_config.load().archives)["DLC"]
     line = f"error=trampoline returned null key={pem}\n"

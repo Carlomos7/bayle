@@ -3,7 +3,7 @@ files, applied under one journal, undone as a whole when interrupted. On tempora
 
 import pytest
 
-from roundtable_souls.merging import build as B
+from bayle.merging import build as B
 
 RECORD = "record.json"
 

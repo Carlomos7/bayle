@@ -266,14 +266,14 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      PUBLIC_KEY: repo/src/roundtable_souls/data/release-signing.pub
+      PUBLIC_KEY: repo/src/bayle/data/release-signing.pub
     steps:
     # Only the public key the launcher ships: every signature is checked against exactly what users verify with.
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         path: repo
         sparse-checkout: |
-          src/roundtable_souls/data/release-signing.pub
+          src/bayle/data/release-signing.pub
           CHANGELOG.md
         sparse-checkout-cone-mode: false
 

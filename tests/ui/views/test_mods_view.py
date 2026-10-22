@@ -11,11 +11,11 @@ from PySide6.QtCore import QEventLoop, QObject, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
-from roundtable_souls.config.settings import LauncherSettings
-from roundtable_souls.game import catalog as games
-from roundtable_souls.services.mods import profile_entries
-from roundtable_souls.ui.host import Host as HostContract
-from roundtable_souls.ui.pages.registry import page as registered
+from bayle.config.settings import LauncherSettings
+from bayle.game import catalog as games
+from bayle.services.mods import profile_entries
+from bayle.ui.host import Host as HostContract
+from bayle.ui.pages.registry import page as registered
 from support import er
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
@@ -242,7 +242,7 @@ def test_switching_a_mod_off_writes_the_profile_and_offers_undo(qt_app, profile)
 
 
 def test_an_interrupted_change_is_put_right_as_the_page_reads_the_profile(qt_app, profile, monkeypatch):
-    from roundtable_souls.services import mods as mod_service
+    from bayle.services import mods as mod_service
 
     calls = []
 
@@ -278,7 +278,7 @@ def test_every_notice_bar_shows_its_text(qt_app, profile, theme):
 
 
 def test_a_profile_outside_bayles_folder_gets_a_notice_with_a_move_in_button(qt_app, profile, monkeypatch):
-    from roundtable_souls.services import profile_mods
+    from bayle.services import profile_mods
 
     monkeypatch.setattr(profile_mods, "_outside", lambda prof, loc: True)
     w = opened(Host(profile))
@@ -294,7 +294,7 @@ def test_a_profile_outside_bayles_folder_gets_a_notice_with_a_move_in_button(qt_
 
 
 def test_online_with_a_packages_parameters_warns_and_play_offline_turns_it_off(qt_app, profile):
-    from roundtable_souls.services.mods import read_profile_settings
+    from bayle.services.mods import read_profile_settings
 
     profile.write_text(PROFILE.replace('profileVersion = "v1"\n', 'profileVersion = "v1"\nstart_online = true\n'))
     (profile.parent / "mod/flora/regulation.bin").write_bytes(b"params")
@@ -396,7 +396,7 @@ def test_the_toast_undo_keeps_a_later_unrelated_edit(qt_app, profile):
 
 
 def test_the_toast_undo_refuses_when_the_bin_item_is_gone(qt_app, profile, monkeypatch):
-    from roundtable_souls.platform import trash
+    from bayle.platform import trash
 
     sent, real = [], trash.send
     monkeypatch.setattr(trash, "send", lambda path: sent.append(real(path)) or sent[-1])
@@ -421,7 +421,7 @@ class Effect:
 
 def overhaul_services(monkeypatch, legacy=True, on=True):
     """The overhaul services faked: a profile with an overhaul its installer made, one change to put back."""
-    from roundtable_souls.services import mods as mod_service
+    from bayle.services import mods as mod_service
 
     calls: dict = {"previews": [], "removed": []}
 
@@ -606,8 +606,8 @@ def test_the_profile_menu_commands_reach_the_page(qt_app, profile):
 def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_install_again(
     qt_app, profile, monkeypatch
 ):
-    from roundtable_souls.services import jobs as job_service
-    from roundtable_souls.services import mods as mod_service
+    from bayle.services import jobs as job_service
+    from bayle.services import mods as mod_service
 
     overhaul_services(monkeypatch)
     for takeover, enabled in ((False, False), (True, True)):
@@ -659,8 +659,8 @@ def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_ins
 
 
 def test_take_over_ticks_the_entries_the_installer_copied(qt_app, profile, monkeypatch):
-    from roundtable_souls.mods.overhaul_takeover import EntryChoice
-    from roundtable_souls.services import mods as mod_service
+    from bayle.mods.overhaul_takeover import EntryChoice
+    from bayle.services import mods as mod_service
 
     overhaul_services(monkeypatch)
     monkeypatch.setattr(

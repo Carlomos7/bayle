@@ -9,13 +9,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from roundtable_souls import app, cli
-from roundtable_souls.config import settings
-from roundtable_souls.platform import data_folder
-from roundtable_souls.platform import logging as run_logging
-from roundtable_souls.services import play as core
-from roundtable_souls.storage import db as storage_db
-from roundtable_souls.updates import apply, headless
+from bayle import app, cli
+from bayle.config import settings
+from bayle.platform import data_folder
+from bayle.platform import logging as run_logging
+from bayle.services import play as core
+from bayle.storage import db as storage_db
+from bayle.updates import apply, headless
 
 
 def fake_module(monkeypatch, dotted, **attrs):
@@ -124,7 +124,7 @@ def test_window_path_opens_the_window_on_the_context(monkeypatch, quiet):
     ctx = SimpleNamespace(name="ctx")
     monkeypatch.setattr(app, "create_app", lambda game: ctx)
     shown = []
-    fake_module(monkeypatch, "roundtable_souls.ui.launcher.window", main=lambda c: shown.append(c) or 3)
+    fake_module(monkeypatch, "bayle.ui.launcher.window", main=lambda c: shown.append(c) or 3)
     assert cli.main() == 3
     assert shown == [ctx]
 
@@ -159,7 +159,7 @@ def test_self_test_writes_the_report_and_returns_the_checks_result(monkeypatch, 
     monkeypatch.setenv("QT_QPA_PLATFORM", "")
     shutdowns = []
     monkeypatch.setattr(run_logging, "shutdown", lambda: shutdowns.append(True))
-    fake_module(monkeypatch, "roundtable_souls.ui.self_test", run=lambda data, out: out("PASS window") or 0)
+    fake_module(monkeypatch, "bayle.ui.self_test", run=lambda data, out: out("PASS window") or 0)
     assert cli.self_test() == 0
     assert report.read_text(encoding="utf-8") == "PASS window\n"
     assert shutdowns == [True]
@@ -174,7 +174,7 @@ def test_self_test_crash_in_the_harness_is_a_failure(monkeypatch, quiet, capsys)
     def boom(data, out):
         raise ValueError("bad state")
 
-    fake_module(monkeypatch, "roundtable_souls.ui.self_test", run=boom)
+    fake_module(monkeypatch, "bayle.ui.self_test", run=boom)
     assert cli.self_test() == 1
     assert "FAIL  the self-test itself: ValueError: bad state" in capsys.readouterr().out
 
@@ -205,21 +205,21 @@ def test_storage_failed_without_a_window_logs_and_prints(monkeypatch, quiet, cap
 
 def test_storage_failed_with_a_window_asks_and_survives_a_broken_box(monkeypatch, quiet):
     asked = []
-    fake_module(monkeypatch, "roundtable_souls.ui.message_box", ask=lambda *args: asked.append(args))
+    fake_module(monkeypatch, "bayle.ui.message_box", ask=lambda *args: asked.append(args))
     assert cli.storage_failed(RuntimeError("disk full"), window=True) == 1
     assert asked == [("Bayle could not start.", "disk full")]
 
     def broken(*args):
         raise OSError("no display")
 
-    fake_module(monkeypatch, "roundtable_souls.ui.message_box", ask=broken)
+    fake_module(monkeypatch, "bayle.ui.message_box", ask=broken)
     cli.storage_failed(RuntimeError("disk full"), window=True)
     assert quiet.lines[-1] == "the message could not be shown: no display"
 
 
 def test_play_is_handed_to_an_open_window(monkeypatch, quiet):
-    from roundtable_souls.platform import instance
-    from roundtable_souls.updates import apply as updates
+    from bayle.platform import instance
+    from bayle.updates import apply as updates
 
     marks, starts = [], []
     monkeypatch.setattr(instance, "held", lambda name: True)
@@ -231,7 +231,7 @@ def test_play_is_handed_to_an_open_window(monkeypatch, quiet):
 
 
 def test_second_play_from_a_shortcut_is_refused(monkeypatch, quiet):
-    from roundtable_souls.platform import instance
+    from bayle.platform import instance
 
     monkeypatch.setattr(instance, "held", lambda name: False)
     monkeypatch.setattr(instance, "acquire", lambda name: None)
@@ -242,8 +242,8 @@ def test_second_play_from_a_shortcut_is_refused(monkeypatch, quiet):
 
 @pytest.mark.parametrize("allow", [False, True])
 def test_play_runs_headless_and_releases_its_hold(monkeypatch, quiet, allow):
-    from roundtable_souls.platform import instance
-    from roundtable_souls.updates import apply as updates
+    from bayle.platform import instance
+    from bayle.updates import apply as updates
 
     released, started = [], []
     monkeypatch.setattr(instance, "held", lambda name: False)
@@ -259,7 +259,7 @@ def test_play_runs_headless_and_releases_its_hold(monkeypatch, quiet, allow):
 
 
 def test_play_with_a_failed_upgrade_still_releases_the_hold(monkeypatch, quiet):
-    from roundtable_souls.platform import instance
+    from bayle.platform import instance
 
     released = []
     monkeypatch.setattr(instance, "held", lambda name: False)
@@ -284,7 +284,7 @@ def _notice_box(monkeypatch, answer):
             raise answer
         return answer
 
-    fake_module(monkeypatch, "roundtable_souls.ui.message_box", ask=ask)
+    fake_module(monkeypatch, "bayle.ui.message_box", ask=ask)
     return asked
 
 
@@ -295,7 +295,7 @@ def test_notice_offers_the_launcher_and_opens_it_for_the_game(monkeypatch, quiet
     cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "a mod needs a rebuild")
     assert asked[0][0] == "Elden Ring was not started: your mods need a rebuild"
     assert "a mod needs a rebuild" in asked[0][1]
-    assert opened == [[sys.executable, "-m", "roundtable_souls", "--game", "er"]]
+    assert opened == [[sys.executable, "-m", "bayle", "--game", "er"]]
 
 
 def test_notice_in_the_frozen_build_reopens_the_executable(monkeypatch, quiet):
@@ -332,5 +332,5 @@ def test_the_entry_module_exits_with_the_command_lines_code(monkeypatch):
 
     monkeypatch.setattr(cli, "main", lambda: 9)
     with pytest.raises(SystemExit) as exit_info:
-        runpy.run_module("roundtable_souls.__main__", run_name="__main__")
+        runpy.run_module("bayle.__main__", run_name="__main__")
     assert exit_info.value.code == 9

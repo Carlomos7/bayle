@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from roundtable_souls.platform.files import atomic_write
+from bayle.platform.files import atomic_write
 
 
 def test_a_failed_write_leaves_the_file_and_no_temp_file(tmp_path, monkeypatch):

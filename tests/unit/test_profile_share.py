@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from roundtable_souls.config.settings import load_settings
-from roundtable_souls.merging.build import BuildError
-from roundtable_souls.mods import profile_share, undo
-from roundtable_souls.mods.profile_edit import ModError
-from roundtable_souls.services import profile_transfer as pt
+from bayle.config.settings import load_settings
+from bayle.merging.build import BuildError
+from bayle.mods import profile_share, undo
+from bayle.mods.profile_edit import ModError
+from bayle.services import profile_transfer as pt
 from support import er
 
 PROFILE = (
@@ -330,7 +330,7 @@ def _pack(tmp_path: Path, volume: int) -> Path:
 
 def _folders(profile: Path) -> list[str]:
     """Where each entry of the profile points, as written (one per entry)."""
-    from roundtable_souls.formats import me3_profile
+    from bayle.formats import me3_profile
 
     return sorted(e["path"] for e in me3_profile.entries(me3_profile.read_text(profile)) if e["path"])
 

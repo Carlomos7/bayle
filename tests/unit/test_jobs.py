@@ -3,9 +3,9 @@ events in order; a failure reaches threading.excepthook and posts no result."""
 
 import threading
 
-from roundtable_souls.game import catalog
-from roundtable_souls.game.locate import Locations
-from roundtable_souls.services import jobs
+from bayle.game import catalog
+from bayle.game.locate import Locations
+from bayle.services import jobs
 
 
 def collect():

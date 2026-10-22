@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from bayle.platform.text import tr
 from bayle.ui.file_actions import file_action_text, shown_path
-from bayle.ui.text import tr
 
 
 def _size(n: int) -> str:

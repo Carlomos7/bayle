@@ -16,12 +16,12 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle.mods import naming, profile_import
 from bayle.mods.profile_edit import ModError
+from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services import profile_transfer as pt
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.profile_transfer.presenter import ProfileTransferPresenter, size_text
 from bayle.ui.refresh import Refresher
-from bayle.ui.text import tr
 
 EXPORT, IMPORT, BUNDLED = "export", "import", "bundled"
 

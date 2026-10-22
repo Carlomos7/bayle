@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from bayle.platform import text
 from bayle.services import profile_mods
 from bayle.services.profile_mods import PageFacts, Removal
-from bayle.ui import text
 from bayle.ui.pages.mods import load_order
 from bayle.ui.pages.mods.presenter import ModsPresenter
 

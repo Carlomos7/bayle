@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.config.settings import FROZEN, appimage, is_installed, is_portable
+from bayle.platform.text import tr
 from bayle.services.play import TITLE, VERSION
 from bayle.services.updates import RELEASES_URL
-from bayle.ui.text import tr
 from bayle.updates import apply as updates
 from bayle.updates import feed
 

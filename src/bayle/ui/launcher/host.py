@@ -24,6 +24,7 @@ from bayle.game import catalog as games
 from bayle.game.locate import installed_dir
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
+from bayle.platform.text import tr
 from bayle.services import play as core
 from bayle.services import run_health
 from bayle.services.mods import me3_facts
@@ -36,7 +37,6 @@ from bayle.ui.launcher.state import Context, LauncherState
 from bayle.ui.launcher.updates import UpdateFlow
 from bayle.ui.launcher.watch import GameWatch
 from bayle.ui.notifications import Notifier
-from bayle.ui.text import tr
 from bayle.updates import apply as updates
 from bayle.updates import inno as migration
 from bayle.updates import retitle

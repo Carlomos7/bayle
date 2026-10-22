@@ -17,6 +17,7 @@ from bayle.config.settings import data_dir, game_setting, load_settings, save_ga
 from bayle.game import catalog as games
 from bayle.game.locate import saves_dir_problem
 from bayle.platform import data_folder, desktop
+from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services import layout as layout_service
 from bayle.services import mods as mod_service
@@ -25,7 +26,6 @@ from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.settings import presenter as sp
 from bayle.ui.refresh import Refresher
-from bayle.ui.text import tr
 
 KEEP_RANGE = (5, 200)
 # draft field -> (settings key, layout_problems keyword, label)

@@ -10,7 +10,7 @@ import sys
 import pytest
 
 from bayle.platform import logging as run_logging
-from bayle.ui import text
+from bayle.platform import text
 from bayle.ui.pages.activity import presenter as act
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)

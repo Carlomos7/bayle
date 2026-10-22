@@ -18,8 +18,8 @@ from bayle.game import catalog as games
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.platform import trash
+from bayle.platform.text import plural, tr
 from bayle.services import saves as _saves_service  # noqa: F401  registers the save-restore Undo
-from bayle.ui.text import plural, tr
 
 SHOWN = 100  # entries listed at most (retention keeps about this many anyway)
 FAILED = ("failed", "interrupted")

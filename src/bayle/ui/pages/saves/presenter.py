@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bayle.platform.text import plural, tr
 from bayle.services import saves as saves_service
 from bayle.ui.pages.mods.presenter import Confirm, Refusal
-from bayle.ui.text import plural, tr
 
 ATTRIBUTES = (
     ("vig", "Vigor"),

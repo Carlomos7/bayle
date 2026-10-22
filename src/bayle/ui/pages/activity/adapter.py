@@ -10,10 +10,10 @@ from typing import Any, Protocol
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
+from bayle.platform.text import tr
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.activity.presenter import ActivityPresenter, ActivityState, LogText, Refusal
-from bayle.ui.text import tr
 
 
 class ActivityHost(Protocol):

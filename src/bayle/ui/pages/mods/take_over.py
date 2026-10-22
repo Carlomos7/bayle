@@ -8,9 +8,9 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.ui.pages.mods.presenter import Confirm, Pick, Refusal
-from bayle.ui.text import tr
 
 if TYPE_CHECKING:
     from bayle.ui.pages.mods.adapter import ModsAdapter

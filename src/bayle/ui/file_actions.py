@@ -1,7 +1,7 @@
 """The words for what the setup does with each file of a mod (the Files table of the Overhaul setup form and of the
 Install mod dialog), by the kind of file (overhauls.basic.KINDS)."""
 
-from bayle.ui.text import tr
+from bayle.platform.text import tr
 
 
 def shown_path(path: str) -> str:

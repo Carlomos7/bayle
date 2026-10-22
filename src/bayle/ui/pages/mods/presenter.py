@@ -11,10 +11,10 @@ from pathlib import Path
 
 from bayle.game import catalog
 from bayle.mods import shared_mods
+from bayle.platform.text import plural, tr
 from bayle.services import profile_mods
 from bayle.services.profile_mods import PageFacts, Removal
 from bayle.ui.pages.mods import load_order
-from bayle.ui.text import plural, tr
 
 MAX_TAGS = 2  # tags shown on a row; the rest are in its tooltip
 MAX_DEPS = 3  # dependencies named in the status line before "N others"

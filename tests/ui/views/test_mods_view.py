@@ -4,6 +4,7 @@ dependencies would undo is refused with the reason, removing asks first and runs
 through the profile writer."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from page_window import PageWindow
@@ -44,6 +45,7 @@ class Host:
         self.changes: list[str] = []
         self.installs: list = []
         self.ran = None
+        self.session: Any = None
 
     def run_job(self, job, status, on_done=None):
         self.jobs.append(status)

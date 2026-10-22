@@ -16,9 +16,11 @@ pytest.importorskip("PySide6.QtQuick")
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
+from bayle.session import EventBus, JobManager, PlanStore, Session  # noqa: E402
+from bayle.session import ops as _registered_operations  # noqa: E402, F401
 from bayle.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
 from bayle.ui.pages.registry import QmlPage  # noqa: E402
-from bayle.views.activity import ActivityPresenter  # noqa: E402
+from support import FakeActivityFacts, er  # noqa: E402
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 
@@ -62,17 +64,29 @@ JOBS = [
 
 
 class FakeHost:
-    """The window that hosts a page, without one: jobs are recorded, background work runs at once."""
+    """The window that hosts a page, without one: the session runs its jobs at once over fake Activity facts,
+    background work runs at once."""
 
     def __init__(self):
         self.busy = False
         self.game_running = False
-        self.locations = "LOCATIONS"
-        self.jobs: list[str] = []
         self.seen = 0
+        self.facts = FakeActivityFacts(JOBS)
+        self.session = Session(
+            JobManager(
+                EventBus(),
+                spawn=lambda run, name=None: run(),
+                game_running=lambda: self.game_running,
+                external_busy=lambda: self.busy,
+            ),
+            plans=PlanStore(),
+            locations=er,
+            services={"activity": self.facts, "clock": lambda: NOW},
+        )
 
-    def run_job(self, job, status):
-        self.jobs.append(status)
+    def started(self) -> list[str]:
+        """The titles of the session jobs started, in order."""
+        return [s.title for s in (self.session.jobs.get(f"j{i}") for i in range(1, 9)) if s]
 
     def mark_seen(self):
         self.seen += 1
@@ -89,8 +103,7 @@ def qt_app():
 
 @pytest.fixture
 def activity_entry():
-    presenter = ActivityPresenter(read_jobs=lambda: list(JOBS), now=lambda: NOW, undo_available=bool)
-    return QmlPage("activity", "Pages/ActivityPage.qml", lambda host, n: ActivityAdapter(host, n, presenter=presenter))
+    return QmlPage("activity", "Pages/ActivityPage.qml", lambda host, n: ActivityAdapter(host, n))
 
 
 @pytest.fixture

@@ -48,7 +48,10 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests", "tests/unit"]
-markers = ["integration: needs a real Elden Ring save on this PC (skipped otherwise)"]
+markers = [
+    "integration: needs a real Elden Ring save on this PC (skipped otherwise)",
+    "real_recycle_bin: sends to the real Windows Recycle Bin; runs last, after every Qt window of the run",
+]
 
 [tool.coverage.run]
 branch = true

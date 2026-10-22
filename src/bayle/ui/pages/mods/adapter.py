@@ -16,6 +16,7 @@ from bayle.mods import conflicts as mod_overview
 from bayle.mods import move_in, profile_edit
 from bayle.mods import order as mod_order
 from bayle.platform import logging as run_logging
+from bayle.platform.text import tr
 from bayle.services import coop as coop_service
 from bayle.services import mods as mod_service
 from bayle.services import profile_mods
@@ -29,7 +30,6 @@ from bayle.ui.pages.mods import load_order, take_over
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
 from bayle.ui.pages.mods.presenter import ModsPresenter, ModsState, Pick, Refusal
 from bayle.ui.refresh import Refresher, stat_key
-from bayle.ui.text import tr
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",

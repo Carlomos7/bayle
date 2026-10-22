@@ -10,7 +10,7 @@ import re
 import tomllib
 from pathlib import Path
 
-from bayle.ui.text import tr
+from bayle.platform.text import tr
 
 Span = tuple[int, int, str]  # start, length, role
 

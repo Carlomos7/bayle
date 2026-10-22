@@ -17,6 +17,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from bayle.game import catalog as games
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
+from bayle.platform.text import tr
 from bayle.saves import backups as save_backups
 from bayle.saves import library as save_library
 from bayle.saves import repair as save_repair
@@ -26,7 +27,6 @@ from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mods.presenter import Refusal
 from bayle.ui.pages.saves.presenter import SavesPresenter
 from bayle.ui.refresh import Refresher
-from bayle.ui.text import tr
 
 
 class SavesHost(Protocol):

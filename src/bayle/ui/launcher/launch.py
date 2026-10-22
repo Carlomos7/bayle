@@ -20,11 +20,11 @@ from typing import Any, Protocol
 
 from bayle.mods import rebuild as mod_merge
 from bayle.platform import logging as run_logging
+from bayle.platform.text import tr
 from bayle.services import game_checks, profile_mods
 from bayle.services import play as core
 from bayle.ui.launcher import topbar
 from bayle.ui.launcher.state import LauncherState
-from bayle.ui.text import tr
 
 UPDATE_LABEL = "Updating merged mods..."  # the job that rebuilds before Launch (the status text shows it)
 

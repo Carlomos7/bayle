@@ -14,6 +14,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from bayle.coop import scaling as coop_scaling
 from bayle.formats import config_model
 from bayle.overhauls import basic
+from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
 from bayle.services import mods as mod_service
 from bayle.services.errors import OperationError
@@ -22,7 +23,6 @@ from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mod_configs.presenter import ModConfigsPresenter
 from bayle.ui.pages.mods.presenter import Confirm, ModsPresenter, Pick, Refusal
 from bayle.ui.refresh import Refresher
-from bayle.ui.text import plural, tr
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 

@@ -9,8 +9,8 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle.game.locate import installed_dir
+from bayle.platform.text import plural, tr
 from bayle.ui.notifications import Notifier
-from bayle.ui.text import plural, tr
 
 
 class PlaceholderAdapter(QObject):

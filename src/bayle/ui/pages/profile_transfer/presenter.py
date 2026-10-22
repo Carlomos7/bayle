@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from bayle.platform.text import plural, tr
 from bayle.services import profile_transfer as pt
-from bayle.ui.text import plural, tr
 
 
 def size_text(n: int) -> str:

@@ -12,8 +12,8 @@ from pathlib import Path, PureWindowsPath
 
 from bayle.config.settings import LauncherSettings, game_setting
 from bayle.game import catalog as games
+from bayle.platform.text import tr
 from bayle.services.play import Problem
-from bayle.ui.text import tr
 
 PROFILE, OFFLINE, VANILLA = "profile", "offline", "vanilla"
 MODES = (PROFILE, OFFLINE, VANILLA)

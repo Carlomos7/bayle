@@ -9,6 +9,7 @@ from bayle.mods.layout import Cancelled as LayoutCancelled
 from bayle.mods.layout import LayoutError
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
+from bayle.services import settings as store
 from bayle.services.errors import OperationError
 from bayle.services.settings import load_settings
 from bayle.session import EventBus, JobManager, PlanStore, Session
@@ -105,11 +106,13 @@ def test_the_repair_switch_has_a_key_per_game():
     assert got.stored_as == "play_repair_after"
 
 
-def test_folders(tmp_path):
+def test_folders(tmp_path, monkeypatch):
     s = make()
     assert s.run("settings.folder", {"kind": "settings"}).path == str(data_dir())
     backups = s.run("settings.folder", {"kind": "backups"}).path
     assert backups and backups.endswith("saves")  # asking made it
+    monkeypatch.setattr(store, "data_dir", lambda: tmp_path)
+    assert s.run("settings.folder", {"kind": "logs"}).path == str(tmp_path / "logs")  # asking made it
     with pytest.raises(OperationError) as e:
         s.run("settings.folder", {"kind": "attic"})
     assert e.value.code == "unknown_folder"

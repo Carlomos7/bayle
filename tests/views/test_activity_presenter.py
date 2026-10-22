@@ -12,6 +12,7 @@ import pytest
 from bayle.platform import logging as run_logging
 from bayle.platform import text
 from bayle.views import activity as act
+from support import FakeActivityFacts
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 
@@ -39,8 +40,8 @@ JOBS = [  # the index is newest first
 ]
 
 
-def presenter(jobs=JOBS, available=lambda u: bool(u)):
-    return act.ActivityPresenter(read_jobs=lambda: list(jobs), now=lambda: NOW, undo_available=available)
+def presenter(jobs=JOBS, available=lambda u: bool(u), **facts):
+    return act.ActivityPresenter(FakeActivityFacts(jobs, available, **facts), now=lambda: NOW)
 
 
 def test_importing_the_presenter_pulls_in_no_qt():
@@ -104,19 +105,17 @@ def test_filters_and_what_an_empty_list_says():
     assert [j.id for d in p.refresh(failed_only=True).days for j in d.jobs] == ["r1", "x1"]
     assert p.refresh(game="sekiro", group="Play").empty == "Nothing matches these filters."
     assert presenter(jobs=[]).refresh().empty.startswith("Nothing yet.")
-    assert [c.label for c in p.kinds] == ["All kinds", "Play", "Saves", "Mods", "Other"]
-    assert p.games[0] == act.Choice("", "All games")
+    assert [c.label for c in act.kind_choices()] == ["All kinds", "Play", "Saves", "Mods", "Other"]
+    assert act.game_choices()[0] == act.Choice("", "All games")
 
 
-def test_a_jobs_log_hides_detail_lines_unless_asked(monkeypatch):
+def test_a_jobs_log_hides_detail_lines_unless_asked():
     entries = [
         {"time": "11:00:00.000", "level": "info", "source": "job", "text": "=== Play ==="},
         {"time": "11:00:01.000", "level": "debug", "source": "me3", "text": "fine detail"},
         {"time": "11:00:02.000", "level": "error", "source": "me3", "text": "it broke"},
     ]
-    monkeypatch.setattr(run_logging, "read_job_log", lambda name: {"entries": entries, "cut": True, "missing": False})
-    p = presenter()
-    p.refresh()
+    p = presenter(logs={"p2.log": {"entries": entries, "cut": True, "missing": False}})
     log = p.log("p2")
     assert log.rows == (("11:00:00.000", "debug", "Play"), ("11:00:02.000", "error", "it broke"))
     assert log.note == (
@@ -127,10 +126,8 @@ def test_a_jobs_log_hides_detail_lines_unless_asked(monkeypatch):
     assert "ERROR    it broke" in log.plain
 
 
-def test_a_missing_log_is_said_not_shown_as_an_error(monkeypatch):
-    monkeypatch.setattr(run_logging, "read_job_log", lambda name: {"entries": [], "cut": False, "missing": True})
+def test_a_missing_log_is_said_not_shown_as_an_error():
     p = presenter()
-    p.refresh()
     log = p.log("p2")
     assert log.missing and log.rows[0][2] == "This job's log file is no longer there."
 
@@ -182,28 +179,6 @@ def test_undo_plans_say_what_each_kind_of_undo_changes(tmp_path):
     assert restore.title == "Restore GM" and restore.changes == ("Its entry goes back into a.me3, where it was",)
 
 
-def test_the_undo_job_runs_the_undo_and_records_it(monkeypatch):
-    calls = []
-    from bayle.mods import undo as mod_undo
-
-    monkeypatch.setattr(mod_undo, "run", lambda u, log, loc: calls.append(("run", u["type"], loc)) or "undid it")
-    monkeypatch.setattr(run_logging, "start_log", lambda title, game: calls.append(("title", title)))
-    monkeypatch.setattr(run_logging, "log", lambda m="": calls.append(("log", m)))
-    monkeypatch.setattr(run_logging, "mark_undone", lambda i: calls.append(("undone", i)))
-    monkeypatch.setattr(run_logging, "set_undo", lambda d: calls.append(("redo", d.get("redo"))))
-    plan = presenter().undo_plan({"id": "r", "undo": {"type": "rebuild"}}, False, False)
-    assert isinstance(plan, act.UndoPlan)
-    loc = type("Loc", (), {"game": type("G", (), {"key": "eldenring"})()})()
-    plan.job("LOCATIONS")(None, loc)
-    assert calls == [
-        ("title", "launcher: undo the rebuild"),
-        ("run", "rebuild", "LOCATIONS"),
-        ("undone", "r"),
-        ("redo", True),
-        ("log", "done: undid it"),
-    ]
-
-
 def test_every_string_goes_through_tr():
     class Shout(gettext.NullTranslations):
         def gettext(self, message):  # placeholders stay as they are
@@ -217,7 +192,7 @@ def test_every_string_goes_through_tr():
         state = p.refresh()
         assert state.days[0].label == "TODAY"
         assert state.summary[0].label == "LAST LAUNCH"
-        assert p.open_window_text == "OPEN NEW ACTIVITY WINDOW"
+        assert act.words().open_window_text == "OPEN NEW ACTIVITY WINDOW"
         assert state.days[0].jobs[0].outcome == "DONE"
     finally:
         text.install(None)

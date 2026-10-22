@@ -114,6 +114,7 @@ class JobManager:
         clock: Callable[[], float] = time.monotonic,
         spawn: Callable[[Callable[[], None], str | None], None] | None = None,
         game_running: Callable[[], bool] | None = None,
+        external_busy: Callable[[], bool] | None = None,
         progress_interval: float = PROGRESS_INTERVAL,
         keep: int = 50,
     ):
@@ -121,6 +122,7 @@ class JobManager:
         keep: how many finished jobs get() still knows."""
         self.bus = bus or EventBus()
         self._clock, self._game_running, self._interval, self._keep = clock, game_running, progress_interval, keep
+        self._external_busy = external_busy  # work that runs outside this manager (the window's own jobs)
         self._runner = service_jobs.Runner(self._on_event, spawn)
         self._lock = threading.Lock()
         self._records: dict[str, _Record] = {}
@@ -139,6 +141,8 @@ class JobManager:
                     raise Busy("The game is running.", {"reason": "game_running"})
                 if self._writer is not None:
                     raise Busy("Another operation is running.", {"reason": "job", "job_id": self._writer})
+                if self._external_busy is not None and self._external_busy():
+                    raise Busy("Another operation is running.", {"reason": "job"})
             self._count += 1
             job_id = f"j{self._count}"
             ctx = JobContext(job_id, lambda t, d: self._progress[job_id]((job_id, t, d)), self._clock, self._interval)
@@ -172,6 +176,16 @@ class JobManager:
         """An old-style logged job (services.jobs.run_job_result): its log file, jobs-index record and undo record
         stay as they were, and its lines also reach the bus as log events."""
         return self.start(lambda _ctx: service_jobs.run_job_result(job, launch, loc, title), title=title, writes=writes)
+
+    # ------------------------------------------------------------------ facts
+    @property
+    def busy(self) -> bool:
+        """A writing job runs (here or, by external_busy, outside this manager)."""
+        return self._writer is not None or bool(self._external_busy and self._external_busy())
+
+    @property
+    def game_running(self) -> bool:
+        return bool(self._game_running and self._game_running())
 
     # ------------------------------------------------------------------ control
     def cancel(self, job_id: str) -> bool:

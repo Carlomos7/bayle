@@ -13,13 +13,12 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol
 
 from bayle.game import catalog as games
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
-from bayle.platform import trash
 from bayle.platform.text import plural, tr
-from bayle.services import saves as _saves_service  # noqa: F401  registers the save-restore Undo
 from bayle.views.common import Confirm, Refusal
 
 SHOWN = 100  # entries listed at most (retention keeps about this many anyway)
@@ -80,6 +79,7 @@ class ActivityState:
     summary: tuple[SummaryCard, ...]
     days: tuple[Day, ...]
     empty: str  # what to say when no job is shown ("" when some are)
+    unseen: int = 0  # failures since Activity was last looked at (the rail badge)
 
 
 @dataclass(frozen=True)
@@ -110,43 +110,18 @@ class UndoPlan:
     def confirm(self) -> Confirm:
         return Confirm(self.title, self.changes, self.apply_text, safety=self.safety)
 
-    def job(self, locations) -> Callable:
-        """The job for the window's runner (job(setup, loc)): it takes the job back and records that it did."""
-        u, job_id, name = dict(self.undo), self.job_id, self.name
 
-        def job(_launch, loc):
-            run_logging.start_log(
-                f"launcher: {'redo' if u.get('redo') else 'undo'} the rebuild"
-                if u.get("type") == "rebuild"
-                else f"launcher: {mod_undo.label(u).lower()} {name}"
-                if u.get("type") in mod_undo.OPERATIONS or u.get("type") in mod_undo.OVERHAUL
-                else f"launcher: undo the rename of {name}"
-                if u.get("type") in ("rename", "profile-rename")
-                else f"launcher: undo the copy {name}"
-                if u.get("type") == "profile-duplicate"
-                else f"launcher: undo the move of {name}"
-                if u.get("type") == "profile-move-in"
-                else f"launcher: undo the folder change of {name}"
-                if u.get("type") in ("folder-rename", "folder-split")
-                else f"launcher: undo the DLL folders in {name}"
-                if u.get("type") == "dll-folders"
-                else f"launcher: undo the change to the profiles folders ({name})"
-                if u.get("type") in ("layout-relocate", "layout-rename")
-                else f"launcher: restore {name}",
-                loc.game.key,
-            )
-            try:
-                said = mod_undo.run(u, run_logging.log, loc=locations)
-            except (mod_undo.UndoError, OSError) as e:
-                run_logging.log(f"error: {e}")
-                raise SystemExit(1) from e
-            if job_id:
-                run_logging.mark_undone(job_id)
-            if u.get("type") == "rebuild":  # the same swap, the other way
-                run_logging.set_undo({**u, "redo": not u.get("redo")})
-            run_logging.log(f"done: {said}")
+class ActivityFacts(Protocol):
+    """What the presenter is told about the world (services.activity.ActivityService reads it from disk): the views
+    do no I/O of their own."""
 
-        return job
+    def jobs(self) -> list[dict]: ...
+    def undo_available(self, undo: dict) -> bool: ...
+    def in_trash(self, path: object) -> bool: ...
+    def read_log(self, name: str) -> dict: ...
+    def read_attachment(self, name: str) -> dict: ...
+    def log_file(self, name: str) -> Path | None:
+        """The file behind a log or attachment, None when it is gone."""
 
 
 # ----------------------------------------------------------------------------- small words
@@ -245,44 +220,44 @@ def log_row(e: dict) -> tuple[str, str, str]:
     return (e["time"], e["level"], text)
 
 
+# ----------------------------------------------------------------------------- the words the page carries
+@dataclass(frozen=True)
+class ActivityWords:
+    title: str
+    subtitle: str
+    open_window_text: str
+    open_window_tip: str
+    failed_only_text: str
+
+
+def words() -> ActivityWords:
+    return ActivityWords(
+        tr("Activity"),
+        tr("What the launcher did: every launch, repair, install and rebuild, with how it went and its log."),
+        tr("Open new Activity window"),
+        tr("A preview of the new Activity page, in its own window."),
+        tr("Failed only"),
+    )
+
+
+def game_choices() -> tuple[Choice, ...]:
+    return (Choice("", tr("All games")), *(Choice(g.key, g.name) for g in games.GAMES))
+
+
+def kind_choices() -> tuple[Choice, ...]:
+    return (Choice("", tr("All kinds")), *(Choice(g, tr(g)) for g in run_logging.GROUPS))
+
+
 # ----------------------------------------------------------------------------- the presenter
 class ActivityPresenter:
     """The page's state from the jobs index. refresh() reads it again; the filters are its arguments."""
 
-    def __init__(
-        self,
-        read_jobs: Callable[[], list[dict]] | None = None,
-        now: Callable[[], datetime.datetime] = datetime.datetime.now,
-        undo_available: Callable[[dict], bool] | None = None,
-    ):
-        self._read_jobs = read_jobs or (lambda: run_logging.read_jobs())
-        self._now = now
-        self._undo_available = undo_available or (lambda u: mod_undo.available(u))  # looked up per call
-        self._records: dict[str, dict] = {}
-
-    # ---- text the page and its window carry
-    title = property(lambda self: tr("Activity"))
-    subtitle = property(
-        lambda self: tr(
-            "What the launcher did: every launch, repair, install and rebuild, with how it went and its log."
-        )
-    )
-    open_window_text = property(lambda self: tr("Open new Activity window"))
-    open_window_tip = property(lambda self: tr("A preview of the new Activity page, in its own window."))
-    failed_only_text = property(lambda self: tr("Failed only"))
-
-    @property
-    def games(self) -> tuple[Choice, ...]:
-        return (Choice("", tr("All games")), *(Choice(g.key, g.name) for g in games.GAMES))
-
-    @property
-    def kinds(self) -> tuple[Choice, ...]:
-        return (Choice("", tr("All kinds")), *(Choice(g, tr(g)) for g in run_logging.GROUPS))
+    def __init__(self, facts: ActivityFacts, now: Callable[[], datetime.datetime] = datetime.datetime.now):
+        self._facts, self._now = facts, now
 
     # ---- the list
     def refresh(self, game: str = "", group: str = "", failed_only: bool = False) -> ActivityState:
-        recs = self._read_jobs()
-        self._records = {str(r.get("id")): r for r in recs if r.get("id")}
+        recs = self._facts.jobs()
         today = self._now().date()
         shown = [r for r in recs if matches(r, game, group, failed_only)][:SHOWN]
         days: list[Day] = []
@@ -312,7 +287,7 @@ class ActivityPresenter:
         text, level = OUTCOMES.get(outcome, (str(outcome or "?").capitalize(), "muted"))
         meta = [duration_text(rec.get("seconds")), game_name(rec.get("game") or "")]
         undo = rec.get("undo")
-        can_undo = bool(undo) and outcome in ("done", "warnings") and self._undo_available(undo or {})
+        can_undo = bool(undo) and outcome in ("done", "warnings") and self._facts.undo_available(undo or {})
         sources = [Choice(rec.get("log") or "", tr("Log"))]
         for name in rec.get("attachments") or []:
             label = name.rsplit(".", 2)[-2] if name.count(".") >= 2 else name
@@ -369,8 +344,8 @@ class ActivityPresenter:
         return tuple(cards)
 
     def record(self, job_id: str) -> dict | None:
-        """The job as the last refresh() read it."""
-        return self._records.get(job_id)
+        """The job's record in the jobs index now, None when it is gone."""
+        return next((r for r in self._facts.jobs() if str(r.get("id")) == job_id), None)
 
     # ---- one job's log
     def log(self, job_id: str, source: str = "", detail: bool = False) -> LogText:
@@ -381,7 +356,7 @@ class ActivityPresenter:
         source = source or main
         notes: list[str] = []
         if source == main:
-            got = run_logging.read_job_log(source)
+            got = self._facts.read_log(source)
             if got["missing"]:
                 return LogText((("", "warning", tr("This job's log file is no longer there.")),), "", missing=True)
             rows = tuple(log_row(e) for e in got["entries"] if detail or e["level"] != "debug")
@@ -396,7 +371,7 @@ class ActivityPresenter:
                 )
             plain = "\n".join(f"{t}  {lvl.upper():7}  {x}" for t, lvl, x in rows)
         else:
-            got = run_logging.read_attachment(source)
+            got = self._facts.read_attachment(source)
             if got["missing"]:
                 return LogText((("", "warning", tr("This output file is no longer there.")),), "", missing=True)
             plain = got["text"]
@@ -410,11 +385,9 @@ class ActivityPresenter:
         """What Copy puts on the clipboard; for support, with the user name and Steam IDs masked."""
         return run_logging.redact(log.plain) if for_support else log.plain
 
-    @staticmethod
-    def log_path(source: str) -> Path | None:
+    def log_path(self, source: str) -> Path | None:
         """The file behind a log or attachment, for Open file (None when it is gone)."""
-        path = run_logging.job_file(source)
-        return path if path is not None and path.is_file() else None
+        return self._facts.log_file(source)
 
     # ---- Undo
     def undo_plan(self, rec: dict, busy: bool, game_running: bool) -> UndoPlan | Refusal:
@@ -422,7 +395,7 @@ class ActivityPresenter:
         u = dict(rec.get("undo") or {})
         if busy:
             return Refusal(tr("Wait for the current job"), tr("Undo runs as a job of its own."))
-        if not self._undo_available(u):
+        if not self._facts.undo_available(u):
             return Refusal(tr("It cannot be taken back any more"), tr("What it needs is gone."))
         if u.get("type") == "rebuild" and game_running:
             return Refusal(tr("Close the game first"), tr("The rebuild's files are in use while it runs."))
@@ -456,7 +429,7 @@ class ActivityPresenter:
                 "the rebuild",
             )
         if u.get("type") in mod_undo.OVERHAUL:
-            return self._overhaul_undo_plan(u, prof, job_id)
+            return self._overhaul_undo_plan(u, prof, job_id, self._facts.in_trash)
         if u.get("type") == "profile-import":
             name = u.get("name") or tr("the profile")
             return UndoPlan(
@@ -607,7 +580,7 @@ class ActivityPresenter:
         name = u.get("name") or tr("it")
         changes = (
             tr("Its entry goes back into {profile}, where it was").format(profile=prof.name),
-            tr("Its folder comes back from the Recycle Bin") if trash.exists(u.get("trash")) else "",
+            tr("Its folder comes back from the Recycle Bin") if self._facts.in_trash(u.get("trash")) else "",
             tr("Launch rebuilds the merged mods with it first") if u.get("merged") else "",
         )
         return UndoPlan(
@@ -622,12 +595,12 @@ class ActivityPresenter:
         )
 
     @staticmethod
-    def _overhaul_undo_plan(u: dict, prof: Path, job_id: str) -> UndoPlan:
+    def _overhaul_undo_plan(u: dict, prof: Path, job_id: str, in_trash: Callable[[object], bool]) -> UndoPlan:
         """An overhaul installed, updated or removed with the launcher (mods.overhaul_install)."""
         name = u.get("name") or tr("the overhaul")
         kind = u.get("type")
         if kind in ("overhaul-remove", "overhaul-turn-off"):
-            back = any(trash.exists(t) for t in u.get("trash") or [])
+            back = any(in_trash(t) for t in u.get("trash") or [])
             off = kind == "overhaul-turn-off"
             return UndoPlan(
                 (tr("Undo turning {name} off") if off else tr("Restore {name}")).format(name=name),

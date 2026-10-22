@@ -26,10 +26,9 @@ from bayle.ui.models import RowsModel, plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mods import take_over
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
+from bayle.ui.pages.undo import ask_undo
 from bayle.ui.refresh import Refresher, stat_key
 from bayle.views import load_order
-from bayle.views.activity import ActivityPresenter
-from bayle.views.activity import Refusal as UndoRefusal
 from bayle.views.mods import ModsPresenter, ModsState, Pick, Refusal
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
@@ -742,16 +741,7 @@ class ModsAdapter(QObject):
         rec = self._rebuild_undo
         if not rec:
             return
-        plan = ActivityPresenter().undo_plan(rec, busy=self.host.busy, game_running=self.host.game_running)
-        if isinstance(plan, UndoRefusal):
-            self.notifier.toast(f"{plan.title}. {plan.body}", error=True)
-            return
-
-        def answered(ok: bool) -> None:
-            if ok:
-                self.host.run_job(plan.job(self.host.locations), plan.progress)
-
-        self.notifier.confirm(plan.confirm, answered)
+        ask_undo(self.host, self.notifier, str(rec.get("id") or ""))
 
     @Slot()
     def trimBackups(self) -> None:

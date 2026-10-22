@@ -3,9 +3,11 @@
 An operation is a function registered with @operation(name, params=P, result=R, kind=..., writes=...). The registry is
 data a client layer can walk (specs()) to build routes and clients; nothing here knows HTTP or Qt.
 
-kind: "read" runs inline and returns its result; "job" runs on the JobManager (writes go through its busy gate, and
-the model's JSON form becomes the job result) and returns the job id; "plan" runs inline and returns the plan the
-client must confirm (executing it is Session.answer, served by the PlanStore of session.plans).
+kind: "read" runs inline and returns its result; "command" runs inline, may write, and returns its result (a small
+change that is done when the call returns: a setting, "seen"); "job" runs on the JobManager (writes go through its busy
+gate, and the model's JSON form becomes the job result) and returns the job id; "plan" runs inline and returns the plan
+the client must confirm, or a Refusal (the operation returns a session.plans.Proposal; its result model describes what
+the job the plan starts will produce, and writes says that job writes; executing it is Session.answer, served by the PlanStore of session.plans).
 A read never writes: reads that used to recover or adopt things at start-up are Session.startup() steps instead.
 """
 
@@ -18,11 +20,14 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from bayle.game.locate import Locations
 from bayle.services.errors import OperationError
 from bayle.session.jobs import JobContext, JobManager
+from bayle.session.plans import Plan, PlanStore, Proposal
+from bayle.views.common import Refusal
 
-Kind = Literal["read", "job", "plan"]
-_KINDS = ("read", "job", "plan")
+Kind = Literal["read", "command", "job", "plan"]
+_KINDS = ("read", "command", "job", "plan")
 
 
 class Params(BaseModel):
@@ -50,6 +55,14 @@ class Call:
 
 
 @dataclass(frozen=True)
+class PageSpec:
+    key: str
+    fn: Callable[..., Any]
+    scope: type[Params]  # the filters a snapshot takes (validated before fn sees them)
+    view: Any  # the type fn returns (a dataclass or model), for the API's schema
+
+
+@dataclass(frozen=True)
 class OperationSpec:
     name: str
     fn: Callable[[Call, Any], Any]
@@ -67,7 +80,7 @@ class OperationSpec:
 class OperationRegistry:
     def __init__(self) -> None:
         self._ops: dict[str, OperationSpec] = {}
-        self._pages: dict[str, Callable[..., Any]] = {}
+        self._pages: dict[str, PageSpec] = {}
 
     def operation(
         self,
@@ -82,8 +95,8 @@ class OperationRegistry:
         ValueError at once (a wiring mistake, not a runtime condition)."""
         if kind not in _KINDS:
             raise ValueError(f"operation {name}: unknown kind {kind!r}")
-        if writes and kind != "job":
-            raise ValueError(f"operation {name}: only a job may write (a {kind} must not)")
+        if writes and kind == "read":
+            raise ValueError(f"operation {name}: a read must not write")
 
         def register(fn: Callable[[Call, Any], Any]) -> Callable[[Call, Any], Any]:
             if name in self._ops:
@@ -93,13 +106,15 @@ class OperationRegistry:
 
         return register
 
-    def page(self, key: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Register fn(session, **scope) -> view as the snapshot of page key."""
+    def page(
+        self, key: str, *, scope: type[Params] = NoParams, view: Any = Any
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """Register fn(session, **scope) -> view as the snapshot of page key. scope: the model of its filters."""
 
         def register(fn: Callable[..., Any]) -> Callable[..., Any]:
             if key in self._pages:
                 raise ValueError(f"page {key} is already registered")
-            self._pages[key] = fn
+            self._pages[key] = PageSpec(key, fn, scope, view)
             return fn
 
         return register
@@ -116,7 +131,10 @@ class OperationRegistry:
     def pages(self) -> list[str]:
         return sorted(self._pages)
 
-    def snapshot_fn(self, key: str) -> Callable[..., Any]:
+    def page_specs(self) -> list[PageSpec]:
+        return [self._pages[k] for k in self.pages()]
+
+    def page_spec(self, key: str) -> PageSpec:
         try:
             return self._pages[key]
         except KeyError:
@@ -162,30 +180,69 @@ class Session:
         ops: OperationRegistry | None = None,
         plans: PlanAnswers | None = None,
         startup_steps: list[StartupStep] | None = None,
+        locations: Callable[[], Locations] | None = None,
+        services: Mapping[str, Any] | None = None,
     ):
+        """locations: the current game's Locations, for operations that act on one. services: named collaborators
+        operations look up with service(name, default) - a test hands a fake, the program gets the default."""
         self.jobs, self.ops, self.plans = jobs, ops or registry, plans
         self._startup_steps = list(startup_steps or [])
+        self._locations = locations
+        self._services = dict(services or {})
+
+    def service(self, name: str, default: Callable[[], Any]) -> Any:
+        """The collaborator registered as name, else a default one (made once)."""
+        if name not in self._services:
+            self._services[name] = default()
+        return self._services[name]
+
+    def locations(self) -> Locations:
+        if self._locations is None:
+            raise OperationError("no_game", "No game is selected.")
+        return self._locations()
 
     def snapshot(self, page: str, **scope: Any) -> Any:
         """A page's view model. Reads only."""
-        return self.ops.snapshot_fn(page)(self, **scope)
+        spec = self.ops.page_spec(page)
+        try:
+            scope = spec.scope.model_validate(scope).model_dump()
+        except ValidationError as e:
+            raise _invalid(page, e) from None
+        return spec.fn(self, **scope)
+
+    def start(self, work: Callable[[JobContext], Any], *, title: str, writes: bool = True) -> str:
+        """Start work(ctx) as a job; its return value (a model or JSON-clean data) is the job's result."""
+
+        def dump(ctx: JobContext) -> Any:
+            got = work(ctx)
+            return got.model_dump(mode="json") if isinstance(got, BaseModel) else got
+
+        return self.jobs.start(dump, title=title, writes=writes)
 
     def run(self, name: str, params: Params | Mapping[str, Any] | None = None) -> Any:
-        """Run operation name. A read or plan returns its validated result model; a job returns its job id (the
-        result arrives on the bus and in jobs.get). Raises OperationError: unknown_operation, invalid_params, busy."""
+        """Run operation name. A read or command returns its validated result model; a job returns its job id (the
+        result arrives on the bus and in jobs.get); a plan returns the Plan to show (it has the id to answer) or a
+        Refusal. Raises OperationError: unknown_operation, invalid_params, busy, no_plans."""
         spec = self.ops.get(name)
         try:
             raw = params.model_dump() if isinstance(params, BaseModel) else (params or {})
             p = spec.params.model_validate(raw)
         except ValidationError as e:
             raise _invalid(name, e) from None
+        if spec.kind == "plan":
+            return self._offer(spec.fn(Call(self), p))
         if spec.kind != "job":
             return spec.result.model_validate(spec.fn(Call(self), p))
+        return self.start(
+            lambda ctx: spec.result.model_validate(spec.fn(Call(self, ctx), p)), title=name, writes=spec.writes
+        )
 
-        def work(ctx: JobContext) -> Any:
-            return spec.result.model_validate(spec.fn(Call(self, ctx), p)).model_dump(mode="json")
-
-        return self.jobs.start(work, title=name, writes=spec.writes)
+    def _offer(self, got: Proposal | Refusal) -> Plan | Refusal:
+        if isinstance(got, Refusal):
+            return got
+        if not isinstance(self.plans, PlanStore):
+            raise OperationError("no_plans", "This session takes no plans.")
+        return self.plans.add(got.words, got.run, got.stale)
 
     def answer(self, token: str, answers: Mapping[str, Any]) -> Any:
         """Answer a plan the client was handed; the plan store decides what runs."""

@@ -11,7 +11,7 @@ from __future__ import annotations
 import itertools
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +43,16 @@ class Plan:
 
     def to_dict(self) -> dict:
         return {"id": self.id, "expires_at": self.expires_at, "prompt": prompt_dict(self.words)}
+
+
+@dataclass(frozen=True)
+class Proposal:
+    """What a plan operation returns: the words to show, what to do with the answer (run returns the id of the job
+    it started, or None), and an optional cheap read of what the plan was made from (see PlanStore.add)."""
+
+    words: Prompt
+    run: Callable[[Answer], Any]
+    stale: Callable[[], object] | None = None
 
 
 @dataclass
@@ -89,6 +99,14 @@ class PlanStore:
         if entry.stale is not None and entry.stale() != entry.token:
             raise PlanError("plan_stale", "Things changed since you were asked. Ask again.")
         return entry.run(answer)
+
+    def answer(self, plan_id: str, answers: Mapping[str, Any]) -> Any:
+        """execute() with the answer given as plain data (ok, option, choice, ticked): what a client sends."""
+        try:
+            given = Answer(**{**answers, "ticked": tuple(answers.get("ticked") or ())})
+        except TypeError as e:
+            raise OperationError("invalid_params", f"That answer is not valid: {e}") from None
+        return self.execute(plan_id, given)
 
     def _drop_expired(self) -> None:
         now = self._clock()

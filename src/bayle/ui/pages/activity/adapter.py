@@ -1,32 +1,30 @@
 """The Activity page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). It holds
-no decisions: what to show and what Undo does come from the presenter; reading the jobs index runs on the job
-runner's worker thread; Undo runs as a logged job of the host (the window that owns the job runner and knows whether
-a job or the game is running); results reach the user through the Notifier."""
+no decisions: it asks the session (snapshot of the page, the log operations, Undo as a plan) on the host's worker
+thread and shows what comes back; the Confirm Undo needs goes through the Notifier, and the undo itself runs as a
+session job the host follows on the event bus."""
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from bayle.platform.text import tr
+from bayle.session import Session
+from bayle.session.ops.activity import LogView
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
-from bayle.views.activity import ActivityPresenter, ActivityState, LogText, Refusal
+from bayle.ui.pages.undo import ask_undo
+from bayle.views import activity as view
+from bayle.views.activity import ActivityState
 
 
 class ActivityHost(Protocol):
     """What the page needs from the window that hosts it (the Widgets launcher until the shell, S9)."""
 
     @property
-    def busy(self) -> bool: ...
-    @property
-    def game_running(self) -> bool: ...
-    @property
-    def locations(self) -> Any: ...
-    def run_job(self, job, status: str) -> None:
-        """Start job(setup, loc) as a logged job; the host refreshes Activity when it ends."""
+    def session(self) -> Session: ...
 
     def mark_seen(self) -> None:
         """The user looked at Activity: failures so far are no longer new."""
@@ -40,11 +38,11 @@ class ActivityAdapter(QObject):
     logChanged = Signal()
     loadingChanged = Signal()
 
-    def __init__(self, host: ActivityHost, notifier: Notifier, presenter: ActivityPresenter | None = None, parent=None):
+    def __init__(self, host: ActivityHost, notifier: Notifier, parent=None):
         super().__init__(parent)
         self.host = host
         self.notifier = notifier
-        self.presenter = presenter or ActivityPresenter()
+        self.words_ = view.words()
         self._state = ActivityState((), (), "")
         self._game = ""
         self._kind = ""
@@ -54,18 +52,18 @@ class ActivityAdapter(QObject):
         self._open_job = ""
         self._source = ""
         self._detail = False
-        self._log = LogText((), "")
+        self._log = LogView(rows=[], plain="")
         self._summary = RowsModel(("label", "value", "level"), self)
         self._days = RowsModel(("label", "jobs"), self)
         self._games = RowsModel(("key", "label"), self)
         self._kinds = RowsModel(("key", "label"), self)
-        self._games.set_rows(self.presenter.games)
-        self._kinds.set_rows(self.presenter.kinds)
+        self._games.set_rows(view.game_choices())
+        self._kinds.set_rows(view.kind_choices())
 
     # ---- the text the page carries (all from the presenter, through tr())
-    title = Property(str, lambda self: self.presenter.title, constant=True)
-    subtitle = Property(str, lambda self: self.presenter.subtitle, constant=True)
-    failedOnlyText = Property(str, lambda self: self.presenter.failed_only_text, constant=True)
+    title = Property(str, lambda self: self.words_.title, constant=True)
+    subtitle = Property(str, lambda self: self.words_.subtitle, constant=True)
+    failedOnlyText = Property(str, lambda self: self.words_.failed_only_text, constant=True)
     words = Property(
         dict,
         lambda self: {
@@ -125,7 +123,10 @@ class ActivityAdapter(QObject):
         self._loading = True
         self.loadingChanged.emit()
         game, kind, failed = self._game, self._kind, self._failed_only
-        self.host.run_in_background(lambda: self.presenter.refresh(game, kind, failed), self._apply)
+        session = self.host.session
+        self.host.run_in_background(
+            lambda: session.snapshot("activity", game=game, group=kind, failed_only=failed), self._apply
+        )
 
     def _apply(self, state: ActivityState) -> None:
         self._loading = False
@@ -138,7 +139,7 @@ class ActivityAdapter(QObject):
         self._summary.set_rows(state.summary)
         self._days.set_rows(state.days)
         self.changed.emit()
-        if self._open_job and self.presenter.record(self._open_job) is None:
+        if self._open_job and not any(j.id == self._open_job for d in state.days for j in d.jobs):
             self.closeLog()
         elif self._open_job:
             self._read_log()
@@ -153,7 +154,9 @@ class ActivityAdapter(QObject):
 
     # ---- one job's log (one open at a time)
     openJob = Property(str, lambda self: self._open_job, notify=logChanged)
-    logText = Property(str, lambda self: self._log.plain or "\n".join(r[2] for r in self._log.rows), notify=logChanged)
+    logText = Property(
+        str, lambda self: self._log.plain or "\n".join(r.text for r in self._log.rows), notify=logChanged
+    )
     logNote = Property(str, lambda self: self._log.note, notify=logChanged)
     logSource = Property(str, lambda self: self._source, notify=logChanged)
     logDetail = Property(bool, lambda self: self._detail, notify=logChanged)
@@ -169,7 +172,7 @@ class ActivityAdapter(QObject):
 
     @Slot()
     def closeLog(self) -> None:
-        self._open_job, self._source, self._log = "", "", LogText((), "")
+        self._open_job, self._source, self._log = "", "", LogView(rows=[], plain="")
         self.logChanged.emit()
 
     @Slot(str)
@@ -183,42 +186,49 @@ class ActivityAdapter(QObject):
         self._read_log()
 
     def _read_log(self) -> None:
-        self._log = self.presenter.log(self._open_job, self._source, self._detail)
-        self.logChanged.emit()
+        want = (self._open_job, self._source, self._detail)
+        session = self.host.session
+
+        def read() -> LogView:
+            return session.run("activity.log", {"job_id": want[0], "source": want[1], "detail": want[2]})
+
+        def shown(got: LogView) -> None:
+            if want == (self._open_job, self._source, self._detail):  # not for a log the user has left
+                self._log = got
+                self.logChanged.emit()
+
+        self.host.run_in_background(read, shown)
 
     @Slot(bool)
     def copyLog(self, for_support: bool) -> None:
-        QGuiApplication.clipboard().setText(self.presenter.copy_text(self._log, for_support))
-        self.notifier.toast(tr("Copied with your user name and Steam IDs masked") if for_support else tr("Copied"))
+        session = self.host.session
+        want = {"job_id": self._open_job, "source": self._source, "detail": self._detail, "for_support": for_support}
+
+        def shown(got) -> None:
+            QGuiApplication.clipboard().setText(got.text)
+            self.notifier.toast(tr("Copied with your user name and Steam IDs masked") if for_support else tr("Copied"))
+
+        self.host.run_in_background(lambda: session.run("activity.copy", want), shown)
 
     @Slot()
     def openLogFile(self) -> None:
-        rec = self.presenter.record(self._open_job) or {}
-        path = self.presenter.log_path(self._source or rec.get("log") or "")
-        if path is None:
-            self.notifier.toast(tr("That file is no longer there."), error=True)
-            return
-        from bayle.platform import desktop
+        session = self.host.session
+        want = {"job_id": self._open_job, "source": self._source}
 
-        desktop.open_path(str(path))
+        def shown(got) -> None:
+            if got.path is None:
+                self.notifier.toast(tr("That file is no longer there."), error=True)
+                return
+            from bayle.platform import desktop
+
+            desktop.open_path(got.path)
+
+        self.host.run_in_background(lambda: session.run("activity.log_file", want), shown)
 
     # ---- Undo
     @Slot(str)
     def undo(self, job_id: str) -> None:
-        rec = self.presenter.record(job_id)
-        if rec is None:
-            return
-        plan = self.presenter.undo_plan(rec, busy=self.host.busy, game_running=self.host.game_running)
-        if isinstance(plan, Refusal):
-            self.notifier.toast(f"{plan.title}. {plan.body}", error=True)
-            self.refresh()
-            return
-
-        def answered(ok: bool) -> None:
-            if ok:
-                self.host.run_job(plan.job(self.host.locations), plan.progress)
-
-        self.notifier.confirm(plan.confirm, answered)
+        ask_undo(self.host, self.notifier, job_id, refused=self.refresh)
 
     # ---- for tests and the self-test
     def snapshot(self) -> dict:

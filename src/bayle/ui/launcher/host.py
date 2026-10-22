@@ -12,7 +12,6 @@ from __future__ import annotations
 import datetime
 import shutil
 import tempfile
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
@@ -27,8 +26,12 @@ from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import play as core
 from bayle.services import run_health
+from bayle.services.jobs import Outcome
 from bayle.services.mods import me3_facts
-from bayle.services.settings import load_settings, save_game_settings, save_settings
+from bayle.services.settings import load_settings, save_game_settings
+from bayle.session import JobManager, PlanStore, Session
+from bayle.session import ops as _registered_operations  # noqa: F401  registers the program's operations
+from bayle.session.startup import recovery_steps
 from bayle.ui.host import Host
 from bayle.ui.jobs import Jobs, run_async
 from bayle.ui.launcher import launch
@@ -117,6 +120,7 @@ class ShellHost(QObject):
     checksChanged = Signal()  # the disk checks behind the pill came back different (or are slow)
     _noticed = Signal(str)  # a job's notice (from a worker thread): shown as a toast
     _line = Signal(str, str)  # a job's log line (from a worker thread) and its level
+    _session_event = Signal()  # the session's bus has events (from a worker thread)
 
     def __init__(self, ctx: Context, parent: QObject | None = None):
         super().__init__(parent)
@@ -150,6 +154,20 @@ class ShellHost(QObject):
             desktop.open_path,
         )
         self.flow = launch.LaunchFlow(self.state, _FlowPorts(self))
+        self._session_jobs: dict[str, str] = {}  # session jobs running, by id: their title
+        self.session = Session(
+            JobManager(
+                game_running=lambda: self.state.game_running,
+                external_busy=lambda: self.flow.active or (self.state.busy and not self._session_jobs),
+            ),
+            plans=PlanStore(),
+            locations=lambda: self.state.locations,
+            startup_steps=recovery_steps(
+                self.state.locations
+            ),  # shortcut: not run here; the pages still recover on their own
+        )
+        self._events = self.session.jobs.bus.subscribe(notify=self._session_event.emit)
+        self._session_event.connect(self._drain_session)
         self.watch = GameWatch(
             self.jobs, lambda: self.state.locations, self._on_running, self._on_steam, self._on_shells
         )
@@ -159,6 +177,32 @@ class ShellHost(QObject):
         self._line.connect(self._on_line)
         self._noticed.connect(self._on_notice)
         core.NOTIFY = lambda title, msg: self.notifier.toast(f"{title}: {msg}", True)
+
+    # ---------------------------------------------------------------- session jobs
+    def _drain_session(self) -> None:
+        """The session's jobs (Undo, so far) as events, on the UI thread: the top bar follows them like the host's own."""
+        while (e := self._events.get(0)) is not None:
+            if e.job_id is None:
+                continue
+            st = self.state
+            if e.type == "started":
+                title = str(e.data.get("title") or "")
+                self._session_jobs[e.job_id] = title
+                run_logging.attach_notice_sink(self._noticed.emit)
+                st.busy, st.job_label, st.job_kind, self.job_detail, self.step = True, title, "other", "", ""
+                self.changed.emit()
+            elif e.type == "log":
+                self._on_line(str(e.data.get("text") or ""), str(e.data.get("level") or ""))
+            elif e.type == "progress":
+                self.job_detail = str(e.data.get("label") or "")[:120]
+                self.changed.emit()
+            elif e.type in ("finished", "failed", "cancelled"):
+                title = self._session_jobs.pop(e.job_id, "")
+                ok = e.type == "finished"
+                status = (
+                    "Finished" if ok else "Error (see details)" if e.data.get("unexpected") else "Stopped (see details)"
+                )
+                self._done(Outcome(ok, status), title, "other", None)
 
     # ---------------------------------------------------------------- the host contract: state
     @property
@@ -626,15 +670,14 @@ class ShellHost(QObject):
         return self._slow[3] if self._slow else {}
 
     def mark_seen(self) -> None:
-        save_settings(activity_seen=time.time())
+        self.session.run("activity.mark_seen")
         self.ctx_settings_again()
         self.failed_job = ""
         self._update_badge()
         self.changed.emit()
 
     def _update_badge(self) -> None:
-        seen = float(load_settings().activity_seen or 0.0)
-        self.unseen = len(run_logging.unseen_failures(seen))
+        self.unseen = self.session.run("activity.unseen").count
 
     def me3_clicked(self) -> None:
         """The me3 update line was followed: it is not said again this session."""
@@ -821,6 +864,7 @@ class ShellHost(QObject):
     def shutdown(self) -> bool:
         """Stop the watch and give the pool 3 s; False when work is still running (the caller exits anyway)."""
         self.watch.stop()
+        self._events.close()
         drained = self.jobs.shutdown()
         self.instance.release()
         return drained

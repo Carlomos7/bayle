@@ -7,6 +7,7 @@ from bayle.session.operations import (
     NoParams,
     OperationRegistry,
     OperationSpec,
+    PageSpec,
     Params,
     PlanAnswers,
     Result,
@@ -16,7 +17,7 @@ from bayle.session.operations import (
     operation,
     registry,
 )
-from bayle.session.plans import Answer, Plan, PlanError, PlanStore, PromptBroker
+from bayle.session.plans import Answer, Plan, PlanError, PlanStore, PromptBroker, Proposal
 from bayle.session.process import reset_process_globals
 
 __all__ = [
@@ -30,12 +31,14 @@ __all__ = [
     "NoParams",
     "OperationRegistry",
     "OperationSpec",
+    "PageSpec",
     "Params",
     "Plan",
     "PlanAnswers",
     "PlanError",
     "PlanStore",
     "PromptBroker",
+    "Proposal",
     "Result",
     "Session",
     "StartupStep",

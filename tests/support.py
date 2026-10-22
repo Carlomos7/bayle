@@ -42,3 +42,42 @@ def copy_live_save(tmp_path: Path) -> Path:
     copy = tmp_path / "ER0000.co2"
     shutil.copy2(src, copy)
     return copy
+
+
+class FakeActivityFacts:
+    """views.activity.ActivityFacts over plain data: no jobs index, log files or trash."""
+
+    def __init__(self, jobs=(), available=bool, logs=None, in_trash=lambda p: False, files=None):
+        self._jobs, self._available, self._logs, self._in_trash, self._files = (
+            list(jobs),
+            available,
+            logs or {},
+            in_trash,
+            files or {},
+        )
+        self.seen_at = 0.0
+
+    def jobs(self):
+        return list(self._jobs)
+
+    def undo_available(self, undo):
+        return self._available(undo)
+
+    def in_trash(self, path):
+        return self._in_trash(path)
+
+    def read_log(self, name):
+        return self._logs.get(name, {"entries": [], "cut": False, "missing": True})
+
+    def read_attachment(self, name):
+        return self._logs.get(name, {"text": "", "cut": False, "missing": True})
+
+    def log_file(self, name):
+        return self._files.get(name)
+
+    def unseen(self):
+        return sum(1 for r in self._jobs if r.get("outcome") in ("failed", "interrupted"))
+
+    def mark_seen(self):
+        self.seen_at += 1
+        return self.seen_at

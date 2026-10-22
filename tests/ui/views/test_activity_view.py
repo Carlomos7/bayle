@@ -87,11 +87,9 @@ def test_the_page_renders_in_every_theme_at_both_sizes(qt_app, activity_entry, h
         closed(w)
 
 
-def test_a_click_on_a_job_opens_its_log_and_a_second_closes_it(qt_app, activity_entry, host, monkeypatch):
-    from bayle.platform import logging as run_logging
-
+def test_a_click_on_a_job_opens_its_log_and_a_second_closes_it(qt_app, activity_entry, host):
     entries = [{"time": "11:00:02.000", "level": "info", "source": "me3", "text": "game exited (0)"}]
-    monkeypatch.setattr(run_logging, "read_job_log", lambda name: {"entries": entries, "cut": False, "missing": False})
+    host.facts._logs["p2.log"] = {"entries": entries, "cut": False, "missing": False}
     w = opened(activity_entry, host)
     try:
         row = find(w, "job_p2")
@@ -107,7 +105,10 @@ def test_a_click_on_a_job_opens_its_log_and_a_second_closes_it(qt_app, activity_
         closed(w)
 
 
-def test_undo_asks_first_and_then_runs_as_a_job(qt_app, activity_entry, host):
+def test_undo_asks_first_and_then_runs_as_a_job(qt_app, activity_entry, host, monkeypatch):
+    from bayle.mods import undo as mod_undo
+
+    monkeypatch.setattr(mod_undo, "run", lambda u, log, loc: "undid it")
     w = opened(activity_entry, host)
     try:
         asked = []
@@ -115,9 +116,10 @@ def test_undo_asks_first_and_then_runs_as_a_job(qt_app, activity_entry, host):
         click(w, find(w, "undo_i1"))
         settle(200)
         assert [t for _, t in asked] == ["Undo the install of Grand Merchant"]
-        assert host.jobs == []  # nothing runs until the user applies it
+        assert host.started() == []  # nothing runs until the user applies it
         w.notifier.answer(asked[0][0], True)
-        assert host.jobs == ["Restoring Grand Merchant..."]
+        assert host.started() == ["Restoring Grand Merchant..."]
+        assert host.session.jobs.get("j1").result == {"said": "undid it"}
     finally:
         closed(w)
 
@@ -131,7 +133,7 @@ def test_undo_while_a_job_runs_says_so_in_a_toast(qt_app, activity_entry, host):
         click(w, find(w, "undo_i1"))
         settle(200)
         assert toasts == [("Wait for the current job. Undo runs as a job of its own.", True)]
-        assert host.jobs == []
+        assert host.started() == []
     finally:
         closed(w)
 

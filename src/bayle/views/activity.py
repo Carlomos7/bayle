@@ -20,6 +20,7 @@ from bayle.platform import logging as run_logging
 from bayle.platform import trash
 from bayle.platform.text import plural, tr
 from bayle.services import saves as _saves_service  # noqa: F401  registers the save-restore Undo
+from bayle.views.common import Confirm, Refusal
 
 SHOWN = 100  # entries listed at most (retention keeps about this many anyway)
 FAILED = ("failed", "interrupted")
@@ -93,14 +94,6 @@ class LogText:
 
 
 @dataclass(frozen=True)
-class Refusal:
-    """Why Undo cannot run now: a toast's title and body."""
-
-    title: str
-    body: str
-
-
-@dataclass(frozen=True)
 class UndoPlan:
     """What taking a job back does, for the confirmation, and the job that does it."""
 
@@ -112,6 +105,10 @@ class UndoPlan:
     undo: dict = field(default_factory=dict)
     job_id: str = ""
     name: str = ""
+
+    @property
+    def confirm(self) -> Confirm:
+        return Confirm(self.title, self.changes, self.apply_text, safety=self.safety)
 
     def job(self, locations) -> Callable:
         """The job for the window's runner (job(setup, loc)): it takes the job back and records that it did."""

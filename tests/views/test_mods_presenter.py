@@ -300,8 +300,9 @@ def test_a_misnamed_or_crowded_folder_gets_one_plain_notice():
         assert not [
             n for n in ModsPresenter().page(facts(folder=check.FolderCheck(kind)), scan()).notices if n.key == "folder"
         ]
-    title, changes, safety, button = ModsPresenter.split_confirm(3, 2, 1)
-    assert changes == ["3 profiles, 2 mods copied, 1 moved."] and safety == "Undo in Activity." and button == "Split"
+    c = ModsPresenter.split_confirm(3, 2, 1)
+    changes, safety, button = c.changes, c.safety, c.apply
+    assert changes == ("3 profiles, 2 mods copied, 1 moved.",) and safety == "Undo in Activity." and button == "Split"
 
 
 def test_a_profile_outside_bayles_folder_gets_a_move_in_notice():
@@ -320,6 +321,7 @@ def test_loose_dlls_get_one_notice_with_counts_and_a_tag():
     natives = next(g for g in one.groups if g.kind == "native")
     assert [t.text for r in natives.rows if r.index == 4 for t in r.tags] == ["Loads early", "No folder"]
     assert not [n for n in ModsPresenter().page(facts(), scan()).notices if n.key == "dll-folders"]
-    _title, changes, safety, button = ModsPresenter.dll_folders_confirm(2, 5, 1)
+    c = ModsPresenter.dll_folders_confirm(2, 5, 1)
+    changes, safety, button = c.changes, c.safety, c.apply
     assert changes[0] == "2 DLLs get a folder in natives." and "1 settings file is copied" in changes[2]
     assert safety == "Undo in Activity." and button == "Put in folders"

@@ -83,14 +83,7 @@ class _FlowPorts:
         self.h = host
 
     def ask(self, ask: launch.Ask, on_answer: Callable[[str], None]) -> None:
-        self.h.notifier.choose(
-            ask.title,
-            ask.lines,
-            [(c.key, c.label, c.role) for c in ask.choices],
-            on_answer,
-            warning=ask.warning,
-            safety=ask.safety,
-        )
+        self.h.notifier.choose(ask, on_answer)
 
     def toast(self, text: str, error: bool = False) -> None:
         self.h.notifier.toast(text, error)

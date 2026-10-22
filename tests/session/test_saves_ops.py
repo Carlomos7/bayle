@@ -2,6 +2,8 @@
 test's own folders; the game is never running unless a test says so. The tests that matter most prove that every write
 to a live save takes the SAME backup as before (the file as it was, with its note) and returns the undo record."""
 
+from pathlib import Path
+
 import pytest
 
 from bayle.config.settings import data_dir
@@ -87,7 +89,14 @@ def _tree(*roots):
 
 def test_reading_the_page_writes_nothing(world, monkeypatch):
     world.session().run("saves.back_up", {"paths": [str(world.save)]})  # a backup to list
-    info = {"path": world.save, "name": world.save.name, "kind": "Standard", "characters": [], "findings": []}
+    info = {
+        "path": world.save,
+        "name": world.save.name,
+        "kind": "Standard",
+        "modified": "today",
+        "characters": [],
+        "findings": [],
+    }
     monkeypatch.setattr(saves_service, "save_info", lambda path, game=None, kind=None, *, loc: dict(info))
     s = world.session()
     before = _tree(world.root, data_dir())
@@ -354,3 +363,73 @@ def test_the_upkeep_of_copies_and_backups(world):
     with pytest.raises(OperationError) as e:
         s.run("saves.finish_stranded", {"folder": folder, "entry_id": "nope", "restore": False})
     assert e.value.code == "failed"
+
+
+# ---------------------------------------------------------------------------------------------------- the web page's reads
+def test_snapshot_view_words_the_page_for_a_client_without_the_presenter(world, monkeypatch):
+    info = {
+        "path": world.save,
+        "name": world.save.name,
+        "kind": "Standard",
+        "modified": "today",
+        "characters": [{"slot": 1, "name": "Ann", "level": 10, "runes": 5, "hp": 300, "stats": {}, "ok": True}],
+        "findings": [],
+    }
+    monkeypatch.setattr(saves_service, "save_info", lambda path, game=None, kind=None, *, loc: dict(info))
+    s = world.session()
+    view = s.snapshot("saves").view
+    assert view["words"]["title"] == "Saves" and view["running"] is False
+    assert view["cards"][0]["characters"][0]["levelText"] == "Level 10"
+    targets = [t for t in view["copy_targets"] if t["path"] == str(world.save)]
+    assert len(targets) == 10 and targets[0]["danger"] and targets[0]["label"].endswith("replaces Ann")
+
+
+def test_drop_says_what_it_means_or_why_not(world):
+    s = world.session()
+    live = {"type": "live", "path": str(world.save)}
+    ok = s.run("saves.drop", {"source": live, "target": {"type": "backups"}})
+    assert (ok.call, ok.args, ok.reason) == ("backUpNow", [str(world.save)], "")
+    no = s.run("saves.drop", {"source": live, "target": {"type": "slot", "path": str(world.save), "slot": 1}})
+    assert no.call == "" and no.reason.startswith("Not here.")
+
+
+def test_repair_view_ticks_what_the_client_sends_and_words_the_summary(world, monkeypatch):
+    info = {
+        "path": world.save,
+        "name": world.save.name,
+        "kind": "Standard",
+        "modified": "today",
+        "characters": [{"slot": 1, "name": "Ann", "level": 10, "runes": 5, "hp": 300, "stats": {}, "ok": True}],
+        "findings": [],
+        "checksum_fixes": {"slots": [0], "ud10": False},
+    }
+    monkeypatch.setattr(saves_service, "save_info", lambda path, game=None, kind=None, *, loc: dict(info))
+    s = world.session()
+    first = s.run("saves.repair_view", {"path": str(world.save)}).data
+    assert first["ticked"] == ["checksum:0"] and first["tuples"]["checksum:0"] == ["checksum", 0]
+    assert first["button"] == "Repair 1 item" and first["groups"][0]["items"][0]["checked"]
+    none = s.run("saves.repair_view", {"path": str(world.save), "ticked": []}).data
+    assert none["summary"] == "Nothing selected." and none["button"] == "Repair"
+
+
+def test_open_folder_only_opens_folders(world, monkeypatch):
+    from bayle.platform import desktop
+
+    opened = []
+    monkeypatch.setattr(desktop, "open_path", opened.append)
+    s = world.session()
+    s.run("saves.open_folder", {"path": str(world.folder)})
+    assert opened == [world.folder]
+    with pytest.raises(OperationError):
+        s.run("saves.open_folder", {"path": str(world.save)})
+
+
+def test_copy_entry_carries_the_question_when_the_file_changed_outside(world):
+    s = world.session()
+    s.run("saves.save_copy", {"path": str(world.save), "name": "Mine"})
+    row = s.snapshot("saves").view["library_rows"][0]
+    got = s.run("saves.copy_entry", {"folder": row["folder"], "entry_id": row["id"]})
+    assert got.changed_outside is False and got.outside is None
+    Path(got.path).write_bytes(b"edited elsewhere" * 20)
+    again = s.run("saves.copy_entry", {"folder": row["folder"], "entry_id": row["id"]})
+    assert again.changed_outside and again.outside["kind"] == "confirm" and "changed outside" in again.outside["title"]

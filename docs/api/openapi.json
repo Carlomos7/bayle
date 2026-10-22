@@ -501,6 +501,18 @@
             "title": "Name",
             "type": "string"
           },
+          "outside": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outside"
+          },
           "path": {
             "title": "Path",
             "type": "string"
@@ -661,6 +673,49 @@
           "reasons"
         ],
         "title": "DragTable",
+        "type": "object"
+      },
+      "DropParams": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
+          },
+          "target": {
+            "additionalProperties": true,
+            "title": "Target",
+            "type": "object"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "DropParams",
+        "type": "object"
+      },
+      "Dropped": {
+        "properties": {
+          "args": {
+            "default": [],
+            "items": {},
+            "title": "Args",
+            "type": "array"
+          },
+          "call": {
+            "default": "",
+            "title": "Call",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "Dropped",
         "type": "object"
       },
       "DuplicateParams": {
@@ -4070,6 +4125,59 @@
         "title": "RepairParams",
         "type": "object"
       },
+      "RepairView": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "RepairView",
+        "type": "object"
+      },
+      "RepairViewParams": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot"
+          },
+          "ticked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticked"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "RepairViewParams",
+        "type": "object"
+      },
       "ReplaceCopyParams": {
         "additionalProperties": false,
         "properties": {
@@ -4497,6 +4605,11 @@
               "type": "object"
             },
             "title": "Libraries",
+            "type": "object"
+          },
+          "view": {
+            "additionalProperties": true,
+            "title": "View",
             "type": "object"
           }
         },
@@ -10663,6 +10776,52 @@
         ]
       }
     },
+    "/v1/ops/saves.drop": {
+      "post": {
+        "operationId": "op_saves_drop",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dropped"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.drop (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
     "/v1/ops/saves.finish_stranded": {
       "post": {
         "operationId": "op_saves_finish_stranded",
@@ -10939,6 +11098,52 @@
         ]
       }
     },
+    "/v1/ops/saves.open_folder": {
+      "post": {
+        "operationId": "op_saves_open_folder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.open_folder (command)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
     "/v1/ops/saves.post_session_repair": {
       "post": {
         "operationId": "op_saves_post_session_repair",
@@ -11098,6 +11303,52 @@
           }
         ],
         "summary": "saves.repair (plan, writes)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.repair_view": {
+      "post": {
+        "operationId": "op_saves_repair_view",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairViewParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.repair_view (read)",
         "tags": [
           "saves"
         ]

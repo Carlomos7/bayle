@@ -158,3 +158,8 @@ def test_an_edit_made_while_a_plan_is_read_drops_that_answer_and_asks_again(prof
     monkeypatch.setattr(mod_service, "replan_mod_install", real)
     s.run("mods.install_replan", {"draft_id": got.draft_id})
     assert state.planned[0] == "grass3" and not state.draft.busy
+
+
+def test_the_view_carries_the_dialogs_fixed_labels(profile, download):
+    view = opened(make(), profile, download).view
+    assert view["words"]["whatToInstall"] and view["words"]["dllEarly"] and view["words"]["cancel"]

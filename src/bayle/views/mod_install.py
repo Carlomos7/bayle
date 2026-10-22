@@ -483,6 +483,7 @@ class InstallDraft:
             "busy": self.busy,
             "installText": tr("Install as overhaul") if mode else tr("Install"),
             "error": p.get("error") or "",
+            "words": words(),  # the fixed labels, so a client without the adapter shows the same words
         }
 
     @staticmethod

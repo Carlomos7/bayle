@@ -1,5 +1,11 @@
 <div align="center">
 
+<!-- The wordmark is dark red and unreadable on a dark page, so dark mode gets the crimson tile icon instead. -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/bayle-icon-header-dark.png">
+  <img src="docs/assets/brand/bayle-wordmark.png" alt="Bayle, FromSoft Mod Manager" width="360">
+</picture>
+
 # Bayle Mod Manager
 
 **A mod launcher and save toolkit for Elden Ring and Nightreign, built on [me3](https://github.com/garyttierney/me3).**
@@ -13,6 +19,16 @@
 
 Bayle Mod Manager (Bayle for short) is a desktop app that manages your me3 profiles and mods, edits mod settings, looks after your saves,
 and launches the game. Pick a game and a profile at the top, then press **Launch**.
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/assets/brand/icon-crimson.png" alt="Crimson logo" width="96"><br><b>Crimson</b><br>default</td>
+    <td align="center"><img src="docs/assets/brand/icon-ice.png" alt="Ice logo" width="96"><br><b>Ice</b><br>light mode</td>
+    <td align="center"><img src="docs/assets/brand/icon-tarnished.png" alt="Tarnished gold logo" width="96"><br><b>Tarnished</b><br>gold</td>
+  </tr>
+</table>
+
+Pick the logo in Settings > Appearance > Logo.
 
 Bayle Mod Manager is an unofficial fan project and is not affiliated with or endorsed by FromSoftware or Bandai Namco.
 

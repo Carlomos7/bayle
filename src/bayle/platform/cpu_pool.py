@@ -15,6 +15,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+import queue
 import subprocess
 import threading
 from collections import deque
@@ -39,6 +40,7 @@ class _Worker:
         self.err = b""
         self.job: _Job | None = None
         self.pinned: list[_Job] = []  # broadcasts waiting for this worker to be free: they go before any task
+        self.outbox: queue.Queue[bytes | None] = queue.Queue()  # lines for its writer thread; None closes its stdin
 
 
 class CpuPool:
@@ -79,13 +81,8 @@ class CpuPool:
     # ------------------------------------------------------------------ under the lock
     def _send(self, worker: _Worker, job: _Job) -> None:
         worker.job = job
-        line = json.dumps({"id": job.id, "task": job.task, "args": job.args}) + "\n"
-        try:
-            assert worker.proc.stdin is not None
-            worker.proc.stdin.write(line.encode("utf-8"))
-            worker.proc.stdin.flush()
-        except OSError:
-            pass  # the worker is gone: its reader thread sees the end and fails the task
+        # never written here: a full pipe would block everyone who needs the lock, including the reader thread
+        worker.outbox.put((json.dumps({"id": job.id, "task": job.task, "args": job.args}) + "\n").encode("utf-8"))
 
     def _pump(self) -> None:
         for w in self._workers:
@@ -126,6 +123,7 @@ class CpuPool:
         assert proc.stdout is not None and proc.stderr is not None
         err = threading.Thread(target=self._drain_err, args=(worker, proc.stderr), daemon=True, name="cpu-stderr")
         err.start()
+        threading.Thread(target=self._write, args=(worker,), daemon=True, name="cpu-writer").start()
         threading.Thread(target=self._read, args=(worker, proc.stdout, err), daemon=True, name="cpu-reader").start()
         return worker
 
@@ -141,7 +139,22 @@ class CpuPool:
 
         threading.Thread(target=run, daemon=True, name="cpu-fallback").start()
 
-    # ------------------------------------------------------------------ reader threads
+    # ------------------------------------------------------------------ writer and reader threads
+    @staticmethod
+    def _write(worker: _Worker) -> None:
+        stdin = worker.proc.stdin
+        assert stdin is not None
+        try:
+            while (line := worker.outbox.get()) is not None:
+                stdin.write(line)
+                stdin.flush()
+        except OSError:
+            pass  # the worker is gone: its reader thread sees the end and fails the task
+        try:
+            stdin.close()
+        except OSError:
+            pass
+
     @staticmethod
     def _drain_err(worker: _Worker, stream: IO[bytes]) -> None:
         for chunk in iter(lambda: stream.read1(4096), b""):  # type: ignore[attr-defined]
@@ -192,11 +205,7 @@ class CpuPool:
                 if w.job is not None and not w.job.future.done():
                     w.job.future.set_exception(RuntimeError("the program is closing"))
         for w in workers:
-            try:
-                assert w.proc.stdin is not None
-                w.proc.stdin.close()
-            except OSError:
-                pass
+            w.outbox.put(None)
             try:
                 w.proc.wait(0.5)
             except subprocess.TimeoutExpired:

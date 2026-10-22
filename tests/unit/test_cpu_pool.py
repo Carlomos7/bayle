@@ -140,3 +140,19 @@ def test_install_gives_run_cpu_the_pool(pool):
         assert cpu.run_cpu(PROBE, {"value": 1}).result(60)["pid"] != os.getpid()
     finally:
         cpu.install(None)
+
+
+def test_big_payloads_and_big_replies_do_not_deadlock(pool):
+    # the worker answers each request with a reply bigger than a pipe buffer before it reads the next one, while
+    # the next request is also bigger than a pipe buffer
+    script = (
+        "import sys, json\n"
+        "for line in sys.stdin:\n"
+        "    r = json.loads(line)\n"
+        "    print(json.dumps({'id': r['id'], 'ok': True, 'result': 'y' * 1_000_000}), flush=True)\n"
+    )
+    p = pool([sys.executable, "-c", script])
+    big = {"blob": "x" * 1_000_000}
+    futures = [p.submit("a:big", big) for _ in range(4)]
+    for f in futures:
+        assert len(f.result(60)) == 1_000_000

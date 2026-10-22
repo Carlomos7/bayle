@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pageKey } from "@/api/events";
 import { useApi } from "@/api/backend";
 import type { ShellState } from "@/api/types";
@@ -10,7 +10,10 @@ import { onFilesDropped } from "@/lib/native";
 import { useModsActions } from "./actions";
 import { ModsContext, useMods } from "./context";
 import { AddExistingDialog, LibraryDialog, OptionsDialog, RenameDialog, SettingsDialog, UnsavedDialog, VersionsDialog } from "./dialogs";
-import { useModsHost } from "./install-contract";
+import { InstallModDialog, type InstallModHandle } from "./install/InstallModDialog";
+import { ModsHostContext, useModsHost, type ModsHost } from "./install-contract";
+import { handOverBundled } from "@/pages/profile-transfer/bundled";
+import { ShellActionsContext } from "@/shell/context";
 import { LoadOrderPanel } from "./LoadOrderPanel";
 import { ModGroup } from "./ModGroup";
 import { ModsHeader } from "./ModsHeader";
@@ -77,8 +80,30 @@ function ModsBody({ view, noProfiles }: { view: ModsView; noProfiles: boolean })
     [view, words, actions, openOptions, navigate],
   );
   const close = () => setDialog(null);
+
+  // the Install mod dialog lives here; the rest of the page asks for it through ModsHost
+  const install = useRef<InstallModHandle>(null);
+  const shellActions = use(ShellActionsContext);
+  const host = useMemo<ModsHost>(
+    () => ({
+      openInstall: (request) =>
+        request?.paths?.length ? install.current?.openInstall(request.paths) : install.current?.openInstall(undefined, { folder: request?.from === "folder" }),
+      newProfile: () => shellActions?.openNewProfile(),
+    }),
+    [shellActions],
+  );
   return (
+    <ModsHostContext value={host}>
     <ModsContext value={value}>
+      <InstallModDialog
+        ref={install}
+        profile={view.profile}
+        onImportInstead={(h) => {
+          // the download ships .me3 profiles: Export / Import takes over its unpacked folder
+          handOverBundled({ unpacked: h.unpacked, profiles: h.profiles, staging: h.staging ?? undefined });
+          void navigate({ to: "/profile-transfer" });
+        }}
+      />
       <ModsContent noProfiles={noProfiles} setDialog={setDialog} />
       {dialog?.kind === "options" ? <OptionsDialog index={dialog.index} onClose={close} /> : null}
       {dialog?.kind === "rename" ? <RenameDialog index={dialog.index} onClose={close} /> : null}
@@ -87,6 +112,7 @@ function ModsBody({ view, noProfiles }: { view: ModsView; noProfiles: boolean })
       {dialog?.kind === "library" ? <LibraryDialog onClose={close} /> : null}
       {dialog?.kind === "add" ? <AddExistingDialog kind={dialog.entryKind} onClose={close} /> : null}
     </ModsContext>
+    </ModsHostContext>
   );
 }
 

@@ -205,6 +205,12 @@ describe("export", () => {
 
 const card = (key: string, title: string) => ({ key, title, path: `C:\\g\\${key}`, lines: [`${title} changes`], leftOut: [], isNew: key === "n" });
 
+test("the menu's Import profile opens the Import tab", async () => {
+  listing([]);
+  mount({ tab: "import" });
+  expect(await screen.findByRole("radio", { name: "Import", checked: true })).toBeInTheDocument();
+});
+
 describe("import", () => {
   async function openImport() {
     const user = userEvent.setup();

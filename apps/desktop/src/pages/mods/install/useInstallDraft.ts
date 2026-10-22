@@ -5,7 +5,7 @@ import { ApiError } from "@/api/client";
 import { jobKey } from "@/api/events";
 import type { JobState } from "@/api/types";
 import { sonnerToasts, type Toasts } from "@/components/toasts";
-import { onFilesDropped, pickSource } from "./sources";
+import { pickModSource } from "@/lib/native";
 import type { DraftReply, EditParams, InstallView } from "./types";
 
 /** The Qt pause before the replan and the preview are asked for. */
@@ -154,7 +154,7 @@ export function useInstallDraft({ profile, toasts = sonnerToasts }: Options) {
   const pick = useCallback(
     async (folder: boolean) => {
       try {
-        const src = await pickSource(folder);
+        const src = await pickModSource(folder);
         if (src) await add([src]);
       } catch (e) {
         latest.current.toasts.error(e);
@@ -162,17 +162,6 @@ export function useInstallDraft({ profile, toasts = sonnerToasts }: Options) {
     },
     [add],
   );
-
-  // files dropped on the window
-  useEffect(() => {
-    let off: (() => void) | undefined;
-    let gone = false;
-    void onFilesDropped((paths) => void add(paths)).then((f) => (gone ? f() : (off = f)));
-    return () => {
-      gone = true;
-      off?.();
-    };
-  }, [add]);
 
   useEffect(
     () => () => {

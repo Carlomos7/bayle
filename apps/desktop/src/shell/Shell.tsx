@@ -93,6 +93,9 @@ export function Shell() {
           return place("profile");
         case "file.game_folder":
           return place("game");
+        case "file.import":
+        case "file.export": // the Profile transfer page opens on the matching tab
+          return void navigate({ to: "/profile-transfer", search: { tab: id.slice(5) } } as never);
         case "file.exit":
           return void getCurrentWindow().close();
         case "view.rail":

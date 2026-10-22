@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useBlocker, useNavigate } from "@tanstack/react-router";
+import { useBlocker, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { ContextMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -50,6 +50,15 @@ export function ModConfigsPage() {
   const state = page.data;
   const words = useMemo(() => state?.words ?? {}, [state?.words]);
   const dialogs = useDialogs(words);
+
+  // Mods sends the player here with ?select=<mod name>: that mod is selected once the page has read it, then the link is cleaned
+  const { select: selectName } = useSearch({ strict: false }) as { select?: string };
+  useEffect(() => {
+    const named = selectName ? state?.nodes.find((n) => n.name === selectName) : undefined;
+    if (!named) return;
+    setWant(named.key);
+    void navigate({ to: "/mod-configs", search: {}, replace: true } as never);
+  }, [selectName, state?.nodes, navigate]);
 
   // ---- which file is open: the one picked, else the first mod's first file
   const nodes = state?.nodes;

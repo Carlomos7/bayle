@@ -168,7 +168,7 @@ interface Posted {
   body: Json;
 }
 
-function mount(opts: { nodes?: object[]; profile?: string; reads?: Record<string, Json>; ops?: Record<string, (body: Json) => Response | Json> } = {}) {
+function mount(opts: { nodes?: object[]; profile?: string; reads?: Record<string, Json>; ops?: Record<string, (body: Json) => Response | Json>; url?: string } = {}) {
   const posted: Posted[] = [];
   const nodes = (opts.nodes ?? [SEAMLESS, NATIVE]) as (typeof SEAMLESS)[];
   const reads: Record<string, Json> = { "C:/m/mod.toml": TOML_READ, "C:/m/notes.txt": TEXT_READ, "C:/g/ersc_settings.ini": SEAMLESS_READ, ...opts.reads };
@@ -197,7 +197,7 @@ function mount(opts: { nodes?: object[]; profile?: string; reads?: Record<string
     }),
   );
   const root = createRootRoute({ component: ModConfigsPage });
-  const router = createRouter({ routeTree: root.addChildren([createRoute({ getParentRoute: () => root, path: "/" }), createRoute({ getParentRoute: () => root, path: "/mods" })]), history: createMemoryHistory({ initialEntries: ["/"] }) });
+  const router = createRouter({ routeTree: root.addChildren([createRoute({ getParentRoute: () => root, path: "/" }), createRoute({ getParentRoute: () => root, path: "/mods" })]), history: createMemoryHistory({ initialEntries: [opts.url ?? "/"] }) });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
@@ -233,6 +233,12 @@ describe("Mod Configs page", () => {
     expect(await screen.findByText("No settings files yet")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Go to Mods" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/mods"));
+  });
+
+  test("?select=<mod> from the Mods page selects that mod, then the link is cleaned", async () => {
+    const { router } = mount({ url: "/?select=Mod" });
+    expect(await screen.findByTestId("file_mod.toml")).toHaveAttribute("aria-current", "true");
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
   });
 
   test("no profile asks for one", async () => {

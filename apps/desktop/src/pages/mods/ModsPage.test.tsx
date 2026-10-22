@@ -9,9 +9,13 @@ import { BackendProvider } from "@/api/backend";
 import { PromptHost } from "@/components/PromptHost";
 import { backend, BASE, server } from "@/test/server";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-import { ModsHostContext, type ModsHost } from "./install-contract";
+import { ShellActionsContext, type ShellActions } from "@/shell/context";
+import * as native from "@/lib/native";
 import { ModsPage } from "./ModsPage";
 import { WORD_KEYS } from "./word-keys";
+
+// the Install mod dialog the page renders asks the Tauri picker; no picker here
+vi.mock("@/lib/native", async (orig) => ({ ...(await orig<typeof import("@/lib/native")>()), pickModSource: vi.fn(() => Promise.resolve(null)) }));
 
 afterEach(() => void toast.dismiss());
 
@@ -134,10 +138,10 @@ interface Call {
   body: Record<string, unknown>;
 }
 
-function setup({ view = baseView, ops = {}, host, profiles = ["main"] }: { view?: unknown; ops?: Record<string, Handler>; host?: Partial<ModsHost>; profiles?: string[] } = {}) {
+function setup({ view = baseView, ops = {}, profiles = ["main"] }: { view?: unknown; ops?: Record<string, Handler>; profiles?: string[] } = {}) {
   const calls: Call[] = [];
   const posted: { path: string; body: unknown }[] = [];
-  const fullHost: ModsHost = { openInstall: vi.fn(), newProfile: vi.fn(), ...host };
+  const shellActions = { openNewProfile: vi.fn() } as unknown as ShellActions;
   server.use(
     http.get(`${BASE}/v1/pages/shell`, () => HttpResponse.json({ profiles, profile_index: 0, status: { busy: false, text: "", tone: "muted" } })),
     http.get(`${BASE}/v1/pages/mods`, () => (view instanceof Response ? view.clone() : HttpResponse.json(view as object))),
@@ -157,9 +161,9 @@ function setup({ view = baseView, ops = {}, host, profiles = ["main"] }: { view?
   );
   const root = createRootRoute({
     component: () => (
-      <ModsHostContext value={fullHost}>
+      <ShellActionsContext value={shellActions}>
         <Outlet />
-      </ModsHostContext>
+      </ShellActionsContext>
     ),
   });
   const page = createRoute({ getParentRoute: () => root, path: "/mods", component: ModsPage });
@@ -178,7 +182,7 @@ function setup({ view = baseView, ops = {}, host, profiles = ["main"] }: { view?
       </QueryClientProvider>
     </ThemeProvider>,
   );
-  return { calls, posted, host: fullHost, router, user: userEvent.setup() };
+  return { calls, posted, shellActions, router, user: userEvent.setup() };
 }
 
 // ops that answer 202 with a job id
@@ -213,10 +217,10 @@ describe("Mods page states", () => {
 
   test("no profile: the page says how to start and the button asks the shell for its New profile dialog", async () => {
     const empty = { ...baseView, has_profile: false, profile: "", state: { ...baseView.state, empty: "You have no profile yet.", groups: [], notices: [] } };
-    const { host, user } = setup({ view: empty, profiles: [] });
+    const { shellActions, user } = setup({ view: empty, profiles: [] });
     expect(await screen.findByText("You have no profile yet.")).toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "createProfile" }));
-    expect(host.newProfile).toHaveBeenCalled();
+    expect(shellActions.openNewProfile).toHaveBeenCalled();
     expect(screen.queryByText("Packages")).not.toBeInTheDocument();
   });
 });
@@ -420,11 +424,11 @@ describe("plans, jobs and notices", () => {
     expect(posted).toHaveLength(0);
   });
 
-  test("Install mod hands over to the install dialog's contract", async () => {
-    const { host, user } = setup();
+  test("Install mod opens the Install mod dialog's picker", async () => {
+    const { user } = setup();
     await user.click(await screen.findByRole("button", { name: "Install mod" }));
     await user.click(await screen.findByRole("menuitem", { name: "From archive or DLL..." }));
-    expect(host.openInstall).toHaveBeenCalledWith({ from: "file" });
+    await waitFor(() => expect(native.pickModSource).toHaveBeenCalledWith(false));
   });
 });
 

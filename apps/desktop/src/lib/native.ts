@@ -15,6 +15,22 @@ export const pickFile = async (title: string, filterName: string, extensions: st
 
 /** Open a file or folder with the desktop's default program (the opener capability limits where). */
 export { openPath };
+/** The Install mod dialog's picker: an archive or DLL, or an unpacked folder; null when cancelled. Same filter as the Qt dialog. */
+export const pickModSource = async (folder: boolean): Promise<string | null> => {
+  const got = await open(
+    folder
+      ? { directory: true, title: "Install a mod: pick its folder" }
+      : {
+          title: "Install a mod: pick an archive or DLL",
+          filters: [
+            { name: "Mod archive or DLL", extensions: ["zip", "7z", "rar", "dll"] },
+            { name: "All files", extensions: ["*"] },
+          ],
+        },
+  );
+  return typeof got === "string" ? got : null;
+};
+
 export const openFolder = (path: string) => openPath(path);
 export const openLink = (url: string) => openUrl(url);
 

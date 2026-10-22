@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useApi } from "@/api/backend";
 import { pageKey } from "@/api/events";
@@ -18,15 +18,21 @@ export function ProfileTransfer({
   profileName,
   busy,
   gameRunning,
+  tab,
   onLeave,
 }: {
   profilePath: string;
   profileName: string;
   busy: boolean;
   gameRunning: boolean;
+  /** The tab the menu asked for (File > Export / Import profile). */
+  tab?: string;
   onLeave: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>("export");
+  const [mode, setMode] = useState<Mode>(tab === "import" ? "import" : "export");
+  useEffect(() => {
+    if (tab === "import" || tab === "export") setMode(tab);
+  }, [tab]);
   const [bundled, setBundled] = useState<BundledRequest | null>(takeBundled);
   useEffect(() => onBundled(() => setBundled(takeBundled())), []);
 
@@ -91,8 +97,10 @@ export function ProfileTransferPage() {
     queryKey: pageKey("shell"),
     queryFn: () => api.get<ShellState>("/v1/pages/shell"),
   });
+  const { tab } = useSearch({ strict: false }) as { tab?: string };
   return (
     <ProfileTransfer
+      tab={tab}
       profilePath={shell?.profile_path ?? ""}
       profileName={shell?.profiles[shell.profile_index] ?? ""}
       busy={!!shell?.status.busy}

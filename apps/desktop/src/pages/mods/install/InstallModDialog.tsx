@@ -8,7 +8,7 @@ import { useInstallDraft, type Handoff } from "./useInstallDraft";
 
 /** What the Mods page holds on to: open the dialog for a path, or let the player pick (a file, or a folder). */
 export interface InstallModHandle {
-  openInstall(source?: string, opts?: { folder?: boolean }): void;
+  openInstall(source?: string | string[], opts?: { folder?: boolean }): void;
 }
 
 const TONE: Record<string, string> = { error: "text-status-danger", warning: "text-status-warning" };
@@ -211,7 +211,7 @@ function Body({ v, edit }: { v: InstallView; edit: Edit }) {
 
 /**
  * The Install mod dialog (InstallModDialog.qml). The Mods page renders it once and calls ref.openInstall(source?):
- * with a path it installs that; without one it opens the Tauri picker. Files dropped on the window are taken too.
+ * with a path it installs that; without one it opens the Tauri picker. The Mods page passes the files dropped on the window.
  * Several sources open one dialog after another.
  */
 export function InstallModDialog({ profile, ref, toasts, onImportInstead }: {
@@ -222,7 +222,7 @@ export function InstallModDialog({ profile, ref, toasts, onImportInstead }: {
   onImportInstead?: (handoff: Handoff) => void;
 }) {
   const s = useInstallDraft({ profile, toasts });
-  useImperativeHandle(ref, () => ({ openInstall: (source, opts) => (source ? void s.add([source]) : void s.pick(!!opts?.folder)) }), [s.add, s.pick]); // eslint-disable-line react-hooks/exhaustive-deps
+  useImperativeHandle(ref, () => ({ openInstall: (source, opts) => (source ? void s.add(typeof source === "string" ? [source] : source) : void s.pick(!!opts?.folder)) }), [s.add, s.pick]); // eslint-disable-line react-hooks/exhaustive-deps
   const v = s.view;
   if (!v) return null;
   const w = v.words;

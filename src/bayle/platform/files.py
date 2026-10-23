@@ -1,35 +1,98 @@
-"""Atomic file writes, moving a folder's contents into another (each file's .json note moves with it), and hiding a
+"""Durable file writes, moving a folder's contents into another (each file's .json note moves with it), and hiding a
 file or folder."""
 
 from __future__ import annotations
 
 import os
 import shutil
+import sys
+import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
+# Windows refuses a rename while another process has the target open: access denied, sharing or lock violation.
+_SHARING_VIOLATIONS = {5, 32, 33}
 
-def atomic_write(path: Path, data, backup=False):
-    """Write to a temp file next to the target and rename over it (atomic on Windows), keeping one .bak. A write
-    that fails leaves the target as it was and removes the temp file. Each write has its own temp file
-    (<name>.<pid>.<random>.tmp), so two writers of the same file (threads or processes) never write into one."""
+
+def durable_write[T](
+    path: Path,
+    data: str | bytes,
+    *,
+    verify: Callable[[Path], object] | None = None,
+    before_replace: Callable[[], T] | None = None,
+    after: Callable[[Path], object] | None = None,
+    retry_for: float = 2.0,
+) -> T | None:
+    """Replace path with data so that a crash, a power cut or a failed check never leaves it half written.
+
+    1. data goes to a temp file of its own next to the target (<name>.<pid>.<random>.tmp; str as UTF-8, newlines as
+       given), flushed and fsynced;
+    2. verify(tmp), the caller's format check: raising aborts with the target untouched;
+    3. before_replace(), e.g. the caller's backup: raising aborts with the target untouched; what it returns (say
+       the backup's path) is what this returns;
+    4. os.replace, retried for up to retry_for seconds while Windows refuses it with a sharing violation; any other
+       error raises at once;
+    5. on POSIX the folder is fsynced so the rename itself survives a power cut (Windows can't open a folder);
+    6. after(path), an optional re-check of the result: raising propagates, and the new file stays in place. There is
+       no roll-back here on purpose: putting the old bytes back is a second replace that can fail the same way, and
+       the caller's backup from step 3 is the recovery it already owns and reports.
+
+    Up to the replace, any failure removes the temp file and leaves the target and every .bak as they were. Only a
+    process killed outright can leave a stray .tmp, which is never the target."""
     path = Path(path)
     tmp = path.with_name(f"{path.name}.{os.getpid()}.{uuid.uuid4().hex[:12]}.tmp")
     try:
-        if isinstance(data, str):
-            with open(tmp, "w", encoding="utf-8", newline="") as f:
-                f.write(data)
-        else:
-            tmp.write_bytes(data)
-        if backup and path.exists():
-            shutil.copy2(path, path.with_name(path.name + ".bak"))
-        os.replace(tmp, path)
+        with open(tmp, "wb") as f:
+            f.write(data.encode("utf-8") if isinstance(data, str) else data)
+            f.flush()
+            os.fsync(f.fileno())
+        if verify is not None:
+            verify(tmp)
+        result = before_replace() if before_replace is not None else None
+        _replace(tmp, path, retry_for)
     except BaseException:
         try:
             tmp.unlink(missing_ok=True)
         except OSError:
             pass
         raise
+    if sys.platform != "win32":
+        fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    if after is not None:
+        after(path)
+    return result
+
+
+def _replace(tmp: Path, path: Path, retry_for: float) -> None:
+    deadline = time.monotonic() + retry_for
+    pause = 0.02
+    while True:
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError as e:
+            if getattr(e, "winerror", None) not in _SHARING_VIOLATIONS or time.monotonic() >= deadline:
+                raise
+        time.sleep(min(pause, max(0.0, deadline - time.monotonic())))
+        pause = min(pause * 2, 0.25)
+
+
+def atomic_write(path: Path, data, backup=False):
+    """durable_write, keeping one .bak of the previous file when backup is set. A write that fails leaves the target
+    as it was and removes the temp file; two writers of the same file (threads or processes) never share a temp
+    file."""
+    path = Path(path)
+
+    def keep_bak():
+        if path.exists():
+            shutil.copy2(path, path.with_name(path.name + ".bak"))
+
+    durable_write(path, data, before_replace=keep_bak if backup else None)
 
 
 def move_into(src_dir: Path, dest_dir: Path) -> None:

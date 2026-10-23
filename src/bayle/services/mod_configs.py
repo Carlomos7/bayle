@@ -9,8 +9,9 @@ E1 A)."""
 
 from __future__ import annotations
 
+import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, get_args
@@ -21,7 +22,11 @@ from bayle.coop import share as coop_share
 from bayle.errors import Cancelled, OperationError
 from bayle.formats import config_model
 from bayle.mods import configs, profile_edit
+from bayle.platform.files import atomic_write
+from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
+from bayle.services import game_checks
+from bayle.services import mods as mod_service
 from bayle.services.mods import overhaul_setup_of, profile_entries
 from bayle.work.jobs import JobManager
 from bayle.work.runner import run_job_result, run_logged
@@ -511,7 +516,7 @@ class Seamless:
 LANGUAGE_KEY = "mod_language_override"
 
 
-def seamless(ini: Path) -> Seamless:
+def seamless_of(ini: Path) -> Seamless:
     ini = Path(ini)
     spec = coop_scaling.scaling_spec(ini)
     values = coop_scaling.read_scaling(ini, spec) if spec else None
@@ -604,9 +609,512 @@ def apply_paste(opened: Opened, changes: dict[str, tuple[str, str]]) -> Path:
     return save_values(opened, {(None, k): new for k, (_old, new) in changes.items()})
 
 
+# ----------------------------------------------------------------------------- the engine interface
+@dataclass(frozen=True)
+class ModConfigsState:
+    """The page's facts: the profile they were read for ("" when there is none) and its mods with settings files."""
+
+    profile: str
+    nodes: tuple[ModNode, ...]
+
+
+@dataclass(frozen=True)
+class FileFacts:
+    """A listed file as read. stamp is taken before reading, so a later change shows; seamless and fingerprint
+    (with the regulation file's name) only when asked for."""
+
+    opened: Opened
+    stamp: tuple[int, int] | None
+    seamless: Seamless | None = None
+    fingerprint: game_checks.Fingerprint | None = None
+    regulation: str = ""
+
+
+@dataclass(frozen=True)
+class Saved:
+    name: str
+    saved: int  # settings written (text: 1)
+    missing: tuple[str, ...] = ()  # Seamless keys the file does not have (nothing is appended)
+
+
+@dataclass(frozen=True)
+class Candidate:
+    name: str
+    id: str
+    folder: Path
+
+
+@dataclass(frozen=True)
+class SetupValues:
+    """The Overhaul setup form as the client holds it: natives are overhauls.config.BasicNative dumps."""
+
+    natives: Sequence[dict]
+    files: dict[str, str]
+    tables: dict[str, str]
+    health: dict[str, str] | None = None  # None: the log check was not touched
+
+
+@dataclass(frozen=True)
+class FormFacts:
+    setup: dict[str, Any]  # services.mods.overhaul_setup_of (or the proposal for a new one)
+    choices: dict[str, Any]
+    values: dict[str, Any]  # the working values; patch_values edits them
+    new: bool
+
+
+@dataclass(frozen=True)
+class SetupSaved:
+    name: str
+    overhaul_id: str
+
+
+@dataclass(frozen=True)
+class SetupPlan:
+    """What installing a setup or turning it off would do: the client words it and sends stamp back to start it."""
+
+    label: str
+    lines: tuple[str, ...]
+    notes: tuple[str, ...]
+    refusals: tuple[str, ...]
+    stamp: tuple[int, int] | None  # of the profile when planned
+
+    @property
+    def ok(self) -> bool:
+        return not self.refusals
+
+
+@dataclass(frozen=True)
+class PastePlan:
+    changes: dict[str, tuple[str, str]]  # key -> (yours, theirs)
+    unknown: tuple[str, ...]  # keys your file does not have
+    stamp: tuple[int, int] | None  # of the file when planned
+
+
+def _same(a: str | Path, b: str | Path) -> bool:
+    return os.path.normcase(str(Path(a))) == os.path.normcase(str(Path(b)))
+
+
+def _unchanged(now: tuple[int, int] | None, expect: Sequence[int] | None) -> bool:
+    return now == (tuple(expect) if expect is not None else None)
+
+
 class ModConfigsService:
     """The Mod configs page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
-    selected). Returns data and OperationError codes, never wording: the Qt page words them."""
+    selected). Returns data and OperationError codes, never wording: the Qt page words them.
+
+    Only what the page lists is touched: a file is read, saved, shared or watched only when the profile's tree
+    (tree()) lists it, a file is attached only to a mod the tree has, and a new overhaul is set up only from a mod
+    of the profile (anything else is not_found), so a client can never point it at another file. settings: the launcher
+    settings the tree reads (default: read now). The plans are a check (facts, writes nothing) and a start (with the
+    stamp the client confirmed; stale when it changed since). Installing, turning off, applying and exporting are jobs
+    (their ids are returned, their results are dicts); a failure carries a code and details, and a file is written
+    whole or not at all."""
 
     def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
         self._jobs, self._locations = jobs, locations
+
+    def _loc(self) -> Locations:
+        try:
+            loc = self._locations()
+        except OperationError:
+            loc = None
+        if loc is None:
+            raise OperationError("no_game", "No game is selected.")
+        return loc
+
+    @staticmethod
+    def _settings(settings: LauncherSettings | None) -> LauncherSettings:
+        from bayle.config.settings import load_settings
+
+        return settings if settings is not None else load_settings()
+
+    @staticmethod
+    def _profile(profile: str | Path) -> Path:
+        if not profile or not Path(profile).is_file():
+            raise OperationError("not_found", "That profile is not there.", {"profile": str(profile)})
+        return Path(profile)
+
+    def _nodes(self, profile: str | Path, settings: LauncherSettings | None) -> list[ModNode]:
+        return tree(self._profile(profile), loc=self._loc(), settings=self._settings(settings))
+
+    def _listed(
+        self, profile: str | Path, path: str | Path, settings: LauncherSettings | None
+    ) -> tuple[ModNode, ConfigFile]:
+        """The node and file of the profile's tree that path is. Raises not_found."""
+        for node in self._nodes(profile, settings):
+            for f in node.files:
+                if _same(f.path, path):
+                    return node, f
+        raise OperationError("not_found", "That file is not listed for this profile.", {"path": str(path)})
+
+    # ---- reading
+    def page(self, profile: str | Path = "", settings: LauncherSettings | None = None) -> ModConfigsState:
+        """The profile's mods with settings files (nothing without a game or a profile)."""
+        try:
+            loc = self._loc()
+        except OperationError as e:
+            if e.code != "no_game":
+                raise
+            return ModConfigsState("", ())
+        if not profile or not Path(profile).is_file():
+            return ModConfigsState("", ())
+        return ModConfigsState(str(profile), tuple(tree(Path(profile), loc=loc, settings=self._settings(settings))))
+
+    def open(
+        self,
+        profile: str | Path,
+        path: str | Path,
+        *,
+        seamless: bool = False,
+        settings: LauncherSettings | None = None,
+    ) -> FileFacts:
+        """A listed file as text (the client builds the form from it: parse_doc). seamless: also the Seamless Co-op
+        panel and the regulation fingerprint. Raises not_found, unreadable (too big, not text, gone)."""
+        _node, f = self._listed(profile, path, settings)
+        before = stamp(f.path)
+        try:
+            opened = open_file(f.path, form=False)
+            panel = seamless_of(f.path) if seamless else None
+        except Exception as e:
+            raise OperationError("unreadable", str(e), {"name": f.path.name}) from e
+        fp, regulation = None, ""
+        if panel is not None:
+            loc = self._loc()
+            fp, regulation = game_checks.regulation_fingerprint(Path(profile), loc), loc.game.regulation
+        return FileFacts(opened, before, panel, fp, regulation)
+
+    def stamp(
+        self, profile: str | Path, path: str | Path, settings: LauncherSettings | None = None
+    ) -> tuple[int, int] | None:
+        """What tells that a listed file changed (modification time and size; None when it is gone). Raises not_found."""
+        return stamp(self._listed(profile, path, settings)[1].path)
+
+    # ---- writing a file
+    def save(
+        self,
+        profile: str | Path,
+        path: str | Path,
+        expect: str,
+        kind: Literal["text", "values", "seamless"],
+        *,
+        text: str = "",
+        edits: Sequence[tuple[str, str, str]] = (),
+        settings: LauncherSettings | None = None,
+    ) -> Saved:
+        """Write a listed file by kind: text (all of it), values (only the edited (section, key, value) characters
+        change) or Seamless Co-op keys. expect: the sha the file had when it was read. Raises not_found, unreadable,
+        stale (it changed since), password_empty, not_saved (details: name)."""
+        _node, f = self._listed(profile, path, settings)
+        name = f.path.name
+        if kind == "seamless" and any(k == "cooppassword" and not v.strip() for _s, k, v in edits):
+            raise OperationError("password_empty", "The Seamless Co-op password cannot be empty.")
+        try:
+            opened = open_file(f.path, form=False)
+        except Exception as e:
+            raise OperationError("unreadable", str(e), {"name": name}) from e
+        if opened.sha != expect:
+            raise OperationError("stale", f"{name} changed on disk since it was read.", {"name": name})
+        try:
+            if kind == "seamless":
+                values = {k: v for _s, k, v in edits}
+                missing = save_seamless(f.path, values)
+                return Saved(name, len(values) - len(missing), tuple(missing))
+            if kind == "text":
+                save_text(opened, text)
+                return Saved(name, 1)
+            save_values(opened, {(s or None, k): v for s, k, v in edits})
+        except OperationError:
+            raise
+        except Exception as e:  # a setting only text can change, a character the encoding cannot hold
+            raise OperationError("not_saved", str(e), {"name": name}) from e
+        return Saved(name, len(edits))
+
+    def attach(
+        self, profile: str | Path, target: str | Path, file: str | Path, settings: LauncherSettings | None = None
+    ) -> None:
+        """Attach file to the mod target (a DLL, or a package's folder; settings.native_configs, never the .me3).
+        Raises not_found when the profile has no such mod."""
+        settings = self._settings(settings)
+        self._check_target(profile, target, settings)
+        attach(settings, Path(target), Path(file))
+
+    def detach(
+        self, profile: str | Path, target: str | Path, file: str | Path, settings: LauncherSettings | None = None
+    ) -> None:
+        settings = self._settings(settings)
+        self._check_target(profile, target, settings)
+        detach(settings, Path(target), Path(file))
+
+    def _check_target(self, profile: str | Path, target: str | Path, settings: LauncherSettings) -> None:
+        if not any(n.target is not None and _same(n.target, target) for n in self._nodes(profile, settings)):
+            raise OperationError("not_found", "That mod is not in this profile.", {"target": str(target)})
+
+    # ---- the Overhaul setup
+    def setup_candidates(self, profile: str | Path) -> list[Candidate]:
+        """The profile's mods an overhaul setup can be made for, in profile order."""
+        return [Candidate(m["name"], m["id"], m["folder"]) for m in mods_to_set_up(self._profile(profile))]
+
+    def _setup_of(self, profile: Path, folder: str, name: str, overhaul_id: str) -> dict[str, Any]:
+        """The setup the form is for: the profile's own, or (folder: one of setup_candidates') a proposal for that mod
+        (nothing is written). Raises not_found, cannot_set_up."""
+        loc = self._loc()
+        if not folder:
+            setup = overhaul_setup_of(profile, loc=loc)
+            if setup is None:
+                raise OperationError("not_found", "This profile has no overhaul setup.")
+            return setup
+        if not any(_same(m["folder"], folder) for m in mods_to_set_up(profile)):
+            raise OperationError("not_found", "That mod is not in this profile.", {"folder": folder})
+        try:
+            config = mod_service.propose_overhaul_setup(Path(folder), name, loc=loc, overhaul_id=overhaul_id or None)
+        except (ValueError, OSError) as e:  # the folder has nothing to set up, or is gone
+            raise OperationError("cannot_set_up", str(e)) from e
+        return {
+            "config": config,
+            "verified": False,
+            "level": "basic",
+            "folder": Path(folder),
+            "path": None,
+            "sha": None,
+        }
+
+    def overhaul_form(self, profile: str | Path, folder: str = "", name: str = "", overhaul_id: str = "") -> FormFacts:
+        """The Overhaul setup form's starting state: the choices the mod's files give and the values as the config
+        has them. folder: set that mod up as a new overhaul (else the profile's own). Raises not_found, cannot_set_up."""
+        setup = self._setup_of(self._profile(profile), folder, name, overhaul_id)
+        choices = overhaul_choices(setup, self._loc().game_dir())
+        return FormFacts(setup, choices, initial_values(choices, setup["config"]), bool(folder))
+
+    def _config_with(self, setup: dict[str, Any], form: SetupValues):
+        """The setup's config with the form's values. Raises invalid_setup (a texts entry with no table chosen, a
+        "re:" text that is not a regular expression)."""
+        choices = overhaul_choices(setup, self._loc().game_dir())
+        try:
+            return with_basic(
+                setup["config"],
+                natives=list(form.natives),
+                files=files_to_store(choices["files"], form.files),
+                health=health_of_form(form.health) if form.health is not None else None,
+                tables=form.tables,
+            )
+        except ValueError as e:
+            raise OperationError("invalid_setup", str(e)) from e
+
+    def save_setup(
+        self,
+        profile: str | Path,
+        path: str | Path,
+        expect: str,
+        *,
+        form: SetupValues | None = None,
+        text: str | None = None,
+    ) -> SetupSaved:
+        """Save the profile's own overhaul setup (path must be its file), from the form or as text. expect: the sha
+        it had when read. Applying it to the profiles using it is apply_setup. Raises not_found, invalid_params,
+        invalid_setup, stale, not_saved."""
+        setup = self._setup_of(self._profile(profile), "", "", "")
+        if setup["path"] is None or not _same(setup["path"], path):
+            raise OperationError("not_found", "That is not this profile's overhaul setup.", {"path": str(path)})
+        if setup["sha"] != expect:
+            raise OperationError("stale", "The setup changed on disk since it was read.", {"name": Path(path).name})
+        try:
+            if text is not None:
+                config = parse_overhaul_text(text)
+                out = mod_service.save_overhaul_setup(config, expect=expect, path=Path(path))
+            elif form is not None:
+                config = self._config_with(setup, form)
+                out = mod_service.save_overhaul_setup(config, expect=expect, path=setup["path"], folder=setup["folder"])
+            else:
+                raise OperationError("invalid_params", "Give the form or the text.")
+        except OperationError:
+            raise
+        except ValueError as e:  # the text is not a setup
+            raise OperationError("invalid_setup", str(e)) from e
+        except Exception as e:  # a verified one, a config that would not read back
+            raise OperationError("not_saved", str(e), {"name": Path(path).name}) from e
+        return SetupSaved(Path(out).name, config.id)
+
+    def _job(self, title: str, log_title: str, work: Callable[[Locations], dict]) -> str:
+        """work(loc) as a logged job of its own inside a session job (writing: not while the game or another write
+        runs); returns the session job's id."""
+        loc = self._loc()
+        return self._jobs.start(lambda _ctx: logged(log_title, loc, lambda: work(loc)), title=title, quiet=True)
+
+    def apply_setup(self, profile: str | Path, overhaul_id: str) -> str:
+        """Install the saved setup again in every profile using it, as one job with one Undo; returns its id. The
+        result is {"profiles": [names]}. Raises not_found, busy; the job fails with cannot_apply."""
+        from bayle.mods.overhaul_install import OverhaulError
+
+        prof = self._profile(profile)
+
+        def work(loc: Locations) -> dict:
+            try:
+                return {"profiles": mod_service.reapply_overhaul_setup(prof, overhaul_id, loc=loc)}
+            except OverhaulError as e:
+                raise OperationError("cannot_apply", str(e), {"overhaul_id": overhaul_id}) from e
+
+        return self._job(
+            tr("Applying the overhaul setup to the profiles using it..."),
+            "launcher: apply the saved overhaul setup",
+            work,
+        )
+
+    def _install_preview(self, profile: Path, form: SetupValues, folder: str, name: str, overhaul_id: str):
+        """The install preview of the mod in folder (one of setup_candidates') with the form's values."""
+        setup = self._setup_of(profile, folder, name, overhaul_id)
+        config = self._config_with(setup, form)
+        try:
+            return mod_service.preview_overhaul_setup(profile, folder, config, loc=self._loc())
+        except Exception as e:
+            raise OperationError("cannot_set_up", str(e)) from e
+
+    def check_install_setup(
+        self, profile: str | Path, folder: str, name: str, form: SetupValues, overhaul_id: str = ""
+    ) -> SetupPlan:
+        """What setting the mod in folder up as the profile's overhaul would do (writes nothing). Raises not_found,
+        cannot_set_up, invalid_setup."""
+        prof = self._profile(profile)
+        p = self._install_preview(prof, form, folder, name, overhaul_id)
+        return SetupPlan(p.label, tuple(p.lines), tuple(p.notes), tuple(p.refusals), stamp(prof))
+
+    def install_setup(
+        self,
+        profile: str | Path,
+        folder: str,
+        name: str,
+        form: SetupValues,
+        expect: tuple[int, int] | None,
+        overhaul_id: str = "",
+    ) -> str:
+        """Set the mod up as the profile's overhaul, as a job (one Undo); returns its id. expect: the stamp
+        check_install_setup gave. The result is {"name"}. Raises stale, cannot_set_up (details: refusals), busy."""
+        from bayle.mods.overhaul_install import OverhaulError
+
+        prof = self._profile(profile)
+        preview = self._install_preview(prof, form, folder, name, overhaul_id)
+        if not preview.ok:
+            raise OperationError("cannot_set_up", " ".join(preview.refusals), {"refusals": list(preview.refusals)})
+        if not _unchanged(stamp(prof), expect):
+            raise OperationError("stale", "The profile changed since you were asked. Ask again.")
+
+        def work(loc: Locations) -> dict:
+            try:
+                return {"name": mod_service.install_overhaul_setup(preview, loc=loc)["name"]}
+            except (OverhaulError, OSError) as e:
+                raise OperationError("cannot_set_up", str(e), {"label": preview.label}) from e
+
+        return self._job(
+            tr("Installing {label} as an overhaul...").format(label=preview.label),
+            f"launcher: set up {preview.label} as an overhaul",
+            work,
+        )
+
+    def _turn_off_preview(self, profile: Path):
+        try:
+            return mod_service.preview_turn_off_overhaul(profile, loc=self._loc())
+        except Exception as e:  # the profile has no overhaul
+            raise OperationError("cannot_turn_off", str(e)) from e
+
+    def check_turn_off(self, profile: str | Path) -> SetupPlan:
+        """What turning the profile's overhaul back into an ordinary mod would do (writes nothing). Raises
+        cannot_turn_off."""
+        prof = self._profile(profile)
+        p = self._turn_off_preview(prof)
+        return SetupPlan(p.remove.config.label, tuple(p.lines), (), tuple(p.refusals), stamp(prof))
+
+    def turn_off(self, profile: str | Path, expect: tuple[int, int] | None) -> str:
+        """Turn the overhaul off as a job (one Undo); returns its id. expect: the stamp check_turn_off gave. The
+        result is {"name"}. Raises stale, cannot_turn_off (details: refusals), busy."""
+        from bayle.mods.overhaul_install import OverhaulError
+
+        prof = self._profile(profile)
+        preview = self._turn_off_preview(prof)
+        if not preview.ok:
+            raise OperationError("cannot_turn_off", " ".join(preview.refusals), {"refusals": list(preview.refusals)})
+        if not _unchanged(stamp(prof), expect):
+            raise OperationError("stale", "The profile changed since you were asked. Ask again.")
+        label = preview.remove.config.label
+
+        def work(_loc: Locations) -> dict:
+            try:
+                return {"name": mod_service.turn_off_overhaul(preview)["name"]}
+            except (OverhaulError, OSError) as e:
+                raise OperationError("cannot_turn_off", str(e), {"label": label}) from e
+
+        return self._job(
+            tr("Removing the overhaul setup of {label}...").format(label=label),
+            f"launcher: turn off overhaul {label}",
+            work,
+        )
+
+    # ---- sharing Seamless Co-op settings
+    def _ini(self, profile: str | Path, ini: str | Path, settings: LauncherSettings | None) -> Path:
+        node, f = self._listed(profile, ini, settings)
+        if node.kind != SEAMLESS:
+            raise OperationError("not_found", "That is not the Seamless Co-op settings file.", {"ini": str(ini)})
+        return f.path
+
+    def share(self, profile: str | Path, ini: str | Path, settings: LauncherSettings | None = None) -> str:
+        """Every setting as text, the password included (a friend needs it to join). Raises not_found."""
+        return share_text(self._ini(profile, ini, settings))
+
+    def export_share(
+        self, profile: str | Path, ini: str | Path, to: str | Path, settings: LauncherSettings | None = None
+    ) -> str:
+        """Write share() to the file to as a job, whole or not at all; returns its id. The result is {"path"}. The
+        job fails with not_saved (details: path)."""
+        src, dest = self._ini(profile, ini, settings), Path(to)
+        if _same(src, dest):
+            raise OperationError("invalid_params", "Save the settings to another file.")
+
+        def run(_ctx) -> dict:
+            try:
+                atomic_write(dest, share_text(src).encode("utf-8"))
+            except OSError as e:
+                raise OperationError("not_saved", str(e), {"path": str(dest)}) from e
+            return {"path": str(dest)}
+
+        # it never touches the game's files, so the game running or another job does not stop it
+        return self._jobs.start(run, title=tr("Saving the settings..."), writes=False, quiet=True)
+
+    def check_paste(
+        self, profile: str | Path, ini: str | Path, text: str, settings: LauncherSettings | None = None
+    ) -> PastePlan:
+        """What a friend's shared settings would change in the file (writes nothing). Raises not_found,
+        not_settings (the text holds none), nothing_to_change (details: unknown)."""
+        path = self._ini(profile, ini, settings)
+        stamped = stamp(path)
+        try:
+            changes, unknown, _opened = plan_paste(path, text)
+        except Exception as e:
+            raise OperationError("not_settings", str(e)) from e
+        if not changes:
+            raise OperationError("nothing_to_change", "It matches your settings.", {"unknown": unknown})
+        return PastePlan(changes, tuple(unknown), stamped)
+
+    def paste(
+        self,
+        profile: str | Path,
+        ini: str | Path,
+        text: str,
+        expect: tuple[int, int] | None,
+        settings: LauncherSettings | None = None,
+    ) -> int:
+        """Apply a friend's shared settings; returns how many settings changed. expect: the stamp check_paste gave.
+        Raises not_found, not_settings, nothing_to_change, stale, password_empty, not_saved."""
+        path = self._ini(profile, ini, settings)
+        if not _unchanged(stamp(path), expect):
+            raise OperationError("stale", f"{path.name} changed since you were asked. Ask again.", {"name": path.name})
+        try:
+            changes, unknown, opened = plan_paste(path, text)
+        except Exception as e:
+            raise OperationError("not_settings", str(e)) from e
+        if not changes:
+            raise OperationError("nothing_to_change", "It matches your settings.", {"unknown": unknown})
+        try:
+            apply_paste(opened, changes)
+        except OperationError:
+            raise
+        except Exception as e:
+            raise OperationError("not_saved", str(e), {"name": path.name}) from e
+        return len(changes)

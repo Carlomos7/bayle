@@ -211,19 +211,15 @@ def apply_loading_fixes(
             say(f"  {who}: {BY_KEY[key].action}")
             changes.append(f"{who}: {BY_KEY[key].title}")
         F._sign_slot(data, p["slot"])
-    probe = save.with_name(save.name + ".roundtable.verify")
-    probe.write_bytes(data)
-    try:
-        after = L.parse(str(probe))
+
+    def fixed(after: dict) -> None:
         for p in plan:
             left = set(detect_slot(after["slots"][p["slot"]], dlc_owned)) & set(p["issues"])
             if left:
                 raise F.FixError(f"slot {p['slot'] + 1}: {', '.join(sorted(left))} still detected; not writing")
-    finally:
-        probe.unlink(missing_ok=True)
+
     touched = [p["slot"] for p in plan]
-    bak = F._commit(
-        save, bytes(data), touched, parsed["ud10_md5_ok"], {"action": "Before fixing loading", "changes": changes}
-    )
+    manifest = {"action": "Before fixing loading", "changes": changes}
+    bak = F._commit(save, bytes(data), touched, parsed["ud10_md5_ok"], manifest, check=fixed)
     say(f"  backup: {bak}")
     return {"fixed": [{"slot": p["slot"], "name": p["name"], "issues": p["issues"]} for p in plan], "backup": bak}

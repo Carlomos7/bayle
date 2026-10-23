@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
-import shutil
 import time
 from pathlib import Path
 from typing import Any
@@ -15,6 +14,7 @@ from bayle.mods import kinds
 from bayle.mods import models as mod_models
 from bayle.platform import cpu
 from bayle.platform import logging as run_logging
+from bayle.platform.files import durable_write
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.saves import analyze as save_analyze
 from bayle.saves import backups as save_backups
@@ -547,20 +547,19 @@ def restore_backup(bak: Path, save: Path | None = None, *, loc: Locations) -> Pa
             save_container.check(data, game.save_sections)
         except save_container.ContainerError as e:
             raise RuntimeError(f"That backup is not a whole {game.name} save: {e}.") from e
-    safety = None
-    if save.exists():
-        safety = save_fix.backup(
-            save,
-            {
-                "action": "Before restoring a backup",
-                "changes": [f"restored the copy from {save_backups.note_of(bak).get('when') or bak.name}"],
-            },
-        )
-    tmp = save.with_name(save.name + ".roundtable.tmp")
-    tmp.write_bytes(data)
-    tmp.replace(save)
-    if save.read_bytes() != data:
-        raise RuntimeError(f"{save.name} did not read back the same after the restore; restore it from Backups.")
+    manifest = {
+        "action": "Before restoring a backup",
+        "changes": [f"restored the copy from {save_backups.note_of(bak).get('when') or bak.name}"],
+    }
+    safety = durable_write(
+        save,
+        data,
+        verify=lambda tmp: _same_bytes(
+            tmp, data, "the restored copy did not read back as written; nothing was changed"
+        ),
+        before_replace=(lambda: save_fix.backup(save, manifest)) if save.exists() else None,
+        after=lambda p: _same_bytes(p, data, "did not read back the same after the restore; restore it from Backups."),
+    )
     run_logging.log(f"restored {bak.name} over {save.name}" + (f" (safety copy: {safety.name})" if safety else ""))
     return safety
 
@@ -586,6 +585,11 @@ def repair_save(path: Path, *, loc: Locations) -> bool:
 
 
 SETTLE_SECONDS = 4.0  # how long a save must be unchanged before the launcher writes it
+
+
+def _same_bytes(path: Path, data: bytes, why: str) -> None:
+    if Path(path).read_bytes() != data:
+        raise RuntimeError(f"{Path(path).name} {why}")
 
 
 def assert_writable(path: Path, settle_seconds: float | None = None, *, loc: Locations) -> None:
@@ -724,39 +728,6 @@ def save_summary(info: dict) -> list:
     else:
         chips.append(("Opens in save editors", "success"))
     return chips
-
-
-def convert_co2_to_sl2(path: Path, dest: Path | None = None, *, force: bool = False, loc: Locations) -> Path:
-    """Copy a .co2 over the .sl2 only when its findings are clean (or force=True after an explicit confirm). The
-    standard save it replaces is backed up first."""
-    path = Path(path)
-    if path.suffix.lower() != ".co2":
-        raise RuntimeError("Only Seamless Co-op .co2 files can be converted this way.")
-    if loc.game_running():
-        raise RuntimeError(f"{loc.game.name} is running. Close it before converting saves.")
-    info = save_info(path, loc=loc)
-    if not force and not save_analyze.findings_are_clean(info["findings"]):
-        raise RuntimeError("Findings are not clean. Repair or clear warnings first, or use force after confirming.")
-    dest = Path(dest) if dest else path.with_suffix(".sl2")
-    if dest.exists():
-        save_fix.backup(dest, {"action": "Before copying the co-op save over it", "changes": [path.name]})
-    shutil.copy2(path, dest)
-    return dest
-
-
-def convert_sl2_to_co2(path: Path, dest: Path | None = None, *, loc: Locations) -> Path:
-    """Copy a standard .sl2 over the .co2 Seamless Co-op reads (same format). The co-op save it replaces is backed
-    up first."""
-    path = Path(path)
-    if path.suffix.lower() != ".sl2":
-        raise RuntimeError("Only standard .sl2 files can be copied this way.")
-    if loc.game_running():
-        raise RuntimeError(f"{loc.game.name} is running. Close it before converting saves.")
-    dest = Path(dest) if dest else path.with_suffix(".co2")
-    if dest.exists():
-        save_fix.backup(dest, {"action": "Before copying the standard save over it", "changes": [path.name]})
-    shutil.copy2(path, dest)
-    return dest
 
 
 def dead_shells_count(*, loc: Locations) -> int:

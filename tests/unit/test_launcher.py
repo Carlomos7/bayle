@@ -7,7 +7,6 @@ import pytest
 
 from bayle.config.settings import LauncherSettings
 from bayle.game.locate import Locations, Overrides
-from bayle.platform import paths
 from bayle.services import coop as coop_service
 from bayle.services import mods as mods_service
 from bayle.services import play as g
@@ -128,15 +127,6 @@ def test_known_item_ids_bundled():
     assert len(ids) > 1000
     # Lordsworn's Straight Sword base id is a common vanilla weapon row
     assert any((i & 0xF0000000) == 0 for i in ids)
-
-
-def test_convert_co2_refuses_dirty(tmp_path, monkeypatch):
-    p = tmp_path / "ER0000.co2"
-    p.write_bytes(b"not a save")
-    monkeypatch.setattr(paths, "exe_running", lambda _exe: False)
-    with pytest.raises(RuntimeError) as exc:
-        saves_service.convert_co2_to_sl2(p, loc=er())
-    assert "clean" in str(exc.value).lower() or "Findings" in str(exc.value)
 
 
 def test_dead_shells_count_is_int():

@@ -17,6 +17,7 @@ import struct
 from pathlib import Path
 
 from bayle.game import catalog as games
+from bayle.platform.files import durable_write
 from bayle.saves import fix as save_fix
 from bayle.saves import layout as L
 from bayle.saves import library
@@ -66,17 +67,24 @@ def copy_file(source: Path, target: Path, game: games.Game, keep_as: str | None 
     data = source.read_bytes()
     library.check_whole(data, game)
     data, signed = library.signed_for_account(data, target, game)
-    kept = bak = None
+    kept = None
     if target.exists():
         kept = library.add(
             target.parent, target, keep_as or library.default_name(target, game), game, action="replaced"
         )
-        bak = save_fix.backup(target, {"action": f"Before copying {source.name} over it", "changes": [source.name]})
-    tmp = target.with_name(target.name + ".roundtable.tmp")
-    tmp.write_bytes(data)
-    tmp.replace(target)
-    if target.read_bytes() != data:
-        raise TransferError(f"{target.name} did not read back the same; restore it from Backups.")
+    manifest = {"action": f"Before copying {source.name} over it", "changes": [source.name]}
+
+    def same(path: Path, why: str) -> None:
+        if path.read_bytes() != data:
+            raise TransferError(f"{target.name} {why}")
+
+    bak = durable_write(
+        target,
+        data,
+        verify=lambda tmp: same(tmp, "was not written as expected; nothing was changed."),
+        before_replace=(lambda: save_fix.backup(target, manifest)) if kept is not None else None,
+        after=lambda p: same(p, "did not read back the same; restore it from Backups."),
+    )
     return {"kept": kept, "backup": bak, "signed": signed}
 
 

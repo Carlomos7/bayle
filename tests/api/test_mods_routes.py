@@ -53,5 +53,7 @@ def test_a_plan_over_http_asks_then_starts_its_job(client, profile):
     assert offer["prompt"]["kind"] == "confirm" and offer["plan_id"]
     done = client.post(f"/v1/plans/{offer['plan_id']}", json={"ok": True})
     assert client.get(f"/v1/jobs/{done.json()['job_id']}").json()["state"] == "done"
+    used = client.post(f"/v1/plans/{offer['plan_id']}", json={"ok": True})  # a plan is answered once
+    assert used.status_code == 404 and used.json()["code"] == "unknown_plan"
     again = client.post("/v1/ops/mods.dll_folders", json={"profile": str(profile)}).json()
     assert again["plan_id"] is None and again["prompt"]["kind"] == "refusal"

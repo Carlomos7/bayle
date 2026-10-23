@@ -67,11 +67,11 @@ def test_names_outside_the_jobs_folder_are_refused():
 def test_unseen_failures_count_only_after_the_last_look():
     make_job("repair", ["error: x"], "failed")
     first = rl.read_jobs()[0]
-    assert len(rl.unseen_failures(0)) == 1
-    assert rl.unseen_failures(float(first["t"])) == []
+    assert len(rl.unseen_failures(0, rl.read_jobs())) == 1
+    assert rl.unseen_failures(float(first["t"]), rl.read_jobs()) == []
     make_job("play", ["fine"])
     make_job("install mod y", ["error: z"], "failed")
-    assert [r["title"] for r in rl.unseen_failures(float(first["t"]))] == ["install mod y"]
+    assert [r["title"] for r in rl.unseen_failures(float(first["t"]), rl.read_jobs())] == ["install mod y"]
 
 
 def test_kinds_fall_into_the_filter_groups():

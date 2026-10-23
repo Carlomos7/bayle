@@ -346,4 +346,5 @@ def post_session_repair(*, loc: Locations) -> Written:
 def undo_change(save: Path, backup: Path, *, loc: Locations) -> str:
     """The toast's Undo: put the backup taken before a save write back. Returns what was done, in words."""
     progress = tr("Undoing the change to {name}...").format(name=Path(save).name)
-    return activity_service.undo(restore_record(save, backup), "", Path(save).name, loc, progress)
+    # no job id: nothing in the jobs index to mark undone, so no activity log is needed
+    return activity_service.run_undo(restore_record(save, backup), "", Path(save).name, loc, progress, None)

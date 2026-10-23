@@ -262,7 +262,7 @@ def test_undo_stays_in_the_file_and_retention_never_touches_it(database):
         row.ended_at = models.utc_now() - datetime.timedelta(days=100)
     assert store.prune_completed() == 1
     assert next(r for r in rl.read_jobs() if r["id"] == job.id)["undo"]  # still offered: undo is in its file
-    rl.mark_undone(job.id)
+    rl.mark_undone(job.id, store)
     assert not next(r for r in rl.read_jobs() if r["id"] == job.id)["undo"]
 
 

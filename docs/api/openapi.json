@@ -1,38 +1,26 @@
 {
   "components": {
     "schemas": {
-      "ActivityState": {
+      "ActivityJobs": {
         "properties": {
-          "days": {
+          "jobs": {
             "items": {
-              "$ref": "#/components/schemas/Day"
+              "additionalProperties": true,
+              "type": "object"
             },
-            "title": "Days",
-            "type": "array"
-          },
-          "empty": {
-            "title": "Empty",
-            "type": "string"
-          },
-          "summary": {
-            "items": {
-              "$ref": "#/components/schemas/SummaryCard"
-            },
-            "title": "Summary",
+            "title": "Jobs",
             "type": "array"
           },
           "unseen": {
-            "default": 0,
             "title": "Unseen",
             "type": "integer"
           }
         },
         "required": [
-          "summary",
-          "days",
-          "empty"
+          "jobs",
+          "unseen"
         ],
-        "title": "ActivityState",
+        "title": "ActivityJobs",
         "type": "object"
       },
       "AddParams": {
@@ -367,25 +355,6 @@
         "title": "CharacterParams",
         "type": "object"
       },
-      "Choice": {
-        "description": "One entry of a filter drop-down: the value it filters by (\"\" for all) and its label.",
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label"
-        ],
-        "title": "Choice",
-        "type": "object"
-      },
       "ChoiceRow": {
         "properties": {
           "key": {
@@ -514,35 +483,6 @@
         "title": "CopyEntry",
         "type": "object"
       },
-      "CopyParams": {
-        "additionalProperties": false,
-        "properties": {
-          "detail": {
-            "default": false,
-            "title": "Detail",
-            "type": "boolean"
-          },
-          "for_support": {
-            "default": false,
-            "title": "For Support",
-            "type": "boolean"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "source": {
-            "default": "",
-            "title": "Source",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id"
-        ],
-        "title": "CopyParams",
-        "type": "object"
-      },
       "CopyRef": {
         "additionalProperties": false,
         "properties": {
@@ -560,40 +500,6 @@
           "entry_id"
         ],
         "title": "CopyRef",
-        "type": "object"
-      },
-      "CopyText": {
-        "properties": {
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "title": "CopyText",
-        "type": "object"
-      },
-      "Day": {
-        "properties": {
-          "jobs": {
-            "items": {
-              "$ref": "#/components/schemas/JobItem"
-            },
-            "title": "Jobs",
-            "type": "array"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "label",
-          "jobs"
-        ],
-        "title": "Day",
         "type": "object"
       },
       "Dependency": {
@@ -1607,87 +1513,6 @@
         "title": "Job",
         "type": "object"
       },
-      "JobItem": {
-        "description": "One job's row.",
-        "properties": {
-          "failed": {
-            "title": "Failed",
-            "type": "boolean"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "line": {
-            "title": "Line",
-            "type": "string"
-          },
-          "meta": {
-            "title": "Meta",
-            "type": "string"
-          },
-          "outcome": {
-            "title": "Outcome",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "$ref": "#/components/schemas/Choice"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "undo_label": {
-            "title": "Undo Label",
-            "type": "string"
-          },
-          "undo_tip": {
-            "title": "Undo Tip",
-            "type": "string"
-          },
-          "when": {
-            "title": "When",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "when",
-          "title",
-          "outcome",
-          "level",
-          "meta",
-          "line",
-          "failed",
-          "undo_label",
-          "undo_tip",
-          "sources"
-        ],
-        "title": "JobItem",
-        "type": "object"
-      },
-      "JobRef": {
-        "additionalProperties": false,
-        "properties": {
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id"
-        ],
-        "title": "JobRef",
-        "type": "object"
-      },
       "JobStarted": {
         "properties": {
           "job_id": {
@@ -2136,11 +1961,6 @@
       "LogParams": {
         "additionalProperties": false,
         "properties": {
-          "detail": {
-            "default": false,
-            "title": "Detail",
-            "type": "boolean"
-          },
           "job_id": {
             "title": "Job Id",
             "type": "string"
@@ -2157,56 +1977,39 @@
         "title": "LogParams",
         "type": "object"
       },
-      "LogRow": {
+      "LogView": {
         "properties": {
-          "level": {
-            "title": "Level",
-            "type": "string"
+          "attachment": {
+            "title": "Attachment",
+            "type": "boolean"
+          },
+          "cut": {
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "entries": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "missing": {
+            "title": "Missing",
+            "type": "boolean"
           },
           "text": {
             "title": "Text",
             "type": "string"
-          },
-          "time": {
-            "title": "Time",
-            "type": "string"
           }
         },
         "required": [
-          "time",
-          "level",
-          "text"
-        ],
-        "title": "LogRow",
-        "type": "object"
-      },
-      "LogView": {
-        "properties": {
-          "missing": {
-            "default": false,
-            "title": "Missing",
-            "type": "boolean"
-          },
-          "note": {
-            "default": "",
-            "title": "Note",
-            "type": "string"
-          },
-          "plain": {
-            "title": "Plain",
-            "type": "string"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/LogRow"
-            },
-            "title": "Rows",
-            "type": "array"
-          }
-        },
-        "required": [
-          "rows",
-          "plain"
+          "entries",
+          "text",
+          "attachment",
+          "cut",
+          "missing"
         ],
         "title": "LogView",
         "type": "object"
@@ -5416,29 +5219,6 @@
         "title": "StrandedParams",
         "type": "object"
       },
-      "SummaryCard": {
-        "properties": {
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "value": {
-            "title": "Value",
-            "type": "string"
-          }
-        },
-        "required": [
-          "label",
-          "value",
-          "level"
-        ],
-        "title": "SummaryCard",
-        "type": "object"
-      },
       "SwitchRow": {
         "properties": {
           "blurb": {
@@ -5508,6 +5288,26 @@
           "level"
         ],
         "title": "Tag",
+        "type": "object"
+      },
+      "TakeBack": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "additionalProperties": true,
+            "title": "Expect",
+            "type": "object"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "expect"
+        ],
+        "title": "TakeBack",
         "type": "object"
       },
       "TextCheck": {
@@ -6537,52 +6337,6 @@
         "summary": "Cancel Job"
       }
     },
-    "/v1/ops/activity.copy": {
-      "post": {
-        "operationId": "op_activity_copy",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CopyParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CopyText"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "activity.copy (read)",
-        "tags": [
-          "activity"
-        ]
-      }
-    },
     "/v1/ops/activity.log": {
       "post": {
         "operationId": "op_activity_log",
@@ -6708,7 +6462,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobRef"
+                "$ref": "#/components/schemas/TakeBack"
               }
             }
           },
@@ -6719,7 +6473,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -6741,7 +6495,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "activity.undo (plan, writes)",
+        "summary": "activity.undo (command, writes)",
         "tags": [
           "activity"
         ]
@@ -12202,58 +11956,16 @@
     "/v1/pages/activity": {
       "get": {
         "operationId": "page_activity",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "game",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Game",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "group",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Group",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "failed_only",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Failed Only",
-              "type": "boolean"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ActivityState"
+                  "$ref": "#/components/schemas/ActivityJobs"
                 }
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "security": [

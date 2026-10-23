@@ -57,6 +57,10 @@ def test_the_shell_runs_on_the_engines_jobs_bus_and_plans():
     try:
         shell = Shell(engine, background=InlineBackground())
         assert shell.jobs is engine.jobs and shell.bus is engine.bus and shell.session.plans is engine.plans
+        # Activity reads the engine's activity log and gates its undo on the engine's job manager
+        assert engine.activity is not None
+        assert shell.activity._store is engine.activity and shell.activity._jobs is engine.jobs
+        assert shell.session.service("activity", object) is shell.activity
     finally:
         engine.close()
 

@@ -21,7 +21,7 @@ class LogParams(JobRef):
     source: str = ""  # an attachment's name; "" is the job's own log
 
 
-class UndoParams(JobRef):
+class TakeBack(JobRef):
     expect: dict[str, Any]  # the undo record the client confirmed (refused as stale when it changed)
 
 
@@ -92,7 +92,7 @@ def mark_seen(call: Call, p: NoParams) -> Seen:
     return Seen(at=_activity(call.session).mark_seen())
 
 
-@operation("activity.undo", params=UndoParams, result=Started, kind="command", writes=True)
-def undo(call: Call, p: UndoParams) -> Started:
+@operation("activity.undo", params=TakeBack, result=Started, kind="command", writes=True)
+def undo(call: Call, p: TakeBack) -> Started:
     """Start taking a job back (its result: {"said": ...}); refusals are OperationError codes (services.activity)."""
     return Started(job_id=_activity(call.session).undo(p.job_id, p.expect))

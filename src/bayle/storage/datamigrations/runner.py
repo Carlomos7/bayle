@@ -8,11 +8,11 @@ from __future__ import annotations
 import datetime
 import json
 import os
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from bayle.platform import files
 from bayle.platform import logging as run_logging
 from bayle.storage import db as storage_db
 
@@ -29,24 +29,11 @@ class MigrationError(storage_db.MigrationFailed):
 
 
 def write_json(path: Path, obj: Any) -> None:
-    """Write through a temp file in the same folder: flushed to disk, renamed into place, the folder flushed."""
+    """Write through platform.files.durable_write: a temp file in the same folder, fsynced, renamed into place, the
+    folder fsynced."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=1)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-        if sys.platform != "win32":  # a directory can't be opened for fsync on Windows
-            fd = os.open(path.parent, os.O_RDONLY)
-            try:
-                os.fsync(fd)
-            finally:
-                os.close(fd)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
+    # os.linesep keeps the bytes the old text-mode write gave (CRLF on Windows); json escapes newlines in values.
+    files.durable_write(path, json.dumps(obj, indent=1).replace("\n", os.linesep))
 
 
 def _read_version(path: Path) -> int | None:

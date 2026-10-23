@@ -138,15 +138,16 @@ def test_adopt_legacy_is_a_command_and_the_folders_command_makes_them(world):
 # ---------------------------------------------------------------------------------------------------- writes
 def test_back_up_one_and_all_take_a_backup_and_say_so(world):
     s = world.session()
-    one = finished(s, s.run("saves.back_up", {"paths": [str(world.save)]}))
-    assert one.result["text"].startswith("Backed up ER0000.sl2 (") and one.result["undo"] is None
-    both = finished(s, s.run("saves.back_up", {"everything": True}))
-    assert both.result["text"] == "Backed up 1 save file(s)."
+    one = finished(s, s.run("saves.back_up", {"paths": [str(world.save)]}).job_id)
+    assert one.result["saves"] == [str(world.save)] and len(one.result["backups"]) == 1 and one.undo is None
+    both = finished(s, s.run("saves.back_up", {"everything": True}).job_id)
+    assert both.result["saves"] == [str(world.save)] and len(both.result["backups"]) == 1
     backups = world.backups()
     assert [b["action"] for b in backups] == ["Manual backup"] * 2
     assert all(b["path"].read_bytes() == OLD for b in backups)
-    nothing = s.jobs.get(s.run("saves.back_up", {}))
-    assert nothing is not None and nothing.error is not None and nothing.error.code == "invalid_params"
+    with pytest.raises(OperationError) as e:
+        s.run("saves.back_up", {})
+    assert e.value.code == "invalid_params"
 
 
 def test_restore_makes_the_same_backup_as_before_and_returns_the_undo_record(world):
@@ -310,27 +311,33 @@ def test_a_plan_is_refused_when_the_save_changed_since_it_was_asked(world):
 
 # ---------------------------------------------------------------------------------------------------- the Library
 def test_save_a_copy_and_import_add_to_the_library_even_while_the_game_runs(world):
+    # the detail (results, failures, gates) is in test_saves_copy_in.py; this keeps the old page-level intent
     s = world.session(game_running=lambda: True)
-    got = finished(s, s.run("saves.save_copy", {"path": str(world.save), "name": "Mine"}))
-    assert got.result["text"] == "Saved a copy of ER0000.sl2 as 'Mine'" and got.result["backup"] is None
+    got = finished(s, s.run("saves.save_copy", {"path": str(world.save), "name": "Mine"}).job_id)
+    assert got.result["name"] == "Mine" and got.result["source"] == str(world.save) and got.undo is None
     extra = world.folder / "x.sl2"
     extra.write_bytes(OTHER)
-    one = finished(s, s.run("saves.import_files", {"files": [str(extra)], "name": "Imported"}))
-    assert one.result["text"] == "Imported 'Imported' into the Library"
-    many = finished(s, s.run("saves.import_files", {"files": [str(extra), str(world.save)]}))
-    assert many.result["text"] == "Imported 2 files into the Library"
+    one = finished(s, s.run("saves.import_files", {"files": [str(extra)], "name": "Imported"}).job_id)
+    assert [i["name"] for i in one.result["imported"]] == ["Imported"] and one.result["failed"] == []
+    many = finished(s, s.run("saves.import_files", {"files": [str(extra), str(world.save)]}).job_id)
+    assert len(many.result["imported"]) == 2
     assert len(save_library.load(world.folder)["entries"]) == 4
     assert world.save.read_bytes() == OLD and world.backups() == []
 
 
-def test_save_a_copy_waits_for_a_running_write(world):
+def test_save_a_copy_is_refused_beside_a_running_write(world):
+    from bayle.errors import Busy
+
     s = world.session(external_busy=lambda: True)
-    snap = s.jobs.get(s.run("saves.save_copy", {"path": str(world.save), "name": "Mine"}))
-    assert snap is not None and snap.state == "failed" and snap.error is not None and snap.error.code == "busy"
+    with pytest.raises(Busy):
+        s.run("saves.save_copy", {"path": str(world.save), "name": "Mine"})
+    assert save_library.load(world.folder)["entries"] == []
 
 
-def test_import_without_a_save_folder_is_a_failed_job_with_a_code(world):
+def test_import_without_a_save_folder_is_refused_with_a_code(world, tmp_path):
     world.save.unlink()
-    s = world.session()
-    snap = s.jobs.get(s.run("saves.import_files", {"files": [str(world.folder / "x.sl2")]}))
-    assert snap is not None and snap.error is not None and snap.error.code == "no_saves"
+    picked = tmp_path / "x.sl2"
+    picked.write_bytes(OTHER)
+    with pytest.raises(OperationError) as e:
+        world.session().run("saves.import_files", {"files": [str(picked)]})
+    assert e.value.code == "no_saves"

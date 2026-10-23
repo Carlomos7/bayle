@@ -236,3 +236,96 @@ def test_not_found_is_a_404_and_touches_nothing(env):
 def test_bad_params_are_422_not_500(env, name, body):
     got = env.post(name, body)
     assert got.status_code == 422 and got.json()["code"] == "invalid_params"
+
+
+# ------------------------------------------------------------------------------------------------ groups C and D
+def job_result(env, started):
+    """A started job's id from the response (200), and what GET /v1/jobs/{id} says of it."""
+    assert started.status_code == 200, started.text
+    body = started.json()
+    assert list(body) == ["job_id"]
+    job = env.client.get(f"/v1/jobs/{body['job_id']}")
+    assert job.status_code == 200
+    return job.json()
+
+
+def test_save_copy_returns_a_job_id_and_the_job_holds_the_result(env):
+    job = job_result(env, env.post("saves.save_copy", {"path": str(env.save), "name": "Mine"}))
+    [entry] = env.entries()
+    assert job["state"] == "done" and job["error"] is None
+    assert job["result"] == {"source": str(env.save), "entry_id": entry["id"], "name": "Mine"}
+    assert env.save.read_bytes() == OLD
+
+
+def test_back_up_returns_a_job_id_and_the_job_holds_the_result(env):
+    job = job_result(env, env.post("saves.back_up", {"everything": True}))
+    assert job["state"] == "done" and job["result"]["saves"] == [str(env.save)]
+    [bak] = job["result"]["backups"]
+    assert open(bak, "rb").read() == OLD
+
+
+def test_import_returns_a_job_id_and_the_job_holds_imported_and_failed(env):
+    good, bad = env.tmp / "good.sl2", env.tmp / "bad.sl2"
+    good.write_bytes(OTHER)  # bad is never written: two files, so a missing one is a listed failure, not a refusal
+    job = job_result(env, env.post("saves.import_files", {"files": [str(good), str(bad)]}))
+    assert job["state"] == "done"
+    assert [i["file"] for i in job["result"]["imported"]] == [str(good)]
+    assert job["result"]["failed"] == [{"file": str(bad), "code": "not_found"}]
+    assert [e["name"] for e in env.entries()] == [save_library.default_name(good, catalog.ELDEN_RING)]
+
+
+def test_a_failed_job_reports_its_code_over_http(env, monkeypatch):
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(save_library, "_save", boom)
+    job = job_result(env, env.post("saves.save_copy", {"path": str(env.save), "name": "Mine"}))
+    assert job["state"] == "failed" and job["error"]["code"] == "failed" and env.entries() == []
+
+
+def test_unlisted_and_missing_things_are_404_and_touch_nothing(env):
+    stray = env.tmp / "stray.sl2"
+    stray.write_bytes(OTHER)
+    for name, body in (
+        ("saves.back_up", {"paths": [str(stray)]}),
+        ("saves.save_copy", {"path": str(stray), "name": "X"}),
+        ("saves.import_files", {"files": [str(env.tmp / "nope.sl2")]}),
+    ):
+        got = env.post(name, body)
+        assert got.status_code == 404 and got.json()["code"] == "not_found", name
+    assert env.entries() == [] and stray.read_bytes() == OTHER and env.save.read_bytes() == OLD
+
+
+def test_bad_names_and_nothing_to_do_are_refused_with_their_codes(env):
+    cases = (
+        ("saves.save_copy", {"path": str(env.save), "name": "   "}, "invalid_name"),
+        ("saves.import_files", {"files": [str(env.save)], "name": ""}, "invalid_name"),
+        ("saves.import_files", {"files": [], "name": None}, "invalid_params"),
+        ("saves.back_up", {}, "invalid_params"),
+    )
+    for name, body, code in cases:
+        got = env.post(name, body)
+        assert got.status_code in (400, 422) and got.json()["code"] == code, name
+    assert env.entries() == []
+
+
+@pytest.mark.parametrize(
+    ("name", "body"),
+    [
+        ("saves.back_up", {"paths": "x"}),
+        ("saves.back_up", {"paths": [1]}),
+        ("saves.back_up", {"everything": "maybe"}),
+        ("saves.save_copy", {}),
+        ("saves.save_copy", {"path": "p"}),
+        ("saves.save_copy", {"path": 5, "name": "X"}),
+        ("saves.save_copy", {"path": "p", "name": ["X"]}),
+        ("saves.import_files", {}),
+        ("saves.import_files", {"files": "a"}),
+        ("saves.import_files", {"files": [1]}),
+        ("saves.import_files", {"files": ["a"], "name": 5}),
+    ],
+)
+def test_bad_params_for_back_up_save_copy_and_import_are_422_not_500(env, name, body):
+    got = env.post(name, body)
+    assert got.status_code == 422 and got.json()["code"] == "invalid_params"
+    assert env.entries() == []

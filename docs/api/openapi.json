@@ -4423,6 +4423,19 @@
         "title": "SavedLogs",
         "type": "object"
       },
+      "SavesJob": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "SavesJob",
+        "type": "object"
+      },
       "SavesState": {
         "description": "The page's facts. The presenter (views.saves) words them; which save the profile plays on is the host's.",
         "properties": {
@@ -10333,11 +10346,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -10359,7 +10372,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.back_up (job, writes)",
+        "summary": "saves.back_up (command, writes)",
         "tags": [
           "saves"
         ]
@@ -10793,11 +10806,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -10819,7 +10832,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.import_files (job)",
+        "summary": "saves.import_files (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11233,11 +11246,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11259,7 +11272,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.save_copy (job)",
+        "summary": "saves.save_copy (command, writes)",
         "tags": [
           "saves"
         ]

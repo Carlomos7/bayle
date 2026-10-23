@@ -1,5 +1,5 @@
 """The Seamless Co-op ini: password, difficulty scaling, every setting typed from its comment, and the whole-file share JSON.
-The words the window shows for its settings are the Mod Configs presenter's (views/mod_configs.py).
+The words the window shows for its settings are the Mod Configs presenter's (ui/pages/mod_configs/presenter.py).
 
 Elden Ring's Seamless Co-op (ersc.dll) and Nightreign's (nrsc.dll) use the same ini format with different keys:
 Nightreign's has no password and scales with three values instead of six. ScalingSpec says which keys a file has.

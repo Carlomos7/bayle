@@ -1,7 +1,9 @@
 """The Mod Configs page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). What to
-show comes from the presenter, what a change does from services/mod_configs.py. The tree is read on the host's
-worker; one file is read when it is picked (settings files are small). Edits wait in `pending` until Save, which
-writes only those values (refused when the file changed on disk since it was read)."""
+show comes from the presenter, what a change does from the engine's Mod configs interface (host.features.mod_configs,
+services/mod_configs.py), called on the host's worker. The tree is read there; one file is read when it is picked
+(settings files are small). Edits wait in `pending` until Save, which writes only those values (refused as stale when
+the file changed on disk since it was read). Installing, turning off, applying and exporting are jobs the page
+follows; the plans are a check, the presenter's words asked through the Notifier, and a start with the stamp checked."""
 
 from __future__ import annotations
 
@@ -17,13 +19,13 @@ from bayle.errors import OperationError
 from bayle.formats import config_model
 from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
-from bayle.session import Session
+from bayle.services.features import Features
 from bayle.ui.models import plain
 from bayle.ui.notifications import Notifier
+from bayle.ui.pages.mod_configs.presenter import ModConfigsPresenter
 from bayle.ui.refresh import Refresher
-from bayle.views.mod_configs import ModConfigsPresenter
-from bayle.views.mods import Confirm, Pick, Refusal
-from bayle.work.prompts import Plan
+from bayle.views.common import Confirm, Pick, Refusal
+from bayle.views.mods import ModsPresenter
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 
@@ -40,8 +42,9 @@ class ModConfigsHost(Protocol):
     @property
     def profile(self) -> Path | None: ...
     @property
-    def session(self) -> Session: ...
+    def features(self) -> Features: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def follow_job(self, job_id: str, done) -> None: ...
     def show_page(self, name: str) -> Any: ...
     def settings_changed(self, key: str) -> None:
         """A page saved key (here native_configs): the shell reads the settings again."""
@@ -77,7 +80,10 @@ class ModConfigsAdapter(QObject):
         self._node: mod_configs.ModNode | None = None
         self._opened: mod_configs.Opened | None = None
         self._seamless: mod_configs.Seamless | None = None
-        self._fingerprint = ("", "")  # Seamless: the regulation line and its note, read with the file
+        self._fingerprint: tuple[Any, str] = (
+            None,
+            "",
+        )  # Seamless: the parameters' fingerprint and its file, read with it
         self._pending: dict[tuple[str, str], str] = {}
         self._text = ""
         self._edit_text = False
@@ -199,7 +205,10 @@ class ModConfigsAdapter(QObject):
                 int(self._pending.get(("SCALING", k), v)) for k, v in zip(s.spec.keys, s.scaling, strict=True)
             )
             s = dataclasses.replace(s, scaling=values, preset=coop_scaling.preset_of(values, s.spec))
-        return self.presenter.seamless(s, *self._fingerprint)
+        fp, regulation = self._fingerprint
+        words = ModsPresenter()
+        note = words.parameters({}, False, fp).fingerprint_note if fp else ""
+        return self.presenter.seamless(s, words.fingerprint(fp, regulation), note)
 
     def _changed_keys(self) -> list:
         """ "section|key" of every setting whose waiting value differs from the file's (the form's Changed marker)."""
@@ -281,7 +290,7 @@ class ModConfigsAdapter(QObject):
         return self.host.profile
 
     def _build(self, profile: Path | None):
-        state = self.host.session.snapshot("mod_configs", profile=str(profile) if profile else "")
+        state = self.host.features.mod_configs.page(str(profile) if profile else "")
         return (Path(state.profile) if state.profile else None), list(state.nodes)
 
     def _set_loading(self, on: bool) -> None:
@@ -333,19 +342,16 @@ class ModConfigsAdapter(QObject):
         self._seamless = self._ov = None
         self._open_token = token = getattr(self, "_open_token", 0) + 1
         setup_file = node.kind == mod_configs.OVERHAUL and bool(node.setup) and node.files[0].path == path
-        session, profile = self.host.session, self._profile
+        service, profile = self.host.features.mod_configs, str(self._profile or "")
 
         def work():  # the file is read off the UI thread
             try:
-                read = session.run(
-                    "mod_configs.open",
-                    {"path": str(path), "seamless": node.kind == mod_configs.SEAMLESS, "profile": str(profile or "")},
-                )
-                doc = None if setup_file else mod_configs.parse_doc(path.name, read.text)
-                opened = mod_configs.Opened(path, read.text, read.encoding, read.crlf, read.sha, doc)
+                read = service.open(profile, path, seamless=node.kind == mod_configs.SEAMLESS)
+                doc = None if setup_file else mod_configs.parse_doc(path.name, read.opened.text)
+                opened = dataclasses.replace(read.opened, doc=doc)
                 form = None
                 if setup_file and node.kind != mod_configs.SEAMLESS and node.setup:
-                    form = session.run("mod_configs.overhaul_form", {"profile": str(profile)})
+                    form = service.overhaul_form(profile)
                 return read, opened, form, None
             except Exception as e:  # too big, not text, gone: said, nothing open
                 return None, None, None, e
@@ -357,7 +363,7 @@ class ModConfigsAdapter(QObject):
             read, self._opened, form, err = result
             self._mtime = read.stamp if read is not None else None
             self._seamless = read.seamless if read is not None else None
-            self._fingerprint = (read.fingerprint, read.fingerprint_note) if read is not None else ("", "")
+            self._fingerprint = (read.fingerprint, read.regulation) if read is not None else (None, "")
             if form is not None:
                 self._ov = self._ov_state(form, None)
             if err is not None:
@@ -382,11 +388,15 @@ class ModConfigsAdapter(QObject):
         opened, seen = self._opened, self._mtime
         if opened is None or seen is None or self._disk_changed:
             return
-        session, path = self.host.session, str(opened.path)
-        self.host.run_in_background(
-            lambda: session.run("mod_configs.stamp", {"path": path}).stamp,
-            lambda now: self._set_disk_changed(now is not None and now != seen),
-        )
+        service, profile, path = self.host.features.mod_configs, str(self._profile or ""), opened.path
+
+        def stat():
+            try:
+                return service.stamp(profile, path)
+            except OperationError:  # no longer listed: the tree is read again soon
+                return None
+
+        self.host.run_in_background(stat, lambda now: self._set_disk_changed(now is not None and now != seen))
 
     @Slot()
     def reload(self) -> None:
@@ -495,17 +505,17 @@ class ModConfigsAdapter(QObject):
         if self._ov is not None:  # the setup's own file, as text
             self._save_overhaul_text(opened)
             return
-        path = str(opened.path)
+        profile, service = str(self._profile or ""), self.host.features.mod_configs
         if self._kind() == "text":
-            kind, params = "text", {"path": path, "expect": opened.sha, "kind": "text", "text": self._text}
+            kind, text, edits = "text", self._text, []
         else:
-            edits = [
-                {"section": section or "", "key": key, "value": value}
-                for (section, key), value in self._pending.items()
-            ]
-            kind = "seamless" if self._seamless is not None else "values"
-            params = {"path": path, "expect": opened.sha, "kind": kind, "edits": edits}
-        self._call("mod_configs.save", params, lambda r: self._saved_file(opened, kind, r), self._save_failed)
+            edits = [(section or "", key, value) for (section, key), value in self._pending.items()]
+            kind, text = ("seamless" if self._seamless is not None else "values"), ""
+        self._query(
+            lambda: service.save(profile, opened.path, opened.sha, kind, text=text, edits=edits),  # type: ignore[arg-type]
+            lambda r: self._saved_file(opened, kind, r),
+            self._save_failed,
+        )
 
     def _saved_file(self, opened: mod_configs.Opened, kind: str, r) -> None:
         if kind == "text":
@@ -518,23 +528,25 @@ class ModConfigsAdapter(QObject):
         self._reopen()
 
     def _save_failed(self, e: OperationError) -> None:
-        self._refuse(
-            self.presenter.empty_password() if e.code == "password_empty" else self.presenter.could_not_save(e.message)
-        )
+        if e.code == "password_empty":
+            self._refuse(self.presenter.empty_password())
+        elif e.code == "stale":
+            self._refuse(self.presenter.stale(str(e.details.get("name", ""))))
+        else:
+            self._refuse(self.presenter.could_not_save(e.message))
 
-    # ---- asking the session (every call runs on the host's worker; the answer comes back on the UI thread)
-    def _call(
+    # ---- asking the engine (every call runs on the host's worker; the answer comes back on the UI thread)
+    def _query(
         self,
-        name: str,
-        params: dict,
+        read: Callable[[], Any],
         then: Callable[[Any], None],
         failed: Callable[[OperationError], None] | None = None,
     ) -> None:
-        session = self.host.session
+        """read() on the worker; then(value) on success, else failed(error) (default: _failed)."""
 
         def work():
             try:
-                return session.run(name, params), None
+                return read(), None
             except OperationError as e:
                 return None, e
 
@@ -548,7 +560,7 @@ class ModConfigsAdapter(QObject):
         self.host.run_in_background(work, landed)
 
     def _failed(self, e: OperationError) -> None:
-        """An operation said no: the code says why, never its words."""
+        """The engine said no: the code says why, never its words."""
         match e.code:
             case "password_empty":
                 self._refuse(self.presenter.empty_password())
@@ -559,57 +571,65 @@ class ModConfigsAdapter(QObject):
             case "not_settings":
                 self._refuse(self.presenter.not_settings(e.message))
             case "nothing_to_change":
-                self.notifier.toast(e.message)
-            case "busy" | "plan_stale" | "plan_expired" | "unknown_plan":
+                self.notifier.toast(self.presenter.nothing_to_change(list(e.details.get("unknown", []))))
+            case "stale":
+                self._refuse(self.presenter.stale(str(e.details.get("name", ""))))
+            case "busy":
                 self.notifier.toast(e.message, error=True)
             case _:
                 self._refuse(self.presenter.could_not_save(e.message))
 
     def _ask(
         self,
-        name: str,
-        params: dict,
+        check: Callable[[], Any],
+        words: Callable[[Any], Confirm | Refusal],
+        start: Callable[[Any], Any],
         *,
         destructive: bool = False,
         guard: bool = False,
         confirmed: Callable[[], None] | None = None,
-        done: Callable[[Plan], None] | None = None,
+        done: Callable[[Any, Any], None] | None = None,
     ) -> None:
-        """A plan operation: get its question, show it (after the unsaved-changes guard when guard), send the answer.
-        confirmed runs when the user says yes, done when the answered plan has run."""
-        session = self.host.session
+        """A plan: check() gives its facts, words(facts) is the question (or why not), and on yes start(facts) runs
+        on the worker (the engine refuses it as stale when the facts changed meanwhile). A job id it returns is
+        followed and done(facts, snapshot) runs when the job has ended; any other value is done(facts, value)."""
 
-        def answered(plan: Plan, ok: bool) -> None:
-            if ok and confirmed is not None:
+        def answered(plan: Any, ok: bool) -> None:
+            if not ok:
+                return
+            if confirmed is not None:
                 confirmed()
 
-            def answer():
-                try:
-                    session.answer(plan.id, {"ok": ok})
-                    return None
-                except OperationError as e:
-                    return e
+            def landed(got: Any) -> None:
+                if isinstance(got, str):
+                    self.host.follow_job(got, lambda snap: done(plan, snap) if done is not None else None)
+                elif done is not None:
+                    done(plan, got)
 
-            def landed(err: OperationError | None) -> None:
-                if err is not None:
-                    self._failed(err)
-                elif ok and done is not None:
-                    done(plan)
+            self._query(lambda: start(plan), landed)
 
-            self.host.run_in_background(answer, landed)
-
-        def shown(plan: Plan | Refusal) -> None:
-            if isinstance(plan, Refusal):
-                self._refuse(plan)
+        def shown(plan: Any) -> None:
+            question = words(plan)
+            if isinstance(question, Refusal):
+                self._refuse(question)
                 return
 
             def ask() -> None:
-                if isinstance(plan.words, Confirm):
-                    self.notifier.confirm(plan.words, lambda ok: answered(plan, ok), destructive)
+                self.notifier.confirm(question, lambda ok: answered(plan, ok), destructive)
 
             self._guard(ask) if guard else ask()
 
-        self._call(name, params, shown)
+        self._query(check, shown)
+
+    def _ended_ok(self, snap: Any, said: str) -> bool:
+        """A followed job has ended: said when it went well, else its failure in the code's words. True when it went well."""
+        if snap is not None and snap.state == "done":
+            self.notifier.toast(said)
+            return True
+        err = getattr(snap, "error", None)
+        if err is not None:
+            self._failed(OperationError(err.code, err.message, err.details))
+        return False
 
     # ---- the Overhaul setup (S7d): the profile's overhaul as a form, turned off, or a mod set up as one
     def _ov_state(self, form, mod: dict | None) -> dict:
@@ -643,16 +663,16 @@ class ModConfigsAdapter(QObject):
         ov["dirty"] = True
         self.dirtyChanged.emit()
 
-    def _form(self) -> dict:
-        """The form's values as the operations take them (the log check only when it was touched)."""
+    def _form(self) -> mod_configs.SetupValues:
+        """The form's values as the engine takes them (the log check only when it was touched)."""
         assert self._ov is not None
         values = self._ov["values"]
-        return {
-            "natives": values["natives"],
-            "files": values["files"],
-            "tables": values["tables"],
-            "health": values["health"] if values.get("health_touched") else None,
-        }
+        return mod_configs.SetupValues(
+            values["natives"],
+            values["files"],
+            values["tables"],
+            values["health"] if values.get("health_touched") else None,
+        )
 
     def _saved(self, node_key: str, said: str) -> None:
         self.notifier.toast(said)
@@ -666,14 +686,12 @@ class ModConfigsAdapter(QObject):
         if ov["new"]:
             self._install_new()
             return
-        setup, key = ov["setup"], self._node.key
-        params = {
-            "profile": str(self._profile),
-            "path": str(setup["path"]),
-            "expect": setup["sha"],
-            "form": self._form(),
-        }
-        self._call("mod_configs.save_setup", params, lambda r: self._setup_saved(key, r))
+        setup, key, form = ov["setup"], self._node.key, self._form()
+        service, profile = self.host.features.mod_configs, str(self._profile)
+        self._query(
+            lambda: service.save_setup(profile, setup["path"], setup["sha"], form=form),
+            lambda r: self._setup_saved(key, r),
+        )
 
     def _setup_saved(self, node_key: str, r) -> None:
         self._saved(node_key, self.presenter.saved_text(r.name))
@@ -694,23 +712,32 @@ class ModConfigsAdapter(QObject):
             else:
                 self._failed(e)
 
-        params = {"profile": str(profile), "overhaul_id": overhaul_id}
-        self._call("mod_configs.apply_setup", params, lambda _job: None, failed)
+        def ended(snap) -> None:
+            self._ended_ok(snap, tr("Applied to the profiles using it."))
+            self.refresh()
+
+        service = self.host.features.mod_configs
+        self._query(
+            lambda: service.apply_setup(str(profile), overhaul_id),
+            lambda job_id: self.host.follow_job(job_id, ended),
+            failed,
+        )
 
     def _save_overhaul_text(self, opened: mod_configs.Opened) -> None:
-        params = {"profile": str(self._profile), "path": str(opened.path), "expect": opened.sha, "text": self._text}
+        service, profile, text = self.host.features.mod_configs, str(self._profile), self._text
         key = self._node.key if self._node else "overhaul"
-        self._call("mod_configs.save_setup", params, lambda r: self._setup_saved(key, r))
+        self._query(
+            lambda: service.save_setup(profile, opened.path, opened.sha, text=text),
+            lambda r: self._setup_saved(key, r),
+        )
 
     def _start_new(self, mod: dict) -> None:
         """Show the proposal for a mod as a new setup (nothing is written until Save is confirmed)."""
-        params = {
-            "profile": str(self._profile),
-            "folder": str(mod["folder"]),
-            "name": mod["name"],
-            "overhaul_id": mod["id"] or "",
-        }
-        self._call("mod_configs.overhaul_form", params, lambda form: self._show_new(form, mod))
+        service, profile = self.host.features.mod_configs, str(self._profile)
+        self._query(
+            lambda: service.overhaul_form(profile, str(mod["folder"]), mod["name"], mod["id"] or ""),
+            lambda form: self._show_new(form, mod),
+        )
 
     def _show_new(self, form, mod: dict) -> None:
         setup = form.setup
@@ -729,15 +756,20 @@ class ModConfigsAdapter(QObject):
         if profile is None or ov is None or self.host.busy:
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        mod = ov["mod"]
-        params = {
-            "profile": str(profile),
-            "folder": str(ov["folder"]),
-            "name": mod["name"],
-            "overhaul_id": mod["id"] or "",
-            "form": self._form(),
-        }
-        self._ask("mod_configs.install_setup", params, confirmed=lambda: setattr(self, "_want", "overhaul"))
+        mod, form, service = ov["mod"], self._form(), self.host.features.mod_configs
+        folder, name, overhaul_id = str(ov["folder"]), mod["name"], mod["id"] or ""
+
+        def ended(plan, snap) -> None:
+            self._ended_ok(snap, tr("{label} is set up as an overhaul.").format(label=plan.label))
+            self.refresh()
+
+        self._ask(
+            lambda: service.check_install_setup(str(profile), folder, name, form, overhaul_id),
+            self.presenter.install_setup,
+            lambda plan: service.install_setup(str(profile), folder, name, form, plan.stamp, overhaul_id),
+            confirmed=lambda: setattr(self, "_want", "overhaul"),
+            done=ended,
+        )
 
     @Slot(str)
     def addOverhaulSetup(self, key: str) -> None:
@@ -748,10 +780,10 @@ class ModConfigsAdapter(QObject):
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
         node = next((n for n in self._nodes if n.key == key), None) if key else None
-        self._call(
-            "mod_configs.setup_candidates",
-            {"profile": str(profile)},
-            lambda r: self._choose_to_set_up([m.model_dump() for m in r.mods], node),
+        service = self.host.features.mod_configs
+        self._query(
+            lambda: service.setup_candidates(str(profile)),
+            lambda mods: self._choose_to_set_up([{"name": m.name, "id": m.id, "folder": m.folder} for m in mods], node),
         )
 
     def _choose_to_set_up(self, mods: list[dict], node: mod_configs.ModNode | None) -> None:
@@ -782,7 +814,19 @@ class ModConfigsAdapter(QObject):
             setup = self._node.setup  # a kept file of the overhaul is open: its setup is the node's
         if profile is None or setup is None or setup.get("verified") or self.host.busy:
             return
-        self._ask("mod_configs.turn_off", {"profile": str(profile)}, destructive=True)
+        service = self.host.features.mod_configs
+
+        def ended(plan, snap) -> None:
+            self._ended_ok(snap, tr("Turned off the overhaul setup of {label}.").format(label=plan.label))
+            self.refresh()
+
+        self._ask(
+            lambda: service.check_turn_off(str(profile)),
+            self.presenter.turn_off,
+            lambda plan: service.turn_off(str(profile), plan.stamp),
+            destructive=True,
+            done=ended,
+        )
 
     def _pick(self, words: Pick, rows: list[str], then) -> None:
         key = f"pick-{len(self._picks) + 1}"
@@ -808,8 +852,8 @@ class ModConfigsAdapter(QObject):
         got = self.host.pick_file(self._words["attach"], "")
         if got is None:
             return
-        params = {"target": str(node.target), "file": str(got)}
-        self._call("mod_configs.attach", params, lambda _r: self._tied(node.key))
+        service, profile, target = self.host.features.mod_configs, str(self._profile), node.target
+        self._query(lambda: service.attach(profile, target, got), lambda _r: self._tied(node.key))
 
     @Slot(str)
     def detachFile(self, path: str) -> None:
@@ -817,8 +861,8 @@ class ModConfigsAdapter(QObject):
         if node is None or node.target is None:
             return
         self._opened = None
-        params = {"target": str(node.target), "file": path}
-        self._call("mod_configs.detach", params, lambda _r: self._tied(node.key))
+        service, profile, target = self.host.features.mod_configs, str(self._profile), node.target
+        self._query(lambda: service.detach(profile, target, path), lambda _r: self._tied(node.key))
 
     def _tied(self, node_key: str) -> None:
         self.host.settings_changed("native_configs")
@@ -832,11 +876,12 @@ class ModConfigsAdapter(QObject):
             return
         from PySide6.QtGui import QGuiApplication
 
-        def copy(r) -> None:
-            QGuiApplication.clipboard().setText(r.text)
+        def copy(text: str) -> None:
+            QGuiApplication.clipboard().setText(text)
             self.notifier.toast(self.presenter.copied())
 
-        self._call("mod_configs.share", {"ini": str(self._seamless.ini)}, copy)
+        service, profile, ini = self.host.features.mod_configs, str(self._profile), self._seamless.ini
+        self._query(lambda: service.share(profile, ini), lambda text: copy(text))
 
     @Slot()
     def pasteSettings(self) -> None:
@@ -871,10 +916,13 @@ class ModConfigsAdapter(QObject):
             return
         got = self.host.save_file(self._words["saveAs"], "seamless-coop-settings.ini")
         if got is not None:
-            self._call(
-                "mod_configs.export_share",
-                {"ini": str(self._seamless.ini), "to": str(got)},
-                lambda _r: self.notifier.toast(tr("Saved {name}").format(name=got.name)),
+            service, profile, ini = self.host.features.mod_configs, str(self._profile), self._seamless.ini
+
+            def ended(snap) -> None:
+                self._ended_ok(snap, tr("Saved {name}").format(name=got.name))
+
+            self._query(
+                lambda: service.export_share(profile, ini, got), lambda job_id: self.host.follow_job(job_id, ended)
             )
 
     def _take_shared(self, text: str) -> None:
@@ -882,12 +930,18 @@ class ModConfigsAdapter(QObject):
         if ini is None:
             return
 
-        def pasted(plan: Plan) -> None:
-            n = len(plan.words.changes) if isinstance(plan.words, Confirm) else 0
+        def pasted(_plan, n: int) -> None:
             self.notifier.toast(self.presenter.saved(n))
             self._reopen()
 
-        self._ask("mod_configs.paste", {"ini": str(ini), "text": text}, guard=True, done=pasted)
+        service, profile = self.host.features.mod_configs, str(self._profile)
+        self._ask(
+            lambda: service.check_paste(profile, ini, text),
+            lambda plan: self.presenter.paste(plan.changes, list(plan.unknown)),
+            lambda plan: service.paste(profile, ini, text, plan.stamp),
+            guard=True,
+            done=pasted,
+        )
 
     @Slot()
     def openFolder(self) -> None:

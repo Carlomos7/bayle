@@ -458,6 +458,7 @@ class SavesService:
         """Finish a removal that was cut short: put the copy back (restore) or let it go. Returns "" or, when only the
         Library's history has to wait, why (a diagnostic naming where the record is kept). Raises not_found, failed."""
         d = self._folder(folder)
+        self._entry(d, entry_id)
         try:
             if restore:
                 return save_library.restore_removed(d, entry_id) or ""

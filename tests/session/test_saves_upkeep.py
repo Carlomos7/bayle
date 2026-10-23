@@ -211,8 +211,7 @@ def test_an_unknown_entry_or_folder_is_not_found(world):
         assert code(s.run, "saves.check_remove_copy", ref) == "not_found"
         assert code(s.run, "saves.remove_copy", {**ref, "expect": "Mine"}) == "not_found"
         assert code(s.run, "saves.rename_copy", {**ref, "name": "X"}) == "not_found"
-    # an unknown entry in finish_stranded stays "failed", as before (the library refuses it); only the folder is not_found
-    assert code(s.run, "saves.finish_stranded", {**nope, "restore": True}) == "failed"
+    assert code(s.run, "saves.finish_stranded", {**nope, "restore": True}) == "not_found"
     assert code(s.run, "saves.finish_stranded", {**elsewhere, "restore": True}) == "not_found"
     assert [e["name"] for e in world.entries()] == ["Mine"]
 

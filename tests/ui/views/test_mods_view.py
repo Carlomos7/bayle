@@ -15,6 +15,7 @@ from shiboken6 import delete
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
 from bayle.services.mods import profile_entries
+from bayle.services.settings import SettingsService
 from bayle.session import Session
 from bayle.session import ops as _registered_operations  # noqa: F401
 from bayle.ui.host import Host as HostContract
@@ -61,6 +62,7 @@ class Host:
             locations=lambda: self.locations,
         )
         self.activity = FakeActivityFacts(manager=self.session.jobs)
+        self.settings_service = SettingsService(self.session.jobs, lambda: self.locations)
 
     @property
     def jobs(self) -> list[str]:

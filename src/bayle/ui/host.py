@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.services.activity import ActivityService
+from bayle.services.settings import SettingsService
 
 
 class Host(Protocol):
@@ -44,6 +45,12 @@ class Host(Protocol):
     @property
     def activity(self) -> ActivityService:
         """The engine's Activity interface: the jobs, their logs, Undo."""
+        ...
+
+    @property
+    def settings_service(self) -> SettingsService:
+        """The engine's Settings interface (`settings` is the loaded LauncherSettings): the page, one change, the
+        folder-layout changes."""
         ...
 
     # ---- work

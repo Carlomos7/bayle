@@ -2,7 +2,7 @@
 Restart now only after a download was prepared, and nothing replaces the program while the game or a job runs."""
 
 from bayle.updates import apply as updates
-from bayle.views import settings as sp
+from bayle.views import settings as sp  # the update notices stay shared
 
 OFFER = {"version": "9.9.9", "url": "https://example.invalid", "notes": "", "assets": {}}
 

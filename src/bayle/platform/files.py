@@ -82,6 +82,50 @@ def _replace(tmp: Path, path: Path, retry_for: float) -> None:
         pause = min(pause * 2, 0.25)
 
 
+class Unsettled(OSError):
+    """No consistent copy of a file could be read: it kept changing (another program writing it), or it stayed
+    locked (locked=True: a sharing violation that outlasted the wait)."""
+
+    def __init__(self, message: str, *, locked: bool = False) -> None:
+        super().__init__(message)
+        self.locked = locked
+
+
+def read_settled(
+    path: Path, *, tries: int = 3, pause: float = 0.2, retry_for: float = 2.0
+) -> tuple[bytes, os.stat_result]:
+    """The file's bytes as one consistent snapshot, and its stat: it is stat'ed, read twice and stat'ed again, and
+    taken only when the two reads match and size and mtime held (a game writing it in place shows as a difference).
+    Read again up to tries times; a sharing violation (the file held open) is waited out for retry_for seconds.
+    Raises Unsettled when no consistent read came; other errors (the file is gone, access denied) as they are."""
+    path = Path(path)
+    deadline = time.monotonic() + retry_for
+    changed = 0
+    while True:
+        try:
+            before = os.stat(path)
+            with open(path, "rb") as f:
+                first = f.read()
+                f.seek(0)
+                second = f.read()
+            after = os.stat(path)
+        except PermissionError as e:
+            # 32/33 only: 5 is also a real access denial, which waiting does not fix
+            if getattr(e, "winerror", None) not in (32, 33):
+                raise
+            if time.monotonic() >= deadline:
+                raise Unsettled(f"{path.name} is in use by another program.", locked=True) from e
+            time.sleep(pause)
+            continue
+        held = (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)
+        if held and first == second and len(first) == after.st_size:
+            return first, after
+        changed += 1
+        if changed >= tries:
+            raise Unsettled(f"{path.name} kept changing while it was read.")
+        time.sleep(pause)
+
+
 def atomic_write(path: Path, data, backup=False):
     """durable_write, keeping one .bak of the previous file when backup is set. A write that fails leaves the target
     as it was and removes the temp file; two writers of the same file (threads or processes) never share a temp

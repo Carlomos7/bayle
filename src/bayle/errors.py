@@ -21,6 +21,13 @@ class OperationError(Exception):
         super().__init__(message)
         self.code, self.message, self.details = code, message, dict(details or {})
 
+    @classmethod
+    def from_info(cls, info: ErrorInfo | None) -> OperationError:
+        """The error a finished job ended with, raised again where its value was awaited (details kept)."""
+        if info is None:
+            return cls("failed", "Failed.")
+        return cls(info.code, info.message, info.details)
+
     @property
     def info(self) -> ErrorInfo:
         return ErrorInfo(self.code, self.message, self.details)

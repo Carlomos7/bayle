@@ -155,7 +155,7 @@ def run_job_value(job: Callable[[Any, Locations], Any], loc: Locations, title: s
         return done.result
     if done.state == "cancelled":
         raise Cancelled()
-    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+    raise OperationError.from_info(done.error)
 
 
 def run_job(job: Callable[[Any, Locations], Any], launch, loc: Locations, title: str = "Job") -> Outcome:

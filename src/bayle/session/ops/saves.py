@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from bayle.errors import Busy, OperationError
+from bayle.errors import OperationError
 from bayle.platform.text import tr
 from bayle.services import saves as saves_service
 from bayle.services import saves_page as svc
@@ -48,6 +48,10 @@ class Written(Result):
 
 class Said(Result):
     text: str
+
+
+class SavesJob(Result):
+    job_id: str
 
 
 class Sheet(Result):
@@ -314,22 +318,10 @@ def remove_copy(call: Call, p: RemoveCopyParams) -> Said:
 
 
 # ----------------------------------------------------------------------------- jobs that write or add copies
-@operation(
-    "saves.back_up",
-    params=BackUpParams,
-    result=Written,
-    kind="job",
-    writes=True,
-    title=lambda p: (
-        tr("Backing up {name}...").format(name=Path(p.paths[0]).name)
-        if len(p.paths) == 1 and not p.everything
-        else tr("Backing up saves...")
-    ),
-)
-def back_up(call: Call, p: BackUpParams) -> Written:
-    if not p.everything and not p.paths:
-        raise OperationError("invalid_params", tr("Say which saves to back up."))
-    return _written(svc.back_up([Path(x) for x in p.paths], everything=p.everything, loc=call.session.locations()))
+@operation("saves.back_up", params=BackUpParams, result=SavesJob, kind="command", writes=True)
+def back_up(call: Call, p: BackUpParams) -> SavesJob:
+    """A job; its result is {"saves", "backups"}."""
+    return SavesJob(job_id=_saves(call.session).back_up(p.paths, everything=p.everything))
 
 
 @operation(
@@ -339,22 +331,16 @@ def post_session_repair(call: Call, p: NoParams) -> Written:
     return _written(svc.post_session_repair(loc=call.session.locations()))
 
 
-# Save a copy and Import only read the live save and add to the Library: the game may run, another write may not.
-def _no_other_write(session: Session) -> None:
-    if session.jobs.busy:
-        raise Busy("Another operation is running.", {"reason": "job"})
+@operation("saves.save_copy", params=SaveCopyParams, result=SavesJob, kind="command", writes=True)
+def save_copy(call: Call, p: SaveCopyParams) -> SavesJob:
+    """A job; its result is {"source", "entry_id", "name"}."""
+    return SavesJob(job_id=_saves(call.session).save_copy(p.path, p.name))
 
 
-@operation("saves.save_copy", params=SaveCopyParams, result=Written, kind="job", title=lambda p: tr("Saving a copy..."))
-def save_copy(call: Call, p: SaveCopyParams) -> Written:
-    _no_other_write(call.session)
-    return _written(svc.save_copy(Path(p.path), p.name, loc=call.session.locations()))
-
-
-@operation("saves.import_files", params=ImportParams, result=Written, kind="job", title=lambda p: tr("Importing..."))
-def import_files(call: Call, p: ImportParams) -> Written:
-    _no_other_write(call.session)
-    return _written(svc.import_files([Path(x) for x in p.files], p.name, loc=call.session.locations()))
+@operation("saves.import_files", params=ImportParams, result=SavesJob, kind="command", writes=True)
+def import_files(call: Call, p: ImportParams) -> SavesJob:
+    """A job; its result is {"imported": [{"file", "entry_id", "name"}], "failed": [{"file", "code"}]}."""
+    return SavesJob(job_id=_saves(call.session).import_files(p.files, p.name))
 
 
 @operation(

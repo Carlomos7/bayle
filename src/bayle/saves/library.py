@@ -27,7 +27,7 @@ from pathlib import Path
 
 from bayle.game import catalog as games
 from bayle.platform import filelock
-from bayle.platform.files import atomic_write
+from bayle.platform.files import atomic_write, durable_write, read_settled
 from bayle.saves import backups as save_backups
 from bayle.saves import container as save_container
 from bayle.saves import fix as save_fix
@@ -44,17 +44,34 @@ class LibraryError(Exception):
     pass
 
 
+class NotASave(LibraryError):
+    """The file is not a whole save of this game (or far too big to be one). Nothing was added."""
+
+
+# shortcut: a fixed ceiling well above every save format we know (an Elden Ring PC save is about 28 MB); raise it
+# if a game's saves ever come near. It keeps a picked or client-named file from being read into memory whole.
+MAX_SAVE_BYTES = 128 * 1024 * 1024
+
+
 # ----------------------------------------------------------------------------- reading a save's characters
 def characters(path: Path, game: games.Game | None = None) -> list[dict]:
     """Active characters as {slot, name, level, seconds} from the profile summary. Empty for saves this launcher
     cannot read inside (Nightreign encrypts its saves) or that do not parse."""
     game = game or games.for_save(path) or games.ELDEN_RING
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return []
+    return characters_in(data, game)
+
+
+def characters_in(data: bytes, game: games.Game) -> list[dict]:
+    """characters() of a save's bytes already read."""
     if game.save_reader != "eldenring":
         return []
     try:
-        data = Path(path).read_bytes()
-        r = L.parse(str(path))
-    except OSError, L.ParseError, EOFError, ValueError, struct.error:
+        r = L.parse_bytes(data)
+    except L.ParseError, EOFError, ValueError, struct.error:
         return []
     base = r["ud10"]["active_pos"] + 10
     out = []
@@ -99,12 +116,12 @@ def check_whole(data: bytes, game: games.Game) -> None:
     """Refuse bytes that are not a whole save of this game."""
     if game.save_reader == "eldenring":
         if not save_regulation.is_pc_save(data):
-            raise LibraryError(f"That file is not a PC {game.name} save.")
+            raise NotASave(f"That file is not a PC {game.name} save.")
         return
     try:
         save_container.check(data, game.save_sections)
     except save_container.ContainerError as e:
-        raise LibraryError(f"That file is not a whole {game.name} save: {e}.") from e
+        raise NotASave(f"That file is not a whole {game.name} save: {e}.") from e
 
 
 STEAM_ID = re.compile(r"7656119\d{10}")
@@ -357,16 +374,31 @@ def changed_outside(save_dir: Path, entry: dict) -> bool:
 
 # ----------------------------------------------------------------------------- operations
 def add(save_dir: Path, source: Path, name: str, game: games.Game, action: str = "save copy", note: str = "") -> dict:
-    """Copy a whole save file into the library under a name. The source is left as it is."""
+    """Copy a whole save file into the library under a name. The source is only read, once, as one consistent
+    snapshot (read_settled: Unsettled when it kept changing or stayed locked), and everything recorded about it
+    (size, hash, characters, its modified time) comes from that same read."""
     source = Path(source)
-    data = source.read_bytes()
+    if source.stat().st_size > MAX_SAVE_BYTES:
+        raise NotASave(f"{source.name} is far too big to be a {game.name} save.")
+    data, st = read_settled(source)
     check_whole(data, game)
     with library_lock(save_dir):
-        return _add(save_dir, source, data, name, game, action, note)
+        return _add(save_dir, source, data, name, game, action, note, st.st_mtime)
 
 
-def _add(save_dir: Path, source: Path, data: bytes, name: str, game: games.Game, action: str, note: str) -> dict:
+def _add(
+    save_dir: Path,
+    source: Path,
+    data: bytes,
+    name: str,
+    game: games.Game,
+    action: str,
+    note: str,
+    source_mtime: float | None = None,
+) -> dict:
     doc = _load_for_change(save_dir)
+    if source_mtime is None:
+        source_mtime = source.stat().st_mtime
     entry_id = uuid.uuid4().hex[:12]
     fmt = source.suffix.lower().lstrip(".") or "sl2"
     entry = {
@@ -378,19 +410,21 @@ def _add(save_dir: Path, source: Path, data: bytes, name: str, game: games.Game,
         "from": source.name,
         "from_path": str(source),
         "added": datetime.datetime.now().isoformat(timespec="seconds"),
-        "source_modified": datetime.datetime.fromtimestamp(source.stat().st_mtime).isoformat(timespec="seconds"),
+        "source_modified": datetime.datetime.fromtimestamp(source_mtime).isoformat(timespec="seconds"),
         "note": note,
-        "characters": characters(source, game),
+        "characters": characters_in(data, game),
         "size": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }
     folder = folder_for(save_dir)
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / entry["file"]
-    atomic_write(target, data)
-    if _sha256(target) != entry["sha256"]:
-        target.unlink(missing_ok=True)
-        raise LibraryError("The copy did not read back the same; nothing was added.")
+
+    def same_copy(tmp: Path) -> None:
+        if _sha256(tmp) != entry["sha256"]:
+            raise LibraryError("The copy did not read back the same; nothing was added.")
+
+    durable_write(target, data, verify=same_copy)  # a new file of its own: checked before it gets its name
     doc["entries"].append(entry)
     _log(doc, action, entry, source=source.name)
     try:

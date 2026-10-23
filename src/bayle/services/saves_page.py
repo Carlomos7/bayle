@@ -8,7 +8,7 @@ by restore_record, the one place that builds it) and returns Written, which carr
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -16,7 +16,9 @@ from typing import Any
 from bayle.errors import Cancelled, OperationError
 from bayle.game import catalog as games
 from bayle.game.locate import Locations
+from bayle.platform import filelock
 from bayle.platform import logging as run_logging
+from bayle.platform.files import Unsettled
 from bayle.platform.text import tr
 from bayle.saves import backups as save_backups
 from bayle.saves import library as save_library
@@ -84,7 +86,7 @@ def logged_write(log_title: str, progress: str, loc: Locations, body: Callable[[
         return replace(done.result, undo=done.undo)
     if done.state == "cancelled":
         raise Cancelled()
-    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+    raise OperationError.from_info(done.error)
 
 
 # ----------------------------------------------------------------------------- reading
@@ -173,69 +175,98 @@ def open_folder(which: str, *, loc: Locations) -> Path | None:
     return target
 
 
-# ----------------------------------------------------------------------------- the writes (one logged job each)
-def back_up(paths: list[Path], *, everything: bool, loc: Locations) -> Written:
-    """Back up the given saves (everything: every live save of this game)."""
-    saves = live_saves(loc) if everything else [Path(p) for p in paths]
-    first = saves[0] if saves else Path("")
+# ----------------------------------------------------------------------------- copying in and backing up (C, D)
+def failure_code(e: BaseException) -> str:
+    """The OperationError code of a failure to read a source save or to keep its copy (Save a copy, Import, Back
+    up). Codes, never words: the client says them."""
+    if isinstance(e, Unsettled):
+        return "source_locked" if e.locked else "source_changed"
+    if isinstance(e, FileNotFoundError):
+        return "not_found"
+    if isinstance(e, save_library.NotASave):
+        return "not_a_save"
+    if isinstance(e, save_library.LibraryUnreadable):
+        return "library_unreadable"
+    if isinstance(e, (save_library.LibraryBusy, filelock.Busy)):
+        return "library_busy"
+    return "failed"
+
+
+def _coded(e: Exception, **details: Any) -> OperationError:
+    if isinstance(e, OperationError):
+        return e
+    return OperationError(failure_code(e), str(e), details)
+
+
+def back_up(saves: list[Path], *, loc: Locations) -> dict:
+    """Back up each live save as it is now, in order: {"saves", "backups"} (paths, one backup per save). The saves
+    are only read. A failure part way raises the failure's code; the backups already taken stay (they are harmless)
+    and its details name them."""
+    made: list[str] = []
 
     def body(loc: Locations) -> Written:
-        made = [saves_service.back_up_now(p, loc=loc) for p in saves]
-        if everything:
-            return Written(tr("Backed up {n} save file(s).").format(n=len(made)))
-        return Written(tr("Backed up {name} ({file})").format(name=first.name, file=made[0].name))
-
-    if everything:
-        return logged_write("back up now", tr("Backing up saves..."), loc, body)
-    return logged_write(f"back up {first.name}", tr("Backing up {name}...").format(name=first.name), loc, body)
-
-
-def save_copy(path: Path, name: str, *, loc: Locations) -> Written:
-    """Add a copy of a live save to the Library. Only reads the live save."""
-    save = Path(path)
-
-    def body(loc: Locations) -> Written:
-        e = save_library.add(save.parent, save, name, loc.game, action="save copy")
-        return Written(tr("Saved a copy of {file} as '{name}'").format(file=save.name, name=e["name"]))
-
-    return logged_write(
-        f"save a copy of {save.name}", tr("Saving a copy of {name}...").format(name=save.name), loc, body
-    )
-
-
-def import_files(files: list[Path], name: str | None, *, loc: Locations) -> Written:
-    """Import save files into the Library: one under `name`, or each under its own default name."""
-    folder = library_folder(loc)
-    if len(files) == 1 and name is not None:
-        src = Path(files[0])
-
-        def one(loc: Locations) -> Written:
-            e = save_library.add(folder, src, name, loc.game, action="import")
-            return Written(tr("Imported '{name}' into the Library").format(name=e["name"]))
-
-        return logged_write(
-            f"import {src.name} into the Library", tr("Importing {name}...").format(name=src.name), loc, one
-        )
-
-    def many(loc: Locations) -> Written:
-        done, failed = [], []
-        for src in map(Path, files):
+        for save in saves:
             try:
-                save_library.add(folder, src, save_library.default_name(src, loc.game), loc.game, action="import")
-                done.append(src.name)
+                made.append(str(saves_service.back_up_now(save, loc=loc)))
+            except Exception as e:
+                raise _coded(e, save=str(save), backed_up=list(made)) from e
+        return Written(f"backed up {len(made)} save file(s)")
+
+    # the progress words are the jobs index's title, which Activity lists (worded here until records carry facts)
+    if len(saves) == 1:
+        logged_write(f"back up {saves[0].name}", tr("Backing up {name}...").format(name=saves[0].name), loc, body)
+    else:
+        logged_write("back up now", tr("Backing up saves..."), loc, body)
+    return {"saves": [str(s) for s in saves], "backups": made}
+
+
+def save_copy(save: Path, name: str, *, loc: Locations) -> dict:
+    """Add a copy of a live save to the Library (its folder's): {"source", "entry_id", "name"}. The save is only
+    read, as one consistent snapshot (allowed while the game runs: a read that keeps changing is source_changed)."""
+    out: dict = {"source": str(save)}
+
+    def body(loc: Locations) -> Written:
+        try:
+            e = save_library.add(save.parent, save, name, loc.game, action="save copy")
+        except Exception as e:
+            raise _coded(e, source=str(save)) from e
+        out.update(entry_id=e["id"], name=e["name"])
+        return Written(f"saved a copy of {save.name} as '{e['name']}'")
+
+    logged_write(f"save a copy of {save.name}", tr("Saving a copy of {name}...").format(name=save.name), loc, body)
+    return out
+
+
+def import_files(files: list[Path], name: str | None, folder: Path, *, loc: Locations) -> dict:
+    """Import save files into the Library of folder: one under name, or each under its own default name.
+    {"imported": [{"file", "entry_id", "name"}], "failed": [{"file", "code"}]}. The files are only read. One that
+    fails is listed and the rest go on; none at all is not_imported (details: failed)."""
+    imported: list[dict] = []
+    failed: list[dict] = []
+
+    def body(loc: Locations) -> Written:
+        for src in files:
+            try:
+                given = name if name is not None and len(files) == 1 else None
+                got = save_library.add(
+                    folder, src, given or save_library.default_name(src, loc.game), loc.game, action="import"
+                )
+                imported.append({"file": str(src), "entry_id": got["id"], "name": got["name"]})
             except Exception as e:
                 run_logging.log(f"error: {src.name}: {e}")
-                failed.append(src.name)
-        if not done:
-            raise RuntimeError(tr("None of these files could be imported: {names}").format(names=", ".join(failed)))
-        text = tr("Imported {n} files into the Library").format(n=len(done))
-        if failed:
-            text += tr(". Not imported: {names}").format(names=", ".join(failed))
-        return Written(text)
+                failed.append({"file": str(src), "code": failure_code(e)})
+        if not imported:
+            raise OperationError("not_imported", "None of these files could be imported.", {"failed": failed})
+        return Written(f"imported {len(imported)} file(s), {len(failed)} not imported")
 
-    return logged_write(
-        "import several files into the Library", tr("Importing {n} files...").format(n=len(files)), loc, many
-    )
+    if len(files) == 1:
+        one = files[0].name
+        logged_write(f"import {one} into the Library", tr("Importing {name}...").format(name=one), loc, body)
+    else:
+        logged_write(
+            "import several files into the Library", tr("Importing {n} files...").format(n=len(files)), loc, body
+        )
+    return {"imported": imported, "failed": failed}
 
 
 def plan_character_copy(source: Path, src_slot: int, target: Path, dst_slot: int) -> dict:
@@ -340,9 +371,9 @@ def undo_change(save: Path, backup: Path, *, loc: Locations) -> str:
 
 class SavesService:
     """The Saves page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
-    selected). The reads, and the upkeep of Bayle's own copies and backups (never a live save). Returns data and
-    OperationError codes, never wording: the Qt page words them. The writes to live saves still go through the
-    session's operations.
+    selected). The reads, the upkeep of Bayle's own copies and backups, and the jobs that only read a live save
+    (Back up, Save a copy, Import). Returns data and OperationError codes, never wording: the Qt page words them.
+    The writes to live saves still go through the session's operations.
 
     The upkeep is not gated on the game or a running job (it never touches a live save; the Library's and the
     backups' own locks keep it apart from a job writing them). It acts only on what the page lists: a Library of one
@@ -466,6 +497,72 @@ class SavesService:
         except Exception as e:
             raise OperationError("failed", str(e)) from e
         return ""
+
+    # ---- copying in and backing up: each a job; its result is the dict the module function above returns
+    def _live(self, path: str | Path) -> Path:
+        """path, when it is one of the game's live saves (what the page lists). Raises not_found."""
+        want = os.path.normcase(str(Path(path)))
+        for p in live_saves(self._loc()):
+            if os.path.normcase(str(p)) == want:
+                return p
+        raise OperationError("not_found", "That save is not listed.", {"path": str(path)})
+
+    def back_up(self, paths: Sequence[str | Path] = (), *, everything: bool = False, title: str = "") -> str:
+        """Back up live saves now (everything: every live save of the game) as a writing job; returns its id. Only
+        the page's live saves: anything else is not_found. Refused while the game runs (busy, reason game_running)
+        or another write runs (busy). Raises invalid_params, not_found, no_saves, busy."""
+        loc = self._loc()
+        if everything:
+            saves = live_saves(loc)
+            if not saves:
+                raise OperationError("no_saves", "There is no save to back up.")
+        elif paths:
+            saves = [self._live(p) for p in paths]
+        else:
+            raise OperationError("invalid_params", "Say which saves to back up.")
+        return self._jobs.start(lambda _ctx: back_up(saves, loc=loc), title=title or "Backing up saves...", quiet=True)
+
+    def save_copy(self, path: str | Path, name: str, title: str = "") -> str:
+        """Add a copy of a live save to the Library as a job; returns its id. Allowed while the game runs (it only
+        reads the save), never beside another write. Raises not_found, invalid_name, busy."""
+        save = self._live(path)
+        try:
+            name = save_library.clean_name(name)
+        except save_library.LibraryError as e:
+            raise OperationError("invalid_name", str(e)) from e
+        loc = self._loc()
+        return self._jobs.start(
+            lambda _ctx: save_copy(save, name, loc=loc),
+            title=title or "Saving a copy...",
+            while_game_runs=True,
+            quiet=True,
+        )
+
+    def import_files(self, files: Sequence[str | Path], name: str | None = None, title: str = "") -> str:
+        """Import save files the player picked (anywhere on disk; they are only read) into the Library of the
+        game's first save folder, as a job; returns its id. name: for a single file. Allowed while the game runs,
+        never beside another write. Raises invalid_params, invalid_name, not_found (a single file that isn't there),
+        no_saves, busy."""
+        srcs = [Path(f) for f in files]
+        if not srcs:
+            raise OperationError("invalid_params", "Say which files to import.")
+        if name is not None:
+            if len(srcs) != 1:
+                raise OperationError("invalid_params", "A name is for a single file.")
+            try:
+                name = save_library.clean_name(name)
+            except save_library.LibraryError as e:
+                raise OperationError("invalid_name", str(e)) from e
+        if len(srcs) == 1 and not srcs[0].is_file():
+            raise OperationError("not_found", "That file is not there.", {"path": str(srcs[0])})
+        loc = self._loc()
+        folder = library_folder(loc)
+        return self._jobs.start(
+            lambda _ctx: import_files(srcs, name, folder, loc=loc),
+            title=title or "Importing...",
+            while_game_runs=True,
+            quiet=True,
+        )
 
     def check_delete_backup(self, backup: str | Path) -> BackupFacts:
         """The backup a removal would delete (what the client confirms: its stamp). Raises not_found."""

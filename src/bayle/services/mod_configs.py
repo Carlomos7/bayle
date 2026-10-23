@@ -58,7 +58,7 @@ def logged[T](title: str, loc: Locations, work: Callable[[], T]) -> T:
         return done.result
     if done.state == "cancelled":
         raise Cancelled()
-    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+    raise OperationError.from_info(done.error)
 
 
 @dataclass(frozen=True)

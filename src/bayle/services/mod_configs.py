@@ -18,12 +18,12 @@ from typing import TYPE_CHECKING, Any, Literal, get_args
 from bayle.coop import ini as coop_ini
 from bayle.coop import scaling as coop_scaling
 from bayle.coop import share as coop_share
+from bayle.errors import Cancelled, OperationError
 from bayle.formats import config_model
 from bayle.mods import configs, profile_edit
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.services.errors import Cancelled, OperationError
-from bayle.services.jobs import run_job_result, run_logged
 from bayle.services.mods import overhaul_setup_of, profile_entries
+from bayle.work.runner import run_job_result, run_logged
 
 if TYPE_CHECKING:
     from bayle.config.settings import LauncherSettings

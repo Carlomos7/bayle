@@ -7,13 +7,13 @@ import datetime
 
 from pydantic import BaseModel
 
+from bayle.errors import OperationError
 from bayle.platform.text import tr
 from bayle.services.activity import ActivityService
 from bayle.services.activity import undo as undo_job
-from bayle.services.errors import OperationError
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
-from bayle.session.plans import Proposal
 from bayle.views.activity import ActivityPresenter, ActivityState, LogText, Refusal
+from bayle.work.prompts import Proposal
 
 
 class ActivityScope(Params):

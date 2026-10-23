@@ -12,14 +12,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from bayle.errors import Busy, OperationError
 from bayle.platform.text import tr
 from bayle.services import saves as saves_service
 from bayle.services import saves_page as svc
-from bayle.services.errors import Busy, OperationError
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
-from bayle.session.plans import Answer, Proposal
 from bayle.views.common import Refusal
 from bayle.views.saves import SavesPresenter
+from bayle.work.prompts import Answer, Proposal
 
 
 # ----------------------------------------------------------------------------- models

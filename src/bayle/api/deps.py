@@ -7,7 +7,8 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from bayle.api.settings import ApiSettings
-from bayle.session import JobManager, Session
+from bayle.session import Session
+from bayle.work.jobs import JobManager
 
 _bearer = HTTPBearer(auto_error=False)  # stateless scheme; auto_error=False makes a missing header a 401, not 403
 

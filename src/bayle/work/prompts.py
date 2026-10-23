@@ -9,14 +9,78 @@ Ports.ask): the question goes out as a prompt event and the answer comes back by
 from __future__ import annotations
 
 import itertools
+import json
 import threading
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import asdict, dataclass
+from typing import Any, Literal
 
-from bayle.services.errors import OperationError
-from bayle.views.common import Choose, Prompt, prompt_dict
+from bayle.errors import OperationError
+
+
+@dataclass(frozen=True)
+class Confirm:
+    """A confirmation's words: the title states the action, the changes are what happens, warning and safety the
+    risk and the way back; option a check box (with its starting state); apply the button."""
+
+    title: str
+    changes: tuple[str, ...]
+    apply: str
+    warning: str = ""
+    safety: str = ""
+    detail: str = ""
+    option: str = ""
+    option_checked: bool = False
+
+
+@dataclass(frozen=True)
+class Refusal:
+    """Why something cannot go ahead: a toast's title and body."""
+
+    title: str
+    body: str
+    info: bool = False  # said as plain news, not as an error ("Nothing to trim")
+
+
+@dataclass(frozen=True)
+class Pick:
+    """A tick list's words: none is the button that goes on with nothing ticked ("" when one must be ticked)."""
+
+    title: str
+    body: str
+    apply: str
+    none: str = ""
+    ticked: tuple[int, ...] = ()  # rows ticked at first
+    rows: tuple[str, ...] = ()  # the rows' labels, when the words travel with them (a plan's prompt)
+
+
+@dataclass(frozen=True)
+class Choice:
+    key: str
+    label: str
+    role: Literal["primary", "danger", "normal"] = "normal"
+
+
+@dataclass(frozen=True)
+class Choose:
+    """A fork: the title is the question, the lines say what happens, the choices are verbs (Cancel last)."""
+
+    title: str
+    lines: tuple[str, ...]
+    choices: tuple[Choice, ...]
+    warning: str = ""
+    safety: str = ""
+
+
+Prompt = Confirm | Pick | Choose  # what a client can be asked; a Refusal is told, not asked
+
+
+def prompt_dict(words: Confirm | Pick | Choose | Refusal) -> dict:
+    """The schema as a JSON-clean dict with its kind ("confirm" | "pick" | "choose" | "refusal")."""
+    kind = {Confirm: "confirm", Pick: "pick", Choose: "choose", Refusal: "refusal"}[type(words)]
+    return {"kind": kind, **json.loads(json.dumps(asdict(words)))}
+
 
 DEFAULT_TTL = 300.0  # seconds a plan waits for its answer
 

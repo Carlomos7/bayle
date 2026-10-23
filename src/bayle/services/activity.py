@@ -6,6 +6,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+from bayle.errors import Cancelled, OperationError
 from bayle.game.locate import Locations
 from bayle.mods import kinds
 from bayle.mods import models as mod_models
@@ -13,9 +14,8 @@ from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.platform import trash
 from bayle.services import saves as _saves_service  # noqa: F401  registers the save-restore Undo
-from bayle.services.errors import Cancelled, OperationError
-from bayle.services.jobs import run_job_result
 from bayle.services.settings import load_settings, save_settings
+from bayle.work.runner import run_job_result
 
 
 class ActivityService:

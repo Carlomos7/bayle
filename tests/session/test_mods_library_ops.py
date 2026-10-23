@@ -6,15 +6,18 @@ from pathlib import Path
 
 import pytest
 
+from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.mods import shared_mods
 from bayle.platform import trash
-from bayle.services.errors import OperationError
 from bayle.services.mods import profile_entries
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Confirm, Refusal
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 

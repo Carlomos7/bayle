@@ -4,7 +4,10 @@ from fastapi.testclient import TestClient
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er
 
 TOKEN = "t" * 32

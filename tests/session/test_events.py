@@ -1,4 +1,4 @@
-from bayle.session import EventBus
+from bayle.work.events import EventBus
 
 
 def types(sub):

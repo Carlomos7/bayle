@@ -2,10 +2,12 @@ import threading
 
 import pytest
 
+from bayle.errors import Busy, Cancelled, OperationError
 from bayle.platform import logging as run_logging
-from bayle.services.errors import Busy, Cancelled, OperationError
-from bayle.services.jobs import JobResult
-from bayle.session import EventBus, JobManager, current_context, reset_process_globals
+from bayle.session import reset_process_globals
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager, current_context
+from bayle.work.runner import JobResult
 
 
 class Clock:

@@ -7,10 +7,13 @@ from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.saves import regulation as save_regulation
 from bayle.services import saves as saves_service
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.saves.adapter import SavesAdapter
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 OLD, NEW = b"old save " * 40, b"new save " * 40
 

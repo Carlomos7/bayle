@@ -8,10 +8,13 @@ from PySide6.QtCore import QEventLoop, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.pages.registry import QmlPage
 from bayle.ui.pages.settings.adapter import SettingsAdapter
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 
 class SettingsHost:

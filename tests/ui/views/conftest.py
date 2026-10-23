@@ -16,10 +16,13 @@ pytest.importorskip("PySide6.QtQuick")
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
-from bayle.session import EventBus, JobManager, PlanStore, Session  # noqa: E402
+from bayle.session import Session
 from bayle.session import ops as _registered_operations  # noqa: E402, F401
 from bayle.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
 from bayle.ui.pages.registry import QmlPage  # noqa: E402
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import FakeActivityFacts, er  # noqa: E402
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)

@@ -5,13 +5,16 @@ from pathlib import Path
 
 import pytest
 
+from bayle.errors import OperationError
 from bayle.platform import threads
 from bayle.services import mods as mod_service
-from bayle.services.errors import OperationError
 from bayle.services.mods import profile_entries
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.session.ops.mods_install import drafts
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er, mods_profile
 
 

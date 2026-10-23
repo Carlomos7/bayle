@@ -14,8 +14,8 @@ from bayle.game import catalog as games
 from bayle.game.locate import Locations
 from bayle.platform import logging as rl
 from bayle.platform import logging as run_logging
-from bayle.services import jobs
 from bayle.services import play as core
+from bayle.work import runner as jobs
 
 
 @pytest.fixture

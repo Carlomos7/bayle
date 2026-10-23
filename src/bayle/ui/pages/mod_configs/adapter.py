@@ -13,16 +13,17 @@ from typing import Any, Protocol
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle.coop import scaling as coop_scaling
+from bayle.errors import OperationError
 from bayle.formats import config_model
 from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
-from bayle.services.errors import OperationError
-from bayle.session import Plan, Session
+from bayle.session import Session
 from bayle.ui.models import plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.refresh import Refresher
 from bayle.views.mod_configs import ModConfigsPresenter
 from bayle.views.mods import Confirm, Pick, Refusal
+from bayle.work.prompts import Plan
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 

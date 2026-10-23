@@ -15,15 +15,14 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from bayle.errors import Busy, OperationError
 from bayle.game import catalog as games
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import play as core
-from bayle.services.errors import Busy, OperationError
 from bayle.services.settings import load_settings
 from bayle.session import ops as _registered_operations  # noqa: F401  registers the program's operations
-from bayle.session.events import Event
 from bayle.session.shell.service import Shell
 from bayle.session.shell.state import Context
 from bayle.ui.host import Host
@@ -34,6 +33,7 @@ from bayle.updates import apply as updates
 from bayle.updates import inno as migration
 from bayle.updates import retitle
 from bayle.views import topbar
+from bayle.work.events import Event
 
 
 class Pickers(Protocol):

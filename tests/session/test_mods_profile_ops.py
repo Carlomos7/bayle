@@ -5,12 +5,15 @@ from pathlib import Path
 import pytest
 
 from bayle.config.settings import data_dir
+from bayle.errors import OperationError
 from bayle.services import profile_mods
-from bayle.services.errors import OperationError
 from bayle.services.mods import profile_entries, read_profile_settings
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Confirm, Refusal
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er, mods_profile, tree_state
 
 
@@ -93,7 +96,7 @@ def test_loose_dlls_get_folders_after_a_confirmation(profile):
 
 
 def test_a_plan_made_before_the_profile_changed_is_refused(profile):
-    from bayle.session import PlanError
+    from bayle.work.prompts import PlanError
 
     s = make()
     plan = s.run("mods.dll_folders", {"profile": str(profile)})

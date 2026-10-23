@@ -15,10 +15,13 @@ from shiboken6 import delete
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
 from bayle.services.mods import profile_entries
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _registered_operations  # noqa: F401
 from bayle.ui.host import Host as HostContract
 from bayle.ui.pages.registry import page as registered
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn

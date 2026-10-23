@@ -3,13 +3,16 @@
 import pytest
 
 from bayle.config.settings import DATA_ENV, data_dir
+from bayle.errors import OperationError
 from bayle.mods import models as mod_models
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
-from bayle.services.errors import OperationError
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Confirm, Refusal
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import FakeActivityFacts, er
 
 
@@ -143,7 +146,7 @@ def test_undo_says_why_not_now():
 
 
 def test_a_plan_is_refused_when_the_job_was_taken_back_meanwhile(monkeypatch):
-    from bayle.session import PlanError
+    from bayle.work.prompts import PlanError
 
     monkeypatch.setattr(mod_undo, "run", lambda *a, **k: "x")
     jobs = [dict(JOBS[0])]

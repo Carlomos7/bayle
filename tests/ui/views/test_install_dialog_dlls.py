@@ -6,11 +6,14 @@ from types import SimpleNamespace
 from bayle.overhauls import basic
 from bayle.overhauls.config import BasicNative
 from bayle.services import mods as mod_service
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _registered_operations  # noqa: F401
 from bayle.session.ops.mods_install import DraftState, drafts
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
 from bayle.views.mod_install import InstallDraft
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er, mods_profile
 
 

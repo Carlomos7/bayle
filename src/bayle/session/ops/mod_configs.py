@@ -10,16 +10,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from bayle.errors import OperationError
 from bayle.overhauls.config import BasicNative
 from bayle.platform.text import tr
 from bayle.services import mod_configs
 from bayle.services import mods as mod_service
-from bayle.services.errors import OperationError
 from bayle.services.settings import load_settings
 from bayle.session.operations import Call, Params, Result, Session, operation, registry
-from bayle.session.plans import Proposal
 from bayle.views.common import Refusal
 from bayle.views.mod_configs import ModConfigsPresenter, ModConfigsState
+from bayle.work.prompts import Proposal
 
 
 class ModConfigsScope(Params):

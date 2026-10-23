@@ -417,10 +417,13 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
 # ----------------------------------------------------------------------------- gap 4: a matched setup is pre-filled
 def open_draft(world, plan):
     """An Install mod draft in a session, the way the dialog holds it: (session, draft id, its state)."""
-    from bayle.session import EventBus, JobManager, PlanStore, Session
+    from bayle.session import Session
     from bayle.session import ops as _ops  # noqa: F401  registers the operations
     from bayle.session.ops.mods_install import DraftState, drafts
     from bayle.views.mod_install import InstallDraft
+    from bayle.work.events import EventBus
+    from bayle.work.jobs import JobManager
+    from bayle.work.prompts import PlanStore
 
     session = Session(
         JobManager(EventBus(), spawn=lambda run, name=None: run()),

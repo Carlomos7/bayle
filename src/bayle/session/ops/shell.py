@@ -6,8 +6,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
+from bayle.errors import OperationError
 from bayle.platform.text import tr
-from bayle.services.errors import OperationError
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
 from bayle.session.shell import launch as launch_flow
 from bayle.session.shell.service import Shell

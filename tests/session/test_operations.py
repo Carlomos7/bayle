@@ -1,18 +1,11 @@
 import pytest
 
-from bayle.services.errors import Busy, OperationError
-from bayle.session import (
-    EventBus,
-    JobManager,
-    OperationRegistry,
-    Params,
-    PlanStore,
-    Proposal,
-    Result,
-    Session,
-    StartupStep,
-)
+from bayle.errors import Busy, OperationError
+from bayle.session import OperationRegistry, Params, Result, Session, StartupStep
 from bayle.views.common import Confirm, Refusal
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore, Proposal
 
 
 def inline(run, name=None):

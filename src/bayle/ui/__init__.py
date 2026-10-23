@@ -1,6 +1,6 @@
 """The window (PySide6 with Qt Quick), the only package that imports Qt: launcher (the shell: its host, adapter and
 launch flow), pages (each page's adapter and presenter; the QML is in qml), find (the editor's find bar) and jobs (the
-window's side of services/jobs.py)."""
+window's side of work/runner.py)."""
 
 from typing import TYPE_CHECKING
 

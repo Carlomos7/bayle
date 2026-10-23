@@ -15,7 +15,8 @@ from bayle.game.locate import Locations
 from bayle.mods import shared_mods
 from bayle.platform import cpu
 from bayle.saves import analyze, caches, item_names
-from bayle.services import jobs, saves
+from bayle.services import saves
+from bayle.work import runner as jobs
 
 
 def test_a_task_runs_inline_without_a_backend():

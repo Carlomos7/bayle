@@ -6,8 +6,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from bayle.errors import OperationError
 from bayle.platform.text import tr
-from bayle.services.errors import OperationError
 from bayle.ui.notifications import Notifier
 from bayle.views.common import Refusal
 

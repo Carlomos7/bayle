@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from bayle.errors import OperationError
 from bayle.mods import extract as mod_extract
 from bayle.overhauls import basic
 from bayle.platform import logging as run_logging
@@ -22,7 +23,6 @@ from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services import mod_configs, profile_mods
 from bayle.services import mods as mod_service
-from bayle.services.errors import OperationError
 from bayle.session.operations import Call, Params, Result, Session, operation
 from bayle.session.ops.mods import ProfileRef, idle, run_logged_job
 from bayle.views.file_actions import shown_path

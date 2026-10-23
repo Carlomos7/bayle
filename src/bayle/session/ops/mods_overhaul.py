@@ -10,14 +10,14 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import OperationError
 from bayle.platform.text import tr
 from bayle.services import mods as mod_service
-from bayle.services.errors import OperationError
 from bayle.session.operations import Call, Result, operation
 from bayle.session.ops.mods import Done, ProfileRef, run_logged_job, stamp, start_logged
-from bayle.session.plans import Answer, Proposal
 from bayle.views.common import Pick, Refusal, prompt_dict
 from bayle.views.mods import ModsPresenter
+from bayle.work.prompts import Answer, Proposal
 
 
 class PickOffer(Result):

@@ -12,7 +12,7 @@ from fastapi import APIRouter
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.session import JobContext
+from bayle.work.jobs import JobContext
 
 TOKEN = "t" * 32
 AUTH = {"Authorization": f"Bearer {TOKEN}"}

@@ -3,17 +3,20 @@
 import pytest
 
 from bayle.config.settings import data_dir
+from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods.layout import Cancelled as LayoutCancelled
 from bayle.mods.layout import LayoutError
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
-from bayle.services.errors import OperationError
 from bayle.services.settings import load_settings
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Refusal
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er
 
 

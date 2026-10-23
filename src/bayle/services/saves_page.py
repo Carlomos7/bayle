@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import Cancelled, OperationError
 from bayle.game import catalog as games
 from bayle.game.locate import Locations
 from bayle.platform import logging as run_logging
@@ -22,8 +23,7 @@ from bayle.saves import repair as save_repair
 from bayle.saves import transfer as save_transfer
 from bayle.services import activity as activity_service
 from bayle.services import saves as saves_service
-from bayle.services.errors import Cancelled, OperationError
-from bayle.services.jobs import run_job_result, run_logged
+from bayle.work.runner import run_job_result, run_logged
 
 
 @dataclass(frozen=True)

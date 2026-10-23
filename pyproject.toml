@@ -116,6 +116,7 @@ layers = [
     "bayle.session",
     "bayle.views",
     "bayle.services",
+    "bayle.work",
     "bayle.mods | bayle.saves | bayle.coop | bayle.updates",
     "bayle.overhauls",
     "bayle.merging",
@@ -123,6 +124,7 @@ layers = [
     "bayle.storage",
     "bayle.config",
     "bayle.platform",
+    "bayle.errors",
 ]
 
 [[tool.importlinter.contracts]]
@@ -131,6 +133,8 @@ type = "forbidden"
 source_modules = [
     "bayle.session",
     "bayle.services",
+    "bayle.work",
+    "bayle.errors",
     "bayle.mods",
     "bayle.saves",
     "bayle.coop",

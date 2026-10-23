@@ -7,7 +7,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from bayle.services.errors import Busy
+from bayle.errors import Busy
 
 if TYPE_CHECKING:
     from bayle.session.shell.launch import Ask

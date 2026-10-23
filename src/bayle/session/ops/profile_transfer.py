@@ -9,19 +9,19 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from bayle.errors import Cancelled, OperationError
 from bayle.mods import naming
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services import profile_transfer as pt
-from bayle.services.errors import Cancelled, OperationError
-from bayle.services.jobs import run_job_result
 from bayle.services.settings import load_settings
 from bayle.services.transfer_resources import Resource, TransferResources
-from bayle.session.jobs import JobContext
 from bayle.session.operations import Call, Params, Result, Session, operation, registry
-from bayle.session.plans import Proposal
 from bayle.views.profile_transfer import ProfileTransferPresenter
+from bayle.work.jobs import JobContext
+from bayle.work.prompts import Proposal
+from bayle.work.runner import run_job_result
 
 
 class ListScope(Params):

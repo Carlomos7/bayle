@@ -13,8 +13,8 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from bayle.errors import OperationError
 from bayle.platform.text import tr
-from bayle.services.errors import OperationError
 from bayle.services.saves_page import retention_limits
 from bayle.session import Session
 from bayle.ui.notifications import Notifier

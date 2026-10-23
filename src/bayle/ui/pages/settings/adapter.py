@@ -16,13 +16,13 @@ from bayle.errors import OperationError
 from bayle.platform import desktop
 from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.session import Session
+from bayle.services.settings import KEEP_RANGE, Changed, SettingsService
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
+from bayle.ui.pages.settings import presenter as view
+from bayle.ui.pages.settings.presenter import CHOICE_LABELS, LAYOUT_LABELS, LOCATION_WORDS, SettingsState
 from bayle.ui.refresh import Refresher
-from bayle.views import settings as sp
-from bayle.views.common import Refusal
-from bayle.views.settings_state import CHOICE_LABELS, KEEP_RANGE, LAYOUT_LABELS, LOCATION_WORDS, SettingsState
+from bayle.views import settings as launcher
 
 LAYOUT = tuple(LAYOUT_LABELS)  # the draft fields
 
@@ -33,7 +33,11 @@ class SettingsHost(Protocol):
     @property
     def busy(self) -> bool: ...
     @property
-    def session(self) -> Session: ...
+    def session(self) -> Any:
+        """Only for its job manager: the running move of the profiles folder is followed and cancelled there."""
+
+    @property
+    def settings_service(self) -> SettingsService: ...
     def run_in_background(self, work, on_result) -> None: ...
     def open_path(self, path: Path) -> None: ...
     def pick_folder(self, title: str) -> Path | None: ...
@@ -64,7 +68,7 @@ class SettingsAdapter(QObject):
         super().__init__(parent)
         self.host = host
         self.notifier = notifier
-        self._me3 = sp.Me3Line(tr("Checking me3..."), "muted", "", "", "", "", False)
+        self._me3 = view.Me3Line(tr("Checking me3..."), "muted", "", "", "", "", False)
         self._update: dict = {"line": "", "tone": "muted", "notices": []}
         self._locations = RowsModel(("key", "title", "help", "value", "placeholder", "isDir", "menu"), self)
         self._switches = {
@@ -76,6 +80,7 @@ class SettingsAdapter(QObject):
         for k, rows in CHOICE_LABELS.items():
             self._choices[k].set_rows([{"key": a, "label": tr(b)} for a, b in rows])
         self._saved_layout: dict[str, str] = {}
+        self._saved_root = ""  # the saved profiles folder as the last read saw it (what a move is checked against)
         self._layout_check: dict[str, Any] = {"errors": {}, "preview": ""}
         # what the page shows until the first read lands (it is built on a worker)
         self._values: dict[str, Any] = {
@@ -117,9 +122,9 @@ class SettingsAdapter(QObject):
             "locations": tr("Locations"),
             "launch": tr("Launch"),
             "launchHint": tr("Steps that run around Launch. Each can be turned off; Launch itself always runs."),
-            "offline": sp.OFFLINE_TITLE,
-            "offlineBlurb": sp.OFFLINE_BLURB,
-            "offlineHelp": sp.OFFLINE_HELP,
+            "offline": view.OFFLINE_TITLE,
+            "offlineBlurb": view.OFFLINE_BLURB,
+            "offlineHelp": view.OFFLINE_HELP,
             "steam": tr("Steam shortcut"),
             "steamHelp": tr("Launches from Steam without this window. One shortcut per game."),
             "copyTarget": tr("Copy target"),
@@ -231,7 +236,7 @@ class SettingsAdapter(QObject):
     steamTarget = Property(str, lambda self: self._values["steam_target"], notify=changed)
     steamOptions = Property(str, lambda self: self._values["steam_options"], notify=changed)
     dataFolder = Property(str, lambda self: self._values["data_folder"], notify=changed)
-    versionText = Property(str, lambda self: f"{sp.TITLE} {sp.VERSION}", constant=True)
+    versionText = Property(str, lambda self: f"{launcher.TITLE} {launcher.VERSION}", constant=True)
     launcherLine = Property(
         str, lambda self: self._update.get("line") or self._values["launcher_line"], notify=updatesChanged
     )
@@ -279,7 +284,7 @@ class SettingsAdapter(QObject):
     def _build(self, _snap: object) -> SettingsState:
         """Everything the page reads from the disk or the system (on a worker)."""
         assert_not_ui_thread("Settings facts")
-        return self.host.session.snapshot("settings")
+        return view.build(self.host.settings_service.page())
 
     def _apply(self, st: SettingsState) -> None:
         self._locations.set_rows(
@@ -328,6 +333,7 @@ class SettingsAdapter(QObject):
         }
         edited = self._layout_changes() != {}
         self._saved_layout = dict(st.layout)
+        self._saved_root = st.saved_profiles_root
         if not edited:
             self._draft = dict(self._saved_layout)
         self._check_layout()
@@ -367,19 +373,20 @@ class SettingsAdapter(QObject):
             ]
         )
 
-    # ---- asking the session (on the host's worker thread; an OperationError comes back as the result)
-    def _ask(self, name: str, params: dict, done) -> None:
-        session = self.host.session
+    # ---- asking the engine (on the host's worker thread; an OperationError comes back as the result)
+    def _ask(self, call, done, quiet: bool = False) -> None:
+        """call() on a worker; done(result) on the UI thread, or the refusal's words as a toast. quiet: the refusal is
+        a plain notice, not an error."""
 
         def work() -> Any:
             try:
-                return session.run(name, params)
+                return call()
             except OperationError as e:
                 return e
 
         def landed(got: Any) -> None:
             if isinstance(got, OperationError):
-                self.notifier.toast(got.message, error=True)
+                self.notifier.toast(view.refusal_line(got, body_only=quiet), error=not quiet)
                 self.refresh()
             else:
                 done(got)
@@ -388,9 +395,9 @@ class SettingsAdapter(QObject):
 
     # ---- switches and choices
     def _set(self, key: str, value: bool | int | str) -> None:
-        self._ask("settings.set", {"key": key, "value": value}, self._saved)
+        self._ask(lambda: self.host.settings_service.set(key, value), self._saved)
 
-    def _saved(self, got: Any) -> None:
+    def _saved(self, got: Changed) -> None:
         """A setting was saved: the host follows as the setting says, then the page reads again."""
         if got.follow == "appearance":
             self.host.set_appearance()
@@ -399,8 +406,8 @@ class SettingsAdapter(QObject):
         if got.follow == "updates":
             self.host.check_for_updates()
         self.refresh()
-        if got.said:
-            self.notifier.toast(got.said)
+        if line := view.said(got):
+            self.notifier.toast(line)
 
     @Slot(str, bool)
     def setSwitch(self, key: str, on: bool) -> None:
@@ -444,7 +451,7 @@ class SettingsAdapter(QObject):
             logs = Path(self._me3.logs) if self._me3.logs else None
             self._open(str(logs) if logs is not None and logs.exists() else None)
             return
-        self._ask("settings.folder", {"kind": kind}, lambda got: self._open(got.path))
+        self._ask(lambda: self.host.settings_service.folder(kind), lambda path: self._open(str(path) if path else None))
 
     def _open(self, path: str | None) -> None:
         if path is None:
@@ -456,7 +463,7 @@ class SettingsAdapter(QObject):
     def rowAction(self, key: str, action: str) -> None:
         """An item of a Locations row's overflow."""
         if action == "me3-releases":
-            desktop.open_path(sp.ME3_RELEASES_URL)
+            desktop.open_path(view.ME3_RELEASES_URL)
         elif action == "me3-rescan":
             self.readMe3()
         else:
@@ -467,7 +474,7 @@ class SettingsAdapter(QObject):
         """Ask me3 for its version and folders (it runs me3 info, so on a worker thread)."""
 
         def done(facts: dict) -> None:
-            self._me3 = sp.me3_line(facts)
+            self._me3 = view.me3_line(facts)
             self.me3Changed.emit()
             self.refresh()
 
@@ -488,12 +495,9 @@ class SettingsAdapter(QObject):
         }
 
     def _check_layout(self) -> None:
-        """The names' problems and the preview, from the session (a pure read, so it answers at once)."""
-        try:
-            got = self.host.session.run("settings.layout_check", self._draft)
-            self._layout_check = {"errors": got.errors, "preview": got.preview}
-        except OperationError:
-            pass
+        """The names' problems and the preview, from the engine (a pure read, so it answers at once)."""
+        got = self.host.settings_service.check_names(self._draft)
+        self._layout_check = {"errors": view.name_errors(got), "preview": got.preview}
 
     @Slot(str, str)
     def editLayout(self, field: str, value: str) -> None:
@@ -506,13 +510,25 @@ class SettingsAdapter(QObject):
     def applyLayout(self) -> None:
         if not self._layout_changes() or self._layout_check["errors"] or self._moving:
             return
-        self._offer("settings.rename_layout", dict(self._draft))
+        service, names = self.host.settings_service, dict(self._draft)
+        self._offer(
+            lambda: service.check_rename(names),
+            view.rename_confirm,
+            lambda changes: service.rename(names, changes, tr("Renaming folders...")),
+        )
 
     @Slot()
     def changeProfilesFolder(self) -> None:
         picked = self.host.pick_folder(tr("Pick the profiles folder"))
-        if picked:
-            self._offer("settings.relocate", {"folder": str(picked)})
+        if not picked:
+            return
+        service, root = self.host.settings_service, self._saved_root
+        self._offer(
+            lambda: service.check_relocate(str(picked)),
+            view.relocate_confirm,
+            lambda checked: service.relocate(checked.folder, root, tr("Moving profiles and mods...")),
+            moves_root=True,
+        )
 
     @Slot()
     def cancelMove(self) -> None:
@@ -521,32 +537,29 @@ class SettingsAdapter(QObject):
 
     @Slot()
     def moveAll(self) -> None:
-        self._offer("settings.move_all", {})
+        service = self.host.settings_service
+        self._offer(
+            service.check_move_all,
+            view.move_all_confirm,
+            lambda names: service.move_all(names, tr("Moving profiles...")),
+            quiet=True,
+        )
 
-    def _offer(self, op: str, params: dict) -> None:
-        """Ask the session for the plan, show its Confirm, and send the answer back; the job it starts is followed by
-        the host on the event bus."""
+    def _offer(self, check, confirm, start, quiet: bool = False, moves_root: bool = False) -> None:
+        """Check on a worker, show the Confirm of what was checked, and on OK start the job with exactly that (the
+        engine says stale when it changed since); the host follows the job on the event bus."""
 
-        def shown(got: Any) -> None:
-            if isinstance(got, Refusal):
-                self.notifier.toast(
-                    got.body if op == "settings.move_all" else f"{got.title}. {got.body}",
-                    error=op != "settings.move_all",
-                )
-                return
-            self.notifier.confirm(got.words, lambda ok: self._answered(op, got.id, ok))
+        def started(job_id: str) -> None:
+            if moves_root:
+                self._move_job, self._moving = str(job_id), True
+                self.changed.emit()
 
-        self._ask(op, params, shown)
+        def shown(checked: Any) -> None:
+            self.notifier.confirm(
+                confirm(checked), lambda ok: self._ask(lambda: start(checked), started, quiet) if ok else None
+            )
 
-    def _answered(self, op: str, plan_id: str, ok: bool) -> None:
-        try:
-            job_id = self.host.session.answer(plan_id, {"ok": ok})
-        except OperationError as e:  # busy, expired, or changed since
-            self.notifier.toast(e.message, error=True)
-            return
-        if ok and op == "settings.relocate":
-            self._move_job, self._moving = str(job_id), True
-            self.changed.emit()
+        self._ask(check, shown, quiet)
 
     # ---- launch
     def _copy(self, text: str) -> None:
@@ -566,7 +579,9 @@ class SettingsAdapter(QObject):
         if self.host.busy:
             self.notifier.toast(tr("Wait for the current job."), error=True)
             return
-        self._ask("settings.clear_leftovers", {}, lambda _job: None)
+        self._ask(
+            lambda: self.host.settings_service.clear_leftovers(tr("Clearing leftover processes...")), lambda _id: None
+        )
 
     # ---- updates, logs, about
     @Slot()
@@ -575,7 +590,7 @@ class SettingsAdapter(QObject):
 
     @Slot()
     def openReleases(self) -> None:
-        desktop.open_path(sp.RELEASES_URL)
+        desktop.open_path(launcher.RELEASES_URL)
 
     @Slot()
     def saveLogs(self) -> None:
@@ -583,8 +598,8 @@ class SettingsAdapter(QObject):
 
     @Slot(str)
     def openLicence(self, file: str) -> None:
-        if file in sp.LICENCE_FILES:
-            desktop.open_path(sp.licence_url(file))
+        if file in view.LICENCE_FILES:
+            desktop.open_path(view.licence_url(file))
 
     @Slot(str, str)
     def noticeAction(self, notice_id: str, key: str) -> None:

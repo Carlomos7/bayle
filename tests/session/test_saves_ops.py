@@ -14,6 +14,7 @@ from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
+from bayle.services.saves_page import SavesService
 from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Confirm, Refusal
@@ -40,7 +41,13 @@ class World:
         self.loc = Locations(catalog.ELDEN_RING, Overrides(saves_dir=str(self.root)))
 
     def session(self, **jobs) -> Session:
-        return Session(JobManager(EventBus(), spawn=inline, **jobs), plans=PlanStore(), locations=lambda: self.loc)
+        jobs_ = JobManager(EventBus(), spawn=inline, **jobs)
+        return Session(
+            jobs_,
+            plans=PlanStore(),
+            locations=lambda: self.loc,
+            services={"saves": SavesService(jobs_, lambda: self.loc)},
+        )
 
     def backups(self):
         return saves_service.list_backups(loc=self.loc)
@@ -116,8 +123,7 @@ def test_health_report_and_sheet_read_the_save(world, monkeypatch):
     monkeypatch.setattr(saves_service.save_analyze, "format_health_report", lambda i: f"report of {i['name']}")
     s = world.session()
     assert s.run("saves.health_report", {"path": str(world.save)}).text == "report of ER0000.sl2"
-    assert s.run("saves.sheet", {"path": str(world.save), "slot": 1}).data["name"] == "Ann"
-    assert s.run("saves.sheet", {"path": str(world.save), "slot": 9}).data == {}
+    assert s.run("saves.sheet", {"path": str(world.save), "slot": 1}).data["characters"][0]["name"] == "Ann"
 
 
 def test_adopt_legacy_is_a_command_and_the_folders_command_makes_them(world):

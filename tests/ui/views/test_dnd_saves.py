@@ -21,7 +21,7 @@ class Host:
     game_running = False
     locations = None  # nothing is read from disk: the test fills the adapter by hand
 
-    session = SimpleNamespace(run=lambda name, params: SimpleNamespace(text="A name"))  # saves.default_name
+    saves_service = SimpleNamespace(default_name=lambda path: "A name")
 
     def follow_job(self, job_id, done):
         raise AssertionError("the drop only reaches the twin's slot")

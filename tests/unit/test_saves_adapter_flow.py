@@ -7,6 +7,7 @@ from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.saves import regulation as save_regulation
 from bayle.services import saves as saves_service
+from bayle.services.saves_page import SavesService
 from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.notifications import Notifier
@@ -24,11 +25,9 @@ class Host:
 
     def __init__(self, loc):
         self.locations = loc
-        self.session = Session(
-            JobManager(EventBus(), spawn=lambda run, name=None: run()),
-            plans=PlanStore(),
-            locations=lambda: loc,
-        )
+        jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
+        self.saves_service = SavesService(jobs, lambda: loc)
+        self.session = Session(jobs, plans=PlanStore(), locations=lambda: loc, services={"saves": self.saves_service})
 
     def run_in_background(self, work, on_result):
         on_result(work())

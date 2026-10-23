@@ -74,6 +74,7 @@ class ShellHost(QObject):
         self.session = self.shell.session
         self.activity = self.shell.activity
         self.settings_service = self.shell.settings
+        self.saves_service = self.shell.saves
         self.flow = self.shell.flow
         self.updates = self.shell.updates
         self.watch = self.shell.watch

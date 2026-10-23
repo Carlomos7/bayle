@@ -175,4 +175,4 @@ def run_undo(u: dict, job_id: str, name: str, loc: Locations, title: str, store:
         return done.result
     if done.state == "cancelled":
         raise Cancelled()
-    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+    raise OperationError.from_info(done.error)

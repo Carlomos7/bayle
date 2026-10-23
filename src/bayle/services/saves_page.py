@@ -86,7 +86,7 @@ def logged_write(log_title: str, progress: str, loc: Locations, body: Callable[[
         return replace(done.result, undo=done.undo)
     if done.state == "cancelled":
         raise Cancelled()
-    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+    raise OperationError.from_info(done.error)
 
 
 # ----------------------------------------------------------------------------- reading

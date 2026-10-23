@@ -86,9 +86,7 @@ def rebuild(call: Call, p: RebuildParams) -> Done:
     job = profile_mods.rebuild_job(p.profile, True if p.combine else None)
     done = run_job_result(job, None, call.session.locations(), _rebuild_title(p))
     if done.state != "done":
-        raise OperationError(
-            done.error.code if done.error else "failed", done.error.message if done.error else "Failed."
-        )
+        raise OperationError.from_info(done.error)
     return Done(note="rebuilt")
 
 

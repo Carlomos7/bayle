@@ -243,7 +243,7 @@ def _logged(session: Session, title: str, fn: Callable[[], Any]) -> Any:
         return done.result
     if done.state == "cancelled":
         raise Cancelled()
-    raise OperationError(done.error.code if done.error else "failed", done.error.message if done.error else "Failed.")
+    raise OperationError.from_info(done.error)
 
 
 @operation("profile_transfer.import", params=ImportParams, result=ImportResult, kind="job", writes=True)

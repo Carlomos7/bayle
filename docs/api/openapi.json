@@ -355,24 +355,6 @@
         "title": "CharacterParams",
         "type": "object"
       },
-      "ChoiceRow": {
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label"
-        ],
-        "title": "ChoiceRow",
-        "type": "object"
-      },
       "ClashFile": {
         "properties": {
           "losers": {
@@ -940,6 +922,20 @@
           "path"
         ],
         "title": "Folder",
+        "type": "object"
+      },
+      "FolderParam": {
+        "additionalProperties": false,
+        "properties": {
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder"
+        ],
+        "title": "FolderParam",
         "type": "object"
       },
       "FolderPath": {
@@ -1843,49 +1839,6 @@
         "title": "LoadOrderPanel",
         "type": "object"
       },
-      "LocationRow": {
-        "properties": {
-          "filter": {
-            "default": "",
-            "title": "Filter",
-            "type": "string"
-          },
-          "help": {
-            "title": "Help",
-            "type": "string"
-          },
-          "is_dir": {
-            "title": "Is Dir",
-            "type": "boolean"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "placeholder": {
-            "title": "Placeholder",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "value": {
-            "title": "Value",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "title",
-          "help",
-          "value",
-          "placeholder",
-          "is_dir"
-        ],
-        "title": "LocationRow",
-        "type": "object"
-      },
       "LogData": {
         "properties": {
           "level": {
@@ -2348,6 +2301,23 @@
           "folders"
         ],
         "title": "ModsView",
+        "type": "object"
+      },
+      "MoveAllParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expect"
+        ],
+        "title": "MoveAllParams",
         "type": "object"
       },
       "MoveParams": {
@@ -3525,6 +3495,22 @@
         "title": "ProfileRef",
         "type": "object"
       },
+      "Profiles": {
+        "properties": {
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "array"
+          }
+        },
+        "required": [
+          "names"
+        ],
+        "title": "Profiles",
+        "type": "object"
+      },
       "ProgressData": {
         "properties": {
           "done": {
@@ -3723,16 +3709,56 @@
         "title": "Refused",
         "type": "object"
       },
+      "RelocateFacts": {
+        "properties": {
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "free": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free"
+          },
+          "profiles": {
+            "title": "Profiles",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "folder",
+          "profiles",
+          "size",
+          "free"
+        ],
+        "title": "RelocateFacts",
+        "type": "object"
+      },
       "RelocateParams": {
         "additionalProperties": false,
         "properties": {
+          "expect_root": {
+            "title": "Expect Root",
+            "type": "string"
+          },
           "folder": {
             "title": "Folder",
             "type": "string"
           }
         },
         "required": [
-          "folder"
+          "folder",
+          "expect_root"
         ],
         "title": "RelocateParams",
         "type": "object"
@@ -3797,6 +3823,32 @@
           "name"
         ],
         "title": "RemoveParams",
+        "type": "object"
+      },
+      "RenameChanges": {
+        "properties": {
+          "changes": {
+            "additionalProperties": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Changes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "RenameChanges",
         "type": "object"
       },
       "RenamePreview": {
@@ -4605,63 +4657,41 @@
         "title": "SettingSpec",
         "type": "object"
       },
-      "SettingsState": {
+      "SettingsJob": {
         "properties": {
-          "backups_keep": {
-            "title": "Backups Keep",
-            "type": "integer"
-          },
-          "backups_location": {
-            "title": "Backups Location",
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "SettingsJob",
+        "type": "object"
+      },
+      "SettingsPage": {
+        "properties": {
+          "backups_folder": {
+            "title": "Backups Folder",
             "type": "string"
           },
-          "choices": {
+          "detected": {
             "additionalProperties": {
-              "items": {
-                "$ref": "#/components/schemas/ChoiceRow"
-              },
-              "type": "array"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
-            "title": "Choices",
+            "title": "Detected",
             "type": "object"
-          },
-          "data_folder": {
-            "title": "Data Folder",
-            "type": "string"
-          },
-          "effects": {
-            "title": "Effects",
-            "type": "string"
           },
           "game": {
             "title": "Game",
-            "type": "string"
-          },
-          "grain": {
-            "title": "Grain",
-            "type": "string"
-          },
-          "keep_from": {
-            "title": "Keep From",
-            "type": "integer"
-          },
-          "keep_to": {
-            "title": "Keep To",
-            "type": "integer"
-          },
-          "labels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Labels",
-            "type": "object"
-          },
-          "launcher_channel": {
-            "title": "Launcher Channel",
-            "type": "string"
-          },
-          "launcher_line": {
-            "title": "Launcher Line",
             "type": "string"
           },
           "layout": {
@@ -4671,24 +4701,25 @@
             "title": "Layout",
             "type": "object"
           },
-          "locations": {
-            "items": {
-              "$ref": "#/components/schemas/LocationRow"
-            },
-            "title": "Locations",
-            "type": "array"
+          "me3_profiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Me3 Profiles"
           },
-          "log_level": {
-            "title": "Log Level",
+          "overhaul": {
+            "title": "Overhaul",
             "type": "string"
           },
-          "logo": {
-            "title": "Logo",
-            "type": "string"
-          },
-          "profiles_root": {
-            "title": "Profiles Root",
-            "type": "string"
+          "settings": {
+            "additionalProperties": true,
+            "title": "Settings",
+            "type": "object"
           },
           "specs": {
             "items": {
@@ -4704,44 +4735,21 @@
           "steam_target": {
             "title": "Steam Target",
             "type": "string"
-          },
-          "switches": {
-            "items": {
-              "$ref": "#/components/schemas/SwitchRow"
-            },
-            "title": "Switches",
-            "type": "array"
-          },
-          "theme": {
-            "title": "Theme",
-            "type": "string"
           }
         },
         "required": [
           "game",
-          "theme",
-          "effects",
-          "grain",
-          "logo",
-          "log_level",
-          "launcher_channel",
-          "labels",
-          "choices",
-          "backups_keep",
-          "keep_from",
-          "keep_to",
-          "backups_location",
-          "profiles_root",
+          "settings",
+          "detected",
+          "overhaul",
           "steam_target",
           "steam_options",
-          "data_folder",
-          "launcher_line",
+          "backups_folder",
+          "me3_profiles",
           "layout",
-          "locations",
-          "switches",
           "specs"
         ],
-        "title": "SettingsState",
+        "title": "SettingsPage",
         "type": "object"
       },
       "SettingsView": {
@@ -5217,49 +5225,6 @@
           "restore"
         ],
         "title": "StrandedParams",
-        "type": "object"
-      },
-      "SwitchRow": {
-        "properties": {
-          "blurb": {
-            "title": "Blurb",
-            "type": "string"
-          },
-          "checked": {
-            "title": "Checked",
-            "type": "boolean"
-          },
-          "group": {
-            "title": "Group",
-            "type": "string"
-          },
-          "help": {
-            "title": "Help",
-            "type": "string"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "shown": {
-            "title": "Shown",
-            "type": "boolean"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "title",
-          "blurb",
-          "help",
-          "group",
-          "checked",
-          "shown"
-        ],
-        "title": "SwitchRow",
         "type": "object"
       },
       "Tag": {
@@ -5998,9 +5963,8 @@
             "title": "Key",
             "type": "string"
           },
-          "said": {
-            "default": "",
-            "title": "Said",
+          "kind": {
+            "title": "Kind",
             "type": "string"
           },
           "stored_as": {
@@ -6026,7 +5990,8 @@
           "key",
           "value",
           "stored_as",
-          "follow"
+          "follow",
+          "kind"
         ],
         "title": "Changed",
         "type": "object"
@@ -6043,6 +6008,77 @@
           "kind"
         ],
         "title": "FolderParams",
+        "type": "object"
+      },
+      "bayle__session__ops__settings__RenameParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "additionalProperties": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Expect",
+            "type": "object"
+          },
+          "natives": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Natives"
+          },
+          "packages": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packages"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared"
+          }
+        },
+        "required": [
+          "expect"
+        ],
+        "title": "RenameParams",
         "type": "object"
       },
       "bayle__session__ops__shell__CheckParams": {
@@ -11133,15 +11169,15 @@
         ]
       }
     },
-    "/v1/ops/settings.clear_leftovers": {
+    "/v1/ops/settings.check_move_all": {
       "post": {
-        "operationId": "op_settings_clear_leftovers",
+        "operationId": "op_settings_check_move_all",
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/Profiles"
                 }
               }
             },
@@ -11153,7 +11189,125 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "settings.clear_leftovers (job)",
+        "summary": "settings.check_move_all (read)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.check_relocate": {
+      "post": {
+        "operationId": "op_settings_check_relocate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderParam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelocateFacts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.check_relocate (read)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.check_rename": {
+      "post": {
+        "operationId": "op_settings_check_rename",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Names"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenameChanges"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.check_rename (read)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/ops/settings.clear_leftovers": {
+      "post": {
+        "operationId": "op_settings_clear_leftovers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "settings.clear_leftovers (command, writes)",
         "tags": [
           "settings"
         ]
@@ -11254,16 +11408,36 @@
     "/v1/ops/settings.move_all": {
       "post": {
         "operationId": "op_settings_move_all",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveAllParams"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SettingsJob"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -11271,7 +11445,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "settings.move_all (plan, writes)",
+        "summary": "settings.move_all (command, writes)",
         "tags": [
           "settings"
         ]
@@ -11295,7 +11469,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SettingsJob"
                 }
               }
             },
@@ -11317,7 +11491,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "settings.relocate (plan, writes)",
+        "summary": "settings.relocate (command, writes)",
         "tags": [
           "settings"
         ]
@@ -11330,7 +11504,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Names"
+                "$ref": "#/components/schemas/bayle__session__ops__settings__RenameParams"
               }
             }
           },
@@ -11341,7 +11515,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SettingsJob"
                 }
               }
             },
@@ -11363,7 +11537,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "settings.rename_layout (plan, writes)",
+        "summary": "settings.rename_layout (command, writes)",
         "tags": [
           "settings"
         ]
@@ -12187,7 +12361,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsState"
+                  "$ref": "#/components/schemas/SettingsPage"
                 }
               }
             },

@@ -74,7 +74,6 @@ class FakeHost:
         self.busy = False
         self.game_running = False
         self.seen = 0
-        self.facts = FakeActivityFacts(JOBS)
         self.session = Session(
             JobManager(
                 EventBus(),
@@ -84,8 +83,8 @@ class FakeHost:
             ),
             plans=PlanStore(),
             locations=er,
-            services={"activity": self.facts, "clock": lambda: NOW},
         )
+        self.activity = self.facts = FakeActivityFacts(JOBS, manager=self.session.jobs)
 
     def started(self) -> list[str]:
         """The titles of the session jobs started, in order."""
@@ -106,7 +105,7 @@ def qt_app():
 
 @pytest.fixture
 def activity_entry():
-    return QmlPage("activity", "Pages/ActivityPage.qml", lambda host, n: ActivityAdapter(host, n))
+    return QmlPage("activity", "Pages/ActivityPage.qml", lambda host, n: ActivityAdapter(host, n, now=lambda: NOW))
 
 
 @pytest.fixture

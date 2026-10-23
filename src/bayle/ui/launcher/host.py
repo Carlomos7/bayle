@@ -72,6 +72,7 @@ class ShellHost(QObject):
         self.shell = Shell(ctx, background=self.jobs, restart=self.restart_for_update, open_url=desktop.open_path)
         self.state = self.shell.state
         self.session = self.shell.session
+        self.activity = self.shell.activity
         self.flow = self.shell.flow
         self.updates = self.shell.updates
         self.watch = self.shell.watch
@@ -530,7 +531,7 @@ class ShellHost(QObject):
         return self.shell.installed_games()
 
     def mark_seen(self) -> None:
-        self.session.run("activity.mark_seen")
+        self.activity.mark_seen()
         self.ctx_settings_again()
         self.shell.failed_job = ""
         self.shell.update_badge()

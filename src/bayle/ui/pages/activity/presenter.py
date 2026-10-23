@@ -15,11 +15,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from bayle.errors import OperationError
 from bayle.game import catalog as games
 from bayle.mods import kinds
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
 from bayle.platform.text import plural, tr
+from bayle.services.activity import JobLog
 from bayle.views.common import Confirm, Refusal
 
 SHOWN = 100  # entries listed at most (retention keeps about this many anyway)
@@ -119,10 +121,6 @@ class ActivityFacts(Protocol):
     def jobs(self) -> list[dict]: ...
     def undo_available(self, undo: dict) -> bool: ...
     def in_trash(self, path: object) -> bool: ...
-    def read_log(self, name: str) -> dict: ...
-    def read_attachment(self, name: str) -> dict: ...
-    def log_file(self, name: str) -> Path | None:
-        """The file behind a log or attachment, None when it is gone."""
 
 
 # ----------------------------------------------------------------------------- small words
@@ -344,24 +342,16 @@ class ActivityPresenter:
             cards.append(SummaryCard(tr("Last failure"), none, "muted"))
         return tuple(cards)
 
-    def record(self, job_id: str) -> dict | None:
-        """The job's record in the jobs index now, None when it is gone."""
-        return next((r for r in self._facts.jobs() if str(r.get("id")) == job_id), None)
-
     # ---- one job's log
-    def log(self, job_id: str, source: str = "", detail: bool = False) -> LogText:
-        """The job's log (information and up, or every line with detail), or another program's output kept with
-        it (source: an attachment's name)."""
-        rec = self.record(job_id) or {}
-        main = rec.get("log") or ""
-        source = source or main
+    @staticmethod
+    def log_text(got: JobLog, detail: bool = False) -> LogText:
+        """A job's log (information and up, or every line with detail), or another program's output kept with it."""
         notes: list[str] = []
-        if source == main:
-            got = self._facts.read_log(source)
-            if got["missing"]:
+        if not got.attachment:
+            if got.missing:
                 return LogText((("", "warning", tr("This job's log file is no longer there.")),), "", missing=True)
-            rows = tuple(log_row(e) for e in got["entries"] if detail or e["level"] != "debug")
-            hidden = 0 if detail else sum(1 for e in got["entries"] if e["level"] == "debug")
+            rows = tuple(log_row(e) for e in got.entries if detail or e["level"] != "debug")
+            hidden = 0 if detail else sum(1 for e in got.entries if e["level"] == "debug")
             if hidden:
                 notes.append(
                     plural(
@@ -372,12 +362,11 @@ class ActivityPresenter:
                 )
             plain = "\n".join(f"{t}  {lvl.upper():7}  {x}" for t, lvl, x in rows)
         else:
-            got = self._facts.read_attachment(source)
-            if got["missing"]:
+            if got.missing:
                 return LogText((("", "warning", tr("This output file is no longer there.")),), "", missing=True)
-            plain = got["text"]
+            plain = got.text
             rows = (("", "info", plain),)
-        if got.get("cut"):
+        if got.cut:
             notes.insert(0, tr("Only the end of a long file is shown; Open file has all of it."))
         return LogText(rows, plain, " ".join(notes))
 
@@ -386,20 +375,23 @@ class ActivityPresenter:
         """What Copy puts on the clipboard; for support, with the user name and Steam IDs masked."""
         return run_logging.redact(log.plain) if for_support else log.plain
 
-    def log_path(self, source: str) -> Path | None:
-        """The file behind a log or attachment, for Open file (None when it is gone)."""
-        return self._facts.log_file(source)
+    @staticmethod
+    def refusal(e: OperationError) -> Refusal:
+        """Why the engine would not take a job back, in words."""
+        match e.code:
+            case "busy":
+                return Refusal(tr("Wait for the current job"), tr("Undo runs as a job of its own."))
+            case "gone":
+                return Refusal(tr("It cannot be taken back any more"), tr("What it needs is gone."))
+            case "game_running":
+                return Refusal(tr("Close the game first"), tr("The rebuild's files are in use while it runs."))
+            case _:
+                return Refusal(tr("It cannot be taken back"), e.message)
 
     # ---- Undo
-    def undo_plan(self, rec: dict, busy: bool, game_running: bool) -> UndoPlan | Refusal:
-        """What taking rec back would do, or why it cannot be done now."""
+    def undo_plan(self, rec: dict) -> UndoPlan:
+        """What taking rec back would do (the engine has checked that it can be)."""
         u = dict(rec.get("undo") or {})
-        if busy:
-            return Refusal(tr("Wait for the current job"), tr("Undo runs as a job of its own."))
-        if not self._facts.undo_available(u):
-            return Refusal(tr("It cannot be taken back any more"), tr("What it needs is gone."))
-        if u.get("type") == "rebuild" and game_running:
-            return Refusal(tr("Close the game first"), tr("The rebuild's files are in use while it runs."))
         prof = Path(u.get("profile") or "")
         job_id = str(rec.get("id") or "")
         if u.get("type") == "rebuild":

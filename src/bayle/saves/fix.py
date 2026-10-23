@@ -12,10 +12,11 @@ Nothing is written when there is nothing to do. Callers refuse while the game ru
 from __future__ import annotations
 
 import hashlib
-import shutil
+import os
 import time
 from pathlib import Path
 
+from bayle.platform.files import durable_write, read_settled
 from bayle.saves import backups as save_backups
 from bayle.saves import layout as L
 
@@ -37,10 +38,20 @@ def backup(save: Path, manifest: dict | None = None) -> Path:
     """Copy the save into its account's backups folder (save_backups.backups). A note (what it was taken before, when,
     which save, what changed) is written beside it as <backup>.json, then older backups of that save are pruned. All
     of it runs under the account's backups lock (save_backups.account_lock); BackupsBusy means no backup was taken,
-    so the caller's change must not go ahead."""
+    so the caller's change must not go ahead; so does Unsettled (the save kept changing or stayed locked while it was
+    read). The copy is one consistent read of the save, written whole or not at all (never a partial .bak under its
+    final name), checked before it gets that name, and keeps the save's timestamps as copy2 did (prune ages
+    backups by mtime)."""
     save = Path(save)
+    data, st = read_settled(save)
     folder = save_backups.backups(save.parent)
     folder.mkdir(parents=True, exist_ok=True)
+
+    def same_copy(tmp: Path) -> None:
+        if tmp.read_bytes() != data:
+            raise OSError(f"The backup of {save.name} did not read back the same; nothing was kept.")
+        os.utime(tmp, ns=(st.st_atime_ns, st.st_mtime_ns))
+
     with save_backups.account_lock(folder):
         stamp = time.strftime("%Y%m%d-%H%M%S")
         dest = folder / f"{save.name}.{stamp}.bak"
@@ -48,7 +59,7 @@ def backup(save: Path, manifest: dict | None = None) -> Path:
         while dest.exists():
             n += 1
             dest = folder / f"{save.name}.{stamp}-{n}.bak"
-        shutil.copy2(save, dest)
+        durable_write(dest, data, verify=same_copy)
         write_manifest(dest, manifest or {"action": "Before a change"}, save)
         save_backups.prune(folder, save.name)
     return dest

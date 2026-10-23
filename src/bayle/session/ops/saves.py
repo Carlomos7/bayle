@@ -16,6 +16,7 @@ from bayle.errors import Busy, OperationError
 from bayle.platform.text import tr
 from bayle.services import saves as saves_service
 from bayle.services import saves_page as svc
+from bayle.services.saves_page import SavesService
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
 from bayle.views.common import Refusal
 from bayle.views.saves import SavesPresenter
@@ -46,7 +47,7 @@ class Said(Result):
 
 
 class Sheet(Result):
-    data: dict[str, Any]  # views.saves.sheet: overview and stats of one character
+    data: dict[str, Any]  # services.saves.save_info: the save's facts; the client makes the sheet of a slot
 
 
 class CopyEntry(Result):
@@ -194,9 +195,17 @@ def _plan_failed(e: Exception) -> Refusal:
 
 
 # ----------------------------------------------------------------------------- the page and its reads
+def _none() -> SavesService:
+    raise OperationError("no_saves_service", "This session has no Saves page.")
+
+
+def _saves(session: Session) -> SavesService:
+    return session.service("saves", _none)
+
+
 @registry.page("saves", view=SavesState)
 def snapshot(session: Session) -> SavesState:
-    facts = svc.read_facts(session.locations())
+    facts = _saves(session).page()
     return SavesState(facts.infos, facts.libraries, facts.backups)
 
 
@@ -208,32 +217,31 @@ def adopt_legacy(call: Call, p: NoParams) -> Adopted:
 
 @operation("saves.health_report", params=PathParams, result=Said)
 def health_report(call: Call, p: PathParams) -> Said:
-    return Said(text=saves_service.health_report(Path(p.path), loc=call.session.locations()))
+    return Said(text=_saves(call.session).health_report(p.path))
 
 
 @operation("saves.sheet", params=SheetParams, result=Sheet)
 def sheet(call: Call, p: SheetParams) -> Sheet:
-    info = saves_service.save_info(Path(p.path), loc=call.session.locations())
-    return Sheet(data=_presenter().sheet(info, p.slot))
+    """The save's facts; which slot to show is the client's (the Qt page words the sheet itself)."""
+    return Sheet(data=_saves(call.session).save_info(p.path))
 
 
 @operation("saves.copy_entry", params=CopyRef, result=CopyEntry)
 def copy_entry(call: Call, p: CopyRef) -> CopyEntry:
     """One Library copy, for a client to ask about it first (it was changed outside the launcher)."""
-    e = svc.library_entry(Path(p.folder), p.entry_id)
-    return CopyEntry(name=e["name"], path=str(e["path"]), changed_outside=e["changed_outside"])
+    return CopyEntry(**_saves(call.session).copy_entry(p.folder, p.entry_id))
 
 
 @operation("saves.folder", params=FolderParams, result=Folder, kind="command", writes=True)
 def folder(call: Call, p: FolderParams) -> Folder:
     """The Saves, Backups or Library folder to show (the last two are created if they do not exist yet)."""
-    got = svc.open_folder(p.which, loc=call.session.locations())
+    got = _saves(call.session).folder(p.which)
     return Folder(path=None if got is None else str(got))
 
 
 @operation("saves.default_name", params=PathParams, result=Said)
 def default_name(call: Call, p: PathParams) -> Said:
-    return Said(text=svc.library_default_name(Path(p.path), call.session.locations()))
+    return Said(text=_saves(call.session).default_name(p.path))
 
 
 # ----------------------------------------------------------------------------- the upkeep of copies and backups

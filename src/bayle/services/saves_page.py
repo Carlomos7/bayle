@@ -23,6 +23,7 @@ from bayle.saves import repair as save_repair
 from bayle.saves import transfer as save_transfer
 from bayle.services import activity as activity_service
 from bayle.services import saves as saves_service
+from bayle.work.jobs import JobManager
 from bayle.work.runner import run_job_result, run_logged
 
 
@@ -348,3 +349,45 @@ def undo_change(save: Path, backup: Path, *, loc: Locations) -> str:
     progress = tr("Undoing the change to {name}...").format(name=Path(save).name)
     # no job id: nothing in the jobs index to mark undone, so no activity log is needed
     return activity_service.run_undo(restore_record(save, backup), "", Path(save).name, loc, progress, None)
+
+
+class SavesService:
+    """The Saves page's reads for one engine: jobs is its JobManager, locations the current game's Locations (None:
+    no game selected). Returns data and OperationError codes, never wording: the Qt page words them. The writes still
+    go through the session's operations."""
+
+    def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
+        self._jobs, self._locations = jobs, locations
+
+    def _loc(self) -> Locations:
+        try:
+            loc = self._locations()
+        except OperationError:
+            loc = None
+        if loc is None:
+            raise OperationError("no_game", "No game is selected.")
+        return loc
+
+    def page(self) -> SavesFacts:
+        return read_facts(self._loc())
+
+    def save_info(self, path: str | Path) -> dict:
+        """One save's facts (the character sheet is made from them by the client)."""
+        info = saves_service.save_info(Path(path), loc=self._loc())
+        return {**info, "path": str(info["path"])}
+
+    def health_report(self, path: str | Path) -> str:
+        """A copyable diagnostic report of one save."""
+        return saves_service.health_report(Path(path), loc=self._loc())
+
+    def copy_entry(self, folder: str | Path, entry_id: str) -> dict:
+        """One Library copy: {name, path, changed_outside}. Raises copy_unusable."""
+        e = library_entry(Path(folder), entry_id)
+        return {"name": e["name"], "path": str(e["path"]), "changed_outside": e["changed_outside"]}
+
+    def default_name(self, path: str | Path) -> str:
+        return library_default_name(Path(path), self._loc())
+
+    def folder(self, which: str) -> Path | None:
+        """The Saves, Backups or Library folder to show (the last two are created when missing); None: no save yet."""
+        return open_folder(which, loc=self._loc())

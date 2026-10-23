@@ -15,7 +15,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle.errors import OperationError
 from bayle.platform.text import tr
-from bayle.services.saves_page import retention_limits
+from bayle.services.saves_page import SavesService, retention_limits
 from bayle.session import Session
 from bayle.ui.notifications import Notifier
 from bayle.ui.refresh import Refresher
@@ -34,6 +34,8 @@ class SavesHost(Protocol):
     def locations(self) -> Any: ...
     @property
     def session(self) -> Session: ...
+    @property
+    def saves_service(self) -> SavesService: ...
     def run_in_background(self, work, on_result) -> None: ...
     def follow_job(self, job_id: str, done) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None: ...
@@ -188,8 +190,8 @@ class SavesAdapter(QObject):
                 session.run("saves.adopt_legacy")
             except OperationError:
                 pass  # the read still shows what is there
-        state = session.snapshot("saves")
-        return state.infos, state.libraries, state.backups, names
+        facts = self.host.saves_service.page()
+        return facts.infos, facts.libraries, facts.backups, names
 
     def _apply(self, got) -> None:
         infos, libs, backups, names = got
@@ -244,10 +246,14 @@ class SavesAdapter(QObject):
     def _call(self, name: str, params: dict | None, done=None, fail: str = "", settle=None) -> None:
         """Run an operation. done(result) on success; an OperationError is a toast (titled fail); settle() either way."""
         session = self.host.session
+        self._query(lambda: session.run(name, params), done, fail, settle)
+
+    def _query(self, read, done=None, fail: str = "", settle=None) -> None:
+        """Like _call for a read of the engine's Saves interface: read() runs on the host's worker."""
 
         def work():
             try:
-                return session.run(name, params)
+                return read()
             except OperationError as e:
                 return e
 
@@ -309,7 +315,7 @@ class SavesAdapter(QObject):
         self.host.run_in_background(work, landed)
 
     def _open(self, which: str) -> None:
-        self._call("saves.folder", {"which": which}, lambda f: self.host.open_path(Path(f.path)) if f.path else None)
+        self._query(lambda: self.host.saves_service.folder(which), lambda f: self.host.open_path(f) if f else None)
 
     # ---- drag and drop (every drop is one of the menu twins' slots below, after the presenter's one rule set)
     @staticmethod
@@ -349,10 +355,9 @@ class SavesAdapter(QObject):
         """One character out of a Library copy into a slot: copyCharacter with the copy's file as the source."""
         if self._blocked():
             return
-        self._call(
-            "saves.copy_entry",
-            {"folder": folder, "entry_id": entry_id},
-            lambda entry: self.copyCharacter(entry.path, src_slot, target, dst_slot),
+        self._query(
+            lambda: self.host.saves_service.copy_entry(folder, entry_id),
+            lambda entry: self.copyCharacter(entry["path"], src_slot, target, dst_slot),
             fail=tr("This copy cannot be used"),
         )
 
@@ -384,7 +389,7 @@ class SavesAdapter(QObject):
     @Slot(str, result=str)
     def defaultName(self, path: str) -> str:
         try:
-            return self.host.session.run("saves.default_name", {"path": path}).text
+            return self.host.saves_service.default_name(path)
         except OperationError:
             return ""
 
@@ -476,16 +481,16 @@ class SavesAdapter(QObject):
         plan = {"folder": folder, "entry_id": entry_id, "target": target}
 
         def checked(entry) -> None:
-            if entry.changed_outside:  # the copy's file is not what the launcher stored: ask first
+            if entry["changed_outside"]:  # the copy's file is not what the launcher stored: ask first
                 self.notifier.ask(
-                    self.presenter.changed_outside(entry.name),
+                    self.presenter.changed_outside(entry["name"]),
                     lambda ok, _o: self._ask("saves.replace_from_library", plan) if ok else None,
                 )
             else:
                 self._ask("saves.replace_from_library", plan)
 
-        self._call(
-            "saves.copy_entry", {"folder": folder, "entry_id": entry_id}, checked, fail=tr("This copy cannot be used")
+        self._query(
+            lambda: self.host.saves_service.copy_entry(folder, entry_id), checked, fail=tr("This copy cannot be used")
         )
 
     @Slot(str)
@@ -573,10 +578,10 @@ class SavesAdapter(QObject):
         def copied(got) -> None:
             from PySide6.QtGui import QGuiApplication
 
-            QGuiApplication.clipboard().setText(got.text)
+            QGuiApplication.clipboard().setText(got)
             self.notifier.toast(tr("Report copied"))
 
-        self._call("saves.health_report", {"path": path}, copied)
+        self._query(lambda: self.host.saves_service.health_report(path), copied)
 
     @Slot()
     def postSessionRepair(self) -> None:
@@ -686,7 +691,8 @@ class SavesAdapter(QObject):
         def shown(got) -> None:
             if (path, slot) == (self._sheet_path, self._sheet_slot):  # not for a character the user has left
                 self._sheet_open = True
-                self._sheet = got.data | {"path": path}
+                self._sheet = got | {"path": path}
                 self.sheetChanged.emit()
 
-        self._call("saves.sheet", {"path": path, "slot": slot}, shown)
+        service, presenter = self.host.saves_service, self.presenter
+        self._query(lambda: presenter.sheet(service.save_info(path), slot), shown)

@@ -112,8 +112,7 @@ class Unbound:
     records = save
 
 
-def test_the_records_come_from_the_store_it_is_handed_not_the_slot(monkeypatch):
-    monkeypatch.setattr(run_logging, "_store", Unbound())
+def test_the_records_come_from_the_store_it_is_handed(monkeypatch):
     row = {
         "id": "db1",
         "title": "rebuild",
@@ -128,6 +127,16 @@ def test_the_records_come_from_the_store_it_is_handed_not_the_slot(monkeypatch):
     assert a.unseen() == 1
     run_logging.mark_undone("db1", store)  # what a finished undo writes goes to the same store
     assert store.saved[-1]["id"] == "db1" and store.saved[-1]["undone"]
+
+
+def test_a_job_the_manager_runs_writes_to_the_managers_store_whatever_else_is_in_scope():
+    mine = Store([])
+    manager = JobManager(EventBus(), spawn=inline, store=mine)
+    with run_logging.job_store_scope(Unbound()):  # another store in scope around the call: the manager's work wins
+        job_id = manager.start(lambda _ctx: run_logging.end_job(run_logging.begin_job("rebuild x", game="eldenring")))
+    assert manager.get(job_id).state == "done"
+    assert [r["title"] for r in mine.saved] == ["rebuild x", "rebuild x"]  # begun, then ended
+    assert mine.saved[-1]["outcome"] == "done"
 
 
 def test_unseen_and_mark_seen_with_the_real_reads():

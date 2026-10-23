@@ -135,7 +135,7 @@ def test_an_undone_job_no_longer_offers_undo():
     job = rl.begin_job("rebuild combined parameters")
     rl.set_undo({"type": "rebuild", "profile": "x"})
     rl.end_job(job)
-    assert rl.read_jobs()[0]["undo"]
+    assert rl.read_jobs_from(None)[0]["undo"]
     rl.mark_undone(job.id, None)  # no database in this test: jobs.jsonl only
-    rec = rl.read_jobs()[0]
+    rec = rl.read_jobs_from(None)[0]
     assert rec["undo"] is None and rec["undone"]

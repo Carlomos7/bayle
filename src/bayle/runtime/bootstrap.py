@@ -57,7 +57,6 @@ _SLOTS: dict[str, tuple[Any, str]] = {
     "hash_file_in_use": (mod_rebuild, "_HASH_FILE_IN_USE"),
     "run_store": (mod_rebuild, "_RUN_STORE"),
     "mirror": (mirror, "_CURRENT"),
-    "job_store": (run_logging, "_store"),
     "cpu_backend": (cpu, "_backend"),
     "cpu_broadcast": (cpu, "_broadcast"),
     "ui_thread": (cpu, "_ui_thread"),
@@ -210,9 +209,9 @@ def create_engine(start_game: catalog.Game | None = None, *, storage: bool = Tru
                 hash_store=engine.hash_cache,
                 run_store=engine.rebuild_runs,
                 mirror=Mirror(db, run_logging.log),
-                job_store=engine.activity,
             )
         )
+        engine.jobs.store = engine.activity  # the job writer's store: the manager hands it to every job it runs
     elif storage:  # storage refused for this run: no persistent hash cache; job records go to jobs.jsonl
-        unbind.append(bind(hash_store=None, hash_file_in_use=False, job_store=None))
+        unbind.append(bind(hash_store=None, hash_file_in_use=False))
     return engine

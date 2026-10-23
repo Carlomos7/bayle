@@ -22,7 +22,7 @@ def make_job(title, lines=(), outcome=None, game="eldenring", attach=None):
 def test_a_job_keeps_its_summary_and_first_problem():
     make_job("install mod goblins", ["copying", "done: installed goblins (readme left out)"])
     make_job("repair", ["error: ER0000.co2 is locked by another program", "error: second problem"], "failed")
-    recs = {r["title"]: r for r in rl.read_jobs()}
+    recs = {r["title"]: r for r in rl.read_jobs_from(None)}
     assert recs["install mod goblins"]["summary"] == "installed goblins (readme left out)"
     assert recs["repair"]["problem"] == "ER0000.co2 is locked by another program"
 
@@ -32,7 +32,7 @@ def test_set_summary_wins_over_the_done_line():
     run_logging.log("done: rebuilt")
     rl.set_summary("Combined 2 packs; 1 overlapping row")
     rl.end_job(job)
-    assert rl.read_jobs()[0]["summary"] == "Combined 2 packs; 1 overlapping row"
+    assert rl.read_jobs_from(None)[0]["summary"] == "Combined 2 packs; 1 overlapping row"
 
 
 def test_a_log_reads_back_as_entries_with_levels_and_continuations():
@@ -66,12 +66,12 @@ def test_names_outside_the_jobs_folder_are_refused():
 
 def test_unseen_failures_count_only_after_the_last_look():
     make_job("repair", ["error: x"], "failed")
-    first = rl.read_jobs()[0]
-    assert len(rl.unseen_failures(0, rl.read_jobs())) == 1
-    assert rl.unseen_failures(float(first["t"]), rl.read_jobs()) == []
+    first = rl.read_jobs_from(None)[0]
+    assert len(rl.unseen_failures(0, rl.read_jobs_from(None))) == 1
+    assert rl.unseen_failures(float(first["t"]), rl.read_jobs_from(None)) == []
     make_job("play", ["fine"])
     make_job("install mod y", ["error: z"], "failed")
-    assert [r["title"] for r in rl.unseen_failures(float(first["t"]), rl.read_jobs())] == ["install mod y"]
+    assert [r["title"] for r in rl.unseen_failures(float(first["t"]), rl.read_jobs_from(None))] == ["install mod y"]
 
 
 def test_kinds_fall_into_the_filter_groups():

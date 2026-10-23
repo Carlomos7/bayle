@@ -73,8 +73,9 @@ class JobStore(Protocol):
     def records(self) -> list[dict] | None: ...
 
 
-_store: JobStore | None = None  # bound by bayle.runtime.bootstrap only (None: jobs.jsonl only)
-
+# The store jobs begun in this context write to (set by JobManager around its work, or by a command-line run that
+# holds an engine); none: jobs.jsonl only. A context, not a process slot, like job_log_scope.
+_scoped_store: contextvars.ContextVar[JobStore | None] = contextvars.ContextVar("roundtable_job_store", default=None)
 
 _current: contextvars.ContextVar[Job | None] = contextvars.ContextVar("roundtable_job", default=None)
 _app_handler: logging.Handler | None = None
@@ -280,6 +281,7 @@ class Job:
     problem: str = ""  # its first error, in a line
     undo: dict | None = None  # how to take it back (see mods.undo), when it can be
     handler: logging.Handler | None = None
+    store: JobStore | None = field(default=None, repr=False)  # where its records go besides jobs.jsonl
 
 
 class _JobHandler(logging.Handler):
@@ -344,8 +346,11 @@ def _clean_title(title: str) -> str:
     return re.sub(r"^launcher:\s*", "", str(title)).strip() or "Job"
 
 
-def begin_job(title: str, kind: str | None = None, game: str = "", profile: str = "") -> Job:
-    """Start a job: its own log file and an index record, current in this context. Returns the Job."""
+def begin_job(
+    title: str, kind: str | None = None, game: str = "", profile: str = "", store: JobStore | None = None
+) -> Job:
+    """Start a job: its own log file and an index record, current in this context. Returns the Job. store: where its
+    records go (the Job keeps it for every later write); without one, the context's (job_store_scope)."""
     title = _clean_title(title)
     now = time.time()
     stamp = datetime.datetime.fromtimestamp(now).strftime("%Y-%m-%d_%H%M%S")
@@ -362,6 +367,7 @@ def begin_job(title: str, kind: str | None = None, game: str = "", profile: str 
     except OSError:
         path = None
     job = Job(jid, title, kind or kind_of(title), now, path, game, profile, kind_given=kind is not None)
+    job.store = store if store is not None else _scoped_store.get()
     inner = _file_handler(path, logging.DEBUG) if path is not None else None
     if inner is None:
         job.path = None
@@ -425,7 +431,7 @@ def end_job(job: Job | None = None, outcome: str | None = None) -> Job | None:
         job.handler = None
     _current.set(token_job if token_job is not job else None)
     _write_index(job)
-    prune()
+    prune(store=job.store)
     return job
 
 
@@ -497,7 +503,7 @@ def _record(job: Job) -> dict:
 
 
 def _write_index(job: Job) -> None:
-    _keep(_record(job), _store)
+    _keep(_record(job), job.store)
 
 
 def _keep(rec: dict, store: JobStore | None) -> None:
@@ -563,11 +569,6 @@ def _expired(rec: dict, cutoff: float) -> bool:
     return 0 < ended < cutoff
 
 
-def read_jobs() -> list[dict]:
-    """read_jobs_from the bound activity log (the job writers' and the command line's)."""
-    return read_jobs_from(_store)
-
-
 def read_jobs_from(store: JobStore | None) -> list[dict]:
     """Every job known, newest first, one record each (its last state): the database's rows (when it holds the
     activity log) merged with jobs.jsonl by job id, so records waiting in the file show at once. Undo always comes
@@ -613,18 +614,16 @@ def read_jobs_from(store: JobStore | None) -> list[dict]:
     return out
 
 
-def recent_jobs(limit: int = 50) -> list[dict]:
-    return read_jobs()[:limit]
-
-
-def prune(keep: int = KEEP_JOBS, days: int = KEEP_DAYS, now: float | None = None) -> list[str]:
+def prune(
+    keep: int = KEEP_JOBS, days: int = KEEP_DAYS, now: float | None = None, store: JobStore | None = None
+) -> list[str]:
     """Remove the log files of jobs beyond the newest `keep` that are also older than `days`, and job files no record
     knows once they are that old too. Returns the ids whose files went. Never touches a running job. The records stay:
     jobs.jsonl is not rewritten, and the database's own retention keeps completed rows 90 days."""
     now = time.time() if now is None else now
     cutoff = now - days * 86400
     with _lock:
-        jobs = read_jobs()
+        jobs = read_jobs_from(store)
         keep_ids, drop = set(), []
         for i, rec in enumerate(jobs):
             try:
@@ -795,6 +794,16 @@ class _ScopeHandler(logging.Handler):
             sink(*_sink_args(record))
         except Exception:  # noqa: BLE001 - a broken sink must never stop a job
             pass
+
+
+@contextmanager
+def job_store_scope(store: JobStore | None) -> Iterator[None]:
+    """For the code run inside (this thread and context): jobs begun without a store of their own write to `store`."""
+    token = _scoped_store.set(store)
+    try:
+        yield
+    finally:
+        _scoped_store.reset(token)
 
 
 @contextmanager

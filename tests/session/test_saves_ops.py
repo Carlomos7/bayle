@@ -80,7 +80,7 @@ def assert_took_the_backup(world: World, snap, before: bytes, action: str):
     )
     record = {"type": "save-restore", "save": str(world.save), "backup": backup, "name": world.save.name}
     assert result["undo"] == record
-    assert run_logging.read_jobs()[0]["undo"] == record  # the jobs index holds it too (Activity's Undo)
+    assert run_logging.read_jobs_from(None)[0]["undo"] == record  # the jobs index holds it too (Activity's Undo)
 
 
 # ---------------------------------------------------------------------------------------------------- reads

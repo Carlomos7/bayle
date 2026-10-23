@@ -586,13 +586,13 @@ def rebuild_job(profile, combine: bool | None = None):
     return job
 
 
-def last_rebuild_undo(profile) -> dict | None:
+def last_rebuild_undo(profile, store: run_logging.JobStore | None = None) -> dict | None:
     """The newest finished rebuild of this profile that can still be taken back (its job record), or None."""
     assert_not_ui_thread("profile_mods.last_rebuild_undo")
     from bayle.mods import undo as mod_undo
 
     prof = Path(profile)
-    for rec in run_logging.read_jobs():
+    for rec in run_logging.read_jobs_from(store):
         undo = rec.get("undo") or {}
         if undo.get("type") != "rebuild" or rec.get("outcome") not in ("done", "warnings"):
             continue

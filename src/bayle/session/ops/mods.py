@@ -153,7 +153,9 @@ def snapshot(
         )
     loc = session.locations()
     notes = book(session)
-    got = mods_page.read(profile, loc=loc, launch=mods_page.launch_for(loc, profile, kind, source))
+    got = mods_page.read(
+        profile, loc=loc, launch=mods_page.launch_for(loc, profile, kind, source), jobs_store=session.jobs.store
+    )
     state = pres.page(
         got.facts,
         got.scan,

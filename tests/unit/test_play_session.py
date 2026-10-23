@@ -223,7 +223,7 @@ def _run(job, launch):
 
 
 def _record(job_id=None):
-    recs = run_logging.read_jobs()
+    recs = run_logging.read_jobs_from(None)
     return recs[0] if job_id is None else next(r for r in recs if r["id"] == job_id)
 
 

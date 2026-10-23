@@ -97,7 +97,8 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
                 ctx = create_engine(game)
             except MigrationFailed as e:
                 return storage_failed(e, None)
-            core.check(ctx.settings, ctx.locations, ctx.data_dir)
+            with run_logging.job_store_scope(ctx.activity):  # no JobManager here: the standalone job gets the engine's
+                core.check(ctx.settings, ctx.locations, ctx.data_dir)
             return 0
     from bayle.runtime.bootstrap import create_engine
     from bayle.storage.db import MigrationFailed
@@ -269,9 +270,10 @@ def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowH
         def notice(game: Game, why: str, headline: str | None = None) -> None:
             not_started_notice(game, why, headline, window)
 
-        if allow_without_backup:
-            return core.play_headless(ctx.settings, ctx.locations, notice=notice, allow_without_backup=True)
-        return core.play_headless(ctx.settings, ctx.locations, notice=notice)
+        with run_logging.job_store_scope(ctx.activity):  # no JobManager here: the standalone job gets the engine's
+            if allow_without_backup:
+                return core.play_headless(ctx.settings, ctx.locations, notice=notice, allow_without_backup=True)
+            return core.play_headless(ctx.settings, ctx.locations, notice=notice)
     finally:
         hold.release()
 

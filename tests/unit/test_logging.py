@@ -90,7 +90,7 @@ def test_an_unwritable_logs_folder_never_breaks_anything(tmp_path, monkeypatch):
         rl.end_job(job)
     rl.shutdown()
     assert job.path is None and ("steam: running", "info") in got and job.outcome == "done"
-    assert rl.read_jobs() == []
+    assert rl.read_jobs_from(None) == []
 
 
 # ----------------------------------------------------------------------------- levels
@@ -123,7 +123,7 @@ def test_a_job_has_its_own_file_header_footer_and_index_record(logs):
     assert text.splitlines()[0].endswith("=== install mod goblins ===")
     assert "copied 12 files" in text and "WARNING" in text
     assert "install mod goblins: warnings in" in text.splitlines()[-1]
-    recs = rl.read_jobs()
+    recs = rl.read_jobs_from(None)
     assert len(recs) == 1
     r = recs[0]
     assert (r["title"], r["kind"], r["outcome"], r["warnings"], r["errors"], r["game"]) == (
@@ -175,7 +175,7 @@ def test_a_job_named_inside_run_job_is_renamed_not_restarted(logs):
     rl.start_log("launcher: install mod goblins", "eldenring")
     run_logging.log("inside")
     rl.end_job(job)
-    recs = rl.read_jobs()
+    recs = rl.read_jobs_from(None)
     assert len(recs) == 1 and recs[0]["title"] == "install mod goblins" and recs[0]["kind"] == "install"
     assert "inside" in job_text(job)
 
@@ -188,8 +188,8 @@ def test_the_command_line_gets_a_job_that_ends_at_the_next_one_and_at_exit(logs)
     second = rl._standalone
     assert first is not second and first.outcome == "done"
     rl.shutdown()
-    assert second.outcome == "done" and [r["title"] for r in rl.read_jobs()] == ["play (no window)", "check"]
-    assert {r["game"] for r in rl.read_jobs()} == {"eldenring"}  # the game the command line runs for
+    assert second.outcome == "done" and [r["title"] for r in rl.read_jobs_from(None)] == ["play (no window)", "check"]
+    assert {r["game"] for r in rl.read_jobs_from(None)} == {"eldenring"}  # the game the command line runs for
 
 
 def test_attachments_belong_to_the_job(logs):
@@ -198,7 +198,7 @@ def test_attachments_belong_to_the_job(logs):
     me3.write_text("me3 says hi")
     assert rl.attachment("me3") == me3  # asked twice, listed once
     rl.end_job(job)
-    rec = rl.read_jobs()[0]
+    rec = rl.read_jobs_from(None)[0]
     assert rec["attachments"] == [me3.name] and me3.name.startswith(job.path.stem)
     assert rl.attachment("me3") is None  # no job, no attachment
 
@@ -247,10 +247,10 @@ def test_run_job_records_how_each_job_ended(logs):
     ):
         outcome = jobs.run_job(fn, None, Locations(games.ELDEN_RING), title)
         done(outcome.ok, outcome.status)
-    outcomes = [r["outcome"] for r in reversed(rl.read_jobs())]
+    outcomes = [r["outcome"] for r in reversed(rl.read_jobs_from(None))]
     assert outcomes == ["done", "failed", "stopped", "failed"]
     assert [r[0] for r in results] == [True, False, False, False]
-    crash_log = next(r for r in rl.read_jobs() if r["title"] == "Installing x")["log"]
+    crash_log = next(r for r in rl.read_jobs_from(None) if r["title"] == "Installing x")["log"]
     text = (logs / rl.JOBS_DIR / crash_log).read_text(encoding="utf-8")
     assert "Traceback" in text and "ValueError: boom" in text
 
@@ -261,7 +261,7 @@ def test_run_job_names_the_game_and_profile(logs):
 
     loc = Locations(games.NIGHTREIGN)
     jobs.run_job(lambda s, loc: None, Setup(), loc, "Starting...")
-    r = rl.read_jobs()[0]
+    r = rl.read_jobs_from(None)[0]
     assert r["game"] == "nightreign" and r["profile"].endswith("p.me3") and r["title"] == "Starting"
 
 
@@ -275,7 +275,7 @@ def test_a_job_left_running_by_a_closed_launcher_reads_as_interrupted(logs):
         f.write(json.dumps(ghost) + "\n")
         f.write("{not json\n")
         f.write("[1, 2]\n")
-    recs = {r["id"]: r for r in rl.read_jobs()}
+    recs = {r["id"]: r for r in rl.read_jobs_from(None)}
     assert recs["ghost"]["outcome"] == "interrupted" and recs[job.id]["outcome"] == "done"
 
 
@@ -297,7 +297,9 @@ def test_retention_removes_old_log_files_but_keeps_records_and_never_rewrites_th
     assert len(dropped) == 3
     for j in jobs[:3]:
         assert not j.path.exists()
-    assert {r["title"] for r in rl.read_jobs()} == {f"Repair {i}" for i in range(6)}  # records are kept 90 days
+    assert {r["title"] for r in rl.read_jobs_from(None)} == {
+        f"Repair {i}" for i in range(6)
+    }  # records are kept 90 days
     assert (logs / rl.JOBS_INDEX).read_bytes() == before  # an older version may still read it: never rewritten
 
 
@@ -315,7 +317,7 @@ def test_completed_records_older_than_90_days_are_not_listed_unless_they_carry_u
         if n == 2:
             r["outcome"] = "running"  # interrupted long ago: never removed by age
     (logs / rl.JOBS_INDEX).write_text("".join(json.dumps(r) + "\n" for r in recs), encoding="utf-8")
-    assert {r["title"] for r in rl.read_jobs()} == {"Repair 1", "Repair 2", "Repair 3"}
+    assert {r["title"] for r in rl.read_jobs_from(None)} == {"Repair 1", "Repair 2", "Repair 3"}
 
 
 def test_retention_never_drops_a_running_job(logs):
@@ -349,7 +351,7 @@ def test_a_crash_goes_to_launcher_log_and_the_running_job(logs):
     rl.shutdown()
     app = (logs / rl.APP_LOG).read_text(encoding="utf-8")
     assert "CRITICAL" in app and "uncaught error in a worker: worker died" in app and "Traceback" in app
-    assert "worker died" in job_text(job) and rl.read_jobs()[0]["outcome"] == "failed"
+    assert "worker died" in job_text(job) and rl.read_jobs_from(None)[0]["outcome"] == "failed"
 
 
 # ----------------------------------------------------------------------------- the window's own lines

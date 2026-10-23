@@ -5,7 +5,6 @@ from pathlib import Path
 
 from bayle.mods import rebuild
 from bayle.platform import cpu
-from bayle.platform import logging as run_logging
 from bayle.runtime.bootstrap import create_engine
 from bayle.services import mods as mod_service
 from bayle.services import startup_recovery
@@ -75,10 +74,10 @@ def test_close_unbinds_and_a_second_engine_binds_afresh():
     assert cpu._backend is backend and cpu._ui_thread == 1
     first.close()
     assert rebuild._HASH_STORE is None and rebuild._RUN_STORE is None and mirror._CURRENT is None
-    assert run_logging._store is None and cpu._backend is None and cpu._ui_thread is None
+    assert cpu._backend is None and cpu._ui_thread is None
     second = create_engine()
     try:
         assert second.storage is not None and rebuild._HASH_STORE is second.hash_cache
-        assert run_logging._store is second.activity and mirror._CURRENT is not None
+        assert second.jobs.store is second.activity and mirror._CURRENT is not None
     finally:
         second.close()

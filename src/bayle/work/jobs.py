@@ -145,10 +145,13 @@ class JobManager:
         observer: Callable[[str, dict, str | None], None] | None = None,
         progress_interval: float = PROGRESS_INTERVAL,
         keep: int = 50,
+        store: run_logging.JobStore | None = None,
     ):
         """spawn: how work gets a thread (Runner's; tests pass a synchronous one). game_running: the writes gate.
         keep: how many finished jobs get() still knows. observer(type, data, job_id): called on the emitting thread
-        before the event reaches the bus, so state it updates is current when a client reads after the event."""
+        before the event reaches the bus, so state it updates is current when a client reads after the event.
+        store: where the records of the jobs it runs go besides jobs.jsonl (the engine's activity log)."""
+        self.store = store
         self.bus = bus or EventBus()
         self._clock, self._game_running, self._interval, self._keep = clock, game_running, progress_interval, keep
         self._external_busy = external_busy  # work that runs outside this manager (the window's own jobs)
@@ -212,7 +215,10 @@ class JobManager:
             self._progress[job_id] = progress
             token = _current.set(ctx)
             try:
-                with run_logging.job_log_scope(lambda text, level: ctx._report("log", {"text": text, "level": level})):
+                with (
+                    run_logging.job_store_scope(self.store),
+                    run_logging.job_log_scope(lambda text, level: ctx._report("log", {"text": text, "level": level})),
+                ):
                     return job_id, _execute(work, ctx)
             finally:
                 _current.reset(token)

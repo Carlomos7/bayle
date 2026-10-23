@@ -520,7 +520,7 @@ class SavesService:
             saves = [self._live(p) for p in paths]
         else:
             raise OperationError("invalid_params", "Say which saves to back up.")
-        return self._jobs.start(lambda _ctx: back_up(saves, loc=loc), title=title or "Backing up saves...")
+        return self._jobs.start(lambda _ctx: back_up(saves, loc=loc), title=title or "Backing up saves...", quiet=True)
 
     def save_copy(self, path: str | Path, name: str, title: str = "") -> str:
         """Add a copy of a live save to the Library as a job; returns its id. Allowed while the game runs (it only
@@ -532,7 +532,10 @@ class SavesService:
             raise OperationError("invalid_name", str(e)) from e
         loc = self._loc()
         return self._jobs.start(
-            lambda _ctx: save_copy(save, name, loc=loc), title=title or "Saving a copy...", while_game_runs=True
+            lambda _ctx: save_copy(save, name, loc=loc),
+            title=title or "Saving a copy...",
+            while_game_runs=True,
+            quiet=True,
         )
 
     def import_files(self, files: Sequence[str | Path], name: str | None = None, title: str = "") -> str:
@@ -555,7 +558,10 @@ class SavesService:
         loc = self._loc()
         folder = library_folder(loc)
         return self._jobs.start(
-            lambda _ctx: import_files(srcs, name, folder, loc=loc), title=title or "Importing...", while_game_runs=True
+            lambda _ctx: import_files(srcs, name, folder, loc=loc),
+            title=title or "Importing...",
+            while_game_runs=True,
+            quiet=True,
         )
 
     def check_delete_backup(self, backup: str | Path) -> BackupFacts:

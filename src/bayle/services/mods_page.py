@@ -37,7 +37,7 @@ def launch_for(loc: Locations, profile: str, kind: str = "me3", source: str = ""
     return play_service.LaunchProfile(kind, profile, source=source or None, loc=loc)
 
 
-def read(profile, *, loc: Locations, launch=None, settings=None) -> PageRead:
+def read(profile, *, loc: Locations, launch=None, settings=None, jobs_store=None) -> PageRead:
     prof = Path(profile)
     try:
         seamless = coop_service.game_folder_seamless(launch) if launch is not None else None
@@ -50,7 +50,7 @@ def read(profile, *, loc: Locations, launch=None, settings=None) -> PageRead:
         scan = {"profile": str(prof), "scan": {"error": str(e)}}
     tool = profile_mods.tool_to_offer(prof, loc.game, loc=loc)
     try:
-        undo = profile_mods.last_rebuild_undo(prof)
+        undo = profile_mods.last_rebuild_undo(prof, jobs_store)
     except Exception:
         undo = None
     try:

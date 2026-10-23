@@ -219,26 +219,23 @@ def test_old_build_and_new_build_take_turns_without_losing_a_job(database):
     _write_lines([_rec(1)])
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    bootstrap.bind(job_store=store)
-    rl.end_job(rl.begin_job("New build job"))  # into the database, not the file
+    rl.end_job(rl.begin_job("New build job", store=store))  # into the database, not the file
     assert "New build job" not in _jobs_file().read_text(encoding="utf-8")
-    bootstrap.bind(job_store=None)
     _write_lines([_rec(7, title="Old build job")], mode="a")  # after a rollback, the older version appends
-    bootstrap.bind(job_store=store)
-    assert {"Job 1", "New build job", "Old build job"} <= {r["title"] for r in rl.read_jobs()}  # before the import
+    assert {"Job 1", "New build job", "Old build job"} <= {
+        r["title"] for r in rl.read_jobs_from(store)
+    }  # before the import
     store.import_file(_jobs_file())
     assert "job7" in _rows(database)
 
 
 def test_without_storage_or_when_a_write_fails_records_go_to_the_file_and_arrive_later(database, monkeypatch):
-    bootstrap.bind(job_store=None)  # storage off for the run
-    rl.end_job(rl.begin_job("While storage was off"))
+    rl.end_job(rl.begin_job("While storage was off"))  # storage off for the run: no store
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    bootstrap.bind(job_store=store)
     with monkeypatch.context() as m:
         m.setattr(store, "save", lambda record: False)  # a write that did not happen is not claimed
-        rl.end_job(rl.begin_job("A failed write"))
+        rl.end_job(rl.begin_job("A failed write", store=store))
     lines = [json.loads(x)["title"] for x in _jobs_file().read_text(encoding="utf-8").splitlines()]
     assert "While storage was off" in lines and "A failed write" in lines
     store.import_file(_jobs_file())
@@ -248,22 +245,21 @@ def test_without_storage_or_when_a_write_fails_records_go_to_the_file_and_arrive
 def test_undo_stays_in_the_file_and_retention_never_touches_it(database):
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    bootstrap.bind(job_store=store)
-    job = rl.begin_job("Remove a mod")
+    job = rl.begin_job("Remove a mod", store=store)
     rl.set_undo({"kind": "remove", "path": "x"})
     rl.end_job(job)
     file_recs = [json.loads(x) for x in _jobs_file().read_text(encoding="utf-8").splitlines()]
     assert any(r["id"] == job.id and r.get("undo") for r in file_recs)
-    shown = next(r for r in rl.read_jobs() if r["id"] == job.id)
+    shown = next(r for r in rl.read_jobs_from(store) if r["id"] == job.id)
     assert shown["undo"] == {"kind": "remove", "path": "x"} and shown["outcome"] != "running"
     with database.unit_of_work() as s:  # make the row 100 days old, then apply retention
         row = s.scalar(select(models.Job).where(models.Job.job_id == job.id))
         assert row is not None
         row.ended_at = models.utc_now() - datetime.timedelta(days=100)
     assert store.prune_completed() == 1
-    assert next(r for r in rl.read_jobs() if r["id"] == job.id)["undo"]  # still offered: undo is in its file
+    assert next(r for r in rl.read_jobs_from(store) if r["id"] == job.id)["undo"]  # still offered: undo is in its file
     rl.mark_undone(job.id, store)
-    assert not next(r for r in rl.read_jobs() if r["id"] == job.id)["undo"]
+    assert not next(r for r in rl.read_jobs_from(store) if r["id"] == job.id)["undo"]
 
 
 def test_retention_runs_after_the_import_and_spares_running_and_recent_jobs(data, database):
@@ -312,10 +308,9 @@ def test_two_processes_importing_and_writing_at_once_lose_and_double_nothing(dat
 def test_the_reader_prefers_the_more_finished_state_and_takes_undo_from_the_file(database):
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    bootstrap.bind(job_store=store)
     store.save(_rec(5, outcome="done"))
     _write_lines([_rec(5, outcome="running", undo={"kind": "x"})], mode="a")
-    shown = next(r for r in rl.read_jobs() if r["id"] == "job5")
+    shown = next(r for r in rl.read_jobs_from(store) if r["id"] == "job5")
     assert shown["outcome"] == "done" and shown["undo"] == {"kind": "x"}
 
 
@@ -331,7 +326,7 @@ def test_create_engine_wires_both_areas_and_imports_after_ready(data):
         assert thread is not None
         thread.join(30)
         assert ctx.activity.active and ctx.hash_cache.active
-        rl.end_job(rl.begin_job("After the switch"))
+        rl.end_job(rl.begin_job("After the switch", store=ctx.jobs.store))
         assert "After the switch" not in _jobs_file().read_text(encoding="utf-8")
     finally:
         ctx.close()

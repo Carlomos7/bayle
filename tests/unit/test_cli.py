@@ -109,7 +109,7 @@ def test_play_flag_runs_play_from_the_shortcut(monkeypatch, quiet):
 def test_check_flag_runs_the_check_on_the_context(monkeypatch, quiet):
     argv(monkeypatch, "--check", "--game", "er")
     monkeypatch.setattr(core, "game_from_args", lambda args: SimpleNamespace(key="er"))
-    ctx = SimpleNamespace(settings="S", locations="L", data_dir="D")
+    ctx = SimpleNamespace(settings="S", locations="L", data_dir="D", activity=None)
     monkeypatch.setattr(bootstrap, "create_engine", lambda game: ctx)
     checked = []
     monkeypatch.setattr(core, "check", lambda *args: checked.append(args))
@@ -264,7 +264,7 @@ def test_play_runs_headless_and_releases_its_hold(monkeypatch, quiet, allow):
     monkeypatch.setattr(instance, "held", lambda name: False)
     monkeypatch.setattr(instance, "acquire", lambda name: SimpleNamespace(release=lambda: released.append(True)))
     monkeypatch.setattr(updates, "mark_ready", lambda how: None)
-    ctx = SimpleNamespace(start_imports=lambda: started.append(True), settings="S", locations="L")
+    ctx = SimpleNamespace(start_imports=lambda: started.append(True), settings="S", locations="L", activity=None)
     monkeypatch.setattr(bootstrap, "create_engine", lambda game: ctx)
     calls = []
     monkeypatch.setattr(core, "play_headless", lambda s, loc, **kw: calls.append(kw) or 0)

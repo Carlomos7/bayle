@@ -43,6 +43,7 @@ from bayle.platform import data_folder
 from bayle.platform import logging as run_logging
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services import mod_configs
+from bayle.work.jobs import JobManager
 
 if TYPE_CHECKING:
     from bayle.config.settings import LauncherSettings
@@ -835,3 +836,11 @@ def _apply_zip(prev: Preview, skip, progress) -> dict:
                 (staged / card.path.name).write_bytes(card.data)
 
     return profile_import.apply_import(zp, log=run_logging.log, after_copy=after_copy, progress=progress)
+
+
+class ProfileTransferService:
+    """The Profile transfer page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
+    selected). Returns data and OperationError codes, never wording: the Qt page words them."""
+
+    def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
+        self._jobs, self._locations = jobs, locations

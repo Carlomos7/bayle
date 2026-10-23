@@ -23,6 +23,7 @@ from bayle.formats import config_model
 from bayle.mods import configs, profile_edit
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services.mods import overhaul_setup_of, profile_entries
+from bayle.work.jobs import JobManager
 from bayle.work.runner import run_job_result, run_logged
 
 if TYPE_CHECKING:
@@ -601,3 +602,11 @@ def apply_paste(opened: Opened, changes: dict[str, tuple[str, str]]) -> Path:
     if "cooppassword" in changes and not changes["cooppassword"][1].strip():
         raise OperationError("password_empty", "The Seamless Co-op password cannot be empty.")
     return save_values(opened, {(None, k): new for k, (_old, new) in changes.items()})
+
+
+class ModConfigsService:
+    """The Mod configs page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
+    selected). Returns data and OperationError codes, never wording: the Qt page words them."""
+
+    def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
+        self._jobs, self._locations = jobs, locations

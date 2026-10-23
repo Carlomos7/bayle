@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.services.activity import ActivityService
+from bayle.services.features import Features
 from bayle.services.saves_page import SavesService
 from bayle.services.settings import SettingsService
 
@@ -41,6 +42,11 @@ class Host(Protocol):
     @property
     def session(self) -> Any:
         """The session (bayle.session.Session): snapshots, operations, plans and the job event bus."""
+        ...
+
+    @property
+    def features(self) -> Features:
+        """The engine's feature interfaces (services.features), one per page; newer pages reach theirs here."""
         ...
 
     @property

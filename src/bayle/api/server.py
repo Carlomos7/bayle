@@ -14,13 +14,13 @@ import uvicorn
 from bayle import __version__
 from bayle.api.app import create_app
 from bayle.api.models import CONTRACT_VERSION
-from bayle.services.activity import ActivityService
+from bayle.services import features
 from bayle.session import Session
 
 
 async def serve(engine) -> None:
-    activity = ActivityService(engine.jobs, engine.activity, lambda: engine.locations)
-    session = Session(engine.jobs, plans=engine.plans, startup_steps=engine.startup(), services={"activity": activity})
+    services = features.build(engine.jobs, engine.activity, lambda: engine.locations).services()
+    session = Session(engine.jobs, plans=engine.plans, startup_steps=engine.startup(), services=services)
     app = create_app(session=session)  # BAYLE_API_TOKEN missing -> raises before anything is printed
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))

@@ -307,6 +307,51 @@ class SavesPresenter:
             return Refusal(tr("Close {game} first").format(game=game), tr("Saves cannot change while it runs."))
         return Refusal(tr("A job is running"), tr("Wait for it to finish."))
 
+    # ---- what the three service jobs (Back up, Save a copy, Import) end with: facts in, words out
+    def back_up_done(self, result: dict, everything: bool) -> str:
+        made = [Path(b).name for b in result.get("backups", ())]
+        if everything or len(made) != 1:
+            return tr("Backed up {n} save file(s).").format(n=len(made))
+        return tr("Backed up {name} ({file})").format(name=Path(result["saves"][0]).name, file=made[0])
+
+    def save_copy_done(self, result: dict) -> str:
+        return tr("Saved a copy of {file} as '{name}'").format(file=Path(result["source"]).name, name=result["name"])
+
+    def import_done(self, result: dict) -> str:
+        done, failed = result.get("imported", []), result.get("failed", [])
+        if len(done) == 1 and not failed:
+            return tr("Imported '{name}' into the Library").format(name=done[0]["name"])
+        text = tr("Imported {n} files into the Library").format(n=len(done))
+        if failed:
+            text += tr(". Not imported: {names}").format(names=self._files(failed))
+        return text
+
+    @staticmethod
+    def _files(items: list[dict]) -> str:
+        return ", ".join(Path(i["file"]).name for i in items)
+
+    def job_failed(self, code: str, message: str, details: dict | None = None) -> str | None:
+        """A sentence for the failure code of Back up, Save a copy or Import; None for a code this page has no words for."""
+        details = details or {}
+        if code == "source_changed":
+            return tr("The save changed while it was read. Try again when the game is not saving.")
+        if code == "source_locked":
+            return tr("Another program holds the file. Close it and try again.")
+        if code == "not_a_save":
+            return tr("That file is not a save file for this game.")
+        if code == "library_unreadable":
+            return tr("The Library cannot be read, so nothing was added.")
+        if code == "library_busy":
+            return tr("The Library is in use by another change. Try again in a moment.")
+        if code == "not_imported":
+            return tr("None of these files could be imported: {names}").format(
+                names=self._files(details.get("failed", []))
+            )
+        if code == "failed" and details.get("backed_up"):
+            names = ", ".join(Path(b).name for b in details["backed_up"])
+            return tr("{message} Backed up before it stopped: {names}").format(message=message, names=names)
+        return None
+
     def character_copy(self, plan: dict, source: str, target: str, target_slot: int, same_file: bool) -> Confirm:
         who = plan["character"] or {"name": "?", "level": 0}
         old = plan["replaces"]

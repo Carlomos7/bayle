@@ -162,7 +162,10 @@ class SavesAdapter(QObject):
     def backUpAll(self) -> None:
         """Saves > Back up now: one backup of every live save of this game."""
         if not self._blocked():
-            self._job("saves.back_up", {"everything": True})
+            self._start(
+                lambda: self.host.saves_service.back_up(everything=True, title=tr("Backing up saves...")),
+                lambda r: self.presenter.back_up_done(r, True),
+            )
 
     @Slot()
     def refresh(self) -> None:
@@ -279,6 +282,23 @@ class SavesAdapter(QObject):
 
         self.host.follow_job(job_id, ended)
 
+    def _start(self, begin, words) -> None:
+        """A job the service starts (Back up, Save a copy, Import): begin() runs on the worker and returns its id. When
+        it ends, words(result) is the toast (no Undo: they add copies, they change no save) or the failure code's
+        sentence; the page is read again either way."""
+
+        def ended(snap) -> None:
+            if snap is not None and snap.state == "done" and isinstance(snap.result, dict):
+                self.notifier.toast(words(snap.result))
+            elif snap is not None and snap.state == "failed" and snap.error is not None:
+                err = snap.error
+                self.notifier.toast(
+                    self.presenter.job_failed(err.code, err.message, err.details) or err.message, error=True
+                )
+            self._read()
+
+        self._query(begin, lambda job_id: self.host.follow_job(job_id, ended))
+
     def _ask(self, name: str, params: dict, fail: str = "", then=None) -> None:
         """A plan operation: the session offers it, the Notifier asks in its words, and the answer goes back. A job
         the answer starts is followed; one that finishes inline (a removal) calls then()."""
@@ -383,7 +403,12 @@ class SavesAdapter(QObject):
     @Slot(str)
     def backUpNow(self, path: str) -> None:
         if not self._blocked():
-            self._job("saves.back_up", {"paths": [path]})
+            self._start(
+                lambda: self.host.saves_service.back_up(
+                    [path], title=tr("Backing up {name}...").format(name=Path(path).name)
+                ),
+                lambda r: self.presenter.back_up_done(r, False),
+            )
 
     # ---- 3. Save a copy
     @Slot(str, result=str)
@@ -396,7 +421,12 @@ class SavesAdapter(QObject):
     @Slot(str, str)
     def saveCopy(self, path: str, name: str) -> None:
         if not self._blocked(read_only=True):  # only reads the live save; the Library check rejects a half-written file
-            self._job("saves.save_copy", {"path": path, "name": name})
+            self._start(
+                lambda: self.host.saves_service.save_copy(
+                    path, name, title=tr("Saving a copy of {name}...").format(name=Path(path).name)
+                ),
+                self.presenter.save_copy_done,
+            )
 
     # ---- 5. Import
     @Slot()
@@ -430,7 +460,12 @@ class SavesAdapter(QObject):
 
     def _import_many(self, paths: list[Path]) -> None:
         if not self._blocked(read_only=True) and self._has_library():
-            self._job("saves.import_files", {"files": [str(p) for p in paths]})
+            self._start(
+                lambda: self.host.saves_service.import_files(
+                    [str(p) for p in paths], title=tr("Importing {n} files...").format(n=len(paths))
+                ),
+                self.presenter.import_done,
+            )
 
     def _offer_import(self, path: Path) -> None:
         if not self._blocked(read_only=True):
@@ -439,7 +474,12 @@ class SavesAdapter(QObject):
     @Slot(str, str)
     def importFile(self, path: str, name: str) -> None:
         if not self._blocked(read_only=True) and self._has_library():
-            self._job("saves.import_files", {"files": [path], "name": name})
+            self._start(
+                lambda: self.host.saves_service.import_files(
+                    [path], name, title=tr("Importing {name}...").format(name=Path(path).name)
+                ),
+                self.presenter.import_done,
+            )
 
     # ---- 1. Copy a character (also Duplicate in the same file)
     @Slot(str, int, result=list)

@@ -30,7 +30,9 @@ class Context(Protocol):
     data_dir: Path
     jobs: JobManager
     plans: PlanStore
-    activity: JobStore | None
+
+    @property
+    def activity(self) -> JobStore | None: ...
 
     def startup(self, profile: Callable[[], Path | None]) -> list[StartupStep]: ...
 

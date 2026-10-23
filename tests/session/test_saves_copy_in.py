@@ -352,11 +352,9 @@ def test_a_file_that_is_too_big_is_refused_before_it_is_read(world, monkeypatch)
 
 
 # The job's error should carry the details the service raised (not_imported: failed, a part-way back up: backed_up);
-# logged_write re-raises OperationError(code, message) from the job's ErrorInfo and drops them. Strict xfail until fixed.
-LOST_DETAILS = pytest.mark.xfail(strict=True, reason="logged_write drops OperationError.details (saves_page.py)")
+# the job's error is raised again with them (OperationError.from_info).
 
 
-@LOST_DETAILS
 @pytest.mark.parametrize("data", [NOT_A_SAVE, b"x"])
 def test_an_import_where_every_file_is_bad_names_each_failure_in_the_details(world, data):
     s = world.session()
@@ -366,11 +364,11 @@ def test_an_import_where_every_file_is_bad_names_each_failure_in_the_details(wor
     assert err.details["failed"] == [{"file": str(a), "code": "not_a_save"}, {"file": str(b), "code": "not_a_save"}]
 
 
-@LOST_DETAILS
 def test_a_file_too_big_is_named_not_a_save_in_the_details(world, monkeypatch):
     monkeypatch.setattr(save_library, "MAX_SAVE_BYTES", 10)
     big = world.outside("big.sl2")
-    err = failed(world.session(), start(world.session(), "saves.import_files", {"files": [str(big)]}))
+    s = world.session()
+    err = failed(s, start(s, "saves.import_files", {"files": [str(big)]}))
     assert err.details["failed"] == [{"file": str(big), "code": "not_a_save"}]
 
 
@@ -491,7 +489,6 @@ def test_a_back_up_that_fails_part_way_has_the_failures_code_and_keeps_the_first
     assert kept.startswith("ER0000.sl2.") and (save_backups.backups(world.folder) / kept).read_bytes() == SAVE
 
 
-@LOST_DETAILS
 def test_a_back_up_that_fails_part_way_names_the_backup_it_took(world, monkeypatch):
     s = world.session()
     _second_save_changes(monkeypatch)

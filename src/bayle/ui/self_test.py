@@ -75,6 +75,9 @@ class _Context:
         from bayle.config.settings import LauncherSettings
         from bayle.game import catalog
         from bayle.game.locate import Locations
+        from bayle.work.events import EventBus
+        from bayle.work.jobs import JobManager
+        from bayle.work.prompts import PlanStore
 
         (data_dir / "profiles").mkdir(exist_ok=True)
         (data_dir / "saves").mkdir(exist_ok=True)
@@ -87,6 +90,14 @@ class _Context:
         )
         self.game = catalog.ELDEN_RING
         self.locations = Locations.from_settings(self.settings, self.game)
+        self.jobs = JobManager(EventBus())
+        self.plans = PlanStore()
+        self.activity = None  # no database: the records are in jobs.jsonl
+
+    def startup(self, profile):
+        from bayle.session.startup import recovery_steps
+
+        return recovery_steps(lambda: self.locations, profile)
 
     def select_game(self, game):
         from bayle.game.locate import Locations

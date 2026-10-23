@@ -4,24 +4,35 @@ presenter, the Launch flow and the menu read it."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.game import catalog as games
 from bayle.platform import logging as run_logging
+from bayle.platform.logging import JobStore
 from bayle.services import play as core
 from bayle.services.mods import migrate_profile_folders
 from bayle.services.settings import load_settings, save_settings
+from bayle.session.operations import StartupStep
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 
 class Context(Protocol):
     """The part of runtime.bootstrap.Engine the shell needs (the ui layer cannot import the runtime, which sits above
-    it). An Engine also has jobs, plans and startup(), which the shell uses when they are there."""
+    it). A test's light context provides the same: its own job manager and plans, no activity log (None: the records
+    are in jobs.jsonl), and the start-up steps."""
 
     game: games.Game
     settings: Any
     locations: Any
     data_dir: Path
+    jobs: JobManager
+    plans: PlanStore
+    activity: JobStore | None
+
+    def startup(self, profile: Callable[[], Path | None]) -> list[StartupStep]: ...
 
     def select_game(self, game: games.Game | str) -> Any: ...
     def note_profile_saves(self, names) -> Any: ...

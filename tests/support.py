@@ -14,6 +14,9 @@ import pytest
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.saves.analyze import GameItems
+from bayle.services.activity import ActivityService
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
 
 
 def repo_root() -> Path:
@@ -49,21 +52,23 @@ def copy_live_save(tmp_path: Path) -> Path:
     return copy
 
 
-class FakeActivityFacts:
-    """views.activity.ActivityFacts over plain data: no jobs index, log files or trash."""
+class FakeActivityFacts(ActivityService):
+    """services.activity.ActivityService over plain data: no jobs index, log files or trash. Its rules (check_undo,
+    undo) are the real ones; jobs: the JobManager they gate on (default: one running jobs inline)."""
 
-    def __init__(self, jobs=(), available=bool, logs=None, in_trash=lambda p: False, files=None):
-        self._jobs, self._available, self._logs, self._in_trash, self._files = (
+    def __init__(self, jobs=(), available=bool, logs=None, in_trash=lambda p: False, files=None, manager=None):
+        super().__init__(manager or JobManager(EventBus(), spawn=lambda run, name=None: run()), None, er)
+        self._jobs_list, self._available, self._logs, self._in_trash, self._files = (
             list(jobs),
             available,
             logs or {},
             in_trash,
             files or {},
         )
-        self.seen_at = 0.0
+        self._marked = 0.0
 
     def jobs(self):
-        return list(self._jobs)
+        return list(self._jobs_list)
 
     def undo_available(self, undo):
         return self._available(undo)
@@ -81,11 +86,11 @@ class FakeActivityFacts:
         return self._files.get(name)
 
     def unseen(self):
-        return sum(1 for r in self._jobs if r.get("outcome") in ("failed", "interrupted"))
+        return sum(1 for r in self._jobs_list if r.get("outcome") in ("failed", "interrupted"))
 
     def mark_seen(self):
-        self.seen_at += 1
-        return self.seen_at
+        self._marked += 1
+        return self._marked
 
 
 MODS_PROFILE = (
@@ -116,9 +121,10 @@ class FakeShellContext:
     """bayle.session.shell.state.Context over a temporary data folder: no database, no real
     profile or save folder; settings go to the isolated settings file. What the shell tests build a Shell on."""
 
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, spawn=None):
         from bayle.config.settings import LauncherSettings
         from bayle.services.settings import load_settings, save_settings
+        from bayle.work.prompts import PlanStore
 
         self._load = load_settings
 
@@ -131,6 +137,14 @@ class FakeShellContext:
         save_settings(me3_profile_dir=self.settings.me3_profile_dir, saves_dir=self.settings.saves_dir)
         self.game = catalog.ELDEN_RING
         self.locations = Locations.from_settings(self.settings, self.game)
+        self.jobs = JobManager(EventBus(), spawn=spawn)  # spawn: how jobs get a thread (inline in most tests)
+        self.plans = PlanStore()
+        self.activity = None
+
+    def startup(self, profile):
+        from bayle.session.startup import recovery_steps
+
+        return recovery_steps(lambda: self.locations, profile)
 
     def select_game(self, game):
         self.game = game

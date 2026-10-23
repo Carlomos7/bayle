@@ -1,5 +1,5 @@
 """`bayle --backend`: bind 127.0.0.1:0, print one JSON handshake line when ready, stop when stdin reaches EOF. The
-Session it serves is built on the engine's jobs, plans and start-up steps (runtime.bootstrap), as the window's is."""
+Session it serves is built on the engine's jobs, plans, activity log and start-up steps (runtime.bootstrap), as the window's is."""
 
 from __future__ import annotations
 
@@ -14,11 +14,13 @@ import uvicorn
 from bayle import __version__
 from bayle.api.app import create_app
 from bayle.api.models import CONTRACT_VERSION
+from bayle.services.activity import ActivityService
 from bayle.session import Session
 
 
 async def serve(engine) -> None:
-    session = Session(engine.jobs, plans=engine.plans, startup_steps=engine.startup())
+    activity = ActivityService(engine.jobs, engine.activity, lambda: engine.locations)
+    session = Session(engine.jobs, plans=engine.plans, startup_steps=engine.startup(), services={"activity": activity})
     app = create_app(session=session)  # BAYLE_API_TOKEN missing -> raises before anything is printed
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))

@@ -1,25 +1,16 @@
-"""The Activity page's operations: its snapshot, a job's log, copy and file, the unseen count, "seen", and Undo."""
+"""The Activity operations for the HTTP layer, each handed straight to the session's ActivityService
+(services.activity): the jobs, a job's log and file, the unseen count, "seen", and Undo. Temporary: the Qt page calls
+the service itself, and a future API is built on it the same way. No wording here; the client words what it gets."""
 
 from __future__ import annotations
 
-import dataclasses
-import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
 from bayle.errors import OperationError
-from bayle.platform.text import tr
 from bayle.services.activity import ActivityService
-from bayle.services.activity import undo as undo_job
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
-from bayle.views.activity import ActivityPresenter, ActivityState, LogText, Refusal
-from bayle.work.prompts import Proposal
-
-
-class ActivityScope(Params):
-    game: str = ""
-    group: str = ""
-    failed_only: bool = False
 
 
 class JobRef(Params):
@@ -28,28 +19,23 @@ class JobRef(Params):
 
 class LogParams(JobRef):
     source: str = ""  # an attachment's name; "" is the job's own log
-    detail: bool = False
 
 
-class CopyParams(LogParams):
-    for_support: bool = False  # user name and Steam IDs masked
+class UndoParams(JobRef):
+    expect: dict[str, Any]  # the undo record the client confirmed (refused as stale when it changed)
 
 
-class LogRow(BaseModel):
-    time: str
-    level: str
-    text: str
+class ActivityJobs(BaseModel):
+    jobs: list[dict[str, Any]]
+    unseen: int
 
 
 class LogView(Result):
-    rows: list[LogRow]
-    plain: str
-    note: str = ""
-    missing: bool = False
-
-
-class CopyText(Result):
+    entries: list[dict[str, Any]]
     text: str
+    attachment: bool
+    cut: bool
+    missing: bool
 
 
 class LogFile(Result):
@@ -64,79 +50,49 @@ class Seen(Result):
     at: float
 
 
-class UndoResult(Result):
-    said: str
+class Started(Result):
+    job_id: str
 
 
-def _facts(session: Session) -> ActivityService:
-    return session.service("activity", ActivityService)
+def _none() -> ActivityService:
+    raise OperationError("no_activity", "This session has no Activity.")
 
 
-def _presenter(session: Session) -> ActivityPresenter:
-    return ActivityPresenter(_facts(session), session.service("clock", lambda: datetime.datetime.now))
+def _activity(session: Session) -> ActivityService:
+    return session.service("activity", _none)
 
 
-def _view(log: LogText) -> LogView:
-    return LogView(
-        rows=[LogRow(time=t, level=lvl, text=x) for t, lvl, x in log.rows],
-        plain=log.plain,
-        note=log.note,
-        missing=log.missing,
-    )
-
-
-@registry.page("activity", scope=ActivityScope, view=ActivityState)
-def snapshot(session: Session, game: str = "", group: str = "", failed_only: bool = False) -> ActivityState:
-    state = _presenter(session).refresh(game, group, failed_only)
-    return dataclasses.replace(state, unseen=_facts(session).unseen())
+@registry.page("activity", view=ActivityJobs)
+def snapshot(session: Session) -> ActivityJobs:
+    a = _activity(session)
+    return ActivityJobs(jobs=a.jobs(), unseen=a.unseen())
 
 
 @operation("activity.log", params=LogParams, result=LogView)
 def log(call: Call, p: LogParams) -> LogView:
-    return _view(_presenter(call.session).log(p.job_id, p.source, p.detail))
-
-
-@operation("activity.copy", params=CopyParams, result=CopyText)
-def copy(call: Call, p: CopyParams) -> CopyText:
-    pres = _presenter(call.session)
-    return CopyText(text=pres.copy_text(pres.log(p.job_id, p.source, p.detail), p.for_support))
+    got = _activity(call.session).log(p.job_id, p.source)
+    return LogView(
+        entries=list(got.entries), text=got.text, attachment=got.attachment, cut=got.cut, missing=got.missing
+    )
 
 
 @operation("activity.log_file", params=LogParams, result=LogFile)
 def log_file(call: Call, p: LogParams) -> LogFile:
-    pres = _presenter(call.session)
-    rec = pres.record(p.job_id) or {}
-    path = pres.log_path(p.source or rec.get("log") or "")
+    path = _activity(call.session).log_path(p.job_id, p.source)
     return LogFile(path=None if path is None else str(path))
 
 
 @operation("activity.unseen", result=Unseen)
 def unseen(call: Call, p: NoParams) -> Unseen:
-    return Unseen(count=_facts(call.session).unseen())
+    return Unseen(count=_activity(call.session).unseen())
 
 
 @operation("activity.mark_seen", result=Seen, kind="command", writes=True)
 def mark_seen(call: Call, p: NoParams) -> Seen:
-    return Seen(at=_facts(call.session).mark_seen())
+    return Seen(at=_activity(call.session).mark_seen())
 
 
-@operation("activity.undo", params=JobRef, result=UndoResult, kind="plan", writes=True)
-def undo(call: Call, p: JobRef) -> Proposal | Refusal:
-    """Offer to take a job back; answering the plan starts the undo as a job (a writing one) whose result is UndoResult."""
-    session = call.session
-    pres = _presenter(session)
-    rec = pres.record(p.job_id)
-    if rec is None:
-        raise OperationError("not_found", tr("That job is no longer listed."), {"job_id": p.job_id})
-    plan = pres.undo_plan(rec, busy=session.jobs.busy, game_running=session.jobs.game_running)
-    if isinstance(plan, Refusal):
-        return plan
-
-    def run(_answer) -> str:
-        loc = session.locations()
-        return session.start(
-            lambda _ctx: UndoResult(said=undo_job(plan.undo, plan.job_id, plan.name, loc, plan.progress)),
-            title=plan.progress,
-        )
-
-    return Proposal(plan.confirm, run, stale=lambda: (pres.record(p.job_id) or {}).get("undo"))
+@operation("activity.undo", params=UndoParams, result=Started, kind="command", writes=True)
+def undo(call: Call, p: UndoParams) -> Started:
+    """Start taking a job back (its result: {"said": ...}); refusals are OperationError codes (services.activity)."""
+    return Started(job_id=_activity(call.session).undo(p.job_id, p.expect))

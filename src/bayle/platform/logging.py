@@ -437,14 +437,15 @@ def set_undo(data: dict | None) -> None:
         _write_index(job)
 
 
-def mark_undone(job_id: str) -> None:
-    """A job was taken back (from Activity): its record no longer offers to, and says so."""
+def mark_undone(job_id: str, store: JobStore | None) -> None:
+    """A job was taken back (from Activity): its record no longer offers to, and says so. store: the activity log
+    the caller holds (the Engine's), not the bound one."""
     with _lock:
-        rec = next((r for r in read_jobs() if r.get("id") == job_id), None)
+        rec = next((r for r in read_jobs_from(store) if r.get("id") == job_id), None)
         if rec is None:
             return
         rec = {**rec, "undo": None, "undone": datetime.datetime.now().isoformat(timespec="seconds")}
-        _keep(rec)  # "undone" always goes to the file, where the undo it cancels is
+        _keep(rec, store)  # "undone" always goes to the file, where the undo it cancels is
 
 
 def set_summary(text: str) -> None:
@@ -496,16 +497,16 @@ def _record(job: Job) -> dict:
 
 
 def _write_index(job: Job) -> None:
-    _keep(_record(job))
+    _keep(_record(job), _store)
 
 
-def _keep(rec: dict) -> None:
+def _keep(rec: dict, store: JobStore | None) -> None:
     """Store a job record: in the database when it takes it, and in jobs.jsonl when it did not (nothing is lost, and
     nothing is said to be stored that was not) or when the record carries undo (undo stays in the file)."""
     stored = False
-    if _store is not None:
+    if store is not None:
         try:
-            stored = bool(_store.save(rec))
+            stored = bool(store.save(rec))
         except Exception:
             stored = False
     if stored and not rec.get("undo") and not rec.get("undone"):
@@ -563,6 +564,11 @@ def _expired(rec: dict, cutoff: float) -> bool:
 
 
 def read_jobs() -> list[dict]:
+    """read_jobs_from the bound activity log (the job writers' and the command line's)."""
+    return read_jobs_from(_store)
+
+
+def read_jobs_from(store: JobStore | None) -> list[dict]:
     """Every job known, newest first, one record each (its last state): the database's rows (when it holds the
     activity log) merged with jobs.jsonl by job id, so records waiting in the file show at once. Undo always comes
     from the file. A job still marked running by a launcher that is no longer running is reported as interrupted.
@@ -581,9 +587,9 @@ def read_jobs() -> list[dict]:
         if isinstance(rec, dict) and rec.get("id"):
             by_id[rec["id"]] = rec
     stored = None
-    if _store is not None:
+    if store is not None:
         try:
-            stored = _store.records()
+            stored = store.records()
         except Exception:
             stored = None
     merged = {r["id"]: r for r in stored or [] if r.get("id")}
@@ -734,9 +740,9 @@ def read_attachment(name: str, limit: int = READ_LIMIT) -> dict:
     return {"text": text, "cut": cut, "missing": False}
 
 
-def unseen_failures(since: float) -> list[dict]:
-    """Jobs that failed or were interrupted after `since` (a time; what the Activity page last showed)."""
-    return [r for r in read_jobs() if r.get("outcome") in ("failed", "interrupted") and float(r.get("t") or 0) > since]
+def unseen_failures(since: float, jobs: list[dict]) -> list[dict]:
+    """The jobs that failed or were interrupted after `since` (a time; what the Activity page last showed)."""
+    return [r for r in jobs if r.get("outcome") in ("failed", "interrupted") and float(r.get("t") or 0) > since]
 
 
 # ----------------------------------------------------------------------------- the command line

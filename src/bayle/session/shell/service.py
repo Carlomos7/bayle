@@ -4,8 +4,8 @@ me3 facts and the start-up sequence. No Qt: the window and the HTTP layer both d
 bus (`game.state`, `invalidated`, `notice`, `navigate`, `prompt` and the job events).
 
 Shell builds the program's one Session on the Engine's job manager, bus and plans (runtime.bootstrap), and sets the
-writes gate (a running game refuses writing jobs) and its bookkeeping on that manager. A test's light context has no
-Engine: the shell then makes its own. Who owns start-up: whoever hosts the Shell calls `startup()` once, which runs
+writes gate (a running game refuses writing jobs) and its bookkeeping on that manager. Activity (services.activity) runs
+on the same manager and the Engine's activity log. A test's light context provides the same parts. Who owns start-up: whoever hosts the Shell calls `startup()` once, which runs
 the Engine's start-up steps; nothing else recovers on its own."""
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import play as core
+from bayle.services.activity import ActivityService
 from bayle.services.mods import me3_facts
 from bayle.services.settings import load_settings, save_game_settings
 from bayle.session.operations import Session, StepReport
@@ -35,13 +36,11 @@ from bayle.session.shell.ports import EventPorts
 from bayle.session.shell.state import Context, LauncherState
 from bayle.session.shell.updates import UpdateFlow
 from bayle.session.shell.watch import GameWatch
-from bayle.session.startup import recover_profile, recovery_steps
+from bayle.session.startup import recover_profile
 from bayle.updates import inno as migration
 from bayle.views import topbar
 from bayle.views.shell import ShellState, shell_state
-from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 # A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.
 PROGRESS_LINES = (
@@ -67,12 +66,10 @@ class Shell:
         background: Background | None = None,
         restart: Callable[[Any], None] | None = None,
         open_url: Callable[[str], None] = desktop.open_path,
-        bus: EventBus | None = None,
-        spawn: Callable[[Callable[[], None], str | None], None] | None = None,
     ):
         """background: where the watch, the update flow and the flow's steps run (the window passes one whose results
         arrive on its UI thread). restart(prepared): apply a downloaded update by restarting (the window's close
-        rules decide). spawn: how jobs get a thread (tests run them inline)."""
+        rules decide)."""
         self.state = LauncherState(ctx)
         self.background: Background = background or ThreadBackground()
         self.step = ""  # the Launch flow's step before its job runs ("Backing up saves...")
@@ -91,24 +88,19 @@ class Shell:
         self._done_calls: dict[str, Callable[[bool], None]] = {}
         self._next = threading.local()
         self._slow: tuple[tuple, tuple, tuple, dict[str, bool]] | None = None
-        engine: Any = ctx if hasattr(ctx, "jobs") else None  # the Engine; a test's light context is not one
-        if engine is not None:
-            self.jobs: JobManager = engine.jobs
-            plans, steps = engine.plans, engine.startup(self.state.profile_path)
-        else:
-            self.jobs = JobManager(bus or EventBus(), spawn=spawn)
-            plans, steps = PlanStore(), recovery_steps(lambda: self.state.locations, self.state.profile_path)
+        self.jobs: JobManager = ctx.jobs
         # the manager is made before the shell, whose state its gates and observer read
         self.jobs.attach(
             game_running=lambda: self.state.game_running, external_busy=lambda: self.flow.active, observer=self._observe
         )
         self.bus = self.jobs.bus
+        self.activity = ActivityService(self.jobs, ctx.activity, lambda: self.state.locations)
         self.session = Session(
             self.jobs,
-            plans=plans,
+            plans=ctx.plans,
             locations=lambda: self.state.locations,
-            startup_steps=steps,
-            services={"shell": self},
+            startup_steps=ctx.startup(self.state.profile_path),
+            services={"shell": self, "activity": self.activity},
         )
         self.flow = launch.LaunchFlow(self.state, EventPorts(self))
         self.updates = UpdateFlow(
@@ -218,7 +210,7 @@ class Shell:
             self.background.start(lambda _progress: ok, on_result=on_done, name="job-done")
 
     def update_badge(self) -> None:
-        self.unseen = self.session.run("activity.unseen").count
+        self.unseen = self.activity.unseen()
 
     # ---------------------------------------------------------------- game and profile
     def set_game(self, key: str, remember: bool = True) -> bool:

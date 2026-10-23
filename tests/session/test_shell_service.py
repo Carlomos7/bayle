@@ -22,7 +22,7 @@ def inline(run, name=None):
 
 @pytest.fixture
 def shell(tmp_path):
-    s = Shell(FakeShellContext(tmp_path), background=InlineBackground(), spawn=inline)
+    s = Shell(FakeShellContext(tmp_path, spawn=inline), background=InlineBackground())
     yield s
 
 

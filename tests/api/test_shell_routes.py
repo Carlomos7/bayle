@@ -16,7 +16,7 @@ TOKEN = "t" * 32
 
 @pytest.fixture
 def shell(tmp_path):
-    s = Shell(FakeShellContext(tmp_path), background=InlineBackground(), spawn=lambda run, name=None: run())
+    s = Shell(FakeShellContext(tmp_path, spawn=lambda run, name=None: run()), background=InlineBackground())
     yield s
 
 

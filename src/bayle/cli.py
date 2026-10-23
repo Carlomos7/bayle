@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class WindowHooks:
     """What the engine borrows from the window program, injected so no path here imports Qt: the window's main
-    (takes the app context), the one-shot message box (heading, detail, buttons -> index) and the full self-test
+    (takes the Engine), the one-shot message box (heading, detail, buttons -> index) and the full self-test
     (data folder, out -> exit code). Each callable imports its Qt code when called, never at construction."""
 
     shell_main: Callable[..., int]
@@ -39,22 +39,22 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         return cpu.worker_main()
     if "--backend" in argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
         from bayle.api.server import main as backend_main
-        from bayle.app import migrate_data, use_data_folder
         from bayle.config.settings import load_settings
         from bayle.platform import logging as run_logging
+        from bayle.runtime.bootstrap import create_engine, use_data_folder
         from bayle.storage.db import MigrationFailed
 
         use_data_folder()  # the same start-up as the window, minus Qt
         run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO", console=False)
         try:
-            migrate_data()  # the app data only: the backend opens no database
+            engine = create_engine(storage=False)  # the backend opens no database: the window may hold it
         except MigrationFailed as e:
             return storage_failed(e, window=False)
-        return backend_main()
+        return backend_main(engine)
     if "--self-test" in argv:  # first: before anything picks the data folder or starts Velopack's hooks
         return self_test(argv, window)
-    from bayle.app import use_data_folder
     from bayle.platform import logging as run_logging
+    from bayle.runtime.bootstrap import use_data_folder
 
     use_data_folder()  # before anything logs: the platform layer is told where the data folder is
     from bayle.config.settings import load_settings
@@ -90,26 +90,26 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         if "--play" in argv:
             return play_from_shortcut(game, allow_without_backup="--allow-without-backup" in argv, window=window)
         if "--check" in argv:
-            from bayle.app import create_app
+            from bayle.runtime.bootstrap import create_engine
             from bayle.storage.db import MigrationFailed
 
             try:
-                ctx = create_app(game)
+                ctx = create_engine(game)
             except MigrationFailed as e:
                 return storage_failed(e, None)
             core.check(ctx.settings, ctx.locations, ctx.data_dir)
             return 0
-    from bayle.app import create_app
+    from bayle.runtime.bootstrap import create_engine
     from bayle.storage.db import MigrationFailed
 
     if window is None:  # python -m bayle from the engine alone: the headless modes above still work
         print("No window program is installed: use --play, --check, --update or --check-storage.", file=sys.stderr)
         return 2
     try:
-        ctx = create_app(game)
+        engine = create_engine(game)
     except MigrationFailed as e:  # no window, so no ready report: an update's watchdog rolls back
         return storage_failed(e, window)
-    return int(window.shell_main(ctx) or 0)
+    return int(window.shell_main(engine) or 0)
 
 
 def self_test(argv: list[str], window: WindowHooks | None = None) -> int:
@@ -133,8 +133,8 @@ def self_test(argv: list[str], window: WindowHooks | None = None) -> int:
         if sys.stdout is not None:
             print(line, flush=True)
 
-    from bayle.app import use_data_folder
     from bayle.platform import logging as run_logging
+    from bayle.runtime.bootstrap import use_data_folder
 
     try:
         use_data_folder()
@@ -162,10 +162,10 @@ def check_storage() -> int:
     only when it is open at the current schema. Used on builds, to prove the migrations were packaged."""
     import sqlite3
 
-    from bayle.app import use_data_folder
     from bayle.config import identity
     from bayle.platform import data_folder
     from bayle.resources import MIGRATIONS_DIR
+    from bayle.runtime.bootstrap import use_data_folder
     from bayle.storage import db as storage_db
 
     use_data_folder()
@@ -239,9 +239,9 @@ def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowH
     """--play: when the window is open, it runs Play itself (one launcher manages the session); otherwise Play runs
     here, holding the PLAY name so a second shortcut start, or a silent update, waits for it to end.
     allow_without_backup (--allow-without-backup): start even when 'back up saves before Play' fails."""
-    from bayle.app import create_app
     from bayle.platform import instance
     from bayle.platform import logging as run_logging
+    from bayle.runtime.bootstrap import create_engine
     from bayle.services import play as core
     from bayle.updates import apply as updates
 
@@ -260,7 +260,7 @@ def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowH
         from bayle.storage.db import MigrationFailed
 
         try:
-            ctx = create_app(game)
+            ctx = create_engine(game)
         except MigrationFailed as e:  # not ready: an update's watchdog rolls back
             return storage_failed(e, None)
         updates.mark_ready("play")  # this version starts and runs: an update's watchdog can stand down

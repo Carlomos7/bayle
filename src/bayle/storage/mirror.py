@@ -114,13 +114,7 @@ class Mirror:
             return False
 
 
-_CURRENT: Mirror | None = None
-
-
-def use(mirror: Mirror | None) -> None:
-    """Set at start-up by the application (None: storage is off, the files alone work)."""
-    global _CURRENT
-    _CURRENT = mirror
+_CURRENT: Mirror | None = None  # bound by bayle.runtime.bootstrap only (None: storage is off, the files alone work)
 
 
 def record(kind: str, path: Path) -> None:

@@ -9,10 +9,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle import app, cli
+from bayle import cli
 from bayle.config import settings
 from bayle.platform import data_folder
 from bayle.platform import logging as run_logging
+from bayle.runtime import bootstrap
 from bayle.services import play as core
 from bayle.storage import db as storage_db
 from bayle.updates import apply, headless
@@ -35,7 +36,7 @@ def quiet(monkeypatch):
     """main() installs its own excepthook and logging; both are put back, and the log is kept in a list."""
     lines, levels = [], []
     monkeypatch.setattr(sys, "excepthook", sys.excepthook)
-    monkeypatch.setattr(app, "use_data_folder", lambda: None)
+    monkeypatch.setattr(bootstrap, "use_data_folder", lambda: None)
     monkeypatch.setattr(run_logging, "setup_logging", lambda level="INFO", **kw: levels.append(level))
     monkeypatch.setattr(run_logging, "log", lines.append)
     monkeypatch.setattr(run_logging, "log_crash", lambda *args: None)
@@ -109,7 +110,7 @@ def test_check_flag_runs_the_check_on_the_context(monkeypatch, quiet):
     argv(monkeypatch, "--check", "--game", "er")
     monkeypatch.setattr(core, "game_from_args", lambda args: SimpleNamespace(key="er"))
     ctx = SimpleNamespace(settings="S", locations="L", data_dir="D")
-    monkeypatch.setattr(app, "create_app", lambda game: ctx)
+    monkeypatch.setattr(bootstrap, "create_engine", lambda game: ctx)
     checked = []
     monkeypatch.setattr(core, "check", lambda *args: checked.append(args))
     assert cli.main() == 0
@@ -123,7 +124,7 @@ def test_check_stops_when_the_database_upgrade_fails(monkeypatch, quiet):
     def failing(game):
         raise storage_db.MigrationFailed("the upgrade broke")
 
-    monkeypatch.setattr(app, "create_app", failing)
+    monkeypatch.setattr(bootstrap, "create_engine", failing)
     monkeypatch.setattr(cli, "storage_failed", lambda error, window: 4)
     assert cli.main() == 4
 
@@ -131,7 +132,7 @@ def test_check_stops_when_the_database_upgrade_fails(monkeypatch, quiet):
 def test_window_path_opens_the_window_on_the_context(monkeypatch, quiet):
     argv(monkeypatch)
     ctx = SimpleNamespace(name="ctx")
-    monkeypatch.setattr(app, "create_app", lambda game: ctx)
+    monkeypatch.setattr(bootstrap, "create_engine", lambda game: ctx)
     shown = []
     assert cli.main(window=hooks(shell_main=lambda c: shown.append(c) or 3)) == 3
     assert shown == [ctx]
@@ -139,7 +140,7 @@ def test_window_path_opens_the_window_on_the_context(monkeypatch, quiet):
 
 def test_window_path_without_a_window_program_says_so(monkeypatch, quiet, capsys):
     argv(monkeypatch)
-    monkeypatch.setattr(app, "create_app", lambda game: pytest.fail("no context without a window"))
+    monkeypatch.setattr(bootstrap, "create_engine", lambda game: pytest.fail("no context without a window"))
     assert cli.main() == 2
     assert "No window program" in capsys.readouterr().err
 
@@ -150,7 +151,7 @@ def test_window_path_reports_a_failed_upgrade_in_a_window(monkeypatch, quiet):
     def failing(game):
         raise storage_db.MigrationFailed("no")
 
-    monkeypatch.setattr(app, "create_app", failing)
+    monkeypatch.setattr(bootstrap, "create_engine", failing)
     seen = []
     monkeypatch.setattr(cli, "storage_failed", lambda error, window: seen.append(window) or 1)
     window = hooks()
@@ -264,7 +265,7 @@ def test_play_runs_headless_and_releases_its_hold(monkeypatch, quiet, allow):
     monkeypatch.setattr(instance, "acquire", lambda name: SimpleNamespace(release=lambda: released.append(True)))
     monkeypatch.setattr(updates, "mark_ready", lambda how: None)
     ctx = SimpleNamespace(start_imports=lambda: started.append(True), settings="S", locations="L")
-    monkeypatch.setattr(app, "create_app", lambda game: ctx)
+    monkeypatch.setattr(bootstrap, "create_engine", lambda game: ctx)
     calls = []
     monkeypatch.setattr(core, "play_headless", lambda s, loc, **kw: calls.append(kw) or 0)
     assert cli.play_from_shortcut(SimpleNamespace(key="er"), allow_without_backup=allow) == 0
@@ -283,7 +284,7 @@ def test_play_with_a_failed_upgrade_still_releases_the_hold(monkeypatch, quiet):
     def failing(game):
         raise storage_db.MigrationFailed("no")
 
-    monkeypatch.setattr(app, "create_app", failing)
+    monkeypatch.setattr(bootstrap, "create_engine", failing)
     monkeypatch.setattr(cli, "storage_failed", lambda error, window: 6)
     assert cli.play_from_shortcut(SimpleNamespace(key="er")) == 6
     assert released == [True]

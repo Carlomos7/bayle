@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from bayle.mods import rebuild
+from bayle.runtime import bootstrap
 from bayle.storage import db, models
 from bayle.storage.rebuild_runs import RebuildRuns, fingerprint
 
@@ -24,9 +25,9 @@ def runs(data):
     data.mkdir(parents=True, exist_ok=True)
     d = db.open_database(data, log=lambda line: None)
     store = RebuildRuns(d)
-    rebuild.use_run_store(store)
+    bootstrap.bind(run_store=store)
     yield store
-    rebuild.use_run_store(None)
+    bootstrap.bind(run_store=None)
     d.close()
 
 
@@ -106,7 +107,7 @@ def test_only_the_newest_rows_per_profile_are_kept(runs):
 
 
 def test_without_a_store_the_file_alone_works(data, tmp_path):
-    rebuild.use_run_store(None)
+    bootstrap.bind(run_store=None)
     p = _profile(tmp_path)
     rebuild.note_run(p, True, "ok")
     assert rebuild.last_run(Path(p))["ok"] is True

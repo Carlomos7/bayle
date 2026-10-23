@@ -20,7 +20,7 @@ IS_LINUX = sys.platform.startswith("linux")
 
 # Detection (Steam libraries, the game folder, me3.exe) scans PATH and the disk. The answers are stable within a
 # session, but Setup.summary()/problems() ask for them many times per game-tab switch, so they are memoised here and
-# cleared whenever the settings or the game change (app.AppContext).
+# cleared whenever the settings or the game change (runtime.bootstrap.Engine).
 _DETECT_CACHE: dict = {}
 
 

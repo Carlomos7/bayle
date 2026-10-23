@@ -18,7 +18,6 @@ from bayle.session.operations import (
     registry,
 )
 from bayle.session.plans import Answer, Plan, PlanError, PlanStore, PromptBroker, Proposal
-from bayle.session.process import reset_process_globals
 
 __all__ = [
     "Answer",
@@ -47,5 +46,4 @@ __all__ = [
     "current_context",
     "operation",
     "registry",
-    "reset_process_globals",
 ]

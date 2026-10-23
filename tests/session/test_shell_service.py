@@ -8,7 +8,7 @@ import pytest
 from bayle.platform import logging as run_logging
 from bayle.services import play as core
 from bayle.services.errors import Busy, OperationError
-from bayle.session import JobManager, Session, reset_process_globals, startup
+from bayle.session import JobManager, Session, startup
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.session.shell.service import Shell
 from bayle.views.common import Choice, Choose
@@ -21,19 +21,15 @@ def inline(run, name=None):
 
 @pytest.fixture
 def shell(tmp_path):
-    reset_process_globals()
     s = Shell(FakeShellContext(tmp_path), background=InlineBackground(), spawn=inline)
     yield s
-    reset_process_globals()
 
 
 @pytest.fixture
 def threaded(tmp_path):
     """A shell whose jobs run on real threads (a job that waits for an answer needs one)."""
-    reset_process_globals()
     s = Shell(FakeShellContext(tmp_path), background=InlineBackground())
     yield s
-    reset_process_globals()
 
 
 def events(shell):

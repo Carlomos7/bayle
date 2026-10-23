@@ -11,6 +11,7 @@ import pytest
 
 from bayle.platform import cpu
 from bayle.platform.cpu_pool import CpuPool
+from bayle.runtime import bootstrap
 
 PROBE = "bayle.platform.cpu:probe"
 
@@ -135,11 +136,11 @@ def test_an_idle_worker_exits_when_its_parent_dies_without_cleaning_up():
 
 def test_install_gives_run_cpu_the_pool(pool):
     p = pool()
-    cpu.install(p.submit, p.broadcast)
+    bootstrap.bind(cpu_backend=p.submit, cpu_broadcast=p.broadcast, ui_thread=None)
     try:
         assert cpu.run_cpu(PROBE, {"value": 1}).result(60)["pid"] != os.getpid()
     finally:
-        cpu.install(None)
+        bootstrap.bind(cpu_backend=None, cpu_broadcast=None, ui_thread=None)
 
 
 def test_big_payloads_and_big_replies_do_not_deadlock(pool):

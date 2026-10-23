@@ -111,7 +111,7 @@ exhaustive = false
 layers = [
     "bayle.entry",
     "bayle.cli",
-    "bayle.app",
+    "bayle.runtime",
     "bayle.ui | bayle.api",
     "bayle.session",
     "bayle.views",

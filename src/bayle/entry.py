@@ -11,10 +11,10 @@ from bayle.cli import WindowHooks
 from bayle.cli import main as cli_main
 
 
-def _shell_main(ctx) -> int:
+def _shell_main(engine) -> int:
     from bayle.ui.launcher.window import main
 
-    return main(ctx)
+    return main(engine)
 
 
 def _ask(*args) -> int:

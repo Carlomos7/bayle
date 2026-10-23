@@ -25,7 +25,6 @@ from typing import IO
 from bayle.platform import cpu
 from bayle.platform import logging as run_logging
 
-_pool: CpuPool | None = None
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
@@ -211,12 +210,3 @@ class CpuPool:
             except subprocess.TimeoutExpired:
                 w.proc.kill()
                 w.proc.wait()
-
-
-def install(ui_thread: int | None = None) -> CpuPool:
-    """Make this program's CPU tasks run in worker processes (ui_thread: the window's thread, if it has one).
-    The caller calls shutdown() at exit."""
-    global _pool
-    _pool = CpuPool()
-    cpu.install(_pool.submit, _pool.broadcast, ui_thread)
-    return _pool

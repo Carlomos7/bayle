@@ -6,7 +6,7 @@ goes to the launcher's data folder like any other job's.
 
 from __future__ import annotations
 
-from bayle.app import use_data_folder
+from bayle.runtime.bootstrap import use_data_folder
 from bayle.saves import regulation
 
 if __name__ == "__main__":

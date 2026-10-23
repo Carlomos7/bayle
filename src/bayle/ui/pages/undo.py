@@ -1,39 +1,44 @@
-"""Taking a job back, for every page that offers it: ask the session for the plan, show its Confirm through the page's
-Notifier, and send the answer back. The undo itself runs as a session job; the host follows it on the event bus."""
+"""Taking a job back, for every page that offers it: ask the engine's Activity interface whether it can be, show the
+Confirm through the page's Notifier, and start the undo (a job of its own, which the host follows on the event bus)."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
 
-from bayle.errors import OperationError
-from bayle.platform.text import tr
+from bayle.errors import Busy, OperationError
 from bayle.ui.notifications import Notifier
-from bayle.views.common import Refusal
+from bayle.ui.pages.activity.presenter import ActivityPresenter
 
 
 def ask_undo(host: Any, notifier: Notifier, job_id: str, refused: Callable[[], None] | None = None) -> None:
     """refused: called when it cannot be taken back now (after the toast says why)."""
-    session = host.session
+    activity = host.activity
+    presenter = ActivityPresenter(activity)
 
-    def offer() -> Any:
+    def words(e: OperationError) -> str:
+        r = presenter.refusal(e)
+        return f"{r.title}. {r.body}"
+
+    def check() -> Any:
         try:
-            return session.run("activity.undo", {"job_id": job_id})
+            return activity.check_undo(job_id)
         except OperationError as e:
-            return Refusal(tr("It cannot be taken back"), e.message)
+            return e
 
-    def answered(plan_id: str, ok: bool) -> None:
+    def start(rec: dict, progress: str) -> None:
         try:
-            session.answer(plan_id, {"ok": ok})
-        except OperationError as e:  # busy, expired, or changed since
-            notifier.toast(e.message, error=True)
+            activity.undo(job_id, rec["undo"], progress)
+        except OperationError as e:  # busy, or changed since
+            notifier.toast(e.message if isinstance(e, Busy) or e.code == "stale" else words(e), error=True)
 
     def shown(got: Any) -> None:
-        if isinstance(got, Refusal):
-            notifier.toast(f"{got.title}. {got.body}", error=True)
+        if isinstance(got, OperationError):
+            notifier.toast(words(got), error=True)
             if refused is not None:
                 refused()
             return
-        notifier.confirm(got.words, lambda ok: answered(got.id, ok))
+        plan = presenter.undo_plan(got)
+        notifier.confirm(plan.confirm, lambda ok: start(got, plan.progress) if ok else None)
 
-    host.run_in_background(offer, shown)
+    host.run_in_background(check, shown)

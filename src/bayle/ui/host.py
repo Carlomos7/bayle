@@ -7,6 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
+from bayle.services.activity import ActivityService
+
 
 class Host(Protocol):
     # ---- state
@@ -37,6 +39,11 @@ class Host(Protocol):
     @property
     def session(self) -> Any:
         """The session (bayle.session.Session): snapshots, operations, plans and the job event bus."""
+        ...
+
+    @property
+    def activity(self) -> ActivityService:
+        """The engine's Activity interface: the jobs, their logs, Undo."""
         ...
 
     # ---- work

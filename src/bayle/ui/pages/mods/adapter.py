@@ -14,6 +14,7 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from bayle.errors import OperationError
 from bayle.platform.text import tr
+from bayle.services.activity import ActivityService
 from bayle.session import Session
 from bayle.session.ops.mods import ModsView
 from bayle.ui.models import RowsModel, plain
@@ -61,6 +62,8 @@ class ModsHost(Protocol):
     def game_running(self) -> bool: ...
     @property
     def session(self) -> Session: ...
+    @property
+    def activity(self) -> ActivityService: ...
     @property
     def locations(self) -> Any: ...
     @property

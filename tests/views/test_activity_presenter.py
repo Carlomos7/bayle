@@ -9,9 +9,11 @@ import sys
 
 import pytest
 
+from bayle.errors import Busy, OperationError
 from bayle.platform import logging as run_logging
 from bayle.platform import text
-from bayle.views import activity as act
+from bayle.services.activity import JobLog
+from bayle.ui.pages.activity import presenter as act
 from support import FakeActivityFacts
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
@@ -46,7 +48,7 @@ def presenter(jobs=JOBS, available=lambda u: bool(u), **facts):
 
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
-        "import sys; import bayle.views.activity; "
+        "import sys; import bayle.ui.pages.activity.presenter; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
@@ -115,21 +117,27 @@ def test_a_jobs_log_hides_detail_lines_unless_asked():
         {"time": "11:00:01.000", "level": "debug", "source": "me3", "text": "fine detail"},
         {"time": "11:00:02.000", "level": "error", "source": "me3", "text": "it broke"},
     ]
-    p = presenter(logs={"p2.log": {"entries": entries, "cut": True, "missing": False}})
-    log = p.log("p2")
+    got = JobLog(entries=tuple(entries), cut=True)
+    log = act.ActivityPresenter.log_text(got, False)
     assert log.rows == (("11:00:00.000", "debug", "Play"), ("11:00:02.000", "error", "it broke"))
     assert log.note == (
         "Only the end of a long file is shown; Open file has all of it. "
         "1 detail line hidden; turn on Show details to see it."
     )
-    assert len(p.log("p2", detail=True).rows) == 3
+    assert len(act.ActivityPresenter.log_text(got, True).rows) == 3
     assert "ERROR    it broke" in log.plain
 
 
 def test_a_missing_log_is_said_not_shown_as_an_error():
-    p = presenter()
-    log = p.log("p2")
+    log = act.ActivityPresenter.log_text(JobLog(missing=True), False)
     assert log.missing and log.rows[0][2] == "This job's log file is no longer there."
+
+
+def test_an_attachment_is_shown_as_it_is():
+    log = act.ActivityPresenter.log_text(JobLog(text="raw output", attachment=True), False)
+    assert (log.rows, log.plain, log.note) == ((("", "info", "raw output"),), "raw output", "")
+    gone = act.ActivityPresenter.log_text(JobLog(attachment=True, missing=True), False)
+    assert gone.missing and gone.rows[0][2] == "This output file is no longer there."
 
 
 def test_other_programs_output_is_offered_beside_the_log():
@@ -146,23 +154,26 @@ def test_copy_for_support_masks_the_user(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("busy", "running", "undo", "title"),
+    ("error", "title", "body"),
     [
-        (True, False, {"type": "install"}, "Wait for the current job"),
-        (False, False, {}, "It cannot be taken back any more"),
-        (False, True, {"type": "rebuild"}, "Close the game first"),
+        (Busy("x"), "Wait for the current job", "Undo runs as a job of its own."),
+        (OperationError("gone", "x"), "It cannot be taken back any more", "What it needs is gone."),
+        (OperationError("game_running", "x"), "Close the game first", "The rebuild's files are in use while it runs."),
+        (
+            OperationError("not_found", "That job is no longer listed."),
+            "It cannot be taken back",
+            "That job is no longer listed.",
+        ),
     ],
 )
-def test_undo_says_why_it_cannot_run_now(busy, running, undo, title):
-    plan = presenter().undo_plan({"id": "j", "undo": undo}, busy=busy, game_running=running)
-    assert isinstance(plan, act.Refusal) and plan.title == title
+def test_a_refusal_code_becomes_the_words_for_it(error, title, body):
+    got = act.ActivityPresenter.refusal(error)
+    assert (got.title, got.body) == (title, body)
 
 
 def test_undo_plans_say_what_each_kind_of_undo_changes(tmp_path):
     p = presenter()
-    rebuild = p.undo_plan(
-        {"id": "r", "undo": {"type": "rebuild", "profile": "x/a.me3", "profile_before": "k"}}, False, False
-    )
+    rebuild = p.undo_plan({"id": "r", "undo": {"type": "rebuild", "profile": "x/a.me3", "profile_before": "k"}})
     assert isinstance(rebuild, act.UndoPlan)
     assert (rebuild.title, rebuild.apply_text, rebuild.progress) == (
         "Undo the rebuild",
@@ -170,11 +181,11 @@ def test_undo_plans_say_what_each_kind_of_undo_changes(tmp_path):
         "Undoing the rebuild...",
     )
     assert rebuild.changes == ("a.me3 goes back as it was before the rebuild",)
-    update = p.undo_plan({"id": "u", "undo": {"type": "update", "name": "GM", "rebuild": True}}, False, False)
+    update = p.undo_plan({"id": "u", "undo": {"type": "update", "name": "GM", "rebuild": True}})
     assert isinstance(update, act.UndoPlan)
     assert update.title == "Roll GM back" and update.apply_text == "Roll back"
     assert "The merged mods are rebuilt for it" in update.changes
-    restore = p.undo_plan({"id": "m", "undo": {"type": "remove", "name": "GM", "profile": "a.me3"}}, False, False)
+    restore = p.undo_plan({"id": "m", "undo": {"type": "remove", "name": "GM", "profile": "a.me3"}})
     assert isinstance(restore, act.UndoPlan)
     assert restore.title == "Restore GM" and restore.changes == ("Its entry goes back into a.me3, where it was",)
 
@@ -202,17 +213,13 @@ def test_undo_plans_for_an_overhaul_installed_updated_or_removed_by_the_launcher
     p = presenter()
     fresh = p.undo_plan(
         {"id": "o", "undo": {"type": "overhaul-install", "name": "Example Overhaul", "profile": "x/a.me3"}},
-        False,
-        False,
     )
     assert isinstance(fresh, act.UndoPlan)
     assert fresh.title == "Undo the install of Example Overhaul" and fresh.apply_text == "Undo install"
     assert fresh.changes[0] == "a.me3 goes back to exactly what it was before the install"
-    update = p.undo_plan({"id": "u", "undo": {"type": "overhaul-update", "name": "NR", "profile": "a.me3"}}, 0, 0)
+    update = p.undo_plan({"id": "u", "undo": {"type": "overhaul-update", "name": "NR", "profile": "a.me3"}})
     assert isinstance(update, act.UndoPlan) and update.title == "Roll NR back" and update.apply_text == "Roll back"
-    gone = p.undo_plan(
-        {"id": "r", "undo": {"type": "overhaul-remove", "name": "NR", "profile": "a.me3", "trash": []}}, 0, 0
-    )
+    gone = p.undo_plan({"id": "r", "undo": {"type": "overhaul-remove", "name": "NR", "profile": "a.me3", "trash": []}})
     assert isinstance(gone, act.UndoPlan) and gone.title == "Restore NR" and gone.apply_text == "Restore"
     assert gone.changes == (
         "a.me3 goes back to exactly what it was before the removal",

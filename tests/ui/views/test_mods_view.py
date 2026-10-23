@@ -22,7 +22,7 @@ from bayle.ui.pages.registry import page as registered
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from bayle.work.prompts import PlanStore
-from support import er
+from support import FakeActivityFacts, er
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
 pytestmark = pytest.mark.ui_stall_ok
@@ -60,6 +60,7 @@ class Host:
             plans=PlanStore(),
             locations=lambda: self.locations,
         )
+        self.activity = FakeActivityFacts(manager=self.session.jobs)
 
     @property
     def jobs(self) -> list[str]:

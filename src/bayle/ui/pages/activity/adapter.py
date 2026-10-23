@@ -1,30 +1,31 @@
 """The Activity page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). It holds
-no decisions: it asks the session (snapshot of the page, the log operations, Undo as a plan) on the host's worker
-thread and shows what comes back; the Confirm Undo needs goes through the Notifier, and the undo itself runs as a
-session job the host follows on the event bus."""
+no decisions: it asks the engine's Activity interface on the host's worker thread, words what comes back with the
+presenter and shows it; the Confirm Undo needs goes through the Notifier, and the undo itself runs as a job the host
+follows on the event bus."""
 
 from __future__ import annotations
 
+import datetime
+from collections.abc import Callable
 from typing import Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from bayle.platform.text import tr
-from bayle.session import Session
-from bayle.session.ops.activity import LogView
+from bayle.services.activity import ActivityService
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
+from bayle.ui.pages.activity import presenter as view
+from bayle.ui.pages.activity.presenter import ActivityPresenter, ActivityState, LogText
 from bayle.ui.pages.undo import ask_undo
-from bayle.views import activity as view
-from bayle.views.activity import ActivityState
 
 
 class ActivityHost(Protocol):
     """What the page needs from the window that hosts it (the Widgets launcher until the shell, S9)."""
 
     @property
-    def session(self) -> Session: ...
+    def activity(self) -> ActivityService: ...
 
     def mark_seen(self) -> None:
         """The user looked at Activity: failures so far are no longer new."""
@@ -38,8 +39,15 @@ class ActivityAdapter(QObject):
     logChanged = Signal()
     loadingChanged = Signal()
 
-    def __init__(self, host: ActivityHost, notifier: Notifier, parent=None):
+    def __init__(
+        self,
+        host: ActivityHost,
+        notifier: Notifier,
+        parent=None,
+        now: Callable[[], datetime.datetime] = datetime.datetime.now,
+    ):
         super().__init__(parent)
+        self._now = now
         self.host = host
         self.notifier = notifier
         self.words_ = view.words()
@@ -52,7 +60,7 @@ class ActivityAdapter(QObject):
         self._open_job = ""
         self._source = ""
         self._detail = False
-        self._log = LogView(rows=[], plain="")
+        self._log = LogText((), "")
         self._summary = RowsModel(("label", "value", "level"), self)
         self._days = RowsModel(("label", "jobs"), self)
         self._games = RowsModel(("key", "label"), self)
@@ -123,10 +131,8 @@ class ActivityAdapter(QObject):
         self._loading = True
         self.loadingChanged.emit()
         game, kind, failed = self._game, self._kind, self._failed_only
-        session = self.host.session
-        self.host.run_in_background(
-            lambda: session.snapshot("activity", game=game, group=kind, failed_only=failed), self._apply
-        )
+        presenter = ActivityPresenter(self.host.activity, self._now)
+        self.host.run_in_background(lambda: presenter.refresh(game, kind, failed), self._apply)
 
     def _apply(self, state: ActivityState) -> None:
         self._loading = False
@@ -155,7 +161,7 @@ class ActivityAdapter(QObject):
     # ---- one job's log (one open at a time)
     openJob = Property(str, lambda self: self._open_job, notify=logChanged)
     logText = Property(
-        str, lambda self: self._log.plain or "\n".join(r.text for r in self._log.rows), notify=logChanged
+        str, lambda self: self._log.plain or "\n".join(row[2] for row in self._log.rows), notify=logChanged
     )
     logNote = Property(str, lambda self: self._log.note, notify=logChanged)
     logSource = Property(str, lambda self: self._source, notify=logChanged)
@@ -172,7 +178,7 @@ class ActivityAdapter(QObject):
 
     @Slot()
     def closeLog(self) -> None:
-        self._open_job, self._source, self._log = "", "", LogView(rows=[], plain="")
+        self._open_job, self._source, self._log = "", "", LogText((), "")
         self.logChanged.emit()
 
     @Slot(str)
@@ -187,12 +193,12 @@ class ActivityAdapter(QObject):
 
     def _read_log(self) -> None:
         want = (self._open_job, self._source, self._detail)
-        session = self.host.session
+        activity = self.host.activity
 
-        def read() -> LogView:
-            return session.run("activity.log", {"job_id": want[0], "source": want[1], "detail": want[2]})
+        def read() -> LogText:
+            return ActivityPresenter.log_text(activity.log(want[0], want[1]), want[2])
 
-        def shown(got: LogView) -> None:
+        def shown(got: LogText) -> None:
             if want == (self._open_job, self._source, self._detail):  # not for a log the user has left
                 self._log = got
                 self.logChanged.emit()
@@ -201,29 +207,31 @@ class ActivityAdapter(QObject):
 
     @Slot(bool)
     def copyLog(self, for_support: bool) -> None:
-        session = self.host.session
-        want = {"job_id": self._open_job, "source": self._source, "detail": self._detail, "for_support": for_support}
+        activity, job, source, detail = self.host.activity, self._open_job, self._source, self._detail
 
-        def shown(got) -> None:
-            QGuiApplication.clipboard().setText(got.text)
+        def read() -> str:
+            log = ActivityPresenter.log_text(activity.log(job, source), detail)
+            return ActivityPresenter.copy_text(log, for_support)
+
+        def shown(text: str) -> None:
+            QGuiApplication.clipboard().setText(text)
             self.notifier.toast(tr("Copied with your user name and Steam IDs masked") if for_support else tr("Copied"))
 
-        self.host.run_in_background(lambda: session.run("activity.copy", want), shown)
+        self.host.run_in_background(read, shown)
 
     @Slot()
     def openLogFile(self) -> None:
-        session = self.host.session
-        want = {"job_id": self._open_job, "source": self._source}
+        activity, job, source = self.host.activity, self._open_job, self._source
 
-        def shown(got) -> None:
-            if got.path is None:
+        def shown(path) -> None:
+            if path is None:
                 self.notifier.toast(tr("That file is no longer there."), error=True)
                 return
             from bayle.platform import desktop
 
-            desktop.open_path(got.path)
+            desktop.open_path(path)
 
-        self.host.run_in_background(lambda: session.run("activity.log_file", want), shown)
+        self.host.run_in_background(lambda: activity.log_path(job, source), shown)
 
     # ---- Undo
     @Slot(str)

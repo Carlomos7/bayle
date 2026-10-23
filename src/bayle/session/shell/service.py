@@ -18,19 +18,16 @@ from pathlib import Path
 from typing import Any
 
 from bayle.config.settings import data_dir
+from bayle.errors import Busy, OperationError
 from bayle.game import catalog as games
 from bayle.game.locate import installed_dir
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import play as core
-from bayle.services.errors import Busy, OperationError
 from bayle.services.mods import me3_facts
 from bayle.services.settings import load_settings, save_game_settings
-from bayle.session.events import EventBus
-from bayle.session.jobs import JobManager
 from bayle.session.operations import Session, StepReport
-from bayle.session.plans import PlanStore
 from bayle.session.shell import launch
 from bayle.session.shell.background import Background, ThreadBackground
 from bayle.session.shell.ports import EventPorts
@@ -41,6 +38,9 @@ from bayle.session.startup import recover_profile, recovery_steps
 from bayle.updates import inno as migration
 from bayle.views import topbar
 from bayle.views.shell import ShellState, shell_state
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 # A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.
 PROGRESS_LINES = (
@@ -257,8 +257,8 @@ class Shell:
 
     def new_profile(self, name: str, include_seamless: bool) -> str:
         """A profile for this game (and Seamless Co-op moved into it when asked), as a logged job; its id."""
-        from bayle.services import jobs as jobs_service
         from bayle.services import mods as mods_service
+        from bayle.work import runner as jobs_service
 
         st = self.state
         g = st.game

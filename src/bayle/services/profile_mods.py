@@ -28,7 +28,7 @@ from bayle.mods import rename as mod_rename
 from bayle.mods.overhaul_manifest import launcher_installed
 from bayle.platform import logging as run_logging
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.services import game_checks, jobs
+from bayle.services import game_checks
 from bayle.services import shared_mods as shared_service
 from bayle.services.mods import (
     install_mod,
@@ -37,6 +37,7 @@ from bayle.services.mods import (
     set_mod_options,
     uninstall_mod,
 )
+from bayle.work import runner as jobs
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations

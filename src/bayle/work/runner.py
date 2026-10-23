@@ -15,10 +15,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
+from bayle.errors import Cancelled, ErrorInfo, OperationError
 from bayle.game.locate import Locations
 from bayle.platform import cpu
 from bayle.platform import logging as run_logging
-from bayle.services.errors import Cancelled, ErrorInfo, OperationError
 
 PROGRESS = "progress"
 RESULT = "result"

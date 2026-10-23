@@ -11,8 +11,9 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from bayle.api.deps import JobsDep
 from bayle.api.models import ApiEvent, ErrorData, Job, ProgressData
-from bayle.services.errors import OperationError
-from bayle.session import JobSnapshot, Subscription
+from bayle.errors import OperationError
+from bayle.work.events import Subscription
+from bayle.work.jobs import JobSnapshot
 
 MAX_SUBSCRIBERS = 3
 

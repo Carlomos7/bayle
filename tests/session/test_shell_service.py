@@ -5,13 +5,14 @@ import time
 
 import pytest
 
+from bayle.errors import Busy, OperationError
 from bayle.platform import logging as run_logging
 from bayle.services import play as core
-from bayle.services.errors import Busy, OperationError
-from bayle.session import JobManager, Session, reset_process_globals, startup
+from bayle.session import Session, reset_process_globals, startup
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.session.shell.service import Shell
 from bayle.views.common import Choice, Choose
+from bayle.work.jobs import JobManager
 from support import FakeShellContext, InlineBackground
 
 

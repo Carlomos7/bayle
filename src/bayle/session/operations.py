@@ -6,8 +6,8 @@ data a client layer can walk (specs()) to build routes and clients; nothing here
 kind: "read" runs inline and returns its result; "command" runs inline, may write, and returns its result (a small
 change that is done when the call returns: a setting, "seen"); "job" runs on the JobManager (writes go through its busy
 gate, and the model's JSON form becomes the job result) and returns the job id; "plan" runs inline and returns the plan
-the client must confirm, or a Refusal (the operation returns a session.plans.Proposal; its result model describes what
-the job the plan starts will produce, and writes says that job writes; executing it is Session.answer, served by the PlanStore of session.plans).
+the client must confirm, or a Refusal (the operation returns a work.prompts.Proposal; its result model describes what
+the job the plan starts will produce, and writes says that job writes; executing it is Session.answer, served by the PlanStore of work.prompts).
 A read never writes: reads that used to recover or adopt things at start-up are Session.startup() steps instead.
 """
 
@@ -20,11 +20,11 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from bayle.errors import OperationError
 from bayle.game.locate import Locations
-from bayle.services.errors import OperationError
-from bayle.session.jobs import JobContext, JobManager
-from bayle.session.plans import Plan, PlanStore, Proposal
 from bayle.views.common import Refusal
+from bayle.work.jobs import JobContext, JobManager
+from bayle.work.prompts import Plan, PlanStore, Proposal
 
 Kind = Literal["read", "command", "job", "plan"]
 _KINDS = ("read", "command", "job", "plan")
@@ -156,7 +156,7 @@ operation = registry.operation
 
 
 class PlanAnswers(Protocol):
-    """What Session.answer needs from the plan store (session.plans.PlanStore implements it)."""
+    """What Session.answer needs from the plan store (work.prompts.PlanStore implements it)."""
 
     def answer(self, token: str, answers: Mapping[str, Any]) -> Any: ...
 

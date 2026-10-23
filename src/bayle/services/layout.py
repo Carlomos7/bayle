@@ -10,11 +10,11 @@ import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
+from bayle.errors import Cancelled, OperationError
 from bayle.mods import library, move_in
 from bayle.mods.layout import Cancelled as LayoutCancelled
 from bayle.mods.layout import LayoutError
 from bayle.platform import logging as run_logging
-from bayle.services.errors import Cancelled, OperationError
 
 
 def _fn(name: str):

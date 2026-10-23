@@ -1,5 +1,5 @@
 """Jobs for every client: start work, get an id, follow it as events on the EventBus, cancel it, read its outcome.
-A JobManager owns a services.jobs.Runner (the thread seam); its post hook turns what the work reports into bus events.
+A JobManager owns a work.runner.Runner (the thread seam); its post hook turns what the work reports into bus events.
 No Qt, no event loop; start/cancel/get may be called from any thread.
 
 Event order for one job: started, then progress/log/prompt (any number), then exactly one of finished/failed/cancelled.
@@ -15,15 +15,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from bayle.errors import Busy, Cancelled, ErrorInfo, OperationError
 from bayle.game.locate import Locations
 from bayle.platform import logging as run_logging
-from bayle.services import jobs as service_jobs
-from bayle.services.errors import Busy, Cancelled, ErrorInfo, OperationError
-from bayle.services.jobs import Event as RunnerEvent
-from bayle.services.jobs import JobResult
-from bayle.session.events import EventBus
-from bayle.session.plans import PromptBroker
-from bayle.views.common import Choose
+from bayle.work import runner as service_jobs
+from bayle.work.events import EventBus
+from bayle.work.prompts import Choose, PromptBroker
+from bayle.work.runner import Event as RunnerEvent
+from bayle.work.runner import JobResult
 
 PROGRESS_INTERVAL = 0.1  # seconds: at most 10 progress events a second per job
 
@@ -216,7 +215,7 @@ class JobManager:
         writes: bool = True,
         **gates: bool,
     ) -> str:
-        """An old-style logged job (services.jobs.run_job_result): its log file, jobs-index record and undo record
+        """An old-style logged job (work.runner.run_job_result): its log file, jobs-index record and undo record
         stay as they were, and its lines also reach the bus as log events."""
         return self.start(
             lambda _ctx: service_jobs.run_job_result(job, launch, loc, title), title=title, writes=writes, **gates

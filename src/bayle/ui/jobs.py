@@ -1,4 +1,4 @@
-"""The window's side of services/jobs.py: events the worker threads post arrive here, on the UI thread, and go to the
+"""The window's side of work/runner.py: events the worker threads post arrive here, on the UI thread, and go to the
 callbacks given with each piece of work."""
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
 from bayle.platform import logging as run_logging
-from bayle.services import jobs
+from bayle.work import runner as jobs
 
 # The one pool for background work in the window (reads, jobs, the game watch). A bigger pool than the core count: the
 # watch and a running job each hold a thread for a long time.

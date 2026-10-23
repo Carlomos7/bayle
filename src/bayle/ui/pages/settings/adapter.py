@@ -12,10 +12,10 @@ from typing import Any, Protocol
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
+from bayle.errors import OperationError
 from bayle.platform import desktop
 from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
-from bayle.services.errors import OperationError
 from bayle.session import Session
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier

@@ -15,9 +15,11 @@ from bayle.api import ops, routes
 from bayle.api.deps import require_token
 from bayle.api.models import CONTRACT_VERSION, Health, Problem
 from bayle.api.settings import ApiSettings
-from bayle.services.errors import OperationError
-from bayle.session import JobManager, PlanStore, Session
+from bayle.errors import OperationError
+from bayle.session import Session
 from bayle.session import ops as _registered_operations  # noqa: F401  registers the program's operations
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 _STATUS = {
     "busy": 409,

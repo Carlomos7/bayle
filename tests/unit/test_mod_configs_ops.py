@@ -5,13 +5,16 @@ from pathlib import Path
 import pytest
 from test_overhaul_install import World, mixed_mod, set_up
 
+from bayle.errors import OperationError
 from bayle.mods import configs
 from bayle.services import mod_configs
-from bayle.services.errors import OperationError
 from bayle.services.settings import load_settings
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Confirm
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 
 def inline(run, name=None):

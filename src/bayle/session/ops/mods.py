@@ -16,18 +16,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import Cancelled, ErrorInfo, OperationError
 from bayle.game.locate import Locations
 from bayle.mods import undo as mod_undo
 from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services import mods_page
-from bayle.services.errors import Cancelled, ErrorInfo, OperationError
-from bayle.services.jobs import run_job_result, run_logged
 from bayle.session.operations import Call, Params, Result, Session, operation, registry
 from bayle.views import load_order
 from bayle.views.common import Confirm, prompt_dict
 from bayle.views.load_order import LoadOrderPanel
 from bayle.views.mods import ModsPresenter, ModsState, Notice, OverhaulMenu
+from bayle.work.runner import run_job_result, run_logged
 
 
 # ----------------------------------------------------------------------------- what the session remembers

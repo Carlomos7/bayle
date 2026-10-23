@@ -8,11 +8,11 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import OperationError
 from bayle.mods import order as mod_order
 from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services import mods_page, profile_mods
-from bayle.services.errors import OperationError
 from bayle.session.operations import Call, Params, Result, operation
 from bayle.session.ops.mods import (
     Changed,
@@ -27,8 +27,8 @@ from bayle.session.ops.mods import (
     stamp,
     start_logged,
 )
-from bayle.session.plans import Proposal
 from bayle.views.mods import ModsPresenter
+from bayle.work.prompts import Proposal
 
 
 # ----------------------------------------------------------------------------- an entry on or off, and its Undo

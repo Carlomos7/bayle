@@ -11,9 +11,9 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 
+from bayle.errors import OperationError
 from bayle.platform.text import tr
 from bayle.platform.threads import as_worker
-from bayle.services.errors import OperationError
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.calls import Calls
 from bayle.views.mod_install import words as install_words

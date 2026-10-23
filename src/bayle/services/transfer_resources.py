@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import OperationError
 from bayle.services import profile_transfer as pt
-from bayle.services.errors import OperationError
 
 DEFAULT_TTL = 3600.0  # seconds a resource waits untouched
 

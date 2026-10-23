@@ -6,11 +6,14 @@ from pathlib import Path
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QGuiApplication
 
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.jobs import Jobs
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.profile_transfer.adapter import ProfileTransferAdapter
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 from support import er
 
 PROFILE = (

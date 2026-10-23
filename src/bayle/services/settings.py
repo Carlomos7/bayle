@@ -19,12 +19,12 @@ from bayle.config.settings import (
     save_game_settings,
     save_settings,
 )
+from bayle.errors import OperationError
 from bayle.game.locate import PATH_SETTINGS, saves_dir_problem
 from bayle.platform import data_folder
 from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services import play as play_service
-from bayle.services.errors import OperationError
 
 __all__ = [
     "FROZEN",

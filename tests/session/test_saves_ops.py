@@ -5,6 +5,7 @@ to a live save takes the SAME backup as before (the file as it was, with its not
 import pytest
 
 from bayle.config.settings import data_dir
+from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.platform import logging as run_logging
@@ -13,10 +14,12 @@ from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
-from bayle.services.errors import OperationError
-from bayle.session import EventBus, JobManager, PlanError, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.views.common import Confirm, Refusal
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanError, PlanStore
 
 OLD, NEW, OTHER = b"old save " * 40, b"new save " * 40, b"other save " * 40
 
@@ -280,7 +283,7 @@ def test_no_plan_is_offered_while_the_game_runs_or_a_job_runs(world, name, param
 
 
 def test_writing_jobs_are_refused_while_the_game_runs(world):
-    from bayle.services.errors import Busy
+    from bayle.errors import Busy
 
     for name, params in (("saves.back_up", {"everything": True}), ("saves.post_session_repair", {})):
         with pytest.raises(Busy):

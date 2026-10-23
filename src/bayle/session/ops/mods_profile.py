@@ -8,6 +8,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import OperationError
 from bayle.mods import move_in
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
@@ -16,8 +17,6 @@ from bayle.services import mods as mod_service
 from bayle.services import mods_page, profile_mods
 from bayle.services import profile_rename as rename_service
 from bayle.services import shared_mods as library_service
-from bayle.services.errors import OperationError
-from bayle.services.jobs import run_job_result
 from bayle.session.operations import Call, Result, Session, operation
 from bayle.session.ops.mods import (
     Done,
@@ -30,9 +29,10 @@ from bayle.session.ops.mods import (
     stamp,
     start_logged,
 )
-from bayle.session.plans import Proposal
 from bayle.views.common import Refusal
 from bayle.views.mods import ModsPresenter
+from bayle.work.prompts import Proposal
+from bayle.work.runner import run_job_result
 
 # ----------------------------------------------------------------------------- the combined parameters
 _REBUILD_CODES = {

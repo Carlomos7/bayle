@@ -5,9 +5,12 @@ from types import SimpleNamespace
 from PySide6.QtCore import QCoreApplication
 from test_overhaul_install import World
 
-from bayle.session import EventBus, JobManager, PlanStore, Session
+from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.pages.mod_configs.adapter import ModConfigsAdapter
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
+from bayle.work.prompts import PlanStore
 
 
 def test_the_page_reads_opens_saves_and_pastes_through_the_session(tmp_path, monkeypatch):

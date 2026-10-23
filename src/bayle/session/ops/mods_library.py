@@ -7,16 +7,16 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
+from bayle.errors import OperationError
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import shared_mods as library_service
-from bayle.services.errors import OperationError
 from bayle.session.operations import Call, Result, operation
 from bayle.session.ops.mods import Done, EntryRef, ProfileRef, entry_of, run_logged_job, stamp, start_logged
 from bayle.session.ops.mods_overhaul import PickOffer
-from bayle.session.plans import Answer, Proposal
 from bayle.views.common import Refusal, prompt_dict
 from bayle.views.mods import ModsPresenter
+from bayle.work.prompts import Answer, Proposal
 
 
 def _done(what: str, work: Any) -> Any:

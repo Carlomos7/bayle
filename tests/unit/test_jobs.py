@@ -1,14 +1,14 @@
-"""The job runner (services/jobs.py): work runs on a thread of its own and reports progress, then its result, as
+"""The job runner (work/runner.py): work runs on a thread of its own and reports progress, then its result, as
 events in order; a failure reaches threading.excepthook and posts no result."""
 
 import threading
 
 import pytest
 
+from bayle.errors import Busy, Cancelled, ErrorInfo, OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations
-from bayle.services import jobs
-from bayle.services.errors import Busy, Cancelled, ErrorInfo, OperationError
+from bayle.work import runner as jobs
 
 
 def collect():

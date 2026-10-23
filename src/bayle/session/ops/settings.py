@@ -8,20 +8,20 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from bayle.errors import Busy, OperationError
 from bayle.game import catalog as games
 from bayle.platform.text import tr
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
 from bayle.services import settings as store
-from bayle.services.errors import Busy, OperationError
-from bayle.services.jobs import run_job_value
-from bayle.session.jobs import JobContext
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
-from bayle.session.plans import Proposal
 from bayle.views import settings as sp
 from bayle.views import settings_state as state
 from bayle.views.common import Refusal
 from bayle.views.settings_state import SettingsState
+from bayle.work.jobs import JobContext
+from bayle.work.prompts import Proposal
+from bayle.work.runner import run_job_value
 
 
 class SetParams(Params):

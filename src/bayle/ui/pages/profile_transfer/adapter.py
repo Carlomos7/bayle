@@ -12,9 +12,9 @@ from typing import Any, Protocol
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from bayle.errors import OperationError
 from bayle.mods import profile_import
 from bayle.platform.text import tr
-from bayle.services.errors import OperationError
 from bayle.session import Session
 from bayle.session.ops.profile_transfer import ExportListing, Opened, PreviewView
 from bayle.ui.notifications import Notifier

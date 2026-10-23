@@ -96,6 +96,14 @@ reportIndexIssue = "error"
 reportCallIssue = "warning"
 reportOperatorIssue = "warning"
 
+# Production source is held to the strict setting; tests and scripts keep the warning above.
+[[tool.pyright.executionEnvironments]]
+root = "src"
+reportAttributeAccessIssue = "error"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+
 # Import layers (technical specification §8.6). Each package may import only from the ones below it; "|" marks
 # siblings that may not import each other, ":" siblings that may. Names are today's; the contract changes in the
 # commit that renames a package. Lines in ignore_imports are known violations, each removed by the step it names.

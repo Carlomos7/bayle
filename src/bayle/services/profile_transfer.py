@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from bayle.errors import Cancelled, OperationError
 from bayle.formats import config_model, me3_profile
 from bayle.mods import (
     configs,
@@ -43,7 +44,11 @@ from bayle.platform import data_folder
 from bayle.platform import logging as run_logging
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services import mod_configs
+from bayle.services import mods as mod_service
+from bayle.services.settings import load_settings
+from bayle.services.transfer_resources import Resource, TransferResources
 from bayle.work.jobs import JobManager
+from bayle.work.runner import run_job_result
 
 if TYPE_CHECKING:
     from bayle.config.settings import LauncherSettings
@@ -838,9 +843,360 @@ def _apply_zip(prev: Preview, skip, progress) -> dict:
     return profile_import.apply_import(zp, log=run_logging.log, after_copy=after_copy, progress=progress)
 
 
+# ============================================================================= the engine interface
+@dataclass(frozen=True)
+class ModRow:
+    key: str
+    name: str
+    enabled: bool
+    size: int
+
+
+@dataclass(frozen=True)
+class Listing:
+    mods: list[ModRow]
+    save_name: str = ""  # the save this profile plays on, "" when none
+
+
+@dataclass(frozen=True)
+class Opened:
+    """An open file or download: resource is the id every later call carries. kind: json | zip | bundled."""
+
+    resource: str
+    kind: str
+    name: str = ""
+    version: str = ""
+    author: str = ""
+    folder: str = ""  # where the file is
+    readme: str = ""
+    new_profile: bool = True
+    new_name: str = ""
+    names: list[str] = field(default_factory=list)  # a download's .me3 paths
+
+
+@dataclass(frozen=True)
+class CardFacts:
+    key: str
+    title: str
+    path: Path
+    lines: list[str]
+    left_out: list[str]
+    new: bool
+
+
+@dataclass(frozen=True)
+class PreviewFacts:
+    """What importing would do. serial numbers the resource's previews: import_(expect=serial) is stale when a newer
+    one was made since the client looked."""
+
+    serial: int
+    bundled: bool
+    cards: list[CardFacts] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    refusals: list[str] = field(default_factory=list)
+    clashes: list[profile_import.Clash] = field(default_factory=list)
+    lines: list[str] = field(default_factory=list)  # a download's profile: what importing does
+    undecided: bool = False  # a clashing mod still waits for the player's pick
+    ok: bool = False
+
+
+@dataclass(frozen=True)
+class ExportCheck:
+    """What a full export would hold, for the question "export a big file?"."""
+
+    size: int
+    big: bool
+
+
+def _failed(code: str, e: Exception, **details: Any) -> OperationError:
+    return OperationError(code, str(e) or type(e).__name__, details)
+
+
+def _logged(loc: Locations, title: str, fn: Callable[[], Any]) -> Any:
+    """fn as a logged job of its own (its log, jobs-index record and Undo as before); its error or stop is re-raised."""
+    done = run_job_result(lambda _launch, _loc: fn(), None, loc, title)
+    if done.state == "done":
+        return done.result
+    if done.state == "cancelled":
+        raise Cancelled()
+    raise OperationError.from_info(done.error)
+
+
+def _inside(path: Path, folder: Path) -> bool:
+    return os.path.normcase(str(folder)) in (os.path.normcase(str(p)) for p in (path, *path.parents))
+
+
 class ProfileTransferService:
     """The Profile transfer page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
-    selected). Returns data and OperationError codes, never wording: the Qt page words them."""
+    selected). Returns data and OperationError codes, never wording: the Qt page words them.
 
-    def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
+    An opened file or download is a resource with an id (the unpacked skeleton of a zip, or a download's staging
+    folder); every call after opening names it, and discard() lets it go. It acts only on what it listed or what the
+    player picked: an export on a .me3 file with mods its listing has, a bundled import on profiles inside the folder
+    handed over. A plan is a check and a start: the start is stale when what the client confirmed changed."""
+
+    def __init__(
+        self,
+        jobs: JobManager,
+        locations: Callable[[], Locations | None],
+        resources: TransferResources | None = None,
+    ) -> None:
         self._jobs, self._locations = jobs, locations
+        self._resources = resources or TransferResources()
+
+    def _loc(self) -> Locations:
+        try:
+            loc = self._locations()
+        except OperationError:
+            loc = None
+        if loc is None:
+            raise OperationError("no_game", "No game is selected.")
+        return loc
+
+    @staticmethod
+    def _profile(profile: str | Path) -> Path:
+        path = Path(profile)
+        if path.suffix.lower() != ".me3" or not path.is_file():
+            raise OperationError("not_found", "That profile does not exist.", {"profile": str(profile)})
+        return path
+
+    # ---- export
+    def listing(self, profile: str | Path = "") -> Listing:
+        """The mods an export lists for this profile (none when profile is empty). Reads only."""
+        if not profile:
+            return Listing([])
+        path = self._profile(profile)
+        save = save_candidate(path, loc=self._loc())
+        mods = [ModRow(i.key, i.entry["name"], bool(i.entry["enabled"]), i.size) for i in items(path, full=True)]
+        return Listing(mods, save.name if save else "")
+
+    def _chosen(self, profile: Path, chosen: Iterable[str]) -> list[Item]:
+        by_key = {i.key: i for i in items(profile, full=True)}
+        missing = [k for k in chosen if k not in by_key]
+        if missing:
+            raise OperationError("not_found", "That mod is not in the profile.", {"keys": missing})
+        return [by_key[k] for k in chosen]
+
+    def check_export(self, profile: str | Path, kind: str, chosen: Iterable[str]) -> ExportCheck:
+        """The bytes the ticked mods hold, and whether a full export of them is big enough to ask about."""
+        size = sum(i.size for i in self._chosen(self._profile(profile), chosen))
+        return ExportCheck(size, kind == "full" and size >= LARGE_EXPORT)
+
+    def export(
+        self,
+        profile: str | Path,
+        *,
+        name: str,
+        folder: str | Path,
+        kind: str = "list",
+        version: str = "",
+        author: str = "",
+        readme: str = "",
+        changelog: str = "",
+        chosen: Iterable[str] = (),
+        with_configs: bool = True,
+        with_save: bool = False,
+        password: bool = False,
+        expect: int | None = None,
+    ) -> str:
+        """Write a share list or a full export as a job; returns its id, its result is {"path", "size"}. A full one
+        reports bytes written (detail: file n of count) and stops at the next chunk when cancelled; the partial zip is
+        removed. expect: the size check_export gave and the client confirmed. Raises invalid_params, not_found, stale,
+        busy."""
+        if kind not in ("list", "full"):
+            raise OperationError("invalid_params", "kind is list or full.", {"kind": kind})
+        path, chosen = self._profile(profile), list(chosen)
+        size = sum(i.size for i in self._chosen(path, chosen))
+        if expect is not None and size != expect:
+            raise OperationError("stale", "The mods changed since you were asked. Ask again.")
+        loc, out_dir = self._loc(), Path(folder)
+        args: dict[str, Any] = dict(
+            loc=loc,
+            settings=load_settings(),
+            name=name.strip(),
+            version=version.strip(),
+            author=author.strip(),
+            password=password,
+        )
+
+        def work(ctx) -> dict:
+            def report(done: int, total: int, current: str, n: int, count: int) -> None:
+                ctx.progress(done, total, current, {"n": n, "count": count})
+
+            def body() -> dict:
+                run_logging.start_log(f"launcher: export profile {args['name']}", loc.game.key)
+                try:
+                    if kind == "full":
+                        out = full_export(
+                            path,
+                            progress=report,
+                            cancelled=ctx.cancelled,
+                            readme=readme,
+                            changelog=changelog,
+                            chosen=set(chosen),
+                            out_dir=out_dir,
+                            with_configs=with_configs,
+                            with_save=with_save,
+                            **args,
+                        )
+                    else:
+                        doc, _ = share_list(path, **args)
+                        if not with_configs:
+                            doc["configs"] = {}
+                        out = write_share_list(doc, out_dir)
+                except ExportCancelled:
+                    run_logging.log("export cancelled; the partial zip was removed")
+                    raise Cancelled() from None
+                except OperationError:
+                    raise
+                except Exception as e:
+                    raise _failed("export_failed", e, profile=str(path), name=args["name"]) from e
+                return {"path": str(out), "size": out.stat().st_size}
+
+            return _logged(loc, "Exporting a profile...", body)
+
+        return self._jobs.start(work, title="Exporting a profile...", quiet=True)
+
+    # ---- import
+    def open_file(self, path: str | Path) -> Opened:
+        """Read a share list or a full export the player picked; a zip's skeleton is unpacked into the launcher's temp
+        folder (the resource). Raises unreadable."""
+        try:
+            incoming = read(Path(path), loc=self._loc())
+        except OperationError:
+            raise
+        except Exception as e:
+            raise _failed("unreadable", e, path=str(path)) from e
+        res = self._resources.add(incoming=incoming)
+        s = incoming.share
+        return Opened(
+            resource=res.id,
+            kind=incoming.kind,
+            name=s.name or incoming.path.stem,
+            version=s.profile_version or "",
+            author=s.author or "",
+            folder=str(incoming.path.parent),
+            readme=incoming.readme,
+            new_profile=incoming.kind == "zip",
+            new_name=s.name or incoming.path.stem,
+        )
+
+    def open_bundled(self, unpacked: str | Path, profiles: Iterable[str], staging: str | Path = "") -> Opened:
+        """Take over a download's unpacked folder and its staging folder (deleted with the resource). The profiles
+        are .me3 files inside unpacked and unpacked is inside staging, or this is refused (invalid_params)."""
+        root, names = Path(unpacked), list(profiles)
+        stage = Path(staging) if staging else None
+        ok = root.is_dir() and all(Path(n).suffix.lower() == ".me3" and _inside(Path(n), root) for n in names)
+        if stage is not None and not (len(stage.parts) > 2 and _inside(root, stage)):
+            ok = False
+        if not ok:
+            raise OperationError("invalid_params", "That download is not one this page can open.")
+        res = self._resources.add(unpacked=root, staging=stage, names=names)
+        return Opened(res.id, "bundled", new_name=Path(names[0]).stem if names else "", names=res.names)
+
+    def preview(
+        self,
+        resource: str,
+        profile: str | Path,
+        *,
+        new_profile: bool = True,
+        new_name: str = "",
+        choices: dict[str, str] | None = None,
+        which: int = 0,
+    ) -> PreviewFacts:
+        """What importing would do, file by file; nothing is written. The preview is kept on the resource for the
+        import. Raises not_found, name_needed, preview_failed."""
+        res = self._resources.get(resource)
+        loc, path, name = self._loc(), self._profile(profile), new_name.strip()
+        picks = dict(choices or {})
+        new = new_profile and (res.bundled or res.incoming is not None and res.incoming.kind == "zip")
+        if new and not (naming.mod_id(name) if name else ""):
+            raise OperationError("name_needed", "Give the new profile a name.")
+        try:
+            if res.incoming is not None:
+                prev = preview(
+                    res.incoming,
+                    path,
+                    loc=loc,
+                    settings=load_settings(),
+                    new_name=name if new else None,
+                    choices=picks,
+                )
+            else:
+                if not 0 <= which < len(res.names) or res.unpacked is None:
+                    raise OperationError("not_found", "That profile is not in the download.", {"which": which})
+                prev = mod_service.preview_profile_import(
+                    res.unpacked, res.names[which], path, loc=loc, new_name=name if new else None, choices=picks
+                )
+        except OperationError:
+            raise
+        except Exception as e:
+            raise _failed("preview_failed", e, resource=resource) from e
+        res.preview, res.serial = prev, res.serial + 1
+        return self._facts(res, prev)
+
+    @staticmethod
+    def _facts(res: Resource, prev: Any) -> PreviewFacts:
+        if res.bundled:
+            return PreviewFacts(
+                res.serial,
+                True,
+                lines=list(prev.lines),
+                refusals=list(prev.refusals),
+                clashes=list(prev.clashes),
+                undecided=bool(prev.undecided),
+                ok=bool(prev.ok),
+            )
+        zp = prev.zip_preview
+        cards = [CardFacts(c.key, c.title, c.path, list(c.lines), list(c.left_out), c.new) for c in prev.cards]
+        return PreviewFacts(
+            res.serial,
+            False,
+            cards=cards,
+            skipped=list(prev.skipped),
+            notes=list(prev.notes),
+            refusals=list(prev.refusals),
+            clashes=list(zp.clashes) if zp else [],
+            undecided=bool(zp and zp.undecided),
+            ok=not prev.refusals,
+        )
+
+    def discard(self, resource: str) -> bool:
+        """Let go of a resource and delete what it unpacked. False when it was already gone."""
+        return self._resources.discard(resource)
+
+    def import_(self, resource: str, skip: Iterable[str] = (), *, expect: int | None = None) -> str:
+        """Write the ticked cards (or the download's profile) as one undoable operation, as a job; returns its id, its
+        result is {"name"} and the resource is let go when it worked. Progress is the bytes of the zip's mods unpacked.
+        expect: the preview serial the client looked at. Raises not_found, no_preview, stale, busy."""
+        res = self._resources.get(resource)
+        prev = res.preview
+        if prev is None:
+            raise OperationError("no_preview", "Preview the file first.", {"resource": resource})
+        if expect is not None and expect != res.serial:
+            raise OperationError("stale", "The preview changed since you looked. Preview again.")
+        loc, bundled, skipped = self._loc(), res.bundled, set(skip)
+
+        def work(ctx) -> dict:
+            def body() -> dict:
+                try:
+                    if bundled:
+                        run_logging.start_log(f"launcher: import profile {prev.profile.name}", loc.game.key)
+                        out = mod_service.import_profile(prev)
+                    else:
+                        run_logging.start_log(
+                            f"launcher: import a shared profile into {prev.profile.name}", loc.game.key
+                        )
+                        out = apply(prev, skipped, progress=ctx.progress)
+                except OperationError:
+                    raise
+                except Exception as e:
+                    raise _failed("import_failed", e, resource=resource) from e
+                return {"name": Path(out["profile"]).name}
+
+            got = _logged(loc, "Importing a profile...", body)
+            self._resources.discard(resource)
+            return got
+
+        return self._jobs.start(work, title="Importing a profile...", quiet=True)

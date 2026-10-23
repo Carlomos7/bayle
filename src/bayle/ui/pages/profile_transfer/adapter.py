@@ -15,11 +15,12 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from bayle.errors import OperationError
 from bayle.mods import profile_import
 from bayle.platform.text import tr
+from bayle.services.features import Features
+from bayle.services.profile_transfer import Listing, Opened, PreviewFacts, ProfileTransferService
 from bayle.session import Session
-from bayle.session.ops.profile_transfer import ExportListing, Opened, PreviewView
 from bayle.ui.notifications import Notifier
+from bayle.ui.pages.profile_transfer.presenter import PageInputs, ProfileTransferPresenter
 from bayle.ui.refresh import Refresher
-from bayle.views.profile_transfer import PageInputs, ProfileTransferPresenter
 
 EXPORT, IMPORT, BUNDLED = "export", "import", "bundled"
 
@@ -37,17 +38,20 @@ class ProfileTransferHost(Protocol):
     def profile(self) -> Path | None: ...
     @property
     def session(self) -> Session: ...
+    @property
+    def features(self) -> Features: ...
     def run_in_background(self, work, on_result) -> None: ...
+    def follow_job(self, job_id: str, done) -> None: ...
     def pick_file(self, title: str, filters: str) -> Path | None: ...
     def pick_folder(self, title: str) -> Path | None: ...
     def open_path(self, path: Path) -> None: ...
     def profile_changed(self, note: str) -> None: ...
 
 
-def _call(session: Session, name: str, params: dict) -> Any:
-    """session.run on a worker: the result, or the OperationError to show."""
+def _call(read) -> Any:
+    """read() (a call of the engine's Profile transfer interface) on a worker: the result, or the OperationError to show."""
     try:
-        return session.run(name, params)
+        return read()
     except OperationError as e:
         return e
 
@@ -72,7 +76,7 @@ class ProfileTransferAdapter(QObject):
         self._working = False
         self._profile: Path | None = None
         # export
-        self._mods: list[Any] = []  # session.ops.profile_transfer.ModRow
+        self._mods: list[Any] = []  # services.profile_transfer.ModRow
         self._picked: set[str] = set()
         self._ex: dict[str, Any] = {
             "kind": "list",
@@ -91,14 +95,14 @@ class ProfileTransferAdapter(QObject):
         # import: the backend resource (an unpacked zip or a download's staging folder) is only an id here
         self._res = ""
         self._opened: Opened | None = None
-        self._preview: PreviewView | None = None
+        self._preview: PreviewFacts | None = None
         self._ticked: set[str] = set()
         self._choices: dict[str, str] = {}  # per mod that differs from an installed one: incoming | mine | both
         self._new_profile = True
         self._new_name = ""
         self._names: list[str] = []  # a profile a download ships
         self._which = 0
-        self._bundled: PreviewView | None = None
+        self._bundled: PreviewFacts | None = None
         self._error = ""
         self._import_pct = -1  # -1: no byte count (reading, or a share list)
         # the running or finished export: phase idle | running | done | error | cancelled
@@ -109,7 +113,7 @@ class ProfileTransferAdapter(QObject):
         self._early: list[Any] = []
         self._started = 0.0
         self._refresher = Refresher(host, self._snapshot, self._build, self._apply_items)
-        self._events = host.session.jobs.bus.subscribe(notify=self._events_ready.emit)
+        self._events = host.session.jobs.bus.subscribe(notify=self._events_ready.emit)  # progress only
         self._events_ready.connect(self._drain)
 
     # ---- what QML reads
@@ -118,6 +122,10 @@ class ProfileTransferAdapter(QObject):
     mode = Property(str, lambda self: self._mode, notify=changed)
     working = Property(bool, lambda self: self._working, notify=changed)
     state = Property(dict, lambda self: self._state(), notify=changed)
+
+    @property
+    def _svc(self) -> ProfileTransferService:
+        return self.host.features.profile_transfer
 
     def _state(self) -> dict:
         o, b = self._opened, self._bundled
@@ -131,8 +139,8 @@ class ProfileTransferAdapter(QObject):
                 game_running=self.host.game_running,
                 working=self._working,
                 run=self._run,
-                incoming_file=o.file if o else "",
-                incoming_zip=bool(o and o.is_zip),
+                incoming_file=self.presenter.file_line(o) if o else "",
+                incoming_zip=bool(o and o.kind == "zip"),
                 incoming_readme=o.readme if o else "",
                 preview=self._preview,
                 bundled=b,
@@ -166,12 +174,11 @@ class ProfileTransferAdapter(QObject):
         self._new_profile = True
         self._new_name = Path(self._names[0]).stem if self._names else ""
         self.refresh()
-        session = self.host.session
-        want = {"unpacked": str(unpacked), "profiles": self._names, "staging": str(staging) if staging else ""}
+        svc, names = self._svc, list(self._names)
 
         def opened(got) -> None:
             if isinstance(got, OperationError):
-                self._error = got.message
+                self._error = self.presenter.error_text(got)
             elif self._mode == BUNDLED:
                 self._res = got.resource
                 self._preview_bundled()
@@ -179,13 +186,11 @@ class ProfileTransferAdapter(QObject):
                 self._drop(got.resource)
             self._emit()
 
-        self.host.run_in_background(lambda: _call(session, "profile_transfer.open_bundled", want), opened)
+        self.host.run_in_background(lambda: _call(lambda: svc.open_bundled(unpacked, names, staging or "")), opened)
 
     def _drop(self, resource: str) -> None:
-        session = self.host.session
-        self.host.run_in_background(
-            lambda: _call(session, "profile_transfer.discard", {"resource": resource}), lambda _: None
-        )
+        svc = self._svc
+        self.host.run_in_background(lambda: _call(lambda: svc.discard(resource)), lambda _: None)
 
     def _release(self) -> None:
         """Let go of what an earlier view held: the backend deletes the unpacked zip and the download's staging folder."""
@@ -233,17 +238,18 @@ class ProfileTransferAdapter(QObject):
         self._refresher.request()
 
     def _snapshot(self) -> tuple:
-        return self.host.session, self.host.locations, self._profile
+        return self._svc, self.host.locations, self._profile
 
     @staticmethod
     def _build(snap: tuple):
-        session, loc, profile = snap
+        svc, loc, profile = snap
         if loc is None or profile is None:
             return None, profile
-        return session.snapshot("profile_transfer", profile=str(profile)), profile
+        got = _call(lambda: svc.listing(str(profile)))
+        return (None if isinstance(got, OperationError) else got), profile
 
     def _apply_items(self, result) -> None:
-        listing: ExportListing | None
+        listing: Listing | None
         listing, profile = result
         if listing is None or profile is None or profile != self._profile:  # none, or the top bar moved on
             if listing is None:
@@ -326,37 +332,31 @@ class ProfileTransferAdapter(QObject):
             if st["reason"]:
                 self.notifier.toast(st["reason"], error=True)
             return
-        size = sum(m.size for m in self._mods if m.key in self._picked)
-        if self._ex["kind"] == "full" and self.presenter.is_big(size):  # asked once, here, for a big one
-            self._ask_big({**self._export_params(), "size": size})
+        if self._ex["kind"] == "full":  # a big one is asked about once, here
+            self._ask_big()
             return
-        self._start("export", lambda session: _call(session, "profile_transfer.export", self._export_params()))
+        self._start_export(None)
 
-    def _ask_big(self, params: dict) -> None:
-        session = self.host.session
+    def _start_export(self, expect: int | None) -> None:
+        svc, params = self._svc, self._export_params()
+        self._start("export", lambda: svc.export(**params, expect=expect))
 
-        def shown(plan) -> None:
-            if isinstance(plan, OperationError):
-                self.notifier.toast(plan.message, error=True)
-                return
-            self.notifier.confirm(plan.words, lambda ok: self._answer_big(plan.id, ok))
+    def _ask_big(self) -> None:
+        svc, p = self._svc, self._export_params()
 
-        self.host.run_in_background(lambda: _call(session, "profile_transfer.confirm_export", params), shown)
+        def shown(got) -> None:
+            if isinstance(got, OperationError):
+                self.notifier.toast(self.presenter.error_text(got), error=True)
+            elif not got.big:
+                self._start_export(got.size)
+            else:
+                words = self.presenter.confirm_big(got.size, tr("Export"))
+                self.notifier.confirm(words, lambda ok: self._start_export(got.size) if ok else None)
 
-    def _answer_big(self, plan_id: str, ok: bool) -> None:
-        if not ok:
-            return
-        self._start("export", lambda session: self._answer(session, plan_id))
+        self.host.run_in_background(lambda: _call(lambda: svc.check_export(p["profile"], "full", p["chosen"])), shown)
 
-    @staticmethod
-    def _answer(session: Session, plan_id: str) -> Any:
-        try:
-            return session.answer(plan_id, {"ok": True})
-        except OperationError as e:  # busy, expired
-            return e
-
-    def _start(self, kind: str, call) -> None:
-        """Start the export or the import: call(session) on a worker gives the job id, then the bus tells how it goes."""
+    def _start(self, kind: str, begin) -> None:
+        """Start the export or the import: begin() on a worker gives the job id, which the page follows to its end."""
         if self._working or self.host.busy:
             return
         self._working = True
@@ -377,21 +377,29 @@ class ProfileTransferAdapter(QObject):
         else:
             self._import_pct = 0
         self._emit()
-        session = self.host.session
 
         def started(got) -> None:
             self._starting = False
-            if isinstance(got, OperationError) or not got:
-                self._ended(got.message if isinstance(got, OperationError) else "", cancelled=got is None)
+            if isinstance(got, OperationError):
+                self._ended(self.presenter.error_text(got))
                 return
             self._job_id = got
             early, self._early = self._early, []
             for e in early:
                 self._on_event(e)
+            self.host.follow_job(got, self._finished)
 
-        self.host.run_in_background(lambda: call(session), started)
+        self.host.run_in_background(lambda: _call(begin), started)
 
-    # ---- the session's job events
+    # ---- how the job goes: its progress from the bus, its end from follow_job
+    def _finished(self, snap) -> None:
+        if snap is None or snap.state == "cancelled":
+            self._ended("", cancelled=True)
+        elif snap.state == "done":
+            self._ended("", result=snap.result or {})
+        else:
+            self._ended(snap.error.message if snap.error else tr("Failed."))
+
     def _drain(self) -> None:
         while (e := self._events.get(0)) is not None:
             if e.job_id is None:
@@ -415,12 +423,6 @@ class ProfileTransferAdapter(QObject):
             else:
                 self._import_pct = int(100 * done / total) if total else 0
             self._emit()
-        elif e.type == "finished":
-            self._ended("", result=e.data.get("result") or {})
-        elif e.type == "failed":
-            self._ended((e.data.get("error") or {}).get("message") or tr("Failed."))
-        elif e.type == "cancelled":
-            self._ended("", cancelled=True)
 
     def _ended(self, why: str, result: dict | None = None, cancelled: bool = False) -> None:
         kind, self._job, self._job_id, self._working, self._import_pct = self._job, "", "", False, -1
@@ -472,7 +474,7 @@ class ProfileTransferAdapter(QObject):
         self._release()
         self._working = True
         self._emit()
-        session = self.host.session
+        svc = self._svc
 
         def done(result) -> None:
             self._working = False
@@ -484,7 +486,7 @@ class ProfileTransferAdapter(QObject):
             self._new_profile, self._new_name = result.new_profile, result.new_name
             self._make_preview()
 
-        self.host.run_in_background(lambda: _call(session, "profile_transfer.open_file", {"path": str(got)}), done)
+        self.host.run_in_background(lambda: _call(lambda: svc.open_file(got)), done)
 
     def _preview_params(self) -> dict[str, Any]:
         return dict(
@@ -496,28 +498,35 @@ class ProfileTransferAdapter(QObject):
             which=self._which,
         )
 
+    def _preview_call(self, want: dict[str, Any], done) -> None:
+        svc = self._svc
+        self.host.run_in_background(
+            lambda: _call(lambda: svc.preview(want.pop("resource"), want.pop("profile"), **want)), done
+        )
+
     def _make_preview(self) -> None:
         if not self._res or self._profile is None:
             return
-        want, session = self._preview_params(), self.host.session
+        want = self._preview_params()
+        res = want["resource"]
         self._working = True
         self._emit()
 
         def done(result) -> None:
             self._working = False
-            if self._res != want["resource"]:  # the player left that file
+            if self._res != res:  # the player left that file
                 return
             prev = None if isinstance(result, OperationError) else result
-            self._error = result.message if isinstance(result, OperationError) else ""
+            self._error = self.presenter.error_text(result) if isinstance(result, OperationError) else ""
             before = (
-                ({c["key"] for c in self._preview.cards}, set(self._ticked)) if self._preview else None
+                ({c.key for c in self._preview.cards}, set(self._ticked)) if self._preview else None
             )  # a new look after a choice keeps what was unticked
             self._preview = prev
-            keys = {c["key"] for c in prev.cards} if prev else set()
+            keys = {c.key for c in prev.cards} if prev else set()
             self._ticked = {k for k in keys if before is None or k not in before[0] or k in before[1]}
             self._emit()
 
-        self.host.run_in_background(lambda: _call(session, "profile_transfer.preview", want), done)
+        self._preview_call(want, done)
 
     @Slot(str, bool)
     def toggleCard(self, key: str, on: bool) -> None:
@@ -566,8 +575,11 @@ class ProfileTransferAdapter(QObject):
             if self.host.busy:
                 self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        want = {"resource": self._res, "skip": sorted({c["key"] for c in prev.cards} - self._ticked)}
-        self._start("import", lambda session: _call(session, "profile_transfer.import", want))
+        self._import(sorted({c.key for c in prev.cards} - self._ticked), prev.serial)
+
+    def _import(self, skip: list[str], serial: int) -> None:
+        svc, res = self._svc, self._res
+        self._start("import", lambda: svc.import_(res, skip, expect=serial))
 
     # ---- a profile a download ships (S3g)
     @Slot(int)
@@ -580,19 +592,20 @@ class ProfileTransferAdapter(QObject):
     def _preview_bundled(self) -> None:
         if not self._res or self._profile is None or not self._names:
             return
-        want, session = self._preview_params(), self.host.session
+        want = self._preview_params()
+        res = want["resource"]
         self._working = True
         self._emit()
 
         def done(result) -> None:
             self._working = False
-            if self._res != want["resource"]:
+            if self._res != res:
                 return
             self._bundled = None if isinstance(result, OperationError) else result
-            self._error = result.message if isinstance(result, OperationError) else ""
+            self._error = self.presenter.error_text(result) if isinstance(result, OperationError) else ""
             self._emit()
 
-        self.host.run_in_background(lambda: _call(session, "profile_transfer.preview", want), done)
+        self._preview_call(want, done)
 
     @Slot()
     def importBundled(self) -> None:
@@ -602,8 +615,7 @@ class ProfileTransferAdapter(QObject):
         if self.host.busy:
             self.notifier.toast(tr("Wait for the current job"), error=True)
             return
-        want = {"resource": self._res, "skip": []}
-        self._start("import", lambda session: _call(session, "profile_transfer.import", want))
+        self._import([], prev.serial)
 
     @Slot()
     def cancel(self) -> None:

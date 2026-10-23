@@ -11,10 +11,12 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bayle.errors import OperationError
-from bayle.services import profile_transfer as pt
+
+if TYPE_CHECKING:
+    from bayle.services import profile_transfer as pt
 
 DEFAULT_TTL = 3600.0  # seconds a resource waits untouched
 
@@ -27,6 +29,7 @@ class Resource:
     staging: Path | None = None  # the folder to delete when the resource goes
     names: list[str] = field(default_factory=list)  # the .me3 paths inside unpacked
     preview: Any = None  # the last preview made from it (pt.Preview, or the bundled import's)
+    serial: int = 0  # how many previews were made from it
     touched: float = 0.0
 
     @property
@@ -84,6 +87,8 @@ class TransferResources:
     @staticmethod
     def _release(res: Resource) -> None:
         if res.incoming is not None:
+            from bayle.services import profile_transfer as pt  # not at the top: pt builds a TransferResources
+
             pt.discard(res.incoming)
         if res.staging is not None:
             shutil.rmtree(res.staging, ignore_errors=True)

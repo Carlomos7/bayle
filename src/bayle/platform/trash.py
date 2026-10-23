@@ -220,7 +220,7 @@ def _trash_for(path: Path) -> Path:
     except OSError:
         return home
     top = _mount_top(path)
-    uid = os.getuid() if hasattr(os, "getuid") else 0
+    uid = os.getuid() if sys.platform != "win32" else 0
     d = top / f".Trash-{uid}"
     d.mkdir(mode=0o700, exist_ok=True)
     return d

@@ -14,6 +14,7 @@ import os
 import struct
 import threading
 from pathlib import Path
+from typing import cast
 
 from bayle.game import config as game_config
 
@@ -43,9 +44,10 @@ def _keys() -> dict[str, str]:
 
 
 def _rsa_open(data: bytes, pem: str) -> bytes:
+    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
-    k = load_pem_public_key(pem.encode()).public_numbers()
+    k = cast(RSAPublicKey, load_pem_public_key(pem.encode())).public_numbers()  # the archive keys are all RSA
     size = (k.n.bit_length() + 7) // 8
     out = bytearray()
     for i in range(0, len(data), size):

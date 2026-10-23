@@ -106,7 +106,9 @@ class JobSnapshot:
 class _Record:
     def __init__(self, job_id: str, title: str, ctx: JobContext):
         self.id, self.title, self.ctx = job_id, title, ctx
-        self.state, self.progress, self.result, self.error, self.undo = "running", None, None, None, None
+        self.state, self.progress, self.result = "running", None, None
+        self.error: ErrorInfo | None = None
+        self.undo: dict | None = None
 
     def snapshot(self) -> JobSnapshot:
         return JobSnapshot(self.id, self.title, self.state, self.progress, self.result, self.error, self.undo)

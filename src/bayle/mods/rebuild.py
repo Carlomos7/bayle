@@ -280,7 +280,9 @@ def _keep_approval(key: str, keys: list[str]) -> None:
     save_settings(rebuild_approved=[*keys, key][-50:])
 
 
-def overlay(profile: Path, all_layers: list[dict] | None = None, *, loc: Locations) -> tuple[dict | None, object, bool]:
+def overlay(
+    profile: Path, all_layers: list[dict] | None = None, *, loc: Locations
+) -> tuple[dict | None, backends.Tool | None, bool]:
     """(the package that must stay last, its rebuild tool or None, set by hand). Set by hand in Options wins when
     that package is loaded; otherwise it is the package whose rebuild tool is found next to it."""
     profile = Path(profile)
@@ -597,7 +599,7 @@ class MergeError(RuntimeError):
     pass
 
 
-def find_backend(profile: Path, *, loc: Locations):
+def find_backend(profile: Path, *, loc: Locations) -> backends.Tool | None:
     """The rebuild tool declared for this profile (set by hand in Options, or found), or None. The launcher's own
     combine is not one: see rebuild()."""
     return overlay(Path(profile), loc=loc)[1]

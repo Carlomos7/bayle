@@ -7,6 +7,7 @@ by restore_record, the one place that builds it) and returns Written, which carr
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -36,6 +37,22 @@ class Written:
     save: Path | None = None
     backup: Path | None = None
     undo: dict | None = None
+
+
+@dataclass(frozen=True)
+class BackupFacts:
+    """One listed backup, as a removal asks about it: stamp (size, mtime) is what the client confirms."""
+
+    path: Path
+    save_name: str
+    when: str
+    action: str
+    size: int
+    mtime: float
+
+    @property
+    def stamp(self) -> tuple[int, float]:
+        return self.size, self.mtime
 
 
 @dataclass(frozen=True)
@@ -135,36 +152,6 @@ def library_entry(folder: Path, entry_id: str) -> dict:
     if not path.is_file():
         raise OperationError("copy_unusable", tr("Its file is missing from the Library."))
     return {"name": entry["name"], "path": path, "changed_outside": save_library.changed_outside(folder, entry)}
-
-
-def library_name(folder: Path, entry_id: str) -> str | None:
-    entry = next((e for e in save_library.load(folder).get("entries", []) if e["id"] == entry_id), None)
-    return None if entry is None else entry["name"]
-
-
-def rename_copy(folder: Path, entry_id: str, name: str) -> None:
-    try:
-        save_library.rename(folder, entry_id, name)
-    except Exception as e:
-        raise OperationError("failed", str(e)) from e
-
-
-def remove_copy(folder: Path, entry_id: str) -> None:
-    try:
-        save_library.remove(folder, entry_id)
-    except Exception as e:
-        raise OperationError("failed", str(e)) from e
-
-
-def finish_stranded(folder: Path, entry_id: str, restore: bool) -> str:
-    """Finish a removal that was cut short (restore the copy, or let it go). Returns a warning to show, or ""."""
-    try:
-        if restore:
-            return save_library.restore_removed(folder, entry_id) or ""
-        save_library.finish_removal(folder, entry_id)
-    except Exception as e:
-        raise OperationError("failed", str(e)) from e
-    return ""
 
 
 def library_default_name(path: Path, loc: Locations) -> str:
@@ -352,9 +339,16 @@ def undo_change(save: Path, backup: Path, *, loc: Locations) -> str:
 
 
 class SavesService:
-    """The Saves page's reads for one engine: jobs is its JobManager, locations the current game's Locations (None:
-    no game selected). Returns data and OperationError codes, never wording: the Qt page words them. The writes still
-    go through the session's operations."""
+    """The Saves page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
+    selected). The reads, and the upkeep of Bayle's own copies and backups (never a live save). Returns data and
+    OperationError codes, never wording: the Qt page words them. The writes to live saves still go through the
+    session's operations.
+
+    The upkeep is not gated on the game or a running job (it never touches a live save; the Library's and the
+    backups' own locks keep it apart from a job writing them). It acts only on what the page lists: a Library of one
+    of the game's save folders, a backup list_backups returns (anything else is not_found), so a client can never
+    point it at another file. The two removals are a check and a start: the start is refused as stale when what the
+    client confirmed changed since."""
 
     def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
         self._jobs, self._locations = jobs, locations
@@ -391,3 +385,99 @@ class SavesService:
     def folder(self, which: str) -> Path | None:
         """The Saves, Backups or Library folder to show (the last two are created when missing); None: no save yet."""
         return open_folder(which, loc=self._loc())
+
+    # ---- the upkeep of copies and backups
+    def _folder(self, folder: str | Path) -> Path:
+        """folder, when it is one of the game's save folders (each has its Library). Raises not_found."""
+        want = os.path.normcase(str(Path(folder)))
+        for d in {p.parent for p in self._loc().save_files()}:
+            if os.path.normcase(str(d)) == want:
+                return d
+        raise OperationError("not_found", "That save folder is not listed.", {"folder": str(folder)})
+
+    def _backup(self, backup: str | Path) -> dict:
+        """backup's row of list_backups. Raises not_found when it is not listed (gone, or not a backup)."""
+        want = os.path.normcase(str(Path(backup)))
+        for b in saves_service.list_backups(loc=self._loc()):
+            if os.path.normcase(str(b["path"])) == want:
+                return b
+        raise OperationError("not_found", "That backup is no longer listed.", {"backup": str(backup)})
+
+    def _entry(self, folder: Path, entry_id: str) -> dict:
+        entry = next((e for e in save_library.load(folder).get("entries", []) if e["id"] == entry_id), None)
+        if entry is None:
+            raise OperationError("not_found", "That copy is no longer listed.", {"entry_id": entry_id})
+        return entry
+
+    def adopt_legacy(self) -> list[str]:
+        """Take in the backup folders older tools left beside the saves; returns the save folders looked in."""
+        return adopt_legacy_folders(self._loc())
+
+    def keep_backup(self, backup: str | Path, keep: bool = True) -> None:
+        """Keep a backup whatever its age, or let it age out again. Raises not_found, failed."""
+        b = self._backup(backup)
+        try:
+            saves_service.keep_backup(b["path"], keep)
+        except OSError as e:
+            raise OperationError("failed", str(e)) from e
+
+    def keep_as(self, backup: str | Path, name: str) -> str:
+        """Copy a backup into the Library under name (the backup stays and ages out as usual). Returns the name it got.
+        Raises not_found, failed."""
+        b = self._backup(backup)
+        try:
+            return saves_service.keep_backup_as_copy(b["path"], name, loc=self._loc())["name"]
+        except Exception as e:
+            raise OperationError("failed", str(e)) from e
+
+    def rename_copy(self, folder: str | Path, entry_id: str, name: str) -> str:
+        """Rename a Library copy. Returns the name it got. Raises not_found, failed (a name that can't be used)."""
+        d = self._folder(folder)
+        self._entry(d, entry_id)
+        try:
+            return save_library.rename(d, entry_id, name)["name"]
+        except Exception as e:
+            raise OperationError("failed", str(e)) from e
+
+    def check_remove_copy(self, folder: str | Path, entry_id: str) -> str:
+        """The name of the copy a removal would take out (what the client confirms). Raises not_found."""
+        return self._entry(self._folder(folder), entry_id)["name"]
+
+    def remove_copy(self, folder: str | Path, entry_id: str, expect: str) -> None:
+        """Take a copy out of the Library: its file moves to the Library's removed folder with a note (a removal cut
+        short is finished by finish_stranded). expect: the name the client confirmed. Raises not_found, stale, failed."""
+        d = self._folder(folder)
+        if self._entry(d, entry_id)["name"] != expect:
+            raise OperationError("stale", "That copy changed since you were asked. Ask again.")
+        try:
+            save_library.remove(d, entry_id)
+        except Exception as e:
+            raise OperationError("failed", str(e)) from e
+
+    def finish_stranded(self, folder: str | Path, entry_id: str, restore: bool) -> str:
+        """Finish a removal that was cut short: put the copy back (restore) or let it go. Returns "" or, when only the
+        Library's history has to wait, why (a diagnostic naming where the record is kept). Raises not_found, failed."""
+        d = self._folder(folder)
+        try:
+            if restore:
+                return save_library.restore_removed(d, entry_id) or ""
+            save_library.finish_removal(d, entry_id)
+        except Exception as e:
+            raise OperationError("failed", str(e)) from e
+        return ""
+
+    def check_delete_backup(self, backup: str | Path) -> BackupFacts:
+        """The backup a removal would delete (what the client confirms: its stamp). Raises not_found."""
+        b = self._backup(backup)
+        return BackupFacts(b["path"], b["save_name"], b["when"], b["action"], b["size"], b["mtime"])
+
+    def delete_backup(self, backup: str | Path, expect: tuple[int, float]) -> None:
+        """Delete a backup and its notes, for good (there is no removed folder for backups). expect: the stamp the
+        client confirmed. Raises not_found, stale (it was replaced or changed since), failed."""
+        got = self.check_delete_backup(backup)
+        if got.stamp != (int(expect[0]), float(expect[1])):
+            raise OperationError("stale", "That backup changed since you were asked. Ask again.")
+        try:
+            saves_service.delete_backup(got.path)
+        except Exception as e:
+            raise OperationError("failed", str(e)) from e

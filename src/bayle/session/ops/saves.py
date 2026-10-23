@@ -3,7 +3,11 @@ sheet, one Library copy), the Library's and Backups' upkeep, and every write to 
 
 A write to a live save is a job (a logged one that backs up first and returns how to take it back: Written.undo) or a
 plan whose answer starts that job; the session's gate (no game, no other writing job) is the job manager's. A plan
-checks the same gate first so the player is told why before being asked. Errors are OperationError codes."""
+checks the same gate first so the player is told why before being asked. Errors are OperationError codes.
+
+The reads and the upkeep are handed straight to the session's SavesService (services.saves_page), with no wording:
+the two removals are a check (what would go) and a start (with what the client confirmed). Temporary, as for
+Settings: the Qt page calls the service itself."""
 
 from __future__ import annotations
 
@@ -124,6 +128,22 @@ class KeepParams(BackupRef):
     keep: bool = True
 
 
+class DeleteBackupParams(BackupRef):
+    expect: tuple[int, float]  # the stamp (size, mtime) check_delete_backup gave and the client confirmed
+
+
+class RemoveCopyParams(CopyRef):
+    expect: str  # the name check_remove_copy gave and the client confirmed
+
+
+class BackupFacts(Result):
+    path: str
+    save_name: str
+    when: str
+    action: str
+    stamp: tuple[int, float]
+
+
 class RenameParams(CopyRef):
     name: str
 
@@ -212,7 +232,7 @@ def snapshot(session: Session) -> SavesState:
 @operation("saves.adopt_legacy", result=Adopted, kind="command", writes=True)
 def adopt_legacy(call: Call, p: NoParams) -> Adopted:
     """Take in backup folders older tools left beside the saves (also a start-up step; Refresh asks for it too)."""
-    return Adopted(folders=svc.adopt_legacy_folders(call.session.locations()))
+    return Adopted(folders=_saves(call.session).adopt_legacy())
 
 
 @operation("saves.health_report", params=PathParams, result=Said)
@@ -247,62 +267,50 @@ def default_name(call: Call, p: PathParams) -> Said:
 # ----------------------------------------------------------------------------- the upkeep of copies and backups
 @operation("saves.keep_as", params=KeepAsParams, result=Said, kind="command", writes=True)
 def keep_as(call: Call, p: KeepAsParams) -> Said:
-    """Copy a backup into the Library under a name (the backup stays and ages out as usual)."""
-    try:
-        e = saves_service.keep_backup_as_copy(Path(p.backup), p.name, loc=call.session.locations())
-    except Exception as ex:
-        raise OperationError("failed", str(ex)) from ex
-    return Said(text=e["name"])
+    """Copy a backup into the Library under a name (the backup stays and ages out as usual); text is the name."""
+    return Said(text=_saves(call.session).keep_as(p.backup, p.name))
 
 
 @operation("saves.keep_backup", params=KeepParams, result=Said, kind="command", writes=True)
 def keep_backup(call: Call, p: KeepParams) -> Said:
     """Keep a backup whatever its age, or let it age out again."""
-    try:
-        saves_service.keep_backup(Path(p.backup), p.keep)
-    except OSError as e:
-        raise OperationError("failed", str(e)) from e
+    _saves(call.session).keep_backup(p.backup, p.keep)
     return Said(text="")
 
 
 @operation("saves.rename_copy", params=RenameParams, result=Said, kind="command", writes=True)
 def rename_copy(call: Call, p: RenameParams) -> Said:
-    svc.rename_copy(Path(p.folder), p.entry_id, p.name)
-    return Said(text=p.name)
+    return Said(text=_saves(call.session).rename_copy(p.folder, p.entry_id, p.name))
 
 
 @operation("saves.finish_stranded", params=StrandedParams, result=Warned, kind="command", writes=True)
 def finish_stranded(call: Call, p: StrandedParams) -> Warned:
-    return Warned(warning=svc.finish_stranded(Path(p.folder), p.entry_id, p.restore))
+    return Warned(warning=_saves(call.session).finish_stranded(p.folder, p.entry_id, p.restore))
 
 
-@operation("saves.delete_backup", params=BackupRef, result=Said, kind="plan", writes=True)
-def delete_backup(call: Call, p: BackupRef) -> Proposal | Refusal:
-    session = call.session
-    days = _presenter().backup_days(saves_service.list_backups(loc=session.locations()))
-    row = next((b for d in days for b in d["rows"] if b["path"] == p.backup), None)
-    if row is None:
-        raise OperationError("not_found", tr("That backup is no longer listed."), {"backup": p.backup})
-
-    def run(_a: Answer) -> None:
-        try:
-            saves_service.delete_backup(Path(p.backup))
-        except Exception as e:
-            raise OperationError("failed", str(e)) from e
-
-    return Proposal(_presenter().delete_backup(row), run, destructive=True)
+@operation("saves.check_delete_backup", params=BackupRef, result=BackupFacts)
+def check_delete_backup(call: Call, p: BackupRef) -> BackupFacts:
+    """The backup a removal would delete; the client confirms its stamp."""
+    got = _saves(call.session).check_delete_backup(p.backup)
+    return BackupFacts(path=str(got.path), save_name=got.save_name, when=got.when, action=got.action, stamp=got.stamp)
 
 
-@operation("saves.remove_copy", params=CopyRef, result=Said, kind="plan", writes=True)
-def remove_copy(call: Call, p: CopyRef) -> Proposal | Refusal:
-    name = svc.library_name(Path(p.folder), p.entry_id)
-    if name is None:
-        raise OperationError("not_found", tr("That copy is no longer listed."), {"entry_id": p.entry_id})
+@operation("saves.delete_backup", params=DeleteBackupParams, result=Said, kind="command", writes=True)
+def delete_backup(call: Call, p: DeleteBackupParams) -> Said:
+    _saves(call.session).delete_backup(p.backup, p.expect)
+    return Said(text="")
 
-    def run(_a: Answer) -> None:
-        svc.remove_copy(Path(p.folder), p.entry_id)
 
-    return Proposal(_presenter().remove_copy(name), run, destructive=True)
+@operation("saves.check_remove_copy", params=CopyRef, result=Said)
+def check_remove_copy(call: Call, p: CopyRef) -> Said:
+    """The name of the copy a removal would take out; the client confirms it."""
+    return Said(text=_saves(call.session).check_remove_copy(p.folder, p.entry_id))
+
+
+@operation("saves.remove_copy", params=RemoveCopyParams, result=Said, kind="command", writes=True)
+def remove_copy(call: Call, p: RemoveCopyParams) -> Said:
+    _saves(call.session).remove_copy(p.folder, p.entry_id, p.expect)
+    return Said(text="")
 
 
 # ----------------------------------------------------------------------------- jobs that write or add copies

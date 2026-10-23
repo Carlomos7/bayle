@@ -23,6 +23,7 @@ from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import game_checks, profile_mods
 from bayle.services import play as core
+from bayle.session import jobs
 from bayle.session.shell.state import LauncherState
 from bayle.views import topbar
 from bayle.views.common import Choice, Choose
@@ -473,7 +474,7 @@ class LaunchFlow:
         if run.mode == topbar.VANILLA:
 
             def job(launch_profile, job_loc):
-                services.job_play_vanilla(launch_profile, job_loc, backup=backup)
+                services.job_play_vanilla(launch_profile, job_loc, backup=backup, notice=jobs.notice)
 
             label = tr("Starting {game}...").format(game=self.state.game.name)
         elif run.mode == topbar.OFFLINE:
@@ -485,13 +486,14 @@ class LaunchFlow:
                     strip_overhaul=settings.offline_strip_overhaul,
                     start_steam=settings.offline_start_steam,
                     backup=backup,
+                    notice=jobs.notice,
                 )
 
             label = tr("Starting offline...")
         else:
 
             def job(launch_profile, job_loc):
-                services.job_play(launch_profile, job_loc, backup=backup)
+                services.job_play(launch_profile, job_loc, backup=backup, notice=jobs.notice)
 
             label = tr("Starting...")
         self._end()

@@ -105,16 +105,14 @@ def test_health_patterns_must_compile():
         Health(log="a.log", fail=["("])
 
 
-def test_notice_goes_to_the_sink_and_the_log(monkeypatch):
-    got, lines = [], []
+def test_a_notice_alone_is_only_logged_and_report_tells_the_callable_it_is_given(tmp_path, monkeypatch):
+    lines, got = [], []
     monkeypatch.setattr(run_logging, "log_line", lambda m, *a: lines.append(m))
-    run_logging.notice("quiet")  # no sink: only logged
-    run_logging.attach_notice_sink(got.append)
-    try:
-        run_logging.notice("loud")
-    finally:
-        run_logging.attach_notice_sink(None)
-    assert lines == ["warning: quiet", "warning: loud"] and got == ["loud"]
+    run_logging.notice("quiet")
+    assert lines == ["warning: quiet"]
+    w = watched(tmp_path)
+    (tmp_path / "Mod.log").write_text("initialization failed\n", encoding="utf-8")
+    assert run_health.report(w, got.append) == got == ["Mod: initialization failed"]
 
 
 def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatch):

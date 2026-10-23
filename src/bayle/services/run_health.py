@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from bayle import overhauls
@@ -87,15 +87,17 @@ def findings(label: str, text: str, entry: Health) -> list[str]:
     return found
 
 
-def report(watched: Iterable[tuple[str, Path, Health, int | None]]) -> list[str]:
-    """After the run: log a warning to Activity for every failure line the declared logs gained. Returns them."""
+def report(
+    watched: Iterable[tuple[str, Path, Health, int | None]], notice: Callable[[str], None] = run_logging.notice
+) -> list[str]:
+    """After the run: a notice (a warning in Activity) for every failure line the declared logs gained. Returns them."""
     out: list[str] = []
     for label, path, entry, before in watched:
         text = _new_text(path, before)
         if text:
             out.extend(findings(label, text, entry))
     for line in out:
-        run_logging.notice(line)
+        notice(line)
     return out
 
 
@@ -121,9 +123,9 @@ def begin(profile: str | Path, game: str, exe_name: str) -> Watch:
     return watched
 
 
-def end(game: str, watched: Watch) -> list[str]:
+def end(game: str, watched: Watch, notice: Callable[[str], None] = run_logging.notice) -> list[str]:
     """After the run: report the new lines, then forget the sizes."""
-    found = report(watched)
+    found = report(watched, notice)
     _set_pending(game, None)
     return found
 

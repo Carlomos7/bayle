@@ -455,17 +455,20 @@ def _me3_said() -> None:
         run_logging.log(f"warning: {said}")
 
 
-def _before_play(launch, loc: Locations) -> run_health.Watch:
+Notice = Callable[[str], None]  # tells the player at once (a job's: session.jobs.notice); logged either way
+
+
+def _before_play(launch, loc: Locations, notice: Notice) -> run_health.Watch:
     """The run's start: say when the game's exe changed since the last Play, and note the declared logs' sizes."""
-    notice = run_health.game_update_notice(loc)
-    if notice:
-        run_logging.notice(notice)
+    said = run_health.game_update_notice(loc)
+    if said:
+        notice(said)
     return run_health.begin(launch.profile, loc.game.key, loc.game_exe_name())
 
 
-def _after_play(opts, loc: Locations, watched: run_health.Watch = ()):
+def _after_play(opts, loc: Locations, watched: run_health.Watch = (), notice: Notice = run_logging.notice):
     _me3_said()
-    run_health.end(loc.game.key, watched)
+    run_health.end(loc.game.key, watched, notice)
     if not loc.game.regulation_repair:
         pass  # this game has no regulation block me3 leaves dirty
     elif opts[repair_key(loc.game)]:
@@ -478,7 +481,12 @@ def _after_play(opts, loc: Locations, watched: run_health.Watch = ()):
         run_logging.log("clearing leftover processes after quitting is off (Settings > Launch)")
 
 
-def job_play(launch: LaunchProfile, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
+def job_play(
+    launch: LaunchProfile,
+    loc: Locations | None = None,
+    backup: str = BACKUP_REQUIRED,
+    notice: Notice = run_logging.notice,
+):
     """Play online. loc: the game's locations (default: the setup's, with the saves it uses). backup: how a failed
     'back up saves before Play' is handled (BACKUP_*)."""
     loc = loc or launch.locations()
@@ -491,7 +499,7 @@ def job_play(launch: LaunchProfile, loc: Locations | None = None, backup: str = 
     online = game_checks.online_warning(Path(launch.profile), loc)
     if online is not None:
         run_logging.log(f"warning: {online}")
-    watched = _before_play(launch, loc)
+    watched = _before_play(launch, loc, notice)
     me3_session.launch(
         launch.game.key,
         launch.profile,
@@ -501,7 +509,7 @@ def job_play(launch: LaunchProfile, loc: Locations | None = None, backup: str = 
         extra_args=launch_extra_args(opts, me3_info.me3_version(launch.me3_path())),
     )
     time.sleep(3)
-    _after_play(opts, loc, watched)
+    _after_play(opts, loc, watched, notice)
 
 
 NATIVE_BLOCK_RE = re.compile(r"(^[ \t]*\[\[natives\]\].*?)(?=^[ \t]*\[\[|\Z)", re.M | re.S)
@@ -626,7 +634,12 @@ def steam_state():
 
 
 def job_play_offline(
-    launch, loc: Locations | None = None, strip_overhaul=False, start_steam=True, backup: str = BACKUP_REQUIRED
+    launch,
+    loc: Locations | None = None,
+    strip_overhaul=False,
+    start_steam=True,
+    backup: str = BACKUP_REQUIRED,
+    notice: Notice = run_logging.notice,
 ):
     loc = loc or launch.locations()
     run_logging.start_log("launcher: play offline", loc.game.key)
@@ -636,7 +649,7 @@ def job_play_offline(
         me3_session.ensure_steam_running(60)
     if opts["play_clear_before"]:
         me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
-    watched = _before_play(launch, loc)
+    watched = _before_play(launch, loc, notice)
     me3_session.launch(
         launch.game.key,
         str(offline_profile_for(launch.profile, strip_overhaul=strip_overhaul, coop_dll=launch.game.coop_dll)),
@@ -646,10 +659,12 @@ def job_play_offline(
         extra_args=("--skip-steam-init", "true", *launch_extra_args(opts, me3_info.me3_version(launch.me3_path()))),
     )
     time.sleep(3)
-    _after_play(opts, loc, watched)
+    _after_play(opts, loc, watched, notice)
 
 
-def job_play_vanilla(launch, loc: Locations | None = None, backup: str = BACKUP_REQUIRED):
+def job_play_vanilla(
+    launch, loc: Locations | None = None, backup: str = BACKUP_REQUIRED, notice: Notice = run_logging.notice
+):
     """Launch Vanilla: the game started through Steam, with no me3 and no profile, so it plays the standard save with
     its own anti-cheat (game model, 2026-10-20). Nothing of a profile is read or written, and the after-Play
     regulation repair is not run: me3 did not touch the save. setup is not used (the caller may pass none)."""
@@ -661,9 +676,9 @@ def job_play_vanilla(launch, loc: Locations | None = None, backup: str = BACKUP_
     me3_session.ensure_steam(120)
     if opts["play_clear_before"]:
         me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
-    notice = run_health.game_update_notice(loc)
-    if notice:
-        run_logging.notice(notice)
+    said = run_health.game_update_notice(loc)
+    if said:
+        notice(said)
     run_logging.log(f"launching {loc.game.name} through Steam, without me3")
     desktop.open_path(f"steam://rungameid/{loc.game.app_id}")
     if not me3_session.wait_for_game(loc.game_exe_name(), appear_timeout=90):

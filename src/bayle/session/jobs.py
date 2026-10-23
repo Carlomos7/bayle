@@ -35,6 +35,15 @@ def current_context() -> JobContext | None:
     return _current.get()
 
 
+def notice(text: str) -> None:
+    """A warning the player should see at once: logged (run_logging.notice) and, from inside a job, a `notice` event
+    on its manager's bus, the one the shell publishes. What services are handed as their notice callable."""
+    run_logging.notice(text)
+    ctx = _current.get()
+    if ctx is not None:
+        ctx._report("notice", {"text": text, "error": False, "details": True})
+
+
 class JobContext:
     """Handed to the work: report progress and prompts, look at the cancel token."""
 
@@ -255,7 +264,7 @@ class JobManager:
             if type == "progress":
                 with self._lock:
                     self._records[job_id].progress = data
-            self._emit(type, data, job_id)
+            self._emit(type, data, None if type == "notice" else job_id)  # a notice is the player's, not the job's
         else:
             job_id, result = event.value
             self._finish(job_id, result)

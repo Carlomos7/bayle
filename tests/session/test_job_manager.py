@@ -5,7 +5,8 @@ import pytest
 from bayle.platform import logging as run_logging
 from bayle.services.errors import Busy, Cancelled, OperationError
 from bayle.services.jobs import JobResult
-from bayle.session import EventBus, JobManager, current_context, reset_process_globals
+from bayle.session import EventBus, JobManager, current_context
+from bayle.session.jobs import notice
 
 
 class Clock:
@@ -197,7 +198,11 @@ def test_finished_jobs_beyond_keep_are_forgotten(clock):
     assert [mgr.get(i) is not None for i in ids] == [False, False, True, True]
 
 
-def test_reset_process_globals_clears_the_wiring():
-    run_logging.attach_notice_sink(lambda _text: None)
-    reset_process_globals()
-    assert run_logging._notice_sink is None
+def test_a_notice_from_a_job_reaches_the_bus_as_the_shells_own_and_is_logged(mgr, monkeypatch):
+    lines = []
+    monkeypatch.setattr(run_logging, "log_line", lambda m, *a: lines.append(m))
+    mgr.start(lambda ctx: notice("the game was updated"), writes=False)
+    notice("outside a job")  # no job: only logged
+    got = [(e.data, e.job_id) for e in events(mgr) if e.type == "notice"]
+    assert got == [({"text": "the game was updated", "error": False, "details": True}, None)]
+    assert lines == ["warning: the game was updated", "warning: outside a job"]

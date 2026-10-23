@@ -1,31 +1,35 @@
-"""The Settings page's operations: its snapshot, one change of a setting, the folder buttons, the folder-name check,
-and the three layout changes (rename the folders, move the profiles folder, move every profile in), which move user
-folders and so are plans (confirm first) that run as jobs with a cancel token and an Undo in Activity."""
+"""The Settings operations for the HTTP layer, each handed straight to the session's SettingsService
+(services.settings): the page's data, one change of a setting, the folder buttons, the folder-name check, and the three
+layout changes and the clean-up, each a check (what would change) and a start (with what the client confirmed).
+Temporary: the Qt page calls the service itself, and a future API is built on it the same way. No wording here; the
+client words what it gets."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
-from bayle.errors import Busy, OperationError
-from bayle.game import catalog as games
-from bayle.platform.text import tr
-from bayle.services import layout as layout_service
-from bayle.services import play as play_service
-from bayle.services import settings as store
+from pydantic import BaseModel
+
+from bayle.errors import OperationError
+from bayle.services.settings import SettingSpec, SettingsService
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
-from bayle.views import settings as sp
-from bayle.views import settings_state as state
-from bayle.views.common import Refusal
-from bayle.views.settings_state import SettingsState
-from bayle.work.jobs import JobContext
-from bayle.work.prompts import Proposal
-from bayle.work.runner import run_job_value
+
+
+class SettingsPage(BaseModel):
+    game: str
+    settings: dict[str, Any]
+    detected: dict[str, str | None]  # location key -> the path found when it is left blank
+    overhaul: str  # the overhaul switch's sentence ("" when the game has none)
+    steam_target: str
+    steam_options: str
+    backups_folder: str
+    me3_profiles: str | None
+    layout: dict[str, str]  # the saved folder names, by draft field
+    specs: list[SettingSpec]
 
 
 class SetParams(Params):
-    key: str  # a key of the snapshot's specs
+    key: str  # a key of the page's specs
     value: bool | int | str
 
 
@@ -34,7 +38,7 @@ class Changed(Result):
     value: bool | int | str  # as saved (a number is brought into its range, a location is trimmed)
     stored_as: str  # the key in the settings file (the repair switch has one per game)
     follow: str  # none | settings | appearance | updates: what the window does next
-    said: str = ""
+    kind: str
 
 
 class FolderParams(Params):
@@ -53,168 +57,125 @@ class Names(Params):
     natives: str | None = None
     shared: str | None = None
 
+    def given(self) -> dict[str, str]:
+        return {k: v for k, v in self.model_dump().items() if v is not None}
+
 
 class LayoutCheck(Result):
-    errors: dict[str, str]  # field -> the sentence under each unusable name
+    errors: dict[str, str]  # draft field -> why that name cannot be used
     preview: str  # the folder the game would get, "" when the pattern is unusable
 
 
-class RelocateParams(Params):
+class RenameChanges(Result):
+    changes: dict[str, tuple[str, str]]  # draft field -> (saved name, new name)
+
+
+class RenameParams(Names):
+    expect: dict[str, tuple[str, str]]  # the changes the client confirmed
+
+
+class FolderParam(Params):
     folder: str
 
 
-class Moved(Result):
-    count: int = 0
+class RelocateFacts(Result):
+    folder: str
+    profiles: int
+    size: int
+    free: int | None
 
 
-class Cleared(Result):
-    pass
+class RelocateParams(FolderParam):
+    expect_root: str  # the saved profiles folder the client saw ("" for me3's own)
 
 
-def _where(session: Session) -> tuple[Any, Any]:
-    """(game, locations or None) for the current game; Elden Ring with no locations when none is selected."""
-    try:
-        loc = session.locations()
-    except OperationError:
-        return games.ELDEN_RING, None
-    return loc.game, loc
+class Profiles(Result):
+    names: list[str]
 
 
-@registry.page("settings", view=SettingsState)
-def snapshot(session: Session) -> SettingsState:
-    game, loc = _where(session)
-    return state.build(store.facts(game, loc), game)
+class MoveAllParams(Params):
+    expect: list[str]  # the profile names the client confirmed
+
+
+class SettingsJob(Result):
+    job_id: str
+
+
+def _none() -> SettingsService:
+    raise OperationError("no_settings", "This session has no Settings.")
+
+
+def _settings(session: Session) -> SettingsService:
+    return session.service("settings", _none)
+
+
+@registry.page("settings", view=SettingsPage)
+def snapshot(session: Session) -> SettingsPage:
+    got = _settings(session).page()
+    f = got.facts
+    return SettingsPage(
+        game=got.game.key,
+        settings=f.settings.model_dump(mode="json"),
+        detected=f.detected,
+        overhaul=f.overhaul,
+        steam_target=f.steam_target,
+        steam_options=f.steam_options,
+        backups_folder=f.backups_folder,
+        me3_profiles=f.me3_profiles,
+        layout=got.layout,
+        specs=list(got.specs.values()),
+    )
 
 
 @operation("settings.set", params=SetParams, result=Changed, kind="command", writes=True)
 def set_setting(call: Call, p: SetParams) -> Changed:
-    """Change one setting. Errors: unknown_setting, invalid_value, invalid_choice, path_problem."""
-    spec = store.schema(state.switch_keys()).get(p.key)
-    if spec is None:
-        msg = tr("There is no setting called {key}.").format(key=p.key)
-        raise OperationError("unknown_setting", msg, {"key": p.key})
-    game, _loc = _where(call.session)
-    value = store.normalise(spec, p.value, game)
-    stored = store.store(spec, value, game)
-    said = ""
-    if spec.kind == "location":
-        said = state.location_said(str(value))
-    elif p.key == "log_level":
-        said = tr(state.LOG_LEVEL_SAID)
-    return Changed(key=p.key, value=value, stored_as=stored, follow=spec.follow, said=said)
+    got = _settings(call.session).set(p.key, p.value)
+    return Changed(key=got.key, value=got.value, stored_as=got.stored_as, follow=got.follow, kind=got.kind)
 
 
 @operation("settings.folder", params=FolderParams, result=FolderPath, kind="command", writes=True)
 def folder(call: Call, p: FolderParams) -> FolderPath:
-    """The folder behind an "Open ... folder" button; asking for the backups folder creates it. Errors: unknown_folder."""
-    _game, loc = _where(call.session)
-    found = store.folder(p.kind, loc, make=True)
+    found = _settings(call.session).folder(p.kind)
     return FolderPath(path=None if found is None else str(found))
 
 
 @operation("settings.layout_check", params=Names, result=LayoutCheck)
 def layout_check(call: Call, p: Names) -> LayoutCheck:
-    """Which of the folder names cannot be used, and the preview of the game folder."""
-    game, _loc = _where(call.session)
-    draft = {k: v for k, v in p.model_dump().items() if v is not None}
-    return LayoutCheck(errors=sp.name_errors(draft), preview=sp.game_preview(draft.get("pattern", ""), game.key))
+    got = _settings(call.session).check_names(p.given())
+    return LayoutCheck(errors=got.errors, preview=got.preview)
 
 
-def _refusal_if_busy(session: Session) -> Refusal | None:
-    if session.jobs.busy:
-        return Refusal(tr("Wait for the current job."), tr("Another job is running."))
-    if session.jobs.game_running:
-        return Refusal(tr("The game is running."), tr("Close it first."))
-    return None
+@operation("settings.check_rename", params=Names, result=RenameChanges)
+def check_rename(call: Call, p: Names) -> RenameChanges:
+    return RenameChanges(changes=_settings(call.session).check_rename(p.given()))
 
 
-def _layout_plan(
-    session: Session,
-    words,
-    title: str,
-    work: Callable[[JobContext, Any], int],
-    stale: Callable[[], object] | None = None,
-) -> Proposal:
-    """A plan whose answer starts work(ctx, loc) as a job (the old logged-job record: its log and Undo are kept)."""
-    loc = session.locations()
-
-    def run(_answer) -> str:
-        return session.start(lambda ctx: Moved(count=work(ctx, loc)), title=title)
-
-    return Proposal(words, run, stale)
+@operation("settings.rename_layout", params=RenameParams, result=SettingsJob, kind="command", writes=True)
+def rename_layout(call: Call, p: RenameParams) -> SettingsJob:
+    return SettingsJob(job_id=_settings(call.session).rename(p.given(), p.expect))
 
 
-def _layout_stale() -> object:
-    return state.layout_saved(store.load_settings())
+@operation("settings.check_relocate", params=FolderParam, result=RelocateFacts)
+def check_relocate(call: Call, p: FolderParam) -> RelocateFacts:
+    got = _settings(call.session).check_relocate(p.folder)
+    return RelocateFacts(folder=got.folder, profiles=got.profiles, size=got.size, free=got.free)
 
 
-@operation("settings.rename_layout", params=Names, result=Moved, kind="plan", writes=True)
-def rename_layout(call: Call, p: Names) -> Proposal | Refusal:
-    """Offer to rename the game folder pattern and the packages / DLL / shared folders.
-    Errors: invalid_names (details.errors), nothing_to_change."""
-    session = call.session
-    saved = state.layout_saved(store.load_settings())
-    given = {k: v for k, v in p.model_dump().items() if v is not None}
-    if errors := sp.name_errors({**saved, **given}):
-        raise OperationError("invalid_names", next(iter(errors.values())), {"errors": errors})
-    names = {k: v for k, v in given.items() if v != saved[k]}
-    if not names:
-        raise OperationError("nothing_to_change", tr("The names are the ones in use already."))
-    if refused := _refusal_if_busy(session):
-        return refused
-    title = tr("Renaming folders...")
-    changes = {tr(state.LAYOUT_LABELS[k]): (saved[k], v) for k, v in names.items()}
-
-    def work(_ctx: JobContext, loc) -> int:
-        run_job_value(lambda _l, loc: layout_service.rename_layout(loc, **names), loc, title)
-        return 0
-
-    return _layout_plan(session, sp.rename_confirm(changes), title, work, _layout_stale)
+@operation("settings.relocate", params=RelocateParams, result=SettingsJob, kind="command", writes=True)
+def relocate(call: Call, p: RelocateParams) -> SettingsJob:
+    return SettingsJob(job_id=_settings(call.session).relocate(p.folder, p.expect_root))
 
 
-@operation("settings.relocate", params=RelocateParams, result=Moved, kind="plan", writes=True)
-def relocate(call: Call, p: RelocateParams) -> Proposal | Refusal:
-    """Offer to move every profile and mod to a new profiles folder; cancelling its job stops the move with nothing
-    changed. Errors: invalid_params."""
-    session = call.session
-    if not p.folder.strip():
-        raise OperationError("invalid_params", tr("Pick a folder."))
-    if refused := _refusal_if_busy(session):
-        return refused
-    new = Path(p.folder)
-    count, size = layout_service.profiles_facts(session.locations())
-    title = tr("Moving profiles and mods...")
-
-    def work(ctx: JobContext, loc) -> int:
-        run_job_value(lambda _l, loc: layout_service.relocate(loc, new, cancel=ctx.cancelled), loc, title)
-        return 0
-
-    words = sp.relocate_confirm(str(new), count, size, layout_service.free_bytes(new))
-    return _layout_plan(session, words, title, work, lambda: store.load_settings().profiles_root)
+@operation("settings.check_move_all", result=Profiles)
+def check_move_all(call: Call, p: NoParams) -> Profiles:
+    return Profiles(names=_settings(call.session).check_move_all())
 
 
-@operation("settings.move_all", result=Moved, kind="plan", writes=True)
-def move_all(call: Call, p: NoParams) -> Proposal | Refusal:
-    """Offer to move every me3 profile of this game that lies outside Bayle's folder into it."""
-    session = call.session
-    if refused := _refusal_if_busy(session):
-        return refused
-    found = layout_service.plain_profiles(session.locations())
-    if not found:
-        return Refusal(tr("Nothing to move"), tr("No profiles are outside Bayle's folder."))
-    title = tr("Moving profiles...")
-
-    def work(_ctx: JobContext, loc) -> int:
-        return run_job_value(lambda _l, loc: layout_service.move_all(loc, found), loc, title)
-
-    return _layout_plan(session, sp.move_all_confirm([f.stem for f in found]), title, work)
+@operation("settings.move_all", params=MoveAllParams, result=SettingsJob, kind="command", writes=True)
+def move_all(call: Call, p: MoveAllParams) -> SettingsJob:
+    return SettingsJob(job_id=_settings(call.session).move_all(p.expect))
 
 
-@operation("settings.clear_leftovers", result=Cleared, kind="job")
-def clear_leftovers(call: Call, p: NoParams) -> Cleared:
-    """Close the hidden copies of the game left running. Allowed while the game runs (that is when it is needed), but
-    not beside another writing job."""
-    if call.session.jobs.busy:
-        raise Busy(tr("Wait for the current job."))
-    run_job_value(play_service.job_clear, call.session.locations(), tr("Clearing leftover processes..."))
-    return Cleared()
+@operation("settings.clear_leftovers", result=SettingsJob, kind="command", writes=True)
+def clear_leftovers(call: Call, p: NoParams) -> SettingsJob:
+    return SettingsJob(job_id=_settings(call.session).clear_leftovers())

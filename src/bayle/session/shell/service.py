@@ -28,7 +28,7 @@ from bayle.platform.text import tr
 from bayle.services import play as core
 from bayle.services.activity import ActivityService
 from bayle.services.mods import me3_facts
-from bayle.services.settings import load_settings, save_game_settings
+from bayle.services.settings import SettingsService, load_settings, save_game_settings
 from bayle.session.operations import Session, StepReport
 from bayle.session.shell import launch
 from bayle.session.shell.background import Background, ThreadBackground
@@ -95,12 +95,13 @@ class Shell:
         )
         self.bus = self.jobs.bus
         self.activity = ActivityService(self.jobs, ctx.activity, lambda: self.state.locations)
+        self.settings = SettingsService(self.jobs, lambda: self.state.locations)
         self.session = Session(
             self.jobs,
             plans=ctx.plans,
             locations=lambda: self.state.locations,
             startup_steps=ctx.startup(self.state.profile_path),
-            services={"shell": self, "activity": self.activity},
+            services={"shell": self, "activity": self.activity, "settings": self.settings},
         )
         self.flow = launch.LaunchFlow(self.state, EventPorts(self))
         self.updates = UpdateFlow(

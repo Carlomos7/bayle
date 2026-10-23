@@ -180,14 +180,14 @@ class SavesAdapter(QObject):
     def _build(self, loc):
         if loc is None:
             return [], {}, [], {}
-        session, adopt, self._adopt = self.host.session, self._adopt, False
+        adopt, self._adopt = self._adopt, False
         try:
             names = self.host.saves_in_use()  # before the read: the locations learn the names
         except Exception:
             names = {}
         if adopt:
             try:
-                session.run("saves.adopt_legacy")
+                self.host.saves_service.adopt_legacy()
             except OperationError:
                 pass  # the read still shows what is there
         facts = self.host.saves_service.page()
@@ -509,53 +509,92 @@ class SavesAdapter(QObject):
     # ---- the saved copies' upkeep (the Library file and the Backups list; no live save is written)
     @Slot(str, str)
     def keepAs(self, backup: str, name: str) -> None:
-        def kept(got) -> None:
-            self.notifier.toast(tr("Kept as '{name}' in the Library").format(name=got.text))
+        def kept(got: str) -> None:
+            self.notifier.toast(tr("Kept as '{name}' in the Library").format(name=got))
             self._read()
 
-        self._call("saves.keep_as", {"backup": backup, "name": name}, kept, fail=tr("Could not keep it"))
+        self._query(lambda: self.host.saves_service.keep_as(backup, name), kept, fail=tr("Could not keep it"))
 
     @Slot(str)
     def letAgeOut(self, backup: str) -> None:
-        self._call(
-            "saves.keep_backup",
-            {"backup": backup, "keep": False},
+        self._query(
+            lambda: self.host.saves_service.keep_backup(backup, False),
             lambda _r: self._read(),
             fail=tr("Could not change it"),
         )
 
+    def _confirm_remove(self, check, words, remove, done, fail: str, again: bool = True) -> None:
+        """check on a worker, ask in words(facts), on yes remove(facts) with what was shown. A stale answer (it changed
+        since) asks once more with fresh words; a decline does nothing."""
+
+        def checked(facts) -> None:
+            def answered(ok: bool, _option: bool) -> None:
+                if not ok:
+                    return
+
+                def work():
+                    try:
+                        return remove(facts)
+                    except OperationError as e:
+                        if e.code == "stale" and again:
+                            return "stale"  # a result, not an error: _query would toast an OperationError
+                        raise
+
+                def landed(got) -> None:
+                    if got == "stale":
+                        self._confirm_remove(check, words, remove, done, fail, again=False)
+                    else:
+                        done()
+
+                self._query(work, landed, fail=fail)
+
+            self.notifier.ask(words(facts), answered, destructive=True)
+
+        self._query(check, checked, fail=fail)
+
     @Slot(str)
     def deleteBackup(self, backup: str) -> None:
+        service = self.host.saves_service
+
         def removed() -> None:
             self.notifier.toast(tr("Backup removed"))
             self._read()
 
-        self._ask("saves.delete_backup", {"backup": backup}, fail=tr("Could not remove"), then=removed)
+        self._confirm_remove(
+            lambda: service.check_delete_backup(backup),
+            lambda f: self.presenter.delete_backup({"path": str(f.path), "time": f.when[11:16], "action": f.action}),
+            lambda f: service.delete_backup(backup, f.stamp),
+            removed,
+            tr("Could not remove"),
+        )
 
     @Slot(str, str, str)
     def renameCopy(self, folder: str, entry_id: str, name: str) -> None:
-        self._call(
-            "saves.rename_copy",
-            {"folder": folder, "entry_id": entry_id, "name": name},
+        self._query(
+            lambda: self.host.saves_service.rename_copy(folder, entry_id, name),
             lambda _r: self._read(),
             fail=tr("Could not rename"),
         )
 
     @Slot(str, str)
     def removeCopy(self, folder: str, entry_id: str) -> None:
-        self._ask(
-            "saves.remove_copy", {"folder": folder, "entry_id": entry_id}, fail=tr("Could not remove"), then=self._read
+        service = self.host.saves_service
+        self._confirm_remove(
+            lambda: service.check_remove_copy(folder, entry_id),
+            self.presenter.remove_copy,
+            lambda name: service.remove_copy(folder, entry_id, name),
+            self._read,
+            tr("Could not remove"),
         )
 
     @Slot(str, str, bool)
     def finishStranded(self, folder: str, entry_id: str, restore: bool) -> None:
         def finished(got) -> None:
-            if got.warning:
-                self.notifier.toast(got.warning)
+            if got:
+                self.notifier.toast(got)
 
-        self._call(
-            "saves.finish_stranded",
-            {"folder": folder, "entry_id": entry_id, "restore": restore},
+        self._query(
+            lambda: self.host.saves_service.finish_stranded(folder, entry_id, restore),
             finished,
             fail=tr("Could not finish it"),
             settle=self._read,

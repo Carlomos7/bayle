@@ -35,11 +35,13 @@ def er_items() -> GameItems:
 
 
 def live_save() -> Path | None:
+    """A real co-op save to copy, only when ROUNDTABLE_TEST_SAVE names one: tests never go looking for the player's
+    own saves (owner, 2026-10-23), so without it these tests skip."""
     override = os.environ.get("ROUNDTABLE_TEST_SAVE")
-    if override:
-        p = Path(override)
-        return p if p.is_file() else None
-    return next((p for p in er().save_files() if p.suffix.lower() == ".co2"), None)
+    if not override:
+        return None
+    p = Path(override)
+    return p if p.is_file() else None
 
 
 def copy_live_save(tmp_path: Path) -> Path:

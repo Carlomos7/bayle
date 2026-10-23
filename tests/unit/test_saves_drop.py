@@ -160,10 +160,11 @@ def test_import_of_several_files_is_one_job_and_the_skipped_are_named(tmp_path):
     a, calls, told = adapter()
     asked = []
     a.defaultName = lambda path: "A name"
-    a._job = lambda name, params, tell=True: asked.append((name, params))
+    a._start = lambda begin, words: asked.append(begin())
+    a.host.saves_service = type("S", (), {"import_files": lambda self, files, name=None, title="": files})()
     a._libs = {str(tmp_path): {}}
     a._import_many([tmp_path / "a.sl2", tmp_path / "b.co2"])
-    assert asked == [("saves.import_files", {"files": [str(tmp_path / "a.sl2"), str(tmp_path / "b.co2")]})]
+    assert asked == [[str(tmp_path / "a.sl2"), str(tmp_path / "b.co2")]]
     a.dropFiles([str(tmp_path / "a.sl2"), str(tmp_path / "x.txt")])  # one save file: asks for its name
     assert told and "x.txt" in told[0][0]
 

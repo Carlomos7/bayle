@@ -207,3 +207,126 @@ def test_keep_rename_and_finish_reach_the_service_without_session_run(flow):
     assert adapter.host.saves_service.check_remove_copy(folder, entry) == "renamed"
     adapter.finishStranded(folder, "nope", True)  # not_found: told, not raised
     assert said["toasts"][-1][1] is True
+
+
+# ---- Back up, Save a copy and Import: the service starts the job, the adapter follows it and words the end
+def _no_session_runs(adapter):
+    real = adapter.host.session.run
+
+    def run(name, params=None):
+        assert name not in {"saves.back_up", "saves.save_copy", "saves.import_files"}
+        return real(name, params)
+
+    adapter.host.session.run = run
+
+
+def test_back_up_all_and_one_are_worded_and_carry_no_undo(flow):
+    adapter, _n, said, save = flow
+    _no_session_runs(adapter)
+    adapter.backUpAll()
+    adapter.backUpNow(str(save))
+    assert said["toasts"][0] == ("Backed up 1 save file(s).", False)
+    assert said["toasts"][1][0].startswith("Backed up ER0000.sl2 (") and said["actions"] == []
+
+
+def test_save_copy_and_import_are_worded(flow, tmp_path):
+    adapter, _n, said, save = flow
+    _no_session_runs(adapter)
+    adapter.saveCopy(str(save), "mine")
+    assert said["toasts"][-1] == ("Saved a copy of ER0000.sl2 as 'mine'", False)
+    adapter.importFile(str(save), "other")
+    assert said["toasts"][-1] == ("Imported 'other' into the Library", False)
+    adapter._libs = {"x": {}}  # the page has read a Library
+    adapter._import_many([save, tmp_path / "missing.sl2"])
+    assert said["toasts"][-1] == ("Imported 1 files into the Library. Not imported: missing.sl2", False)
+    assert said["actions"] == []
+
+
+class _Recorder:
+    """Stands in for the service: records the call and hands out a job id."""
+
+    def __init__(self):
+        self.calls = []
+
+    def __getattr__(self, name):
+        def call(*a, **k):
+            self.calls.append((name, a, k))
+            return "job-1"
+
+        return call
+
+
+def test_each_slot_calls_the_service_with_its_arguments_and_follows_the_job(flow):
+    adapter, _n, _said, _save = flow
+    rec, followed = _Recorder(), []
+    adapter.host.saves_service = rec
+    adapter.host.follow_job = lambda job_id, done: followed.append(job_id)
+    adapter._libs = {"x": {}}
+    adapter.backUpAll()
+    adapter.backUpNow("a.sl2")
+    adapter.saveCopy("a.sl2", "n")
+    adapter.importFile("b.sl2", "m")
+    adapter._import_many([Path("c.sl2"), Path("d.sl2")])
+    got = [(n, a, {k: v for k, v in kw.items() if k != "title"}, "title" in kw) for n, a, kw in rec.calls]
+    assert got == [
+        ("back_up", (), {"everything": True}, True),
+        ("back_up", (["a.sl2"],), {}, True),
+        ("save_copy", ("a.sl2", "n"), {}, True),
+        ("import_files", (["b.sl2"], "m"), {}, True),
+        ("import_files", (["c.sl2", "d.sl2"],), {}, True),
+    ]
+    assert followed == ["job-1"] * 5
+
+
+@pytest.mark.parametrize("reason,title", [("game_running", "Close Elden Ring first"), ("job", "A job is running")])
+def test_a_service_refusal_to_start_toasts_like_the_gate(flow, reason, title):
+    adapter, _n, said, save = flow
+    from bayle.errors import Busy
+
+    def refuse(*a, **k):
+        raise Busy("no", {"reason": reason})
+
+    adapter.host.saves_service.back_up = refuse
+    adapter.backUpNow(str(save))
+    assert said["toasts"] == [
+        (f"{title}. " + adapter.presenter.refusal_busy("Elden Ring", reason == "game_running").body, True)
+    ]
+
+
+@pytest.mark.parametrize(
+    "code,details,expected",
+    [
+        ("source_changed", {}, "The save changed while it was read. Try again when the game is not saving."),
+        ("source_locked", {}, "Another program holds the file. Close it and try again."),
+        ("not_a_save", {}, "That file is not a save file for this game."),
+        ("library_unreadable", {}, "The Library cannot be read, so nothing was added."),
+        ("library_busy", {}, "The Library is in use by another change. Try again in a moment."),
+        (
+            "not_imported",
+            {"failed": [{"file": "C:/x/a.sl2", "code": "not_a_save"}, {"file": "b.sl2", "code": "x"}]},
+            "None of these files could be imported: a.sl2, b.sl2",
+        ),
+        ("failed", {"backed_up": ["C:/b/one.bak"]}, "boom Backed up before it stopped: one.bak"),
+    ],
+)
+def test_a_failed_job_is_worded_by_its_code(flow, code, details, expected):
+    from bayle.errors import ErrorInfo
+    from bayle.work.jobs import JobSnapshot
+
+    adapter, _n, said, _save = flow
+    snap = JobSnapshot("j", "t", "failed", error=ErrorInfo(code, "boom", details))
+    adapter.host.saves_service.back_up = lambda *a, **k: "j"
+    adapter.host.follow_job = lambda job_id, done: done(snap)
+    adapter.backUpAll()
+    assert said["toasts"] == [(expected, True)]
+
+
+def test_an_unknown_failure_code_falls_back_to_the_message(flow):
+    from bayle.errors import ErrorInfo
+    from bayle.work.jobs import JobSnapshot
+
+    adapter, _n, said, _save = flow
+    adapter.host.saves_service.back_up = lambda *a, **k: "j"
+    adapter.host.follow_job = lambda j, done: done(JobSnapshot("j", "t", "failed", error=ErrorInfo("odd", "It broke.")))
+    adapter.backUpAll()
+    assert said["toasts"] == [("It broke.", True)]

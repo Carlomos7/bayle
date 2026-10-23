@@ -14,6 +14,7 @@ from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods import shared_mods
 from bayle.platform import cpu
+from bayle.runtime import bootstrap
 from bayle.saves import analyze, caches, item_names
 from bayle.services import saves
 from bayle.work import runner as jobs
@@ -31,11 +32,11 @@ def test_only_the_packages_own_public_functions_are_tasks():
 
 def test_an_installed_backend_gets_the_task_and_none_goes_back_to_inline():
     seen = []
-    cpu.install(lambda task, args: seen.append((task, args)) or cpu.run_inline(task, args))
+    bootstrap.bind(cpu_backend=lambda task, args: seen.append((task, args)) or cpu.run_inline(task, args))
     try:
         cpu.run_cpu("bayle.platform.cpu:probe", {"value": 5}).result()
     finally:
-        cpu.install(None)
+        bootstrap.bind(cpu_backend=None, cpu_broadcast=None, ui_thread=None)
     assert seen == [("bayle.platform.cpu:probe", {"value": 5})]
 
 
@@ -86,10 +87,12 @@ def test_save_info_is_the_same_through_a_task_as_the_direct_call(tmp_path):
 # ----------------------------------------------------------------------------- the window's thread, and stale caches
 @pytest.fixture
 def ui_thread():
-    cpu.install(None, None, threading.get_ident())  # this (the test's) thread plays the window's
+    bootstrap.bind(
+        cpu_backend=None, cpu_broadcast=None, ui_thread=threading.get_ident()
+    )  # this (the test's) thread plays the window's
     cpu._warned.clear()
     yield
-    cpu.install(None)
+    bootstrap.bind(cpu_backend=None, cpu_broadcast=None, ui_thread=None)
 
 
 def test_cpu_work_on_the_ui_thread_raises_in_strict_mode(ui_thread):
@@ -116,11 +119,11 @@ def test_outside_strict_mode_it_runs_inline_and_warns_once_per_call_site(ui_thre
 
 def test_invalidate_goes_to_the_workers_and_forget_clears_the_caches(monkeypatch):
     sent = []
-    cpu.install(None, lambda task, args: sent.append((task, args)))
+    bootstrap.bind(cpu_broadcast=lambda task, args: sent.append((task, args)))
     try:
         cpu.invalidate("item_names")
     finally:
-        cpu.install(None)
+        bootstrap.bind(cpu_backend=None, cpu_broadcast=None, ui_thread=None)
     assert sent == [("bayle.saves.caches:forget", {"kind": "item_names"})]
     monkeypatch.setattr(item_names, "_CACHE", ("k", "v"))
     monkeypatch.setattr(analyze, "_GAME_IDS", ("s", frozenset({1})))

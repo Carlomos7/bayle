@@ -2,7 +2,7 @@
 
 A task is a top-level function named "package.module:function" that takes keyword arguments (JSON values; pass file
 paths, not bytes) and returns a JSON value. run_cpu(task, args) returns a Future. Without a backend (tests, the
-command line) the task runs at once on the calling thread; the window installs one (platform/cpu_pool.py) that sends the
+command line) the task runs at once on the calling thread; the window binds one (platform/cpu_pool.py) that sends the
 task to a worker process: this program started again with --worker, speaking one JSON object per line on standard
 input and output (serve below). Calling .result() from a job's thread is the intended use; a task run from the
 window's own thread would deadlock a waiting caller, so the backend runs those inline.
@@ -25,7 +25,7 @@ from typing import Any, BinaryIO
 
 PREFIX = "bayle."
 Backend = Callable[[str, dict], "Future[Any]"]
-_backend: Backend | None = None
+_backend: Backend | None = None  # these three are bound by bayle.runtime.bootstrap only (the window's pool)
 _broadcast: Backend | None = None
 _ui_thread: int | None = None  # the window's thread, once known: CPU work must never be asked for on it
 _warned: set[tuple[str, int]] = set()
@@ -33,13 +33,6 @@ _warned: set[tuple[str, int]] = set()
 
 class UiThreadError(RuntimeError):
     """CPU work was asked for on the window's own thread (strict mode: tests and debugging)."""
-
-
-def install(backend: Backend | None, broadcast: Backend | None = None, ui_thread: int | None = None) -> None:
-    """The window's way of running tasks in worker processes (None: back to running them inline). broadcast sends
-    a task to every live worker; ui_thread is the window's thread (threading.get_ident())."""
-    global _backend, _broadcast, _ui_thread
-    _backend, _broadcast, _ui_thread = backend, broadcast, ui_thread
 
 
 def strict() -> bool:

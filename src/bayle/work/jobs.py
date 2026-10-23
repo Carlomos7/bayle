@@ -34,6 +34,15 @@ def current_context() -> JobContext | None:
     return _current.get()
 
 
+def notice(text: str) -> None:
+    """A warning the player should see at once: logged (run_logging.notice) and, from inside a job, a `notice` event
+    on its manager's bus, the one the shell publishes. What services are handed as their notice callable."""
+    run_logging.notice(text)
+    ctx = _current.get()
+    if ctx is not None:
+        ctx._report("notice", {"text": text, "error": False, "details": True})
+
+
 class JobContext:
     """Handed to the work: report progress and prompts, look at the cancel token."""
 
@@ -152,7 +161,18 @@ class JobManager:
         self._writer: str | None = None
         self._count = 0
 
+    def attach(
+        self,
+        *,
+        game_running: Callable[[], bool] | None,
+        external_busy: Callable[[], bool] | None,
+        observer: Callable[[str, dict, str | None], None] | None,
+    ) -> None:
+        """The client's gates and observer, for a manager the Engine made before its client (the shell) existed."""
+        self._game_running, self._external_busy, self._observer = game_running, external_busy, observer
+
     # ------------------------------------------------------------------ start
+
     def start(
         self,
         work: Callable[[JobContext], Any],
@@ -254,7 +274,7 @@ class JobManager:
             if type == "progress":
                 with self._lock:
                     self._records[job_id].progress = data
-            self._emit(type, data, job_id)
+            self._emit(type, data, None if type == "notice" else job_id)  # a notice is the player's, not the job's
         else:
             job_id, result = event.value
             self._finish(job_id, result)

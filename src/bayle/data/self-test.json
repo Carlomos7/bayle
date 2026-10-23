@@ -1,7 +1,6 @@
 {
   "$comment": "What --self-test requires inside a build (technical specification \u00a78.5). Every entry must be present: a missing one is a failure, never a skip. The Qt side is in ui/self-test.json. files are relative to the package; min is the least number of matches a glob must have.",
   "python_modules": [
-    "bayle.app",
     "bayle.cli",
     "bayle.coop",
     "bayle.formats",
@@ -11,6 +10,7 @@
     "bayle.mods.undo",
     "bayle.overhauls",
     "bayle.platform.logging",
+    "bayle.runtime.bootstrap",
     "bayle.saves",
     "bayle.services.play",
     "bayle.storage.db",

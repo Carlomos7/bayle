@@ -7,7 +7,7 @@ Facts about this machine and the play session.
 | `paths.py` | The primitives for where a game, its saves and me3 are on Windows and Linux (Steam libraries, Proton prefix, XDG paths) and whether a game's exe runs. Each takes what it looks for; a game's own answers, with the Settings > Locations overrides, are `game/locate.py`'s `Locations`. |
 | `steam.py` | Steam: where it is installed (registry on Windows; the usual folders, Flatpak included, on Linux), its libraries, whether it runs and is signed in, how to start it. |
 | `proc.py` | Processes running under a name (tasklist, or /proc where Wine and Proton processes are matched by their exe), and the flag that keeps child consoles hidden. |
-| `data_folder.py` | The launcher's own data folder: its root (set once at startup, `app.use_data_folder`), the temp folder installs unpack into, the deleted-profiles folder. |
+| `data_folder.py` | The launcher's own data folder: its root (bound at startup by `runtime.bootstrap`), the temp folder installs unpack into, the deleted-profiles folder. |
 | `files.py` | Atomic writes, and merging one folder's contents into another (each file's .json note moves with it). |
 | `desktop.py` | Opening a folder, file or URL with the desktop's default handler. |
 | `session.py` | Start Steam if needed, launch through me3, wait for the game to exit, clear leftovers. |

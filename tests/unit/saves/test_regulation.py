@@ -165,9 +165,7 @@ def test_an_output_path_leaves_the_original_and_takes_no_backup(tmp_path, lines,
 
 def run_main(monkeypatch, argv, *, game_running=False, regulation=None, saves=()):
     """The command line with a fake install: its saves and regulation.bin come from the test."""
-    from bayle.config import settings
     from bayle.game import locate
-    from bayle.platform import data_folder
     from bayle.platform import logging as run_logging
 
     class FakeLocations:
@@ -184,8 +182,6 @@ def run_main(monkeypatch, argv, *, game_running=False, regulation=None, saves=()
             return regulation
 
     monkeypatch.setattr(locate, "Locations", FakeLocations)
-    monkeypatch.setattr(settings, "data_dir", lambda: None)
-    monkeypatch.setattr(data_folder, "use", lambda folder: None)
     monkeypatch.setattr(run_logging, "start_log", lambda *args: None)
     monkeypatch.setattr(sys, "argv", ["repair_regulation", *argv])
     reg_mod.main()

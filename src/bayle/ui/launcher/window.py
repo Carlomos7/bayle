@@ -206,8 +206,8 @@ class ShellWindow(QObject):
 FIRST_PAGE_WAIT = 3.0  # seconds the shell has to show Main.qml and its first page before it counts as failed
 
 
-def main(ctx, run: Callable[[], int] | None = None) -> int:
-    """The program with the QML shell as its window (ctx: app.create_app). Returns the exit code; 0 when a running
+def main(engine, run: Callable[[], int] | None = None) -> int:
+    """The program with the QML shell as its window (engine: runtime.bootstrap.create_engine). Returns the exit code; 0 when a running
     launcher was asked to come forward instead. If Main.qml or the first page does not load, the reason is logged,
     and the version is NOT reported ready (an update's watchdog then rolls back a build that never gets there).
     run: the event loop (tests give their own)."""
@@ -236,9 +236,10 @@ def main(ctx, run: Callable[[], int] | None = None) -> int:
     threading.excepthook = lambda a: report_exception(
         a.exc_type, a.exc_value, a.exc_traceback, f"thread {a.thread.name}"
     )
-    pool = cpu_pool.install(threading.get_ident())  # CPU-bound work runs in worker processes (platform/cpu.py)
+    pool = cpu_pool.CpuPool()  # CPU-bound work runs in worker processes (platform/cpu.py)
+    engine.use_cpu(pool.submit, pool.broadcast, threading.get_ident())
     QGuiApplication.instance().aboutToQuit.connect(pool.shutdown)
-    host = ShellHost(ctx)
+    host = ShellHost(engine)
     window = ShellWindow(host)
     window.adapter.forwardRequested.connect(window.bring_forward)
     first = host.state.game.ready and "mods" or "placeholder"

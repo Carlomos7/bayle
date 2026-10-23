@@ -12,7 +12,7 @@ Layout of the last BND4 entry (offset 0x19603B0, size 0x240020):
   0x20  encrypted regulation (same bytes as the game's regulation.bin),
         zero padded to 0x240000
 
-Usage:
+Usage (scripts/repair_regulation.py runs main() once the data folder is set):
   repair_regulation.py [<save> ...] [--regulation <regulation.bin or healthy save>]
                        [--force] [--dry-run] [-o OUT]
 
@@ -118,13 +118,10 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="report what would change without writing")
     ap.add_argument("-o", "--out", help="output path (single save only; default: repair in place)")
     a = ap.parse_args()
-    from bayle.config.settings import data_dir
     from bayle.game import catalog
     from bayle.game.locate import Locations
-    from bayle.platform import data_folder
     from bayle.platform import logging as run_logging
 
-    data_folder.use(data_dir())  # the job log goes to the launcher's data folder
     loc = Locations(catalog.ELDEN_RING)  # detected; Settings > Locations is the window's, not this tool's
     run_logging.start_log("repair_regulation", loc.game.key)
 
@@ -153,7 +150,3 @@ def main():
             continue
         fixed += repair(save, reg, header, a.force, a.out, a.dry_run)
     log(f"done: {fixed} {'would be ' if a.dry_run else ''}repaired")
-
-
-if __name__ == "__main__":
-    main()

@@ -9,6 +9,7 @@ import sqlite3
 import pytest
 
 from bayle.mods import history
+from bayle.runtime import bootstrap
 from bayle.saves import backups
 from bayle.storage import db, mirror
 
@@ -21,9 +22,9 @@ def mir(tmp_path):
     data.mkdir(parents=True, exist_ok=True)
     d = db.open_database(data, log=lambda line: None)
     m = mirror.Mirror(d)
-    mirror.use(m)
+    bootstrap.bind(mirror=m)
     yield m
-    mirror.use(None)
+    bootstrap.bind(mirror=None)
     d.close()
 
 
@@ -102,7 +103,7 @@ def test_an_older_build_that_kept_more_loses_nothing(mir, bak):
 
 
 def test_without_a_mirror_the_files_alone_work(bak):
-    mirror.use(None)
+    bootstrap.bind(mirror=None)
     backups.set_keep(bak, True)
     assert backups.protection(bak) == backups.KEPT and not mirror.keep_doubt(_note(bak))
 

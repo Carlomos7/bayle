@@ -95,16 +95,16 @@ def test_journals_are_resolved_before_the_database_opens_on_every_start(data):
     assert order == ["journals", "db", "journals", "db"]
 
 
-def test_create_app_recovers_and_stamps_before_it_opens_the_database(monkeypatch):
-    from bayle.app import create_app
+def test_create_engine_recovers_and_stamps_before_it_opens_the_database(monkeypatch):
     from bayle.platform import data_folder
+    from bayle.runtime.bootstrap import create_engine
     from bayle.services import startup_recovery
 
     ran = []
-    monkeypatch.setattr(startup_recovery, "recover", lambda: ran.append(1) or [])
+    monkeypatch.setattr(startup_recovery, "recover", lambda covered=None: ran.append(1) or [])
     folder = data_folder.data_root()  # conftest points it at the test's own folder
     folder.mkdir(parents=True, exist_ok=True)
-    ctx = create_app()
+    ctx = create_engine()
     try:
         assert ran == [1] and marker(folder)["version"] == runner.CURRENT_VERSION and ctx.storage is not None
     finally:

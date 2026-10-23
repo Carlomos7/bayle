@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
-from bayle.session import reset_process_globals
 from bayle.session.shell.service import Shell
 from bayle.views.common import Choice, Choose
 from support import FakeShellContext, InlineBackground
@@ -17,10 +16,8 @@ TOKEN = "t" * 32
 
 @pytest.fixture
 def shell(tmp_path):
-    reset_process_globals()
     s = Shell(FakeShellContext(tmp_path), background=InlineBackground(), spawn=lambda run, name=None: run())
     yield s
-    reset_process_globals()
 
 
 @pytest.fixture

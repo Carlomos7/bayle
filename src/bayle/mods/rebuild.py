@@ -63,16 +63,11 @@ class HashStore(Protocol):
 
 _HASHES: dict[str, tuple[int, int, str]] = {}  # this process's own memory of hashes, same rule
 _HASHES_LOADED = False
+# Bound by bayle.runtime.bootstrap only: the database's cache (used once its import is verified; until then the old
+# file), or None with _HASH_FILE_IN_USE False when storage is off for the run (memory only: files are hashed again,
+# and cache/hashes.json is left as it is).
 _HASH_STORE: HashStore | None = None
-_HASH_FILE_IN_USE = True  # False: storage is off for this run, so the persistent cache is bypassed
-
-
-def use_hash_store(store: HashStore | None, file_in_use: bool = True) -> None:
-    """Set at start-up by the application: the database's cache (used once its import is verified; until then the
-    old file), or None with file_in_use False when storage is off for the run (memory only: files are hashed again,
-    and cache/hashes.json is left as it is)."""
-    global _HASH_STORE, _HASH_FILE_IN_USE
-    _HASH_STORE, _HASH_FILE_IN_USE = store, file_in_use
+_HASH_FILE_IN_USE = True
 
 
 def _hash_file() -> Path:
@@ -379,12 +374,7 @@ class RunStore(Protocol):
     def sync(self, profile: str, entry: dict | None) -> None: ...
 
 
-_RUN_STORE: RunStore | None = None
-
-
-def use_run_store(store: RunStore | None) -> None:
-    global _RUN_STORE
-    _RUN_STORE = store
+_RUN_STORE: RunStore | None = None  # bound by bayle.runtime.bootstrap only
 
 
 def last_run(profile: Path) -> dict | None:

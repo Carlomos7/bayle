@@ -37,7 +37,7 @@ def session(tmp_path, monkeypatch):
     monkeypatch.setattr(core.me3_info, "me3_version", lambda *a: None)
     monkeypatch.setattr(core.time, "sleep", lambda s: None)
     monkeypatch.setattr(core.run_logging, "start_log", lambda *a, **k: None)
-    monkeypatch.setattr(core, "_after_play", lambda opts, loc, watched=(): None)
+    monkeypatch.setattr(core, "_after_play", lambda opts, loc, watched=(), notice=None: None)
     monkeypatch.setattr(core, "offline_profile_for", lambda *a, **k: "p.offline.me3")
     launch = type(
         "S",

@@ -1,9 +1,9 @@
 """The app context and a game's Locations: values handed to the code that needs them, instead of module globals."""
 
-from bayle.app import create_app
 from bayle.config import settings
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
+from bayle.runtime.bootstrap import create_engine
 
 
 def test_a_custom_game_exe_decides_the_game_folder_and_the_process_name(tmp_path):
@@ -52,11 +52,11 @@ def test_a_custom_me3_wins_when_it_exists(tmp_path):
 
 def test_the_context_follows_the_game_and_the_profile():
     settings.save_game_settings("nightreign", game_exe="D:/nr/nightreign.exe")
-    ctx = create_app()
+    ctx = create_engine()
     assert ctx.game is catalog.ELDEN_RING and ctx.locations.game is catalog.ELDEN_RING
     ctx.note_profile_saves({"standard": "My.sl2"})
     assert "My.sl2" in ctx.locations.save_names()
     loc = ctx.select_game(catalog.NIGHTREIGN)
     assert ctx.game is catalog.NIGHTREIGN and loc.overrides.game_exe == "D:/nr/nightreign.exe"
     assert "My.sl2" not in loc.save_names()  # another game: its setup names its own saves
-    assert create_app(catalog.SEKIRO).game is catalog.SEKIRO  # --game decides for this run
+    assert create_engine(catalog.SEKIRO).game is catalog.SEKIRO  # --game decides for this run

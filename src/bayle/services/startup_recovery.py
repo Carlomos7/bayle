@@ -7,6 +7,8 @@ journals, so nothing is touched while it holds the instance name.
 
 from __future__ import annotations
 
+import os
+
 from bayle.config.settings import load_settings
 from bayle.game import catalog
 from bayle.game.locate import Locations
@@ -17,7 +19,9 @@ from bayle.services import mods as mod_service
 from bayle.services import play as core
 
 
-def recover() -> list[str]:
+def recover(covered: set[str] | None = None) -> list[str]:
+    """covered, when given, gets each profile whose interrupted install was looked at (normcased), so a later step
+    for the profile in use can skip it."""
     if instance.held(instance.WINDOW):
         return []
     settings = load_settings()
@@ -37,4 +41,6 @@ def recover() -> list[str]:
         profile = core.remembered_profile(settings, g)
         if profile:
             said += mod_service.recover_interrupted(profile, timeout=0.5)  # logs and swallows its own errors
+            if covered is not None:
+                covered.add(os.path.normcase(str(profile)))
     return said

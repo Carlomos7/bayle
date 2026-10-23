@@ -15,7 +15,6 @@ from bayle.session.operations import (
     operation,
     registry,
 )
-from bayle.session.process import reset_process_globals
 
 __all__ = [
     "Call",
@@ -31,5 +30,4 @@ __all__ = [
     "StepReport",
     "operation",
     "registry",
-    "reset_process_globals",
 ]

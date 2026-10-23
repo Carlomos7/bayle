@@ -100,9 +100,10 @@ def sandbox_launcher(out: Path, game: Path):
     settings.data_dir = lambda: data
     from bayle.game import catalog
     from bayle.game.locate import Locations, Overrides
-    from bayle.platform import data_folder, paths
+    from bayle.platform import paths
+    from bayle.runtime.bootstrap import use_data_folder
 
-    data_folder.use(data)
+    use_data_folder()  # settings.data_dir is the folder above
     paths.clear_detection_cache()
     return Locations(catalog.ELDEN_RING, Overrides(game_exe=str(game / catalog.ELDEN_RING.exe)))
 

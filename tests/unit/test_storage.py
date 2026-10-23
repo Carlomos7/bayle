@@ -403,10 +403,10 @@ def test_only_a_failure_of_the_migration_code_stops_start_up():
 
 # ----------------------------------------------------------------------------- the application
 @needs_sqlite
-def test_create_app_opens_the_database_in_the_data_folder(tmp_path):
-    from bayle.app import create_app
+def test_create_engine_opens_the_database_in_the_data_folder(tmp_path):
+    from bayle.runtime.bootstrap import create_engine
 
-    ctx = create_app()
+    ctx = create_engine()
     try:
         assert ctx.storage is not None and ctx.storage.path == tmp_path / "launcher-data" / db.DB_NAME
         assert ctx.storage_problem == ""
@@ -414,29 +414,30 @@ def test_create_app_opens_the_database_in_the_data_folder(tmp_path):
         ctx.close()
 
 
-def test_create_app_runs_on_without_storage_when_it_is_refused(monkeypatch):
-    from bayle import app
+def test_create_engine_runs_on_without_storage_when_it_is_refused(monkeypatch):
+    from bayle.runtime import bootstrap
 
     def refuse(_folder):
         raise db.StorageUnavailable("storage is off for this run")
 
-    monkeypatch.setattr(app.storage_db, "open_database", refuse)
-    ctx = app.create_app()
+    monkeypatch.setattr(bootstrap.storage_db, "open_database", refuse)
+    ctx = bootstrap.create_engine()
     assert ctx.storage is None and ctx.storage_problem == "storage is off for this run"
 
 
 def test_a_failed_upgrade_stops_start_up_and_play_reports_nothing_ready(monkeypatch):
-    from bayle import app, cli
+    from bayle import cli
     from bayle.game import catalog as games
     from bayle.platform import instance
+    from bayle.runtime import bootstrap
     from bayle.updates import apply as updates
 
     def fail(_folder):
         raise db.MigrationFailed("The database upgrade failed (broken); the database was restored from x.")
 
-    monkeypatch.setattr(app.storage_db, "open_database", fail)
+    monkeypatch.setattr(bootstrap.storage_db, "open_database", fail)
     with pytest.raises(db.MigrationFailed):
-        app.create_app()
+        bootstrap.create_engine()
     ready = []
     monkeypatch.setattr(updates, "mark_ready", lambda how="window", **k: ready.append(how))
     monkeypatch.setattr(instance, "held", lambda name: False)

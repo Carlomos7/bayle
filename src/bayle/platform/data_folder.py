@@ -1,5 +1,5 @@
 """The launcher's own data folder (where settings, logs, backups and caches live): its root, the temp folder installs
-unpack into, and the deleted-profiles folder. The program sets the root once when it starts (app.use_data_folder,
+unpack into, and the deleted-profiles folder. The runtime sets the root when it starts (runtime.bootstrap.use_data_folder,
 from config.settings.data_dir)."""
 
 from __future__ import annotations
@@ -10,18 +10,12 @@ from pathlib import Path
 
 from bayle.platform.files import move_into
 
-_ROOT: Path | None = None
-
-
-def use(root: Path) -> None:
-    """The data folder from now on (set once at startup)."""
-    global _ROOT
-    _ROOT = Path(root)
+_ROOT: Path | None = None  # bound by bayle.runtime.bootstrap only
 
 
 def data_root() -> Path:
     if _ROOT is None:
-        raise RuntimeError("the data folder was not set (app.use_data_folder sets it when the program starts)")
+        raise RuntimeError("the data folder was not set (runtime.bootstrap sets it when the program starts)")
     return _ROOT
 
 

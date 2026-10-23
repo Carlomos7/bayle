@@ -10,7 +10,7 @@ Where lines go:
     logs/jobs/<...>.<name>.log
                            a job's attachments: another program's own output (me3's launch output)
     logs/jobs.jsonl        one line per job start and end: what it was, when, how long, how it ended, its files;
-                           once the launcher's database holds the activity log (use_job_store), only the records it
+                           once the launcher's database holds the activity log (bound by the runtime), only the records it
                            could not take and those carrying undo, which stays in this file (see storage.activity)
     the window             the running job's lines, and warnings and errors from anywhere
 
@@ -73,13 +73,7 @@ class JobStore(Protocol):
     def records(self) -> list[dict] | None: ...
 
 
-_store: JobStore | None = None
-
-
-def use_job_store(store: JobStore | None) -> None:
-    """Set at start-up by the application (None: jobs.jsonl only, as before)."""
-    global _store
-    _store = store
+_store: JobStore | None = None  # bound by bayle.runtime.bootstrap only (None: jobs.jsonl only)
 
 
 _current: contextvars.ContextVar[Job | None] = contextvars.ContextVar("roundtable_job", default=None)
@@ -814,24 +808,10 @@ def job_log_scope(sink: Callable[[str, str], None]) -> Iterator[None]:
         _scope_sink.reset(token)
 
 
-_notice_sink: Callable[[str], None] | None = None
-
-
-def attach_notice_sink(sink: Callable[[str], None] | None) -> None:
-    """Send notices to a callable too (the window shows each as a toast); None detaches it."""
-    global _notice_sink
-    _notice_sink = sink
-
-
 def notice(text: str) -> None:
-    """A warning for Activity that the player should also see at once: logged as 'warning: text' and handed to the
-    notice sink (called on the job's thread; the window passes it on to its own). Without a sink it is only logged."""
+    """A warning for Activity that the player should also see at once, logged as 'warning: text'. Only logged here:
+    code that runs for a client is handed a notice callable that also tells it (work.jobs.notice in a job)."""
     log_line(f"warning: {text}", sys._getframe(1).f_globals.get("__name__", "") or None)
-    if _notice_sink is not None:
-        try:
-            _notice_sink(text)
-        except Exception:
-            pass  # a notice never stops a job
 
 
 def log_shown(text: object, module: str = "ui") -> None:

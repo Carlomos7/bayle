@@ -3,9 +3,10 @@
 me3 facts and the start-up sequence. No Qt: the window and the HTTP layer both drive this and follow it on the event
 bus (`game.state`, `invalidated`, `notice`, `navigate`, `prompt` and the job events).
 
-Shell builds the program's one Session, so the jobs it runs, the writes gate (a running game refuses writing jobs)
-and the plans all belong to the same place. Who owns start-up: whoever hosts the Shell calls `startup()` once; nothing
-else recovers on its own."""
+Shell builds the program's one Session on the Engine's job manager, bus and plans (runtime.bootstrap), and sets the
+writes gate (a running game refuses writing jobs) and its bookkeeping on that manager. A test's light context has no
+Engine: the shell then makes its own. Who owns start-up: whoever hosts the Shell calls `startup()` once, which runs
+the Engine's start-up steps; nothing else recovers on its own."""
 
 from __future__ import annotations
 
@@ -90,19 +91,23 @@ class Shell:
         self._done_calls: dict[str, Callable[[bool], None]] = {}
         self._next = threading.local()
         self._slow: tuple[tuple, tuple, tuple, dict[str, bool]] | None = None
-        self.jobs = JobManager(
-            bus or EventBus(),
-            spawn=spawn,
-            game_running=lambda: self.state.game_running,
-            external_busy=lambda: self.flow.active,
-            observer=self._observe,
+        engine: Any = ctx if hasattr(ctx, "jobs") else None  # the Engine; a test's light context is not one
+        if engine is not None:
+            self.jobs: JobManager = engine.jobs
+            plans, steps = engine.plans, engine.startup(self.state.profile_path)
+        else:
+            self.jobs = JobManager(bus or EventBus(), spawn=spawn)
+            plans, steps = PlanStore(), recovery_steps(lambda: self.state.locations, self.state.profile_path)
+        # the manager is made before the shell, whose state its gates and observer read
+        self.jobs.attach(
+            game_running=lambda: self.state.game_running, external_busy=lambda: self.flow.active, observer=self._observe
         )
         self.bus = self.jobs.bus
         self.session = Session(
             self.jobs,
-            plans=PlanStore(),
+            plans=plans,
             locations=lambda: self.state.locations,
-            startup_steps=recovery_steps(lambda: self.state.locations, self.state.profile_path),
+            startup_steps=steps,
             services={"shell": self},
         )
         self.flow = launch.LaunchFlow(self.state, EventPorts(self))
@@ -118,7 +123,6 @@ class Shell:
         self.watch = GameWatch(
             self.background, lambda: self.state.locations, self._on_running, self._on_steam, self._on_shells
         )
-        run_logging.attach_notice_sink(lambda text: self.notice(text, details=True))
 
     # ---------------------------------------------------------------- events out
     def invalidate(self, *what: str) -> None:
@@ -410,8 +414,8 @@ class Shell:
 
     # ---------------------------------------------------------------- start-up
     def startup(self) -> None:
-        """The start-up sequence, once: recoveries (Session.startup), the game watch, me3 and update checks. The
-        recoveries run off the calling thread; what they put right is told as notices."""
+        """The start-up sequence, once: the Engine's start-up steps (Session.startup), the game watch, me3 and update
+        checks. The steps run off the calling thread; what they put right is told as notices."""
 
         def work(_progress) -> list[StepReport]:
             return self.session.startup()

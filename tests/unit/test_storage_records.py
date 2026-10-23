@@ -17,6 +17,7 @@ from sqlalchemy import select
 
 from bayle.mods import rebuild
 from bayle.platform import logging as rl
+from bayle.runtime import bootstrap
 from bayle.storage import activity as act
 from bayle.storage import db, models
 from bayle.storage.cache import HashCache
@@ -99,7 +100,7 @@ def test_the_cache_switches_to_the_database_only_after_a_verified_import(data, d
     key = os.path.normcase(str(f.resolve()))
     _hashes_json(data, {key: [st.st_size, st.st_mtime_ns, "from-the-old-file"]})
     cache = HashCache(database)
-    rebuild.use_hash_store(cache)
+    bootstrap.bind(hash_store=cache)
     assert not cache.active and rebuild.sha256(f) == "from-the-old-file"  # not verified yet: the old file, as before
     assert cache.import_file(data / "cache" / "hashes.json") and cache.active
     before = (data / "cache" / "hashes.json").read_bytes()
@@ -130,7 +131,7 @@ def test_a_changed_file_is_hashed_again_and_a_failing_cache_is_a_miss(data, data
     _hashes_json(data, {})
     cache = HashCache(database)
     cache.import_file(data / "cache" / "hashes.json")
-    rebuild.use_hash_store(cache)
+    bootstrap.bind(hash_store=cache)
     f = tmp_path / "a.bin"
     f.write_bytes(b"one")
     assert rebuild.sha256(f) == hashlib.sha256(b"one").hexdigest()
@@ -150,7 +151,7 @@ def test_a_changed_file_is_hashed_again_and_a_failing_cache_is_a_miss(data, data
 def test_without_storage_the_cache_is_bypassed_and_its_file_left_alone(data, tmp_path):
     _hashes_json(data, {"x": [1, 1, "x"]})
     before = (data / "cache" / "hashes.json").read_bytes()
-    rebuild.use_hash_store(None, file_in_use=False)
+    bootstrap.bind(hash_store=None, hash_file_in_use=False)
     f = tmp_path / "a.bin"
     f.write_bytes(b"data")
     assert rebuild.sha256(f) == hashlib.sha256(b"data").hexdigest()
@@ -161,7 +162,7 @@ def test_no_database_transaction_is_open_while_a_file_is_hashed(data, database, 
     _hashes_json(data, {})
     cache = HashCache(database)
     cache.import_file(data / "cache" / "hashes.json")
-    rebuild.use_hash_store(cache)
+    bootstrap.bind(hash_store=cache)
     f = tmp_path / "big.bin"
     f.write_bytes(os.urandom(3 << 20))
     seen = []
@@ -218,23 +219,23 @@ def test_old_build_and_new_build_take_turns_without_losing_a_job(database):
     _write_lines([_rec(1)])
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    rl.use_job_store(store)
+    bootstrap.bind(job_store=store)
     rl.end_job(rl.begin_job("New build job"))  # into the database, not the file
     assert "New build job" not in _jobs_file().read_text(encoding="utf-8")
-    rl.use_job_store(None)
+    bootstrap.bind(job_store=None)
     _write_lines([_rec(7, title="Old build job")], mode="a")  # after a rollback, the older version appends
-    rl.use_job_store(store)
+    bootstrap.bind(job_store=store)
     assert {"Job 1", "New build job", "Old build job"} <= {r["title"] for r in rl.read_jobs()}  # before the import
     store.import_file(_jobs_file())
     assert "job7" in _rows(database)
 
 
 def test_without_storage_or_when_a_write_fails_records_go_to_the_file_and_arrive_later(database, monkeypatch):
-    rl.use_job_store(None)  # storage off for the run
+    bootstrap.bind(job_store=None)  # storage off for the run
     rl.end_job(rl.begin_job("While storage was off"))
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    rl.use_job_store(store)
+    bootstrap.bind(job_store=store)
     with monkeypatch.context() as m:
         m.setattr(store, "save", lambda record: False)  # a write that did not happen is not claimed
         rl.end_job(rl.begin_job("A failed write"))
@@ -247,7 +248,7 @@ def test_without_storage_or_when_a_write_fails_records_go_to_the_file_and_arrive
 def test_undo_stays_in_the_file_and_retention_never_touches_it(database):
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    rl.use_job_store(store)
+    bootstrap.bind(job_store=store)
     job = rl.begin_job("Remove a mod")
     rl.set_undo({"kind": "remove", "path": "x"})
     rl.end_job(job)
@@ -311,7 +312,7 @@ def test_two_processes_importing_and_writing_at_once_lose_and_double_nothing(dat
 def test_the_reader_prefers_the_more_finished_state_and_takes_undo_from_the_file(database):
     store = act.ActivityLog(database)
     store.import_file(_jobs_file())
-    rl.use_job_store(store)
+    bootstrap.bind(job_store=store)
     store.save(_rec(5, outcome="done"))
     _write_lines([_rec(5, outcome="running", undo={"kind": "x"})], mode="a")
     shown = next(r for r in rl.read_jobs() if r["id"] == "job5")
@@ -319,11 +320,11 @@ def test_the_reader_prefers_the_more_finished_state_and_takes_undo_from_the_file
 
 
 # ----------------------------------------------------------------------------- the application
-def test_create_app_wires_both_areas_and_imports_after_ready(data):
-    from bayle.app import create_app
+def test_create_engine_wires_both_areas_and_imports_after_ready(data):
+    from bayle.runtime.bootstrap import create_engine
 
     _write_lines([_rec(1)])
-    ctx = create_app()
+    ctx = create_engine()
     try:
         assert ctx.hash_cache is not None and ctx.activity is not None and not ctx.activity.active
         thread = ctx.start_imports()
@@ -336,14 +337,14 @@ def test_create_app_wires_both_areas_and_imports_after_ready(data):
         ctx.close()
 
 
-def test_create_app_without_storage_bypasses_the_cache_and_keeps_activity_in_the_file(data, monkeypatch, tmp_path):
-    from bayle import app
+def test_create_engine_without_storage_bypasses_the_cache_and_keeps_activity_in_the_file(data, monkeypatch, tmp_path):
+    from bayle.runtime import bootstrap
 
     def refuse(_folder):
         raise db.StorageUnavailable("busy", "busy")
 
-    monkeypatch.setattr(app.storage_db, "open_database", refuse)
-    ctx = app.create_app()
+    monkeypatch.setattr(bootstrap.storage_db, "open_database", refuse)
+    ctx = bootstrap.create_engine()
     assert ctx.storage is None and ctx.start_imports() is None
     rl.end_job(rl.begin_job("No storage"))
     assert "No storage" in _jobs_file().read_text(encoding="utf-8")

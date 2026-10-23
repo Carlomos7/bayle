@@ -31,6 +31,7 @@ def boot(qt_app, tmp_path, monkeypatch):
     monkeypatch.setattr(window.ShellHost, "shutdown", lambda self: None)
     monkeypatch.setattr(window, "FIRST_PAGE_WAIT", 0.5)
     ctx = self_test._Context(tmp_path, "dark")
+    ctx.use_cpu = lambda backend, broadcast, ui_thread: None  # an Engine binds the window's pool (runtime.bootstrap)
 
     def run():
         from PySide6.QtCore import QEventLoop, QTimer

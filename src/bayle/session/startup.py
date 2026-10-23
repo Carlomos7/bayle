@@ -3,7 +3,8 @@ installs, adopt older save folders, report unreported game runs. Existing servic
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import os
+from collections.abc import Callable, Collection
 from pathlib import Path
 
 from bayle.game.locate import Locations
@@ -18,13 +19,21 @@ def recover_profile(profile: Path | None) -> list[str]:
 
 
 def recovery_steps(
-    loc: Callable[[], Locations], profile: Callable[[], Path | None] = lambda: None
+    loc: Callable[[], Locations],
+    profile: Callable[[], Path | None] = lambda: None,
+    covered: Collection[str] = (),
 ) -> list[StartupStep]:
     """Order: reported runs first (they read settings only), then the profile's interrupted install, then saves.
-    loc and profile are asked when a step runs, so they follow the game and profile in use."""
+    loc and profile are asked when a step runs, so they follow the game and profile in use. covered: the profiles
+    (normcased) the start's journal recovery already looked at; the profile in use is skipped when it is one of them,
+    and recovered only when it is another (no profile was remembered yet, or the remembered one is gone)."""
+
+    def interrupted() -> list[str]:
+        p = profile()
+        return [] if p is not None and os.path.normcase(str(p)) in covered else recover_profile(p)
 
     return [
         StartupStep("run_health", lambda: run_health.recover_all()),
-        StartupStep("interrupted_installs", lambda: recover_profile(profile())),
+        StartupStep("interrupted_installs", interrupted),
         StartupStep("legacy_save_folders", lambda: saves_page.adopt_legacy_folders(loc())),
     ]

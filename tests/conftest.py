@@ -31,6 +31,7 @@ import pytest
 from bayle.config import settings
 from bayle.platform import data_folder, instance
 from bayle.platform import paths as common
+from bayle.runtime import bootstrap
 from bayle.saves import backups as save_backups
 from bayle.saves import item_names
 
@@ -231,7 +232,6 @@ def clean_logging(isolated_settings):
     if run_logging._standalone is not None:
         run_logging.end_job(run_logging._standalone)
         run_logging._standalone = None
-    run_logging.attach_notice_sink(None)
     run_logging._dir_override = None
 
 
@@ -243,15 +243,12 @@ def no_installed_mod_names(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def records_back_to_their_files():
-    """create_app points the hash cache and the activity log at its database; every test ends with them back on their
-    files, so no test writes through another test's (closed) database."""
-    from bayle.mods import rebuild
-    from bayle.platform import logging as run_logging
-
+def runtime_unbound():
+    """create_engine binds the record stores, the data folder and the instance scope (and the window the CPU pool);
+    every test ends with all of them unbound, so no test writes through another test's (closed) database, finds
+    another's folder, or counts the window's thread as the UI thread (CI runs the unit and ui tests in one process)."""
     yield
-    rebuild.use_hash_store(None)
-    run_logging.use_job_store(None)
+    bootstrap.bind(**bootstrap.UNBOUND)
 
 
 @pytest.fixture(autouse=True)
@@ -260,7 +257,7 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
     names scoped to its own folder. On Linux
     their lock files and sockets go in a folder of the test's own, not the real $XDG_RUNTIME_DIR: a short one directly
     in the system temporary folder, because a socket's path must stay under about 108 characters."""
-    instance.use_scope("RoundtableSouls.Test", tmp_path)
+    bootstrap.bind(instance_scope=instance.scope_name("RoundtableSouls.Test", tmp_path))
     locks = Path(tempfile.mkdtemp(prefix="rsl-"))
     monkeypatch.setattr(instance, "_lock_dir", lambda: locks)
     common.clear_detection_cache()
@@ -269,16 +266,6 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
     common.clear_detection_cache()
     common._PROFILE_GAMES_CACHE.clear()
     shutil.rmtree(locks, ignore_errors=True)
-
-
-@pytest.fixture(autouse=True)
-def _no_cpu_workers_left_over():
-    """A test that installs the worker pool must not leave it installed for the next test (CI runs the unit and ui
-    tests in one process, so the window's thread would count as the UI thread for every later test)."""
-    yield
-    from bayle.platform import cpu
-
-    cpu.install(None)
 
 
 def pytest_collection_modifyitems(items):

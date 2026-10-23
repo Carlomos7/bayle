@@ -1,4 +1,4 @@
-"""What the shell knows about the launcher right now, without Qt: the app context, the game, its setups (the profiles
+"""What the shell knows about the launcher right now, without Qt: the Engine, the game, its setups (the profiles
 Launch can use), the one in use, and whether a job or the game is running. The shell's host owns one; the top bar's
 presenter, the Launch flow and the menu read it."""
 
@@ -15,7 +15,8 @@ from bayle.services.settings import load_settings, save_settings
 
 
 class Context(Protocol):
-    """The part of app.AppContext the shell uses (the ui layer cannot import app, which sits above it)."""
+    """The part of runtime.bootstrap.Engine the shell needs (the ui layer cannot import the runtime, which sits above
+    it). An Engine also has jobs, plans and startup(), which the shell uses when they are there."""
 
     game: games.Game
     settings: Any

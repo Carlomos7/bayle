@@ -103,9 +103,9 @@ class Calls:
             backup=backup,
             play_check=lambda prof, loc: None,
             online_risk=online_risk,
-            job_play=lambda s, loc, backup: self.started.append(("play", backup)),
+            job_play=lambda s, loc, backup, notice: self.started.append(("play", backup)),
             job_play_offline=lambda s, loc, **kw: self.started.append(("offline", kw["backup"])),
-            job_play_vanilla=lambda s, loc, backup: self.started.append(("vanilla", backup)),
+            job_play_vanilla=lambda s, loc, backup, notice: self.started.append(("vanilla", backup)),
         )
 
 

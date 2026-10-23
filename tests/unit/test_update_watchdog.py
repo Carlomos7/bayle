@@ -23,6 +23,18 @@ def _sq(root: Path, version: str):
     (root / "current" / "sq.version").write_text(f"<package><version>{version}</version></package>", encoding="utf-8")
 
 
+def _finish(proc: subprocess.Popen, state: Path, seconds: int = 30) -> int:
+    """The script's exit code; on a timeout, fail with its log and how long it ran, so a slow run says where it hung."""
+    started = time.monotonic()
+    try:
+        return proc.wait(seconds)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        log = state / "watchdog.log"
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else "(no watchdog.log)"
+        pytest.fail(f"watchdog still running after {time.monotonic() - started:.1f} s; its log:\n{text}")
+
+
 def _windows_install(tmp_path: Path) -> Path:
     root = tmp_path / "root"
     _sq(root, "1.0.0")
@@ -51,7 +63,7 @@ def test_windows_watchdog_keeps_a_version_that_reports_ready(tmp_path):
     time.sleep(1.5)
     _sq(root, "2.0.0")  # Velopack applied it
     (state / "ready-2.0.0").write_text("window")
-    assert proc.wait(30) == 0
+    assert _finish(proc, state) == 0
     log = (state / "watchdog.log").read_text(encoding="utf-8")
     assert "2.0.0 is ready" in log and not (state / "rollback.json").exists()
     assert (root / "packages" / "X-2.0.0-full.nupkg").exists()
@@ -63,7 +75,7 @@ def test_windows_watchdog_undoes_a_version_that_does_not_start(tmp_path):
     proc = _start_ps(root, state)
     time.sleep(1.5)
     _sq(root, "2.0.0")
-    assert proc.wait(30) == 0
+    assert _finish(proc, state) == 0
     record = json.loads((state / "rollback.json").read_text(encoding="utf-8-sig"))
     assert record["version"] == "2.0.0" and "did not finish starting" in record["reason"]
     assert not (root / "packages" / "X-2.0.0-full.nupkg").exists()  # Velopack cannot apply it again
@@ -75,7 +87,7 @@ def test_windows_watchdog_undoes_a_version_that_does_not_start(tmp_path):
 @windows_only
 def test_windows_watchdog_leaves_an_update_that_never_applied(tmp_path):
     root, state = _windows_install(tmp_path), tmp_path / "state"
-    assert _start_ps(root, state, apply_s=2).wait(30) == 0
+    assert _finish(_start_ps(root, state, apply_s=2), state) == 0
     assert "nothing to undo" in (state / "watchdog.log").read_text(encoding="utf-8")
     assert not (state / "rollback.json").exists() and (root / "packages" / "X-2.0.0-full.nupkg").exists()
 

@@ -62,7 +62,7 @@ def test_open_stamp_and_a_stale_save_over_http(env):
     saved = env.post("mod_configs.save", {**body, "edits": [{"key": "cooppassword", "value": "new"}]})
     assert saved.json() == {"name": "ersc_settings.ini", "saved": 1, "missing": []}
     stale = env.post("mod_configs.save", {**body, "edits": [{"key": "cooppassword", "value": "newer"}]})
-    assert stale.status_code == 400 and stale.json()["code"] == "stale"
+    assert stale.status_code == 409 and stale.json()["code"] == "stale"
     assert "cooppassword = new\n" in env.ini.read_text(encoding="utf-8")
     empty = env.post("mod_configs.save", {**body, "edits": [{"key": "cooppassword", "value": " "}]})
     assert empty.json()["code"] == "password_empty"

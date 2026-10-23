@@ -29,6 +29,7 @@ _STATUS = {
     "unknown_plan": 404,
     "plan_expired": 410,
     "plan_stale": 409,
+    "stale": 409,  # what the client confirmed changed since: ask again
     "invalid_params": 422,
     "no_game": 409,
     "no_shell": 409,

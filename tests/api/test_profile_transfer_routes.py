@@ -103,7 +103,7 @@ def test_the_check_and_the_start_of_a_big_export_over_json(env, monkeypatch):
     assert checked.status_code == 200 and checked.json() == {"size": 5, "big": True}
     start = dict(body, name="Pack", folder=str(env.tmp / "o"))
     stale = env.post("profile_transfer.export", {**start, "expect": 6})
-    assert stale.status_code in (400, 409) and stale.json()["code"] == "stale"
+    assert stale.status_code == 409 and stale.json()["code"] == "stale"
     assert env.job(env.post("profile_transfer.export", {**start, "expect": 5}))["state"] == "done"
 
 

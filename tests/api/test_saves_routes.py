@@ -150,7 +150,7 @@ def test_removing_a_copy_that_changed_is_stale(env):
     name = env.post("saves.check_remove_copy", ref).json()["text"]
     env.post("saves.rename_copy", {**ref, "name": "Other"})
     stale = env.post("saves.remove_copy", {**ref, "expect": name})
-    assert stale.status_code == 400 and stale.json()["code"] == "stale"
+    assert stale.status_code == 409 and stale.json()["code"] == "stale"
     assert [e["name"] for e in env.entries()] == ["Other"]
 
 
@@ -168,7 +168,7 @@ def test_deleting_a_rewritten_backup_is_stale(env):
     stamp = env.post("saves.check_delete_backup", {"backup": str(bak)}).json()["stamp"]
     bak.write_bytes(OLD + b"more")
     stale = env.post("saves.delete_backup", {"backup": str(bak), "expect": stamp})
-    assert stale.status_code == 400 and stale.json()["code"] == "stale" and bak.exists()
+    assert stale.status_code == 409 and stale.json()["code"] == "stale" and bak.exists()
 
 
 def test_finish_stranded_over_http(env, monkeypatch):

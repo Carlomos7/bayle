@@ -242,7 +242,7 @@ def _adapters():
     return (declared, launcher_build)
 
 
-def detect(profile: Path, packs: list[dict], *, loc: Locations):
+def detect(profile: Path, packs: list[dict], *, loc: Locations) -> Tool | None:
     """The rebuild tool that writes into one of these packages (checked from the last), or None. loc: the game's
     locations (a tool's command names the game and me3)."""
     for layer in reversed(packs):
@@ -253,7 +253,7 @@ def detect(profile: Path, packs: list[dict], *, loc: Locations):
     return None
 
 
-def detect_for(profile: Path, layer: dict, rebuild_file: Path | None = None, *, loc: Locations):
+def detect_for(profile: Path, layer: dict, rebuild_file: Path | None = None, *, loc: Locations) -> Tool | None:
     """The rebuild tool of a package the user set as the parameter overlay: from the rebuild.json they picked, else
     the one found beside the package, or None."""
     from bayle.mods.backends import declared

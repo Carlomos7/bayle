@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import tomlkit
+import tomlkit.items
 from tomlkit.exceptions import TOMLKitError
 
 INI, TOML = "ini", "toml"

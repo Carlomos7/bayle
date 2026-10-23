@@ -12,7 +12,7 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtCore import QEventLoop, QObject, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon, QWindow
@@ -181,7 +181,7 @@ class ShellWindow(QObject):
             hints.setColorScheme(scheme)
         dark = hints is None or hints.colorScheme() != Qt.ColorScheme.Light
         app = QGuiApplication.instance()
-        if app is not None:
+        if isinstance(app, QGuiApplication):
             app.setWindowIcon(QIcon(str(app_icon_path(dark, self.host.state.settings.logo))))
 
     def _quit(self) -> None:
@@ -219,7 +219,7 @@ def main(engine, run: Callable[[], int] | None = None) -> int:
 
     if identity.get().display_platform:  # an isolated test build (Velopack starts it with the user's own environment)
         os.environ["QT_QPA_PLATFORM"] = identity.get().display_platform
-    app = QGuiApplication.instance() or QGuiApplication(sys.argv)
+    app = cast(QGuiApplication, QGuiApplication.instance() or QGuiApplication(sys.argv))
     app.setApplicationName(TITLE)
     app.setWindowIcon(QIcon(str(ASSETS_DIR / "app-crimson.png")))  # the window follows the chosen logo from then on
     hold = instance.acquire(instance.WINDOW)

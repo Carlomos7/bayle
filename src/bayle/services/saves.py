@@ -7,6 +7,7 @@ import datetime
 import shutil
 import time
 from pathlib import Path
+from typing import Any
 
 from bayle.game import catalog as games
 from bayle.game.locate import Locations, Overrides
@@ -42,7 +43,7 @@ def _save_info(path: Path, game: games.Game | None = None, kind: str | None = No
     path = Path(path)
     game = game or games.for_save(path) or loc.game
     items = save_analyze.GameItems.for_locations(loc)
-    info = dict(
+    info: dict[str, Any] = dict(
         path=path,
         name=path.name,
         kind=kind or save_kind(path, loc=loc),

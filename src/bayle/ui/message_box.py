@@ -31,7 +31,8 @@ def ask(heading: str, detail: str = "", buttons: tuple[str, ...] = ("OK",)) -> i
     win = roots[0]
     answer: list[int] = [-1]
     loop = QEventLoop()
-    win.answered.connect(lambda index: (answer.__setitem__(0, index), loop.quit()))
+    answered = win.answered  # pyright: ignore[reportAttributeAccessIssue]  # a signal declared in MessageWindow.qml
+    answered.connect(lambda index: (answer.__setitem__(0, index), loop.quit()))
     win.show()
     win.raise_()
     win.requestActivate()

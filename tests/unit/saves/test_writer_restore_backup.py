@@ -1,5 +1,6 @@
-"""Pins how services.saves.restore_backup puts a backup back over a live save, before it moves onto durable_write.
-Tests marked xfail (strict) assert the SAFE behaviour that today's code does not have; the switch must flip them."""
+"""How services.saves.restore_backup puts a backup back over a live save through durable_write: the bytes, the backup
+(taken only once the written copy verified), and what each failure leaves behind (the save untouched, no stray temp
+file)."""
 
 import re
 
@@ -73,18 +74,6 @@ def test_a_busy_backup_stops_the_restore(world, tmp_path, monkeypatch):
     assert save.read_bytes() == current and strays(tmp_path) == []
 
 
-def test_today_the_check_is_the_read_back_after_the_replace(world, tmp_path, monkeypatch):
-    # A bad write to the temp file is only noticed after it replaced the save, and the safety copy was taken first.
-    save, bak, earlier, current = world
-    corrupt_tmp(monkeypatch, save, 0x400)
-    with pytest.raises(RuntimeError, match="did not read back the same after the restore"):
-        saves.restore_backup(bak, save, loc=er())
-    assert save.read_bytes() != earlier and save.read_bytes() != current  # the bad bytes are in place
-    (safety,) = [b for b in backups_of(save) if b != bak]
-    assert safety.read_bytes() == current
-
-
-@pytest.mark.xfail(strict=True, reason="today: the bad temp file replaces the save and a backup was taken first")
 def test_a_failed_check_leaves_the_save_untouched_and_takes_no_backup(world, tmp_path, monkeypatch):
     save, bak, _, current = world
     corrupt_tmp(monkeypatch, save, 0x400)
@@ -104,7 +93,6 @@ def test_a_read_back_mismatch_after_the_replace_is_reported(world, tmp_path, mon
     assert safety.read_bytes() == current
 
 
-@pytest.mark.xfail(strict=True, reason="today: one refused replace raises PermissionError (no retry)")
 def test_a_replace_refused_once_is_retried_and_written(world, tmp_path, monkeypatch):
     save, bak, earlier, _ = world
     refuse_replace(monkeypatch, save, times=1)
@@ -121,7 +109,6 @@ def test_a_replace_refused_for_good_keeps_the_save_and_the_safety_copy(world, tm
     assert save.read_bytes() == current and safety.read_bytes() == current
 
 
-@pytest.mark.xfail(strict=True, reason="today: a refused replace leaves <save>.roundtable.tmp behind")
 def test_a_replace_refused_for_good_leaves_no_temp_file(world, tmp_path, monkeypatch):
     save, bak, _, _ = world
     refuse_replace(monkeypatch, save)
@@ -138,7 +125,6 @@ def test_disk_full_leaves_the_save_untouched(world, tmp_path, monkeypatch):
     assert save.read_bytes() == current
 
 
-@pytest.mark.xfail(strict=True, reason="today: a failed temp write leaves <save>.roundtable.tmp behind")
 def test_disk_full_leaves_no_temp_file_and_no_backup(world, tmp_path, monkeypatch):
     save, bak, _, _ = world
     disk_full_on_tmp(monkeypatch, save)

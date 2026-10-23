@@ -1,5 +1,5 @@
-"""Pins how saves.nightreign.repair puts bytes on a live Nightreign save, before it moves onto durable_write.
-Tests marked xfail (strict) assert the SAFE behaviour that today's code does not have; the switch must flip them."""
+"""How saves.nightreign.repair puts bytes on a live Nightreign save through durable_write: the bytes, the backup (taken
+only once the written copy verified), and what each failure leaves behind (the save untouched, no stray temp file)."""
 
 import re
 
@@ -82,16 +82,6 @@ def test_a_failed_check_leaves_the_save_untouched(stale, tmp_path, monkeypatch):
     assert save.read_bytes() == old and strays(tmp_path) == []
 
 
-def test_today_the_backup_is_taken_before_the_check(stale, tmp_path, monkeypatch):
-    save, old, _ = stale
-    _break_tmp(monkeypatch, save, old)
-    with pytest.raises(nr.NightreignSaveError):
-        nr.repair(save)
-    (bak,) = backups_of(save)  # taken although nothing was written
-    assert bak.read_bytes() == old
-
-
-@pytest.mark.xfail(strict=True, reason="today: the backup is taken before the check, so a failed check leaves one")
 def test_a_failed_check_takes_no_backup(stale, tmp_path, monkeypatch):
     save, old, _ = stale
     _break_tmp(monkeypatch, save, old)
@@ -112,7 +102,6 @@ def test_a_busy_backup_stops_the_write(stale, tmp_path, monkeypatch):
     assert save.read_bytes() == old and strays(tmp_path) == []
 
 
-@pytest.mark.xfail(strict=True, reason="today: one refused replace raises PermissionError (no retry)")
 def test_a_replace_refused_once_is_retried_and_written(stale, tmp_path, monkeypatch):
     save, _, good = stale
     refuse_replace(monkeypatch, save, times=1)
@@ -137,7 +126,6 @@ def test_disk_full_leaves_the_save_untouched(stale, tmp_path, monkeypatch):
     assert save.read_bytes() == old
 
 
-@pytest.mark.xfail(strict=True, reason="today: the temp file is written before the try, so a failed write leaves it")
 def test_disk_full_leaves_no_temp_file(stale, tmp_path, monkeypatch):
     save, _, _ = stale
     disk_full_on_tmp(monkeypatch, save)

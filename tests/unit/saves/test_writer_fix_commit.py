@@ -1,6 +1,6 @@
-"""Pins how saves.fix._commit (reached through repair_checksums) puts bytes on a live save, before it moves onto
-durable_write: the bytes, the backup, the return value, and what each failure leaves behind. Tests marked xfail
-(strict) assert the SAFE behaviour that today's code does not have; the switch must flip them."""
+"""How saves.fix._commit (reached through repair_checksums) puts bytes on a live save through durable_write: the bytes,
+the backup (taken only once the written copy verified), the return value, and what each failure leaves behind (the
+save untouched, no stray temp file)."""
 
 import hashlib
 import re
@@ -80,7 +80,6 @@ def test_a_busy_backup_stops_the_write(stale, tmp_path, monkeypatch):
     assert save.read_bytes() == old and strays(tmp_path) == []
 
 
-@pytest.mark.xfail(strict=True, reason="today: one refused replace raises PermissionError (no retry)")
 def test_a_replace_refused_once_is_retried_and_written(stale, tmp_path, monkeypatch):
     save, _, new = stale
     refuse_replace(monkeypatch, save, times=1)
@@ -105,7 +104,6 @@ def test_disk_full_leaves_the_save_untouched(stale, tmp_path, monkeypatch):
     assert save.read_bytes() == old and backups_of(save) == []
 
 
-@pytest.mark.xfail(strict=True, reason="today: the temp file is written before the try, so a failed write leaves it")
 def test_disk_full_leaves_no_temp_file(stale, tmp_path, monkeypatch):
     save, _, _ = stale
     disk_full_on_tmp(monkeypatch, save)

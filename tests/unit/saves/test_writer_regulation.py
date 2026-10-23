@@ -1,7 +1,6 @@
-"""Pins how saves.regulation.repair puts a rebuilt regulation block into a save, before it moves onto durable_write.
-Today it truncates and rewrites the live file in place. Tests marked xfail (strict) assert the SAFE behaviour that
-today's code does not have; the switch must flip them. The tests named test_today_ pin what is unsafe now, so the
-switch edits exactly those."""
+"""How saves.regulation.repair puts a rebuilt regulation block into a save through durable_write: the bytes, the backup
+(taken only once the written copy verified), and what each failure leaves behind (the save untouched, no stray temp
+file)."""
 
 import re
 
@@ -98,15 +97,6 @@ def test_a_busy_backup_stops_the_write(world, tmp_path, monkeypatch):
     assert save.read_bytes() == broken and strays(tmp_path) == []
 
 
-def test_today_nothing_checks_the_new_bytes(world, tmp_path, monkeypatch):
-    # a silently bad write goes into the live save and repair still says True
-    save, broken, fixed, _ = world
-    corrupt_tmp(monkeypatch, save, R.UD11_OFF + 0x100, inplace=True)
-    assert R.repair(save, REG, HEADER) is True
-    assert save.read_bytes() not in (broken, fixed) and not R.block_status(save.read_bytes())[0]
-
-
-@pytest.mark.xfail(strict=True, reason="today: no check of the new bytes, the bad write lands in the live save")
 def test_a_failed_check_leaves_the_save_untouched(world, tmp_path, monkeypatch):
     # the error type is the switch's choice: any exception will do here
     save, broken, *_ = world
@@ -124,9 +114,6 @@ def test_a_replace_refused_once_still_writes(world, tmp_path, monkeypatch):
     assert save.read_bytes() == fixed
 
 
-@pytest.mark.xfail(
-    strict=True, reason="today: writes in place, so a refused replace never happens and the save changes"
-)
 def test_a_replace_refused_for_good_keeps_the_old_save_and_its_backup(world, tmp_path, monkeypatch):
     save, broken, *_ = world
     refuse_replace(monkeypatch, save)
@@ -136,18 +123,6 @@ def test_a_replace_refused_for_good_keeps_the_old_save_and_its_backup(world, tmp
     assert save.read_bytes() == broken and bak.read_bytes() == broken and strays(tmp_path) == []
 
 
-def test_today_a_failed_write_damages_the_save_in_place(world, tmp_path, monkeypatch):
-    # the file is truncated and half written; the backup is the only way back
-    save, broken, *_ = world
-    disk_full_on_tmp(monkeypatch, save, inplace=True)
-    with pytest.raises(OSError, match="No space"):
-        R.repair(save, REG, HEADER)
-    assert len(save.read_bytes()) == R.FILE_SIZE // 2
-    (bak,) = backups_of(save)
-    assert bak.read_bytes() == broken
-
-
-@pytest.mark.xfail(strict=True, reason="today: writes in place, so a failed write truncates the live save")
 def test_disk_full_leaves_the_save_untouched(world, tmp_path, monkeypatch):
     save, broken, *_ = world
     disk_full_on_tmp(monkeypatch, save, inplace=True)

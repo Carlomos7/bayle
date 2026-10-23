@@ -126,6 +126,49 @@
         "title": "BackUpParams",
         "type": "object"
       },
+      "BackupFacts": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "save_name": {
+            "title": "Save Name",
+            "type": "string"
+          },
+          "stamp": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Stamp",
+            "type": "array"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "save_name",
+          "when",
+          "action",
+          "stamp"
+        ],
+        "title": "BackupFacts",
+        "type": "object"
+      },
       "BackupRef": {
         "additionalProperties": false,
         "properties": {
@@ -482,6 +525,35 @@
           "entry_id"
         ],
         "title": "CopyRef",
+        "type": "object"
+      },
+      "DeleteBackupParams": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          },
+          "expect": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Expect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "backup",
+          "expect"
+        ],
+        "title": "DeleteBackupParams",
         "type": "object"
       },
       "Dependency": {
@@ -3783,6 +3855,30 @@
           "profile"
         ],
         "title": "RemoveChosen",
+        "type": "object"
+      },
+      "RemoveCopyParams": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "expect": {
+            "title": "Expect",
+            "type": "string"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder",
+          "entry_id",
+          "expect"
+        ],
+        "title": "RemoveCopyParams",
         "type": "object"
       },
       "RemoveParams": {
@@ -10269,6 +10365,98 @@
         ]
       }
     },
+    "/v1/ops/saves.check_delete_backup": {
+      "post": {
+        "operationId": "op_saves_check_delete_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupFacts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.check_delete_backup (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.check_remove_copy": {
+      "post": {
+        "operationId": "op_saves_check_remove_copy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Said"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.check_remove_copy (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
     "/v1/ops/saves.copy_character": {
       "post": {
         "operationId": "op_saves_copy_character",
@@ -10414,7 +10602,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BackupRef"
+                "$ref": "#/components/schemas/DeleteBackupParams"
               }
             }
           },
@@ -10425,7 +10613,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Said"
                 }
               }
             },
@@ -10447,7 +10635,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.delete_backup (plan, writes)",
+        "summary": "saves.delete_backup (command, writes)",
         "tags": [
           "saves"
         ]
@@ -10762,7 +10950,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CopyRef"
+                "$ref": "#/components/schemas/RemoveCopyParams"
               }
             }
           },
@@ -10773,7 +10961,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Said"
                 }
               }
             },
@@ -10795,7 +10983,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.remove_copy (plan, writes)",
+        "summary": "saves.remove_copy (command, writes)",
         "tags": [
           "saves"
         ]

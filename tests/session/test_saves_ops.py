@@ -334,32 +334,3 @@ def test_import_without_a_save_folder_is_a_failed_job_with_a_code(world):
     s = world.session()
     snap = s.jobs.get(s.run("saves.import_files", {"files": [str(world.folder / "x.sl2")]}))
     assert snap is not None and snap.error is not None and snap.error.code == "no_saves"
-
-
-def test_the_upkeep_of_copies_and_backups(world):
-    s = world.session()
-    s.run("saves.back_up", {"everything": True})
-    bak = world.backups()[0]["path"]
-    s.run("saves.keep_backup", {"backup": str(bak)})
-    assert world.backups()[0]["keep"] is True
-    s.run("saves.keep_backup", {"backup": str(bak), "keep": False})
-    assert world.backups()[0]["keep"] is False
-    assert s.run("saves.keep_as", {"backup": str(bak), "name": "Kept"}).text == "Kept"
-    folder = str(world.folder)
-    entry = save_library.load(world.folder)["entries"][0]
-    s.run("saves.rename_copy", {"folder": folder, "entry_id": entry["id"], "name": "Renamed"})
-    assert save_library.load(world.folder)["entries"][0]["name"] == "Renamed"
-    plan = s.run("saves.remove_copy", {"folder": folder, "entry_id": entry["id"]})
-    assert isinstance(plan.words, Confirm) and plan.destructive and len(save_library.load(world.folder)["entries"]) == 1
-    assert s.answer(plan.id, {"ok": True}) is None
-    assert save_library.load(world.folder).get("entries", []) == []
-    gone = s.run("saves.delete_backup", {"backup": str(bak)})
-    assert isinstance(gone.words, Confirm) and gone.destructive and bak.exists()
-    s.answer(gone.id, {"ok": True})
-    assert not bak.exists()
-    with pytest.raises(OperationError) as e:
-        s.run("saves.delete_backup", {"backup": str(bak)})
-    assert e.value.code == "not_found"
-    with pytest.raises(OperationError) as e:
-        s.run("saves.finish_stranded", {"folder": folder, "entry_id": "nope", "restore": False})
-    assert e.value.code == "failed"

@@ -58,7 +58,7 @@ class Names(Params):
     shared: str | None = None
 
     def given(self) -> dict[str, str]:
-        return {k: v for k, v in self.model_dump().items() if v is not None}
+        return {k: v for k in ("pattern", "packages", "natives", "shared") if (v := getattr(self, k)) is not None}
 
 
 class LayoutCheck(Result):

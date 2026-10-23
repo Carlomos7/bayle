@@ -13,7 +13,7 @@ from bayle.services import mods as mods_service
 from bayle.services import play as g
 from bayle.services import saves as saves_service
 from bayle.ui import branding
-from bayle.views import mod_configs as mod_configs_words
+from bayle.ui.pages.mod_configs import presenter as mod_configs_words
 from support import er
 
 INI = (

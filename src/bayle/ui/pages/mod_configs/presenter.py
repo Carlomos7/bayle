@@ -8,7 +8,6 @@ titles) live here, not in coop/ (spec table, S7): the Widgets Co-op page uses th
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -162,14 +161,6 @@ def nested_title(path: str) -> str:
 
 def _nice(part: str) -> str:
     return part.strip().replace("_", " ").capitalize()
-
-
-@dataclass(frozen=True)
-class ModConfigsState:
-    """The page's snapshot: the profile it was read for ("" when there is none) and its mods with settings files."""
-
-    profile: str
-    nodes: tuple[mod_configs.ModNode, ...]
 
 
 class ModConfigsPresenter:
@@ -437,20 +428,19 @@ class ModConfigsPresenter:
             "offValue": "false",
         }
 
-    def turn_off(self, preview) -> Confirm | Refusal:
-        """The confirmation for overhaul_install.TurnOffPreview, or why it can't go ahead."""
-        if not preview.ok:
-            return Refusal(tr("Can't turn it off"), " ".join(preview.refusals))
-        label = preview.remove.config.label
+    def turn_off(self, plan: mod_configs.SetupPlan) -> Confirm | Refusal:
+        """The confirmation for the service's turn-off plan, or why it can't go ahead."""
+        if not plan.ok:
+            return Refusal(tr("Can't turn it off"), " ".join(plan.refusals))
         return Confirm(
-            title=tr("Turn off the overhaul setup of {label}").format(label=label),
-            changes=tuple(preview.lines),
+            title=tr("Turn off the overhaul setup of {label}").format(label=plan.label),
+            changes=tuple(plan.lines),
             apply=tr("Turn off"),
             safety=tr("Undo in Activity puts it all back."),
         )
 
-    def install_setup(self, preview) -> Confirm | Refusal:
-        """The confirmation for overhaul_install.InstallPreview of a new setup."""
+    def install_setup(self, preview: mod_configs.SetupPlan) -> Confirm | Refusal:
+        """The confirmation for the service's install plan of a new setup."""
         if not preview.ok:
             return Refusal(tr("Can't set it up"), " ".join(preview.refusals))
         return Confirm(
@@ -560,6 +550,15 @@ class ModConfigsPresenter:
 
     def could_not_save(self, why: str) -> Refusal:
         return Refusal(tr("Not saved"), why)
+
+    def stale(self, name: str) -> Refusal:
+        """The file (or, without a name, what was asked about) changed after it was read or the question was asked."""
+        if name:
+            return Refusal(
+                tr("Not saved"),
+                tr("{name} changed on disk since it was read. Reload it and try again.").format(name=name),
+            )
+        return Refusal(tr("Changed meanwhile"), tr("It changed since you were asked. Try again."))
 
     def missing_keys(self, name: str, keys: list[str]) -> Refusal:
         return Refusal(tr("Not saved"), tr("Not in {name}: {keys}").format(name=name, keys=", ".join(keys)))

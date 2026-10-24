@@ -11,9 +11,10 @@ from types import SimpleNamespace
 
 from bayle.platform import text
 from bayle.services import profile_mods
+from bayle.services.mods_page import ToolInfo, TrimPlan
 from bayle.services.profile_mods import PageFacts, Removal
-from bayle.views import load_order
-from bayle.views.mods import ModsPresenter
+from bayle.ui.pages.mods import load_order
+from bayle.ui.pages.mods.presenter import ModsPresenter
 
 PROFILE = Path("C:/mods/eldenring-mods/main.me3")
 
@@ -84,7 +85,7 @@ def rows(state, kind="package"):
 
 def test_importing_the_presenter_pulls_in_no_qt():
     code = (
-        "import sys; import bayle.views.mods; "
+        "import sys; import bayle.ui.pages.mods.presenter; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('PySide6', 'shiboken6')))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
@@ -201,7 +202,7 @@ def test_the_overhaul_words():
     assert update.title == "Update Toy in main.me3" and update.apply == "Update"
     refused = p.overhaul_install(PROFILE, SimpleNamespace(**{**found.__dict__, "ok": False, "refusals": ["No."]}))
     assert (refused.title, refused.body) == ("Toy can't be installed here", "No.")
-    removal = SimpleNamespace(ok=True, lines=["out"], refusals=[], asked=[SimpleNamespace(entry="ersc.dll")])
+    removal = SimpleNamespace(ok=True, lines=["out"], refusals=[], asked=["ersc.dll"])
     remove = p.overhaul_remove(PROFILE, "Toy", removal)
     assert remove.title == "Remove Toy from main.me3" and not remove.option_checked
     assert remove.option == "Also switch ersc.dll back off, as it was before the install"
@@ -215,7 +216,7 @@ def test_the_overhaul_words():
 
 def test_infobars_two_at_once_and_a_closed_one_stays_closed():
     p = ModsPresenter()
-    tool = SimpleNamespace(label="rebuild.json", package={"name": "Example"})
+    tool = ToolInfo("rebuild.json", "Example", "python refresh.py", "k")
     stale = {"state": "stale", "packs": ["a"], "reasons": ["a new pack loads before it"]}
     notices = p.notices(stale, tool, ("the install of X was taken back",))
     assert [n.key for n in notices] == ["stale", "allow-tool"]
@@ -249,9 +250,9 @@ def test_the_confirmations_words():
     assert removal.changes[1].startswith("Its regulation.bin is still in the merged mods")
     alone = p.removal(PROFILE, Removal("native", "x.dll", Path("C:/mods/natives/x"), (), (), True))
     assert alone.option == "Also move the folder x to the Recycle Bin"
-    trim = p.trim([{"folder": Path("b4"), "size": 2 * 1048576}])
+    trim = p.trim(TrimPlan(1, 2 * 1048576, 3))
     assert trim.title == "Move 1 older rebuild backup to the Recycle Bin" and "The newest 3 stay" in trim.safety
-    tool = SimpleNamespace(label="rebuild.json", package={"name": "Example"}, describe=lambda: "python refresh.py")
+    tool = ToolInfo("rebuild.json", "Example", "python refresh.py", "k")
     assert p.tool(tool).detail == "It comes with Example and runs:\n\npython refresh.py"
     managed = p.delete_refusal(profile_mods.DELETE_MANAGED, "Example Overhaul")
     assert managed is not None and managed.body == "Example Overhaul is managed by its installer. Delete it there."

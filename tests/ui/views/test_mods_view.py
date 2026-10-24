@@ -53,20 +53,19 @@ class Host:
         self.changes: list[str] = []
         self.installs: list = []
         self.ran = None
+        jobs = JobManager(
+            EventBus(),
+            spawn=lambda run, name=None: run(),
+            game_running=lambda: self.game_running,
+            external_busy=lambda: self.busy,
+        )
+        self.features = features.build(jobs, None, lambda: self.locations)
         self.session = Session(  # the session runs its jobs at once, over the same disk the test sets up
-            JobManager(
-                EventBus(),
-                spawn=lambda run, name=None: run(),
-                game_running=lambda: self.game_running,
-                external_busy=lambda: self.busy,
-            ),
-            plans=PlanStore(),
-            locations=lambda: self.locations,
+            jobs, plans=PlanStore(), locations=lambda: self.locations, services=self.features.services()
         )
         self.activity = FakeActivityFacts(manager=self.session.jobs)
         self.settings_service = SettingsService(self.session.jobs, lambda: self.locations)
         self.saves_service = SavesService(self.session.jobs, lambda: self.locations)
-        self.features = features.build(self.session.jobs, None, lambda: self.locations)
 
     @property
     def jobs(self) -> list[str]:
@@ -722,8 +721,8 @@ def test_cleaning_installer_leftovers_picks_the_folders_then_asks_about_each_bac
 
     overhaul_services(monkeypatch)
     left = [
-        SimpleNamespace(path=Path("C:/x/Old Mod"), label="Old Mod (3 MB)", backups=False),
-        SimpleNamespace(path=Path("C:/x/Old Backups"), label="Old Backups (2 MB)", backups=True),
+        SimpleNamespace(path=Path("C:/x/Old Mod"), label="Old Mod (3 MB)", size=3, backups=False),
+        SimpleNamespace(path=Path("C:/x/Old Backups"), label="Old Backups (2 MB)", size=2, backups=True),
     ]
     monkeypatch.setattr(mod_service, "overhaul_leftovers", lambda p, loc: left)
     removed: list = []

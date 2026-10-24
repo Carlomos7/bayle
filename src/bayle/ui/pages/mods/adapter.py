@@ -1,12 +1,16 @@
 """The Mods page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). It holds no
-decisions: the page is the session's snapshot (mods), and every change is one of its operations (mods.*), asked of
-the session on the host's worker thread; what needs the player's answer comes back as a plan or a "needs
-confirmation" error and is shown through the Notifier, and a job the session runs is followed on the host. Only
-what the session sends reaches QML, on the GUI thread."""
+decisions: what to show comes from the presenter, what a change does from the engine (host.features.mods, mod_library
+and mod_install: services/mods_page.py, shared_mods.py, mod_install.py), asked on the host's worker. A change that
+always asks is a check (the facts the presenter words and asks through the Notifier) and, on yes, a start with the
+stamp the check gave (asked once more when a file changed since); one that asks only sometimes raises "needs
+confirmation" with its facts and is called again confirmed. A job the engine starts is followed on the host. Only
+what the presenter builds reaches QML, on the GUI thread."""
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -14,18 +18,22 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from bayle.errors import OperationError
 from bayle.platform.text import tr
+from bayle.platform.threads import as_worker
 from bayle.services.activity import ActivityService
+from bayle.services.features import Features
+from bayle.services.mod_install import ModInstallService
+from bayle.services.mods_page import Dependency, ModsService, OptionsChange, ToolInfo
+from bayle.services.shared_mods import ModLibraryService
 from bayle.session import Session
-from bayle.session.ops.mods import ModsView
 from bayle.ui.models import RowsModel, plain
 from bayle.ui.notifications import Notifier
-from bayle.ui.pages.calls import Calls
-from bayle.ui.pages.mods import take_over
+from bayle.ui.pages.calls import Calls, say_refusal
+from bayle.ui.pages.mods import load_order, take_over
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
+from bayle.ui.pages.mods.presenter import BUSY, ModsPresenter, ModsState, ModsView, RemovalAsk
 from bayle.ui.pages.undo import ask_undo
 from bayle.ui.refresh import Refresher, stat_key
-from bayle.views import load_order
-from bayle.views.mods import BUSY, ModsPresenter, ModsState
+from bayle.views.common import Confirm, Pick, Refusal, prompt_dict
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",
@@ -61,7 +69,10 @@ class ModsHost(Protocol):
     @property
     def game_running(self) -> bool: ...
     @property
-    def session(self) -> Session: ...
+    def features(self) -> Features: ...
+    @property
+    def session(self) -> Session: ...  # only Take over still asks the session (its own rewrite drops this)
+
     @property
     def activity(self) -> ActivityService: ...
     @property
@@ -126,11 +137,11 @@ class ModsAdapter(QObject):
         self.host = host
         self.notifier = notifier
         self.presenter = presenter or ModsPresenter()
-        self._view: ModsView | None = None  # the session's snapshot of the page
+        self._view: ModsView | None = None  # what the engine last read of the page, as the presenter keeps it
         self._drag: dict = {}
         self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
         self._hint: Any = None  # the Library disk hint (a Notice), worked out after the page shows
-        self._calls = Calls(host, notifier)
+        self._calls = Calls(host, notifier)  # only Take over (take_over.py) still uses it
         self._checked: tuple[str, str] = ("", "")  # the text the parse gate last judged, and its verdict
         self._state: ModsState = self.presenter.page(None)
         self._loading = False
@@ -188,7 +199,7 @@ class ModsAdapter(QObject):
         """What the page shows now (tests and the self-test)."""
         return self._state
 
-    # ---- reading (on the job runner's worker thread)
+    # ---- reading (on the host's worker; the answer lands on the UI thread)
     # ---- what the shell's menu and keys may ask of this page (ui/launcher/menu.py)
     COMMANDS = {
         "deleteProfile": "deleteProfile",
@@ -261,16 +272,16 @@ class ModsAdapter(QObject):
         )
 
     def _build(self, snap: dict) -> ModsView:
-        """On the worker: read the page. The snapshot writes nothing (the session's start-up puts interrupted changes
+        """On the worker: read the page. The read writes nothing (the session's start-up puts interrupted changes
         right)."""
-        session, profile, launch = self.host.session, snap["profile"], snap["launch"]
-        scope = {
-            "profile": "" if profile is None else str(profile),
-            "kind": getattr(launch, "kind", "me3"),
-            "source": str(getattr(launch, "source", "") or ""),
-            "no_profiles": snap["no_profiles"],
-        }
-        return session.snapshot("mods", **scope)
+        profile, launch = snap["profile"], snap["launch"]
+        page = self._svc.page(
+            "" if profile is None else str(profile),
+            getattr(launch, "kind", "me3"),
+            str(getattr(launch, "source", "") or ""),
+            snap["no_profiles"],
+        )
+        return self.presenter.view(page)
 
     def _apply(self, view: ModsView) -> None:
         self._view = view
@@ -299,53 +310,237 @@ class ModsAdapter(QObject):
         view = self._view
         if view is None or not view.has_profile:
             return
-        session, profile = self.host.session, view.profile
+        profile = view.profile
 
         def got(found) -> None:
-            hint = found.notice
+            closed = frozenset({(profile, "library-hint")}) if found.closed else frozenset()
+            hint = self.presenter.library_hint((found.mods, found.size), profile, closed)
             if hint != self._hint and self._view is not None and self._view.profile == profile:
                 self._hint = hint
                 self._render()
 
-        self.host.run_in_background(lambda: session.run("mods.library_hint", {"profile": profile}), got)
+        self._query(lambda: self._svc.library_hint(profile), got, lambda _e: None)
+
+    # ---- asking the engine (on the host's worker; the answer lands on the UI thread)
+    @property
+    def _svc(self) -> ModsService:
+        return self.host.features.mods
+
+    @property
+    def _lib(self) -> ModLibraryService:
+        return self.host.features.mod_library
+
+    @property
+    def _inst(self) -> ModInstallService:
+        return self.host.features.mod_install
+
+    def _worker(self, read: Callable[[], Any], landed: Callable[[Any], None]) -> None:
+        def work() -> Any:
+            try:
+                with as_worker():  # a test host runs this inline
+                    return read()
+            except OperationError as e:
+                return e
+
+        self.host.run_in_background(work, landed)
+
+    def _say(self, e: OperationError) -> None:
+        self.notifier.toast(self.presenter.error(e), error=True)
+
+    def _query(self, read, done=None, fail=None) -> None:
+        """read() runs on the worker (an engine call); done(result) on success; an OperationError goes to fail(e) (a
+        toast in the page's words by default)."""
+
+        def landed(got: Any) -> None:
+            if isinstance(got, OperationError):
+                (fail or self._say)(got)
+            elif done is not None:
+                done(got)
+
+        self._worker(read, landed)
+
+    def _asking(self, call, ask, then=None, fail=None, *, destructive: bool = False, declined=None) -> None:
+        """call(confirmed, option) on the worker. A change that asks only sometimes raises needs_confirmation with the
+        facts to ask about: ask(details) words them, and on yes call runs again confirmed with the ticked option
+        (declined() on no)."""
+
+        def finished(got: Any) -> None:
+            if isinstance(got, OperationError):
+                (fail or self._say)(got)
+            elif then is not None:
+                then(got)
+
+        def landed(got: Any) -> None:
+            if not (isinstance(got, OperationError) and got.code == "needs_confirmation"):
+                finished(got)
+                return
+
+            def answered(ok: bool, option: bool) -> None:
+                if ok:
+                    self._worker(lambda: call(True, option), finished)
+                elif declined is not None:
+                    declined()
+
+            self.notifier.ask(ask(got.details or {}), answered, destructive=destructive)
+
+        self._worker(lambda: call(False, False), landed)
+
+    def _plan(
+        self,
+        check,
+        words,
+        start,
+        *,
+        destructive: bool = False,
+        plain: bool = False,
+        done=None,
+        after=None,
+        fail=None,
+        refused=None,
+        _again: bool = True,
+    ) -> None:
+        """A change that always asks: check() gives the facts (writes nothing), words(facts) the Confirm (or a Refusal,
+        said), and on yes start(facts, option) runs with the stamp the check gave: after(what it returned), and a
+        job it started is followed into done. If a file changed since the check ("stale"), the player is asked once
+        more with the new facts."""
+
+        def checked(facts: Any) -> None:
+            asked = words(facts)
+            if isinstance(asked, Refusal):
+                say_refusal(self.notifier, asked)
+                if refused is not None:
+                    refused()
+                return
+
+            def answered(ok: bool, option: bool = False) -> None:
+                if not ok:
+                    return
+
+                def failed(e: OperationError) -> None:
+                    if e.code == "stale" and _again:
+                        self._plan(
+                            check,
+                            words,
+                            start,
+                            destructive=destructive,
+                            plain=plain,
+                            done=done,
+                            after=after,
+                            fail=fail,
+                            refused=refused,
+                            _again=False,
+                        )
+                    else:
+                        (fail or self._say)(e)
+
+                def started(got: Any) -> None:
+                    if after is not None:
+                        after(got)
+                    if isinstance(got, str):
+                        self._follow(got, done)
+
+                self._query(lambda: start(facts, option), started, failed)
+
+            if plain:
+                self.notifier.confirm(asked, answered, destructive)
+            else:
+                self.notifier.ask(asked, answered, destructive)
+
+        self._query(check, checked, fail)
+
+    def _follow(self, job_id: str, done: Callable[[bool, dict], None] | None) -> None:
+        """done(ok, data) when the job ends: data is its result and undo, or the error (code, message, details)."""
+        if done is None:
+            return
+
+        def ended(snap: Any) -> None:
+            if snap is not None and snap.state == "done":
+                done(True, {"result": snap.result, "undo": snap.undo})
+            else:
+                err = getattr(snap, "error", None)
+                done(
+                    False, {"error": {"code": err.code, "message": err.message, "details": err.details} if err else {}}
+                )
+
+        self.host.follow_job(job_id, ended)
+
+    def _job(self, begin, done=None, fail=None) -> None:
+        """A job the engine starts: begin() runs on the worker and returns its id; done(ok, data) when it ends."""
+        self._query(begin, lambda job_id: self._follow(job_id, done), fail)
 
     # ---- the Library (opt-in sharing of game-file mods between profiles)
     @Slot(int)
     def share(self, index: int) -> None:
         if self._ready() is None or self._entry(index) is None:
             return
-        self._calls.plan("mods.share", self._ref(index=index))
+        path = self._path()
+        self._plan(
+            lambda: self._lib.check_share(path, index),
+            lambda plan: self.presenter.share_confirm([plan.name]),
+            lambda plan, _o: self._lib.share(path, index, plan.stamp),
+        )
 
     @Slot(int)
     def separate(self, index: int) -> None:
         if self._ready() is None or self._entry(index) is None:
             return
-        self._calls.plan("mods.separate", self._ref(index=index))
+        path = self._path()
+
+        def failed(e: OperationError) -> None:
+            if e.code == "not_shared":
+                say_refusal(self.notifier, Refusal(tr("Not shared"), self.presenter.error(e)))
+            else:
+                self._say(e)
+
+        self._plan(
+            lambda: self._lib.check_separate(path, index),
+            lambda plan: self.presenter.separate_confirm(plan.name, plan.size),
+            lambda plan, _o: self._lib.separate(path, index, plan.stamp),
+            fail=failed,
+        )
 
     @Slot(int)
     def useInOthers(self, index: int) -> None:
         if self._ready() is None or self._entry(index) is None:
             return
+        path = self._path()
 
-        def chosen(ticked: list[int]) -> None:
-            if ticked and not self.host.busy:
-                self._calls.job(
-                    "mods.library_use", self._ref(index=index, targets=ticked, name=self._entry(index)["name"])
-                )
+        def offered(choices) -> None:
+            rows = [self.presenter.use_row(c.name, c.has_copy, c.uses) for c in choices.profiles]
 
-        self._calls.run(
-            "mods.library_use_choices", self._ref(index=index), lambda got: self._show_pick(got.prompt, chosen)
-        )
+            def chosen(ticked: list[int]) -> None:
+                targets = [choices.profiles[i].profile for i in ticked if 0 <= i < len(choices.profiles)]
+                if targets and not self.host.busy:
+                    self._job(lambda: self._lib.use_in(path, index, targets))
+
+            self._show_pick(self._pick_prompt(self.presenter.use_pick(choices.name), rows), chosen)
+
+        self._query(lambda: self._lib.use_choices(path, index), offered)
 
     @Slot(result=list)
     def libraryList(self) -> list:
-        return self.host.session.run("mods.library", self._ref()).rows
+        return self.presenter.library(self._lib.mods())
 
     @Slot()
     def removeUnused(self) -> None:
         if self._ready() is None:
             return
-        self._calls.plan("mods.remove_unused", self._ref(), destructive=True)
+
+        def failed(e: OperationError) -> None:
+            if e.code == "nothing_unused":
+                self.notifier.toast(self.presenter.error(e))
+            elif e.code == "cannot_tell":
+                say_refusal(self.notifier, Refusal(tr("Can't tell what is unused"), e.message))
+            else:
+                self._say(e)
+
+        self._plan(
+            self._lib.check_remove_unused,
+            lambda plan: self.presenter.clean_confirm(len(plan.versions), plan.size),
+            lambda plan, _o: self._lib.remove_unused(plan.token),
+            destructive=True,
+            fail=failed,
+        )
 
     # ---- small helpers for changes
     def _profile(self) -> Path | None:
@@ -358,23 +553,31 @@ class ModsAdapter(QObject):
             return None
         return Path(profile)
 
+    def _path(self) -> str:
+        """The current profile as the engine takes it."""
+        return str(self.host.profile or "")
+
     def _entry(self, index: int) -> dict | None:
         return next((e for e in (self._view.entries if self._view else ()) if e["index"] == index), None)
 
     def _ref(self, **more: Any) -> dict:
-        """The params of an operation on the current profile."""
-        return {"profile": str(self.host.profile or ""), **more}
+        """The params of an operation on the current profile (Take over still asks the session through them)."""
+        return {"profile": self._path(), **more}
 
-    def _launch_ref(self, **more: Any) -> dict:
-        """The same, with the setup it is launched as (the rules about deleting and Seamless Co-op read it)."""
+    def _launch(self) -> dict:
+        """The setup the profile is launched as (the rules about deleting and Seamless Co-op read it)."""
         launch = self.host.launch_profile
-        return self._ref(kind=getattr(launch, "kind", "me3"), source=str(getattr(launch, "source", "") or ""), **more)
+        return {"kind": getattr(launch, "kind", "me3"), "source": str(getattr(launch, "source", "") or "")}
+
+    @staticmethod
+    def _pick_prompt(words: Pick, rows: Sequence[str], ticked: Sequence[int] = ()) -> dict:
+        return prompt_dict(dataclasses.replace(words, rows=tuple(rows), ticked=tuple(ticked)))
 
     def _fail(self, text: str, then=None):
         """An error toast in the page's words ("Could not undo: {why}"), then then()."""
 
         def failed(e: OperationError) -> None:
-            self.notifier.toast(text.format(why=e.message), error=True)
+            self.notifier.toast(text.format(why=self.presenter.error(e)), error=True)
             if then is not None:
                 then()
 
@@ -384,16 +587,16 @@ class ModsAdapter(QObject):
         """A change was written: tell the host, read the page again, offer Undo."""
         self.host.profile_changed(note)
         self.refresh()
-        profile = self.host.profile
-        self.notifier.toast_action(toast, self._words["undo"], lambda p=profile: self._undo_last(p))
+        path = self._path()
+        self.notifier.toast_action(toast, self._words["undo"], lambda: self._undo_last(path))
 
-    def _undo_last(self, profile) -> None:
+    def _undo_last(self, path: str) -> None:
         def undone(_got) -> None:
             self.host.profile_changed("profile: undid the last change")
             self.refresh()
             self.notifier.toast(tr("Undone"))
 
-        self._calls.run("mods.undo_change", {"profile": str(profile)}, undone, self._fail(tr("Could not undo: {why}")))
+        self._query(lambda: self._svc.undo_change(path), undone, self._fail(tr("Could not undo: {why}")))
 
     # ---- rows
     @Slot(int, bool)
@@ -402,18 +605,18 @@ class ModsAdapter(QObject):
         if profile is None or entry is None:
             self.refresh()
             return
+        path = str(profile)
 
-        def written(got) -> None:
+        def written(name: str) -> None:
             self._changed(
-                got.note,
+                f"profile: {name} {'on' if on else 'off'}",
                 (
                     tr("{name} is on again") if on else tr("{name} is off. It stays in the profile and me3 skips it.")
-                ).format(name=got.name),
+                ).format(name=name),
             )
 
-        self._calls.run(
-            "mods.set_enabled",
-            self._ref(index=index, enabled=bool(on)),
+        self._query(
+            lambda: self._svc.set_enabled(path, index, bool(on), entry["name"]),
             written,
             self._fail(tr("Could not change the profile: {why}"), self.refresh),
         )
@@ -423,7 +626,7 @@ class ModsAdapter(QObject):
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None:
             return
-        name, asked = entry["name"], []
+        path, name, asked = str(profile), entry["name"], []
 
         def finished(ok: bool, data: dict) -> None:
             if not ok or asked:  # a confirm said Undo is in Activity; no confirm: Undo is right here
@@ -434,41 +637,51 @@ class ModsAdapter(QObject):
             )
 
         def failed(e: OperationError) -> None:
-            self.notifier.toast(e.message, error=True)
+            self._say(e)
             if e.code == "stale":
                 self.refresh()
 
-        def option(ticked: bool) -> dict:
+        def ask(details: dict) -> Confirm:
             asked.append(1)
-            return {"delete_folder": ticked}
+            return self.presenter.removal(path, RemovalAsk.of(details))
 
-        self._calls.job(
-            "mods.remove", self._ref(index=index, name=name), finished, failed, retry=option, destructive=True
+        self._asking(
+            lambda confirmed, option: self._svc.remove(path, index, name, option if confirmed else None, confirmed),
+            ask,
+            lambda job_id: self._follow(job_id, finished),
+            failed,
+            destructive=True,
         )
 
     def _undo_removal(self, undo: dict) -> None:
-        def undone(got) -> None:
-            self.host.profile_changed(got.note)
+        def undone(name: str) -> None:
+            self.host.profile_changed(f"profile: restored {name}")
             self.refresh()
             self.notifier.toast(tr("Undone"))
 
-        self._calls.run("mods.undo_removal", {"undo": undo}, undone, self._fail(tr("Could not undo: {why}")))
+        self._query(lambda: self._svc.undo_removal(undo), undone, self._fail(tr("Could not undo: {why}")))
 
     @Slot(int)
     def removeHolder(self, index: int) -> None:
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None:
             return
+        path = str(profile)
 
         def finished(ok: bool, data: dict) -> None:
             if ok:
                 name = data["result"]["name"]
                 self._changed(
-                    data["result"]["note"],
+                    f"profile: removed {name} (a folder of mods)",
                     tr("{name} is out of the profile. Nothing in the game changes.").format(name=name),
                 )
 
-        self._calls.plan("mods.remove_holder", self._ref(index=index), done=finished)
+        self._plan(
+            lambda: self._svc.check_remove_holder(path, index),
+            lambda plan: self.presenter.holder(path, plan.name, list(plan.needs)),
+            lambda plan, _o: self._svc.remove_holder(path, index, plan.stamp),
+            done=finished,
+        )
 
     @Slot(int, int)
     def moveTo(self, index: int, to: int) -> None:
@@ -480,6 +693,7 @@ class ModsAdapter(QObject):
             self.notifier.toast(self.presenter.move_busy().body, error=True)
             self.refresh()
             return
+        path = str(profile)
 
         def moved(got) -> None:
             if got.moved:
@@ -499,27 +713,27 @@ class ModsAdapter(QObject):
                     self.notifier.toast(refusal.body, error=True)
             self.refresh()
 
-        self._calls.run(
-            "mods.move",
-            self._ref(index=index, to=to),
+        self._query(
+            lambda: self._svc.move(path, index, to, entry["name"]),
             moved,
             self._fail(tr("Could not change the load order: {why}"), self.refresh),
         )
 
     @Slot(int)
     def beginDrag(self, index: int) -> None:
-        """A drag starts: the session sends the refusal for every drop spot once (mods.drag), so the spots are judged
-        in memory as the pointer moves. The real check and the write happen on drop (moveTo)."""
+        """A drag starts: the engine sends the refusal for every drop spot once (drag), so the spots are judged in
+        memory as the pointer moves. The real check and the write happen on drop (moveTo)."""
         self._drag = {}
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None or self.host.busy:
             return
+        path = str(profile)
         mine = self._drag = {"index": index, "reasons": None}
 
         def got(table) -> None:
             mine["reasons"] = table.reasons  # not for a drag that has ended
 
-        self._calls.run("mods.drag", self._ref(index=index), got, lambda _e: None)
+        self._query(lambda: self._svc.drag(path, index), got, lambda _e: None)
 
     @Slot()
     def endDrag(self) -> None:
@@ -528,7 +742,7 @@ class ModsAdapter(QObject):
     @Slot(int, int, result=str)
     def dropReason(self, index: int, to: int) -> str:
         """Why dropping entry `index` at position `to` would be refused (words for the drop spot), or "" when allowed.
-        The same rules moveTo applies, over the table the session sent when the drag began."""
+        The same rules moveTo applies, over the table the engine sent when the drag began."""
         if self.host.busy:
             return self.presenter.move_busy().body
         reasons = self._drag.get("reasons")
@@ -555,22 +769,31 @@ class ModsAdapter(QObject):
         profile = self._profile()
         if profile is None:
             return
+        path = str(profile)
         combine = True if self._state.parameters.state == "stacked" else None
-        # a rebuild tool that is not allowed yet is asked about first (the session says so); the answer allows it
-        self._calls.job("mods.rebuild", self._ref(combine=combine), retry=lambda _option: {"allow": True})
+        # a rebuild tool that is not allowed yet is asked about first; the answer allows it
+        self._asking(
+            lambda confirmed, _o: self._svc.rebuild(path, combine, allow=confirmed),
+            lambda details: self.presenter.tool(ToolInfo(**details["tool"])),
+        )
 
     @Slot()
     def allowTool(self) -> None:
         """The InfoBar's Allow (owner, D2): what the tool runs, then remembered once the player confirms."""
         if self.host.profile is None or self._view is None:
             return
-        label = self._view.tool_label
+        path, label = self._path(), self._view.tool_label
 
         def allowed(_got) -> None:
             self.notifier.toast(tr("{tool} is allowed to run").format(tool=label))
             self.refresh()
 
-        self._calls.plan("mods.allow_tool", self._ref(), after=allowed)
+        self._plan(
+            lambda: self._svc.check_allow_tool(path),
+            lambda tool: dataclasses.replace(self.presenter.tool(tool), apply=tr("Allow")),
+            lambda tool, _o: self._svc.allow_tool(path, tool.key),
+            after=allowed,
+        )
 
     @Slot()
     def undoRebuild(self) -> None:
@@ -583,6 +806,7 @@ class ModsAdapter(QObject):
         profile = self._profile()
         if profile is None:
             return
+        path = str(profile)
 
         def finished(ok: bool, data: dict) -> None:
             if ok:
@@ -590,17 +814,32 @@ class ModsAdapter(QObject):
                 self.notifier.toast(tr("{n} older rebuild backups moved to the Recycle Bin.").format(n=n))
                 self.refresh()
 
-        self._calls.plan("mods.trim_backups", self._ref(), done=finished)
+        def failed(e: OperationError) -> None:
+            if e.code == "nothing_to_trim":
+                keep = (e.details or {}).get("keep", 0)
+                self.notifier.toast(tr("Nothing to trim. {n} or fewer backups are kept.").format(n=keep))
+            else:
+                self._say(e)
+
+        self._plan(
+            lambda: self._svc.check_trim_backups(path),
+            self.presenter.trim,
+            lambda plan, _o: self._svc.trim_backups(path, plan.count),
+            done=finished,
+            fail=failed,
+        )
 
     @Slot()
     def fixOrder(self) -> None:
         profile = self._profile()
         if profile is None:
             return
-        self._calls.run(
-            "mods.fix_order",
-            self._ref(),
-            lambda got: self._changed(got.note, tr("Load order fixed")),
+        path = str(profile)
+        self._query(
+            lambda: self._svc.fix_order(path),
+            lambda _got: self._changed(
+                "profile: fixed the order of the mod that must stay last", tr("Load order fixed")
+            ),
             self._fail(tr("The order could not be fixed: {why}")),
         )
 
@@ -616,7 +855,8 @@ class ModsAdapter(QObject):
             return
         if key == "library-hint":
             self._hint = None
-        self._calls.run("mods.close_notice", self._ref(key=key), lambda _got: self.refresh())
+        path = self._path()
+        self._query(lambda: self._svc.close_notice(path, key), lambda _got: self.refresh())
 
     @Slot(str)
     def noticeAction(self, key: str) -> None:
@@ -641,24 +881,59 @@ class ModsAdapter(QObject):
         """Rename the profile's folder to its name, or split a crowded folder (a logged job, Undo in Activity)."""
         if self.host.profile is None or self._view is None or self.host.busy:
             return
-        kind = self._view.folder_kind
+        path, kind = self._path(), self._view.folder_kind
         if kind == "misnamed":
-            self._calls.job("mods.rename_folder", self._ref())
+            self._job(lambda: self._svc.rename_folder(path))
         elif kind == "crowded":
-            self._calls.plan("mods.split_folder", self._ref(), plain=True)
+
+            def words(plan) -> Confirm | Refusal:
+                if not plan.ok:
+                    return Refusal(tr("Folder not split"), " ".join(plan.refusals))
+                return self.presenter.split_confirm(plan.profiles, plan.copies, plan.moves)
+
+            self._plan(
+                lambda: self._svc.check_split_folder(path),
+                words,
+                lambda plan, _o: self._svc.split_folder(path, plan.stamp),
+                plain=True,
+            )
 
     def _dll_folders_action(self) -> None:
         """Give each loose DLL mod a folder of its own, after a confirmation (a logged job, Undo in Activity)."""
         if self.host.profile is None or self.host.busy:
             return
-        self._calls.plan("mods.dll_folders", self._ref(), plain=True)
+        path = self._path()
+
+        def words(plan) -> Confirm | Refusal:
+            if not plan.ok:
+                return Refusal(tr("DLLs not moved"), " ".join(plan.refusals))
+            return self.presenter.dll_folders_confirm(plan.moves, plan.files, plan.copies)
+
+        self._plan(
+            lambda: self._svc.check_dll_folders(path),
+            words,
+            lambda plan, _o: self._svc.dll_folders(path, plan.stamp),
+            plain=True,
+        )
 
     def _seamless_action(self) -> None:
         """Move Seamless Co-op from the game folder into this profile, or clean up what it left there (a job; the
         files go to the Recycle Bin, the profile's own copy and the settings file in use are never touched)."""
         if self.host.launch_profile is None or self.host.busy or self.host.game_running:
             return
-        self._calls.plan("mods.seamless", self._launch_ref(), plain=True)
+        path, launch = self._path(), self._launch()
+
+        def words(plan) -> Confirm:
+            move = plan.kind == "move"
+            changes = self.presenter.seamless_changes(move, plan.folder, plan.files, plan.launcher)
+            return self.presenter.seamless_confirm(move, changes)
+
+        self._plan(
+            lambda: self._svc.check_seamless(path, **launch),
+            words,
+            lambda plan, _o: self._svc.seamless(path, (plan.kind, plan.files), **launch),
+            plain=True,
+        )
 
     @Slot()
     def copyFingerprint(self) -> None:
@@ -681,8 +956,8 @@ class ModsAdapter(QObject):
         return self._profile()
 
     def _show_pick(self, prompt: dict, then) -> None:
-        """A tick list the session sent (a Pick prompt with its rows): the page shows it; then(ticked indexes) runs
-        with what the player ticked."""
+        """A tick list (a Pick prompt with its rows): the page shows it; then(ticked indexes) runs with what the
+        player ticked."""
         key = f"pick-{len(self._picks) + 1}"
         self._picks[key] = then
         words = {k: v for k, v in prompt.items() if k not in ("kind", "rows")}
@@ -705,32 +980,61 @@ class ModsAdapter(QObject):
         folder = self.host.pick_folder(self.presenter.overhaul_folder_title())
         if folder is None:
             return
-        self._calls.plan("mods.overhaul_install", self._ref(folder=str(folder)))
+        path = self._path()
+
+        def failed(e: OperationError) -> None:
+            if e.code == "unreadable":
+                say_refusal(self.notifier, self.presenter.overhaul_unreadable(folder, e.message))
+            else:
+                self._say(e)
+
+        self._plan(
+            lambda: self._inst.check_overhaul_install(path, folder),
+            lambda plan: self.presenter.overhaul_install(path, plan),
+            lambda plan, _o: self._inst.install_overhaul(path, folder, plan.stamp),
+            fail=failed,
+        )
 
     @Slot()
     def removeOverhaul(self) -> None:
         profile, has = self._ready(), self._view.overhaul_info if self._view else None
         if profile is None or not has:
             return
-        label, legacy = has.label, has.legacy
+        path, label, legacy = str(profile), has.label, has.legacy
 
         def later(_got) -> None:
             if legacy:  # what its installer left is cleaned up once the removal is done
                 note = self.presenter.overhaul_leftovers_later(label)
                 self.notifier.toast(f"{note.title}. {note.body}")
 
+        def failed(e: OperationError) -> None:
+            if e.code == "cannot_remove":
+                say_refusal(self.notifier, self.presenter.overhaul_remove_failed(label, e.message))
+            else:
+                self._say(e)
+
         def ask(chosen: list) -> None:
-            self._calls.plan("mods.overhaul_remove", self._ref(chosen=chosen), destructive=True, after=later)
+            self._plan(
+                lambda: self._inst.check_overhaul_remove(path, chosen),
+                lambda plan: self.presenter.overhaul_remove(path, label, plan),
+                lambda plan, revert: self._inst.remove_overhaul(path, chosen, revert, plan.stamp),
+                destructive=True,
+                after=later,
+                fail=failed,
+            )
 
         if not legacy:
             ask([])
             return
+
         # what its installer changed is offered unticked (owner, 3.22-A)
-        self._calls.run(
-            "mods.overhaul_remove_choices",
-            self._ref(),
-            lambda got: self._show_pick(got.prompt, ask) if got.prompt else ask([]),
-        )
+        def offered(got) -> None:
+            if got.rows:
+                self._show_pick(self._pick_prompt(self.presenter.overhaul_put_back(got.label), got.rows), ask)
+            else:
+                ask([])
+
+        self._query(lambda: self._inst.remove_choices(path), offered)
 
     @Slot()
     def takeOverOverhaul(self) -> None:
@@ -740,21 +1044,37 @@ class ModsAdapter(QObject):
     def cleanLeftovers(self) -> None:
         if self._ready() is None:
             return
+        path = self._path()
 
         def offered(got) -> None:
-            def clean(folders: list, confirmed: list) -> None:
+            def clean(folders: list[str], confirmed: list[str]) -> None:
                 if (folders or confirmed) and not self.host.busy:
-                    self._calls.job("mods.leftovers_clean", self._ref(folders=folders, backups=confirmed))
+                    self._job(lambda: self._inst.clean_leftovers(path, [*folders, *confirmed]))
 
-            def ask_backups(folders: list) -> None:  # last, and one at a time: the only copy from before the overhaul
-                self._calls.ask_each(got.backups, lambda confirmed: clean(folders, confirmed), destructive=True)
+            def ask_backups(
+                folders: list[str],
+            ) -> None:  # last, and one at a time: the only copy from before the overhaul
+                self._ask_each(got.backups, lambda confirmed: clean(folders, confirmed))
 
             if got.folders:
-                self._show_pick(got.folders, ask_backups)
+                rows = [f.label for f in got.folders]
+                pick = self._pick_prompt(self.presenter.leftovers(bool(got.backups)), rows)
+                self._show_pick(pick, lambda ticked: ask_backups([got.folders[i].path for i in ticked]))
             else:
                 ask_backups([])
 
-        self._calls.run("mods.leftovers", self._ref(), offered)
+        self._query(lambda: self._inst.leftovers(path), offered)
+
+    def _ask_each(self, backups, then, i: int = 0, yes: tuple[str, ...] = ()) -> None:
+        """Ask for each backup in turn; then(the paths answered yes)."""
+        if i >= len(backups):
+            then(list(yes))
+            return
+
+        def answered(ok: bool, _option: bool) -> None:
+            self._ask_each(backups, then, i + 1, (*yes, backups[i].path) if ok else yes)
+
+        self.notifier.ask(self.presenter.leftover_backups(backups[i]), answered, destructive=True)
 
     # ---- the header
     @Slot()
@@ -794,10 +1114,12 @@ class ModsAdapter(QObject):
         if self._entry(index) is None or self.host.profile is None:
             self.renamePreviewReady.emit({"ok": False, "lines": [], "refusals": [], "name": name})
             return
-        self._calls.run(
-            "mods.rename_preview",
-            self._ref(index=index, name=name),
-            lambda got: self.renamePreviewReady.emit({**got.model_dump(), "name": name}),
+        path = self._path()
+        self._query(
+            lambda: self._svc.rename_preview(path, index, name),
+            lambda got: self.renamePreviewReady.emit(
+                {"ok": got.ok, "lines": list(got.lines), "refusals": list(got.refusals), "name": name}
+            ),
         )
 
     @Slot(int, str)
@@ -805,7 +1127,8 @@ class ModsAdapter(QObject):
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None or self.host.busy:
             return
-        self._calls.job("mods.rename", self._ref(index=index, name=name))
+        path = str(profile)
+        self._job(lambda: self._svc.rename(path, index, name, entry["name"]))
 
     @Slot(int)
     def openRename(self, index: int) -> None:
@@ -845,24 +1168,28 @@ class ModsAdapter(QObject):
         if self._entry(index) is None or self.host.profile is None:
             return {}
         try:
-            v = self.host.session.run("mods.options", self._ref(index=index))
+            v = self._svc.options(self._path(), index)
         except OperationError:
             return {}
+
+        def deps(found) -> list[dict]:
+            return [{"id": d.id, "optional": d.optional} for d in found]
+
         return {
             "index": v.index,
             "name": v.name,
             "kind": v.kind,
             "enabled": v.enabled,
             "id": v.id,
-            "loadAfter": [d.model_dump() for d in v.load_after],
-            "loadBefore": [d.model_dump() for d in v.load_before],
+            "loadAfter": deps(v.load_after),
+            "loadBefore": deps(v.load_before),
             "optional": v.optional,
             "loadEarly": v.load_early,
             "initKind": v.init_kind,
             "initValue": v.init_value,
             "finalizer": v.finalizer,
-            "others": v.others,
-            "overlay": v.overlay,
+            "others": list(v.others),
+            "overlay": -1 if v.overlay is None else int(v.overlay),
             "rebuildFile": v.rebuild_file,
             "configs": list(self._view.configs.get(index, ())) if self._view else [],
         }
@@ -872,13 +1199,13 @@ class ModsAdapter(QObject):
         profile, entry = self._profile(), self._entry(index)
         if profile is None or entry is None:
             return
+        path = str(profile)
 
-        def deps(key: str) -> list[dict]:
-            return [{"id": d["id"], "optional": bool(d.get("optional"))} for d in chosen.get(key) or []]
+        def deps(key: str) -> tuple[Dependency, ...]:
+            return tuple(Dependency(str(d["id"]), bool(d.get("optional"))) for d in chosen.get(key) or [])
 
         overlay = chosen.get("overlay")
-        params = self._ref(
-            index=index,
+        change = OptionsChange(
             enabled=bool(chosen.get("enabled", True)),
             id=str(chosen.get("id") or ""),
             load_after=deps("loadAfter"),
@@ -888,21 +1215,23 @@ class ModsAdapter(QObject):
             finalizer=str(chosen.get("finalizer") or ""),
             init_kind=int(chosen.get("initKind") or 0),
             init_value=str(chosen.get("initValue") or ""),
-            overlay=-1 if overlay in (None, -1) else int(bool(overlay)),
+            overlay=None if overlay in (None, -1) else bool(overlay),
             rebuild_file=str(chosen.get("rebuildFile") or ""),
         )
 
         def failed(e: OperationError) -> None:
             if e.code == "invalid_wait":
-                self.notifier.toast(e.message, error=True)
+                self._say(e)
                 return
-            self.notifier.toast(tr("Could not save the options: {why}").format(why=e.message), error=True)
+            self.notifier.toast(tr("Could not save the options: {why}").format(why=self.presenter.error(e)), error=True)
             self.refresh()
 
-        self._calls.run(
-            "mods.save_options",
-            params,
-            lambda got: self._changed(got.note, tr("{name}: options saved").format(name=got.name)),
+        name = entry["name"]
+        self._query(
+            lambda: self._svc.save_options(path, index, change, name),
+            lambda saved: self._changed(
+                f"profile: options saved for {saved}", tr("{name}: options saved").format(name=saved)
+            ),
             failed,
         )
 
@@ -911,7 +1240,10 @@ class ModsAdapter(QObject):
     def settingsFor(self) -> dict:
         if self.host.profile is None:
             return {}
-        v = self.host.session.run("mods.settings", self._ref())
+        try:
+            v = self._svc.settings(self._path())
+        except OperationError:
+            return {}
         return {
             "savefile": v.savefile,
             "start_online": v.start_online,
@@ -925,21 +1257,22 @@ class ModsAdapter(QObject):
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value) -> None:
         """One me3 option; the three-way ones come as 0 (me3 default) / 1 (on) / 2 (off). Turning online matchmaking
-        on asks first (the session says so)."""
+        on asks first (the engine says so)."""
         profile = self._profile()
         if profile is None:
             return
+        path = str(profile)
 
         def written(got) -> None:
             if got.changed:
-                self._changed(got.note, self.presenter.setting_changed(key))
+                shown = got.value if got.value not in (None, "") else "me3 default"
+                self._changed(f"profile: {key} = {shown}", self.presenter.setting_changed(key))
 
-        self._calls.run(
-            "mods.set_setting",
-            self._ref(key=key, value=value),
+        self._asking(
+            lambda confirmed, _o: self._svc.set_setting(path, key, value, confirmed),
+            lambda _details: self.presenter.online(),
             written,
             self._fail(tr("Could not write the profile: {why}")),
-            retry=lambda _option: {},
             declined=self.refresh,
         )
 
@@ -948,14 +1281,13 @@ class ModsAdapter(QObject):
     def versionsList(self) -> list:
         if self.host.profile is None:
             return []
-        got = self.host.session.run("mods.versions", self._ref())
+        try:
+            found = self._svc.versions(self._path())
+        except OperationError:
+            return []
         return [
-            {
-                "path": v.path,
-                "when": datetime.datetime.fromisoformat(v.when).strftime("%Y-%m-%d %H:%M"),
-                "why": v.why,
-            }
-            for v in got.versions
+            {"path": v.path, "when": datetime.datetime.fromisoformat(v.when).strftime("%Y-%m-%d %H:%M"), "why": v.why}
+            for v in found
         ]
 
     @Slot(str)
@@ -963,38 +1295,41 @@ class ModsAdapter(QObject):
         profile = self._profile()
         if profile is None:
             return
+        mine = str(profile)
 
-        def restored(got) -> None:
+        def restored(before: str | None) -> None:
             self.host.profile_changed("profile: restored an earlier version")
             self.refresh()
-            if got.before is not None:
-                before = got.before
+            if before is not None:
 
                 def undone(_got) -> None:
                     self.host.profile_changed("profile: undid a restore")
                     self.refresh()
 
                 def undo() -> None:
-                    self._calls.run("mods.restore_version", self._ref(path=before), undone)
+                    self._query(lambda: self._svc.restore_version(mine, before), undone)
 
                 self.notifier.toast_action(tr("The earlier version is back"), self._words["undo"], undo)
 
-        self._calls.run(
-            "mods.restore_version", self._ref(path=path), restored, self._fail(tr("Could not restore: {why}"))
-        )
+        self._query(lambda: self._svc.restore_version(mine, path), restored, self._fail(tr("Could not restore: {why}")))
 
     # ---- Add existing
     @Slot(str, result=list)
     def unlistedFor(self, kind: str) -> list:
         if self.host.profile is None:
             return []
-        return list(self.host.session.run("mods.unlisted", self._ref(kind=kind)).folders)
+        try:
+            found = self._svc.unlisted(self._path(), kind)
+        except OperationError:
+            return []
+        return [{"label": f.label, "path": f.path} for f in found]
 
     @Slot(str, list)
     def addPaths(self, kind: str, paths: list) -> None:
         profile = self._profile()
         if profile is None or not paths:
             return
+        path, chosen = str(profile), [str(p) for p in paths]
 
         def added(got) -> None:
             names = ", ".join(got.names)
@@ -1004,12 +1339,7 @@ class ModsAdapter(QObject):
             if got.loose_dlls:
                 self._dll_folders_action()  # the same move the notice offers, asked right away
 
-        self._calls.run(
-            "mods.add_existing",
-            self._ref(kind=kind, paths=[str(p) for p in paths]),
-            added,
-            self._fail(tr("Could not add: {why}")),
-        )
+        self._query(lambda: self._svc.add_existing(path, kind, chosen), added, self._fail(tr("Could not add: {why}")))
 
     @Slot()
     def deleteProfile(self) -> None:
@@ -1017,7 +1347,7 @@ class ModsAdapter(QObject):
         if profile is None:
             self.notifier.toast(tr("Pick a profile first."), error=True)
             return
-        name = Path(profile).stem
+        path, name, launch = str(profile), Path(profile).stem, self._launch()
 
         def finished(ok: bool, data: dict) -> None:
             if not ok:
@@ -1026,7 +1356,21 @@ class ModsAdapter(QObject):
             self.notifier.toast(tr("Profile {name} deleted. It is in Deleted profiles.").format(name=name))
             self.refresh()
 
-        self._calls.plan("mods.delete_profile", self._launch_ref(), destructive=True, done=finished)
+        def failed(e: OperationError) -> None:
+            refusal = self.presenter.delete_refusal((e.details or {}).get("reason"), name)
+            if refusal is not None and e.code in ("no_profile", "managed", "busy"):
+                say_refusal(self.notifier, refusal)
+            else:
+                self._say(e)
+
+        self._plan(
+            lambda: self._svc.check_delete_profile(path, **launch),
+            lambda plan: self.presenter.delete_profile(path, plan.keeps),
+            lambda plan, _o: self._svc.delete_profile(path, plan.stamp, **launch),
+            destructive=True,
+            done=finished,
+            fail=failed,
+        )
 
     # ---- renaming and duplicating the profile (click its name in the header, or Profile > Rename / Duplicate)
     profileRenameRequested = Signal()  # the menu asked: the header opens its name field
@@ -1049,7 +1393,10 @@ class ModsAdapter(QObject):
         """Why `name` can't be the profile's new name ("" when it can). Reads the profile's folder only."""
         if self.host.profile is None:
             return tr("Pick a profile first.")
-        return self.host.session.run("mods.profile_name_check", self._launch_ref(name=name)).problem
+        got = self._svc.check_profile_name(self._path(), name)
+        return {"": "", "no_profile": tr("Pick a profile first."), "empty": tr("Type a new name.")}.get(
+            got.code, got.reason
+        )
 
     @Slot(str, result=str)
     def renameProfile(self, name: str) -> str:
@@ -1060,7 +1407,8 @@ class ModsAdapter(QObject):
         why = self.profileNameCheck(name)
         if why:
             return why
-        self._calls.job("mods.rename_profile", self._launch_ref(name=name))
+        path, launch = self._path(), self._launch()
+        self._job(lambda: self._svc.rename_profile(path, name, **launch))
         return ""
 
     @Slot()
@@ -1069,8 +1417,13 @@ class ModsAdapter(QObject):
         if block or self.host.profile is None:
             self.notifier.toast(block, error=True)
             return
-        # packages can be shared: the session asks, never forces; the check box is the answer
-        self._calls.job("mods.duplicate_profile", self._launch_ref(), retry=lambda option: {"share": option})
+        path, launch = self._path(), self._launch()
+        # packages can be shared: the engine asks, never forces; the check box is the answer
+        self._asking(
+            lambda confirmed, option: self._svc.duplicate_profile(path, option if confirmed else None, **launch),
+            lambda details: self.presenter.duplicate_confirm(details.get("name", "")),
+            lambda job_id: self._follow(job_id, None),
+        )
 
     def profile_outside(self) -> bool:
         """The profile is not in Bayle's folder, so the menu offers Move into Bayle's folder."""
@@ -1083,7 +1436,19 @@ class ModsAdapter(QObject):
         if block or self.host.profile is None:
             self.notifier.toast(block, error=True)
             return
-        self._calls.plan("mods.move_in", self._launch_ref(), plain=True)
+        path, launch = self._path(), self._launch()
+
+        def words(plan) -> Confirm | Refusal:
+            if not plan.ok:
+                return Refusal(tr("Not moved"), " ".join(plan.refusals))
+            return self.presenter.move_in_confirm(Path(path).stem, Path(path).parent.name, plan.moves, plan.copies)
+
+        self._plan(
+            lambda: self._svc.check_move_in(path, **launch),
+            words,
+            lambda plan, _o: self._svc.move_in(path, plan.stamp, **launch),
+            plain=True,
+        )
 
     # ---- Edit as text
     editText = Property(bool, lambda self: self._edit_text, notify=textChanged)
@@ -1094,22 +1459,22 @@ class ModsAdapter(QObject):
     def _read_text(self) -> None:
         profile = self.host.profile
 
-        def got(view) -> None:
-            self._crlf = view.crlf
-            self._text = self._saved_text = view.text
+        def got(read) -> None:
+            self._crlf = read.crlf
+            self._text = self._saved_text = read.text
             self.textChanged.emit()
 
         if profile is None:
             self._crlf, self._text, self._saved_text = False, "", ""
             self.textChanged.emit()
             return
-        self._calls.run("mods.text", self._ref(), got)
+        path = str(profile)
+        self._query(lambda: self._svc.read_text(path), got)
 
     def _parse_error(self) -> str:
-        """Why the text does not parse ("" when it does): the session's gate, asked once per text."""
+        """Why the text does not parse ("" when it does): the engine's gate, asked once per text."""
         if self._checked[0] != self._text:
-            problem = self.host.session.run("mods.check_text", {"text": self._text}).problem
-            self._checked = (self._text, problem)
+            self._checked = (self._text, self.presenter.text_error(self._svc.check_text(self._text)))
         return self._checked[1]
 
     @Slot(bool)
@@ -1132,18 +1497,15 @@ class ModsAdapter(QObject):
         profile = self._profile()
         if profile is None or self._parse_error():
             return
-        text = self._text
+        path, text, crlf = str(profile), self._text, self._crlf
 
-        def saved(got) -> None:
+        def saved(_got) -> None:
             self._saved_text = text
             self.textChanged.emit()
-            self._changed(got.note, tr(".me3 saved  ·  a Version was kept"))
+            self._changed("profile: saved as text", tr(".me3 saved  ·  a Version was kept"))
 
-        self._calls.run(
-            "mods.save_text",
-            self._ref(text=text, crlf=self._crlf),
-            saved,
-            self._fail(tr("Could not save the profile: {why}")),
+        self._query(
+            lambda: self._svc.save_text(path, text, crlf), saved, self._fail(tr("Could not save the profile: {why}"))
         )
 
     @Slot()

@@ -6,8 +6,9 @@ from pathlib import Path
 from test_mods_presenter import facts
 
 from bayle.mods import shared_mods
+from bayle.services.shared_mods import LibraryMod, LibraryVersion
+from bayle.ui.pages.mods.presenter import ModsPresenter
 from bayle.views.mod_install import InstallDraft
-from bayle.views.mods import ModsPresenter
 
 P = ModsPresenter()
 
@@ -54,13 +55,8 @@ def test_the_confirmations_use_the_agreed_words():
 
 
 def test_the_library_rows_show_the_date_and_label_but_never_the_id():
-    version = shared_mods.Version("0123456789abcdef", "2026-10-21", "v2", 2048)
-    info = [
-        shared_mods.ModInfo(
-            shared_mods.SharedMod("grass", "Grass"), [shared_mods.VersionInfo(version, ["a", "b"], False)]
-        )
-    ]
-    out = P.library(info)
+    version = LibraryVersion("0123456789abcdef", "2026-10-21", "v2", 2048, ("a", "b"), False)
+    out = P.library([LibraryMod("grass", "Grass", 2048, (version,))])
     assert out[0]["versions"][0]["title"] == "Installed 2026-10-21  ·  v2"
     assert out[0]["versions"][0]["usedBy"] == "Used by a, b" and "0123456789abcdef" not in str(out)
 

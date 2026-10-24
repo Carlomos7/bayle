@@ -51,7 +51,10 @@ PREVIOUS_TITLE = "Roundtable Souls"  # releases before the rename; Steam shortcu
 PORT = 8797
 LOCAL = Path(os.environ.get("LOCALAPPDATA", ""))
 DATA = LOCAL / "RoundtableSouls"  # the app's data folder (its identity's data_dir_name)
-WORK = Path(os.environ.get("RUNNER_TEMP", ROOT / "build")) / "update-test"
+# each mode its own work folder: the update test's may still be held for a moment by its uninstaller
+WORK = Path(os.environ.get("RUNNER_TEMP", ROOT / "build")) / (
+    "rollback-test" if "--broken" in sys.argv[1:] else "update-test"
+)
 INSTALL = WORK / "install"
 STARTED = time.time()
 
@@ -237,10 +240,24 @@ def main() -> None:
     uninstall()
 
 
+def clear(folder: Path) -> None:
+    """Remove a folder this script owns (its work folder, the CI runner's app data folder), retrying while a process
+    that is just ending (an uninstaller, a stopping launcher) still holds a file; fails naming what is left."""
+    deadline = time.monotonic() + 60
+    while folder.exists():
+        shutil.rmtree(folder, ignore_errors=True)
+        if not folder.exists() or time.monotonic() >= deadline:
+            break
+        time.sleep(1)
+    if folder.exists():
+        left = [str(p) for p in folder.rglob("*")][:10]
+        fail(f"{folder} could not be removed within 60 s; still there: {left}")
+
+
 def install_previous(prev: str) -> None:
     """1. the published release installs silently into a throwaway folder, with a clean data folder."""
-    shutil.rmtree(WORK, ignore_errors=True)
-    shutil.rmtree(DATA, ignore_errors=True)  # a clean start (the install test before this one used it)
+    clear(WORK)
+    clear(DATA)  # a clean start (the install and update tests before this one used it)
     WORK.mkdir(parents=True)
     subprocess.run(
         ["gh", "release", "download", prev, "--repo", os.environ["GITHUB_REPOSITORY"],

@@ -210,6 +210,8 @@ def failure_code(e: BaseException) -> str:
 def _coded(e: Exception, **details: Any) -> OperationError:
     if isinstance(e, OperationError):
         return e
+    # the code is for the player; the traceback stays in the job's log for whoever reads it
+    run_logging.get_logger("job").error("error: %s", e, exc_info=e)
     return OperationError(failure_code(e), str(e), details)
 
 

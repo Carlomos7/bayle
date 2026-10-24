@@ -75,6 +75,7 @@ def test_the_spec_carries_each_operations_own_schemas(app):
     spec = app.openapi()
     undo = spec["paths"]["/v1/activity/undo"]["post"]
     assert undo["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith("/TakeBack")
-    assert "/v1/activity" in spec["paths"] and "/v1/plans/{plan_id}" in spec["paths"]
+    assert "/v1/activity" in spec["paths"] and "/v1/prompts/{prompt_id}" in spec["paths"]
+    assert not any(p.startswith(("/v1/ops", "/v1/pages", "/v1/plans")) for p in spec["paths"])  # the registry is gone
     mark = spec["paths"]["/v1/activity/mark_seen"]["post"]
     assert "requestBody" not in mark

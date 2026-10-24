@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 from bayle.game import catalog
 from bayle.game.locate import Locations
-from bayle.saves.analyze import GameItems
 from bayle.services.activity import ActivityService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
@@ -26,11 +25,6 @@ def repo_root() -> Path:
 def er() -> Locations:
     """Elden Ring with nothing set under Settings > Locations: what code that is handed a game's locations gets."""
     return Locations(catalog.ELDEN_RING)
-
-
-def er_items() -> GameItems:
-    """What a save is checked against with er(): the installed game's items (none when it is not installed)."""
-    return GameItems.for_locations(er())
 
 
 def live_save() -> Path | None:
@@ -111,11 +105,6 @@ def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
         (root / d).mkdir(parents=True, exist_ok=True)
     (root / "natives" / "a.dll").write_bytes(b"d")
     return path
-
-
-def tree_state(*roots: Path) -> dict:
-    """(mtime, size) of every file and folder under the roots: a read must leave it as it was."""
-    return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for r in roots for p in [r, *r.rglob("*")]}
 
 
 class FakeShellContext:
@@ -252,14 +241,6 @@ def ServiceCalls(jobs: JobManager, **services) -> Routes:  # noqa: N802  a const
 
     modules = {"mods": mods, "mod_install": mod_install, "mod_library": mod_library}
     return Routes(jobs, {modules[k]: s for k, s in services.items()})
-
-
-def mods_session(locations=er, **jobs_kw):
-    """Inline jobs over the real ModsService (what the Mods routes are called on)."""
-    from bayle.services.mods_page import ModsService
-
-    jobs = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs_kw)
-    return ServiceCalls(jobs, mods=ModsService(jobs, locations))
 
 
 def refused(session, name, params):

@@ -179,7 +179,7 @@ def test_leaving_out_a_file_beside_a_dll_is_said_in_the_preview(world):
 # ----------------------------------------------------------------------------- a Revive-shaped download, end to end
 @pytest.fixture
 def world(tmp_path, monkeypatch):
-    from test_overhaul_install import World
+    from overhaul_world import World
 
     return World(tmp_path, monkeypatch)
 
@@ -188,7 +188,7 @@ def revive_shaped(world) -> Path:
     """Generated here, no real mod files: game files inside mod/, two DLLs and their settings, a binder meant for a
     game path beside a folder of the game's own base copies, assets for its DLLs."""
     from fakegame import bnd, dcx
-    from test_engine import GAME_CLIPS
+    from overhaul_world import GAME_CLIPS
 
     d = world.tmp / "Downloads" / "Revive Shaped Ä" / "payload"
     clips = dcx(bnd({**GAME_CLIPS, "mine.hkx": b"mine"}))
@@ -239,7 +239,7 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
     from bayle.mods import overhaul_install
     from bayle.overhauls import writer
     from bayle.services import mods as mod_service
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
     config = overhauls.read(toml)
@@ -257,7 +257,7 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
 
 def test_applying_a_saved_setup_leaves_a_hand_edited_file_as_it_is(world):
     from bayle.services import mods as mod_service
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
     toml.write_text("# my own note" + chr(10) + toml.read_text(encoding="utf-8"), encoding="utf-8")
@@ -355,7 +355,7 @@ def two_profiles(world):
     from bayle import overhauls
     from bayle.mods import overhaul_install
     from bayle.overhauls import writer
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
     other = world.base / "other.me3"
@@ -395,7 +395,7 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
     from bayle import overhauls
     from bayle.overhauls import writer
     from bayle.services import mods as mod_service
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
     text = world.text().replace('id = "mixed-mod"', 'id = "mixed-mod"\nenabled = false')
@@ -426,7 +426,7 @@ def open_install(world, monkeypatch, folder):
 def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world, monkeypatch):
     from bayle import overhauls
     from bayle.services.mod_configs import SetupValues
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     folder, toml, _out = set_up(world)
     config = overhauls.read(toml)
@@ -474,7 +474,7 @@ def test_a_files_choice_encodes_and_decodes_the_same_way_everywhere():
 def test_applying_a_saved_setup_that_no_profile_took_is_an_error_not_a_success(world):
     from bayle.mods import overhaul_install
     from bayle.services import mods as mod_service
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     set_up(world)
     with pytest.raises(overhaul_install.OverhaulError, match="not found after saving"):
@@ -506,7 +506,7 @@ def test_the_left_out_note_ignores_the_case_of_the_folder(world):
 
 def test_the_files_table_is_read_off_the_ui_thread(world, monkeypatch):
     from bayle.platform import threads
-    from test_overhaul_install import set_up
+    from overhaul_world import set_up
 
     folder, _toml, _out = set_up(world)
     service, opened = open_install(world, monkeypatch, folder)

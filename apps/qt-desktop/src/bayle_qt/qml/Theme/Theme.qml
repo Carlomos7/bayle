@@ -229,7 +229,7 @@ QtObject {
         return n * 4;
     }
 
-    // bundled SVGs (ui/assets/icons, Fluent UI System Icons, MIT), tinted by IconImage; no qrc, so Design Studio works
+    // bundled SVGs (bayle_qt/assets/icons, Fluent UI System Icons, MIT), tinted by IconImage; no qrc, so Design Studio works
     function icon(name) {
         return Qt.resolvedUrl("../../assets/icons/" + name + ".svg");
     }

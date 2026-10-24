@@ -4,15 +4,15 @@ import subprocess
 import sys
 
 import pytest
+from fastapi import APIRouter
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
+
 from bayle import __version__
 from bayle.api.app import create_app
 from bayle.api.models import CONTRACT_VERSION
 from bayle.api.settings import ApiSettings
 from bayle.errors import Busy, OperationError
-from fastapi import APIRouter
-from fastapi.testclient import TestClient
-from pydantic import ValidationError
-
 from support import repo_root
 
 ROOT = repo_root()

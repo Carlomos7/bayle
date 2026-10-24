@@ -1,5 +1,5 @@
 """--self-test (technical specification §8.5): its list of required QML modules matches what pyside6-qmlimportscanner
-finds in ui/qml, every listed file exists in the source tree, a missing one fails, and the whole self-test passes when
+finds in bayle_qt/qml, every listed file exists in the source tree, a missing one fails, and the whole self-test passes when
 run from source (off-screen, in its own temporary data folder)."""
 
 import json
@@ -11,12 +11,13 @@ from pathlib import Path
 
 import pytest
 from bayle import diagnostics
-from bayle.resources import PACKAGE_DIR
+from bayle.resources import PACKAGE_DIR as ENGINE_DIR
 
 from bayle_qt import self_test
+from bayle_qt.resources import PACKAGE_DIR
 from support import repo_root
 
-QML = PACKAGE_DIR / "ui" / "qml"
+QML = PACKAGE_DIR / "qml"
 
 
 def scanner() -> str | None:
@@ -52,16 +53,16 @@ def test_the_build_collects_only_the_qml_modules_the_launcher_needs():
 
 
 def test_every_listed_file_is_in_the_source_tree():
-    for need in (diagnostics.requirements(), self_test.requirements()):
+    for need, base in ((diagnostics.requirements(), ENGINE_DIR), (self_test.requirements(), PACKAGE_DIR)):
         for spec in need["files"]:
-            diagnostics._files(spec)
+            diagnostics._files(spec, base)
 
 
 def test_a_missing_file_is_a_failure_not_a_skip():
     lines = []
     report = diagnostics.Report(lines.append)
-    report.check("file nope.txt", lambda: diagnostics._files({"path": "nope.txt"}))
-    report.check("file none/*.png", lambda: diagnostics._files({"glob": "none/*.png", "min": 1}))
+    report.check("file nope.txt", lambda: diagnostics._files({"path": "nope.txt"}, PACKAGE_DIR))
+    report.check("file none/*.png", lambda: diagnostics._files({"glob": "none/*.png", "min": 1}, PACKAGE_DIR))
     assert report.failed == 2 and report.passed == 0
     assert lines[0].startswith("FAIL  file nope.txt: FileNotFoundError")
 
@@ -95,7 +96,7 @@ def test_the_self_test_passes_from_source(tmp_path):
     report = tmp_path / "report.txt"
     env = {k: v for k, v in os.environ.items() if k != "ROUNDTABLE_SOULS_DATA"}
     done = subprocess.run(
-        [sys.executable, "-m", "bayle", "--self-test", str(report)],
+        [sys.executable, "-m", "bayle_qt", "--self-test", str(report)],
         capture_output=True,
         text=True,
         encoding="utf-8",

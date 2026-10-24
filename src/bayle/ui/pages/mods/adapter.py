@@ -20,12 +20,11 @@ from bayle.session.ops.mods import ModsView
 from bayle.ui.models import RowsModel, plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.calls import Calls
-from bayle.ui.pages.mods import take_over
+from bayle.ui.pages.mods import load_order, take_over
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
+from bayle.ui.pages.mods.presenter import BUSY, ModsPresenter, ModsState
 from bayle.ui.pages.undo import ask_undo
 from bayle.ui.refresh import Refresher, stat_key
-from bayle.views import load_order
-from bayle.views.mods import BUSY, ModsPresenter, ModsState
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",

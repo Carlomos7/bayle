@@ -9,7 +9,7 @@ import pytest
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.saves.adapter import SavesAdapter
 from bayle.ui.pages.saves.presenter import Drop, SavesPresenter
-from bayle.views.mods import Refusal
+from bayle.views.common import Refusal
 from support import er
 
 CHAR = {"type": "character", "path": "A.sl2", "slot": 2}

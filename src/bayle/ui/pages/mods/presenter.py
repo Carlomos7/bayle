@@ -14,7 +14,7 @@ from bayle.mods import shared_mods
 from bayle.platform.text import plural, tr
 from bayle.services import profile_mods
 from bayle.services.profile_mods import PageFacts, Removal
-from bayle.views import load_order
+from bayle.ui.pages.mods import load_order
 from bayle.views.common import Confirm, Pick, Refusal
 
 BUSY = profile_mods.DELETE_BUSY  # rename_block's code for "a job is running"

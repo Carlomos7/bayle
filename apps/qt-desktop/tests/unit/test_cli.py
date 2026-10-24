@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 from bayle import cli
-from bayle.config import settings
+from bayle.config import settings_file
 from bayle.platform import data_folder
 from bayle.platform import logging as run_logging
 from bayle.runtime import bootstrap
@@ -41,7 +41,7 @@ def quiet(monkeypatch):
     monkeypatch.setattr(run_logging, "setup_logging", lambda level="INFO", **kw: levels.append(level))
     monkeypatch.setattr(run_logging, "log", lines.append)
     monkeypatch.setattr(run_logging, "log_crash", lambda *args: None)
-    monkeypatch.setattr(settings, "load_settings", lambda: SimpleNamespace(log_level="normal", game="er"))
+    monkeypatch.setattr(settings_file, "load_settings", lambda: SimpleNamespace(log_level="normal", game="er"))
     monkeypatch.setattr(sys, "frozen", False, raising=False)
     return SimpleNamespace(lines=lines, levels=levels)
 
@@ -82,7 +82,7 @@ def test_update_flag_passes_the_other_arguments(monkeypatch, quiet):
 
 def test_verbose_log_level_is_debug(monkeypatch, quiet):
     argv(monkeypatch, "--check-storage")
-    monkeypatch.setattr(settings, "load_settings", lambda: SimpleNamespace(log_level="verbose"))
+    monkeypatch.setattr(settings_file, "load_settings", lambda: SimpleNamespace(log_level="verbose"))
     monkeypatch.setattr(cli, "check_storage", lambda: 0)
     cli.main()
     assert quiet.levels == ["DEBUG"]

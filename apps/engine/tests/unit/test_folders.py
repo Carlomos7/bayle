@@ -292,7 +292,7 @@ def _old_backups(folder, n):
 
 
 def test_prune_keeps_the_newest_backups_count_setting(tmp_path):
-    from bayle.config.settings import save_settings
+    from bayle.config.settings_file import save_settings
 
     save_settings(backups_keep=30)
     made, now = _old_backups(tmp_path / "b", 35)
@@ -302,7 +302,7 @@ def test_prune_keeps_the_newest_backups_count_setting(tmp_path):
 
 @pytest.mark.parametrize("value", [0, -1, 4, 201, "ten", None])
 def test_a_bad_backups_count_means_20_never_less(tmp_path, value):
-    from bayle.config.settings import settings_path
+    from bayle.config.settings_file import settings_path
 
     settings_path().write_text(json.dumps({"backups_keep": value}))  # as a hand-edited file could hold it
     assert save_backups.keep_newest() == save_backups.KEEP_NEWEST

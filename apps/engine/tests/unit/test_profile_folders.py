@@ -312,10 +312,10 @@ def test_a_second_run_after_the_move_finds_nothing_and_old_state_is_still_read(t
 
 
 def test_custom_folder_names_are_followed(tmp_path, monkeypatch):
-    from bayle.config import settings
+    from bayle.config import settings, settings_file
 
     monkeypatch.setattr(
-        settings,
+        settings_file,
         "load_settings",
         lambda: settings.LauncherSettings(
             game_folder_pattern="my-{game}", packages_folder="mods", shared_folder="Shared"
@@ -327,17 +327,17 @@ def test_custom_folder_names_are_followed(tmp_path, monkeypatch):
     pf = library.ProfileFolder.of(home / "my-eldenring" / "p" / "p.me3")
     assert pf.packages == home / "my-eldenring" / "p" / "mods" and pf.natives.name == "natives"
     other = tmp_path / "elsewhere"
-    monkeypatch.setattr(settings, "load_settings", lambda: settings.LauncherSettings(profiles_root=str(other)))
+    monkeypatch.setattr(settings_file, "load_settings", lambda: settings.LauncherSettings(profiles_root=str(other)))
     assert library.game_root(home, "eldenring") == other / "b-eldenring"
     assert library.is_game_folder(other / "b-eldenring") and not library.is_game_folder(other / "mods")
 
 
 def test_migration_follows_a_custom_game_folder_and_dot_folders_are_never_profiles(world, monkeypatch):
-    from bayle.config import settings
+    from bayle.config import settings, settings_file
     from bayle.platform import me3_paths
 
     monkeypatch.setattr(
-        settings,
+        settings_file,
         "load_settings",
         lambda: settings.LauncherSettings(
             game_folder_pattern="my-{game}", shared_folder="Shared", packages_folder="mods"

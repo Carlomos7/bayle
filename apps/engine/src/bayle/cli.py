@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         return cpu.worker_main()
     if "--backend" in argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
         from bayle.api.server import main as backend_main
-        from bayle.config.settings import load_settings
+        from bayle.config.settings_file import load_settings
         from bayle.platform import logging as run_logging
         from bayle.runtime.bootstrap import create_engine, use_data_folder
         from bayle.storage.db import MigrationFailed
@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
     from bayle.runtime.bootstrap import use_data_folder
 
     use_data_folder()  # before anything logs: the platform layer is told where the data folder is
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
 
     run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO")
 

@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from bayle import overhauls
-from bayle.config.settings import change_settings, load_settings
+from bayle.config.settings_file import change_settings, load_settings
 from bayle.game import exe as game_exe
 from bayle.game.locate import Locations
 from bayle.overhauls.config import Health

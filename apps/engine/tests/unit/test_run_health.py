@@ -117,7 +117,7 @@ def test_a_notice_alone_is_only_logged_and_report_tells_the_callable_it_is_given
 
 def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatch):
     from bayle import overhauls
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
     from bayle.overhauls.config import OverhaulConfig
 
     cfg = OverhaulConfig.model_validate(

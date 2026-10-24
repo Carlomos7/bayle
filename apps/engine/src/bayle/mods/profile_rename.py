@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.config import settings as launcher_settings
+from bayle.config import settings_file
 from bayle.merging import build
 from bayle.mods import history, kinds, library, migrate, naming, operations
 from bayle.mods import profile_settings as ps
@@ -386,7 +387,7 @@ def _apply_state(info: dict, *, back: bool = False) -> list[str]:
         return out
 
     try:
-        launcher_settings.change_settings(change)
+        settings_file.change_settings(change)
     except OSError as e:
         notes.append(f"The launcher's settings could not be updated ({e})")
     for src, dest in (

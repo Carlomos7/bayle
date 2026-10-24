@@ -431,7 +431,7 @@ def tree(root):
 def world(tmp_path):
     import json
 
-    from bayle.config import settings
+    from bayle.config import settings_file
     from bayle.mods import library, profile_settings
 
     root = tmp_path / "prof"
@@ -448,17 +448,22 @@ def world(tmp_path):
         json.dumps({"version": 1, "schema": 1, "profiles": {"my.me3": {"after_overlay": ["alpha"]}}}), encoding="utf-8"
     )
     dll = root / "natives" / "Cool" / "cool.dll"
-    settings.settings_path().write_text(
+    settings_file.settings_path().write_text(
         json.dumps({"native_configs": {str(dll): [str(dll.with_name("cool.ini"))]}, "theme": "light"}), encoding="utf-8"
     )
     return p
 
 
 def snapshot(p):
-    from bayle.config import settings
+    from bayle.config import settings_file
     from bayle.mods import profile_settings
 
-    return tree(p.parent), p.read_bytes(), profile_settings.path(p).read_bytes(), settings.settings_path().read_bytes()
+    return (
+        tree(p.parent),
+        p.read_bytes(),
+        profile_settings.path(p).read_bytes(),
+        settings_file.settings_path().read_bytes(),
+    )
 
 
 def entry_index(p, name):
@@ -478,7 +483,7 @@ def test_rename_then_undo_is_byte_exact(world):
     import json
     import tomllib
 
-    from bayle.config import settings
+    from bayle.config import settings_file
     from bayle.mods import profile_settings, rename, undo
 
     p, before = world, snapshot(world)
@@ -498,7 +503,7 @@ def test_rename_then_undo_is_byte_exact(world):
     assert pre.ok, pre.refusals
     out2 = rename.apply(pre, loc=er())
     dll = p.parent / "natives" / "cooler" / "cool.dll"
-    assert json.loads(settings.settings_path().read_text())["native_configs"] == {
+    assert json.loads(settings_file.settings_path().read_text())["native_configs"] == {
         str(dll): [str(dll.with_name("cool.ini"))]
     }
     assert "natives/cooler/cool.dll" in p.read_text(encoding="utf-8")
@@ -627,7 +632,7 @@ def test_a_rename_is_refused_when_the_profile_changed_since_the_preview(world):
 def test_undoing_a_rename_does_not_overwrite_later_changes(world, tmp_path):
     import json
 
-    from bayle.config import settings
+    from bayle.config import settings_file
     from bayle.mods import undo
 
     p = world
@@ -642,14 +647,14 @@ def test_undoing_a_rename_does_not_overwrite_later_changes(world, tmp_path):
     (p.parent / "mod" / "Alpha").rmdir()
     # (a) the profile edited, (c) launcher_settings.json changed: the edit stays, the rename goes
     _edit_profile(p, "# edited outside\r\n")
-    cur = json.loads(settings.settings_path().read_text())
-    settings.settings_path().write_text(json.dumps({**cur, "theme": "dark"}), encoding="utf-8")
+    cur = json.loads(settings_file.settings_path().read_text())
+    settings_file.settings_path().write_text(json.dumps({**cur, "theme": "dark"}), encoding="utf-8")
     notes: list[str] = []
     undo.run(rec, notes.append, loc=er())
     text = p.read_bytes().decode()
     assert text.endswith("# edited outside\r\n") and "mod/Alpha" in text and "mod/flora" not in text
     assert (p.parent / "mod" / "Alpha" / "parts" / "a.dcx").is_file() and not (p.parent / "mod" / "flora").exists()
-    assert json.loads(settings.settings_path().read_text())["theme"] == "dark"
+    assert json.loads(settings_file.settings_path().read_text())["theme"] == "dark"
     no_leftovers(p)
 
 

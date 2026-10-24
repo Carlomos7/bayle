@@ -7,7 +7,7 @@ import time
 import tomllib
 from pathlib import Path
 
-from bayle.config.settings import load_settings, save_settings
+from bayle.config.settings_file import load_settings, save_settings
 from bayle.formats import me3_profile
 from bayle.game.locate import Locations
 from bayle.mods import install, models, profile_writer, remove, shared_mods

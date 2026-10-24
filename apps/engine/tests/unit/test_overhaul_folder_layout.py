@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config import settings
+from bayle.config import settings, settings_file
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.mods import library, migrate, move_in, profile_edit, profile_rename, shared_mods
@@ -101,7 +101,7 @@ def test_migration_takes_the_overhaul_folder_along(home):
 
 def test_custom_folder_names_still_see_the_overhaul_folder_as_inside(home, monkeypatch):
     monkeypatch.setattr(
-        settings,
+        settings_file,
         "load_settings",
         lambda: settings.LauncherSettings(
             game_folder_pattern="my-{game}", packages_folder="Mods", natives_folder="Dlls"
@@ -186,7 +186,7 @@ def test_custom_names_are_reserved_and_split_by_the_settings_names(home, monkeyp
     from bayle.mods import folder_split, naming
 
     monkeypatch.setattr(
-        settings,
+        settings_file,
         "load_settings",
         lambda: settings.LauncherSettings(packages_folder="Mods", natives_folder="Dlls"),
     )

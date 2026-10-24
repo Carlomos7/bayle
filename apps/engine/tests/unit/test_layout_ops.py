@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.config import settings
+from bayle.config import settings_file
 from bayle.merging import build as B
 from bayle.mods import layout
 
@@ -78,12 +78,12 @@ def test_relocate_moves_everything_and_undo_is_identical(world, monkeypatch, cro
     text = (new / "b-eldenring" / "alpha" / "alpha.me3").read_text()
     assert f"{new.as_posix()}/b-eldenring/alpha/packages/m1" in text  # the absolute path follows
     assert "'natives/n1'" in text and "'../.shared/modS'" in text  # relative ones stay
-    assert settings.load_settings().profiles_root == str(new)
+    assert settings_file.load_settings().profiles_root == str(new)
     assert not list(new.glob(".rs-relocate-*"))
     if cross:
         assert seen and seen[-1][0] == seen[-1][1] > 0
     layout.undo_layout(Path(r["operation"]), world.loc)
-    assert settings.load_settings().profiles_root is None
+    assert settings_file.load_settings().profiles_root is None
     assert tree(world.root) == before
     assert not (new / "b-eldenring").exists()
     assert ops_left(world) == []
@@ -104,7 +104,7 @@ def test_relocate_cancel_mid_copy_cleans_up(world, monkeypatch):
     assert tree(world.root) == before
     assert not new.exists()
     assert ops_left(world) == []
-    assert settings.load_settings().profiles_root is None
+    assert settings_file.load_settings().profiles_root is None
 
 
 def test_relocate_crash_before_commit_recovers(world, monkeypatch):
@@ -132,7 +132,7 @@ def test_relocate_crash_before_commit_recovers(world, monkeypatch):
     assert tree(world.root) == before
     assert list(new.iterdir()) == []
     assert ops_left(world) == []
-    assert settings.load_settings().profiles_root is None
+    assert settings_file.load_settings().profiles_root is None
 
 
 def test_relocate_crash_after_commit_is_finished(world, monkeypatch):
@@ -146,7 +146,7 @@ def test_relocate_crash_after_commit_is_finished(world, monkeypatch):
     layout.finish_pending()
     assert not (world.root / "b-eldenring").exists()
     assert (new / "b-eldenring" / "alpha" / "alpha.me3").is_file()
-    assert settings.load_settings().profiles_root == str(new)
+    assert settings_file.load_settings().profiles_root == str(new)
 
 
 def test_relocate_refusals(world, monkeypatch):
@@ -195,11 +195,11 @@ def test_rename_each_name_and_undo(world, kw):
     assert tree(world.root) != before
     if "pattern" in kw:
         assert (world.root / "g-eldenring" / "alpha" / "alpha.me3").is_file()
-        assert settings.load_settings().game_folder_pattern == "g-{game}"
+        assert settings_file.load_settings().game_folder_pattern == "g-{game}"
     layout.undo_layout(Path(r["operation"]), world.loc)
     assert tree(world.root) == before
-    assert settings.load_settings().packages_folder == "packages"
-    assert settings.load_settings().game_folder_pattern == "b-{game}"
+    assert settings_file.load_settings().packages_folder == "packages"
+    assert settings_file.load_settings().game_folder_pattern == "b-{game}"
     assert ops_left(world) == []
 
 
@@ -211,7 +211,7 @@ def test_rename_all_together_keeps_shared_links(world):
     text = (g / "alpha" / "alpha.me3").read_text()
     assert f"{g.as_posix()}/alpha/mods/m1" in text and f"{g.as_posix()}/common/modS" in text
     assert "'dlls/n1'" in text and "'../common/modS'" in text
-    s = settings.load_settings()
+    s = settings_file.load_settings()
     assert (s.game_folder_pattern, s.packages_folder, s.natives_folder, s.shared_folder) == (
         "G_{game}",
         "mods",

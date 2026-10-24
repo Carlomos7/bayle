@@ -73,7 +73,8 @@ class _Context:
     own empty ones), the settings in memory."""
 
     def __init__(self, data_dir: Path, theme: str):
-        from bayle.config.settings import LauncherSettings, save_settings
+        from bayle.config.settings import LauncherSettings
+        from bayle.config.settings_file import save_settings
         from bayle.game import catalog
         from bayle.game.locate import Locations
         from bayle.work.events import EventBus

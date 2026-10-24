@@ -12,7 +12,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
-from bayle.config.settings import FROZEN, LauncherSettings, appimage, is_installed, is_portable
+from bayle.config.app_paths import FROZEN, appimage, is_installed, is_portable
+from bayle.config.settings import LauncherSettings
 from bayle.services.play import VERSION
 
 from bayle_qt.shell.background import Background

@@ -3,7 +3,7 @@ real one: no Qt, no window. Every profile is invented in the test's own folder."
 
 import pytest
 
-from bayle.config.settings import data_dir
+from bayle.config.app_paths import data_dir
 from bayle.services import shared_mods as library_service
 from support import mods_profile, mods_session, refused, tree_state
 

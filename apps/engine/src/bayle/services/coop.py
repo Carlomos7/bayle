@@ -215,13 +215,13 @@ def _trash_launcher(found: GameFolderSeamless, log) -> list[Path]:
 
 
 def relocate_dismissed(key: str) -> bool:
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
 
     return key in (load_settings().coop_relocate_dismissed or [])
 
 
 def dismiss_relocate(key: str) -> None:
-    from bayle.config.settings import change_settings
+    from bayle.config.settings_file import change_settings
 
     def add(current):
         have = list(current.coop_relocate_dismissed or [])

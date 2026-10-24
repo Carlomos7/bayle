@@ -4,7 +4,7 @@ older key (no fingerprint) counts once and moves to the new key."""
 
 from pathlib import Path
 
-from bayle.config.settings import load_settings, save_settings
+from bayle.config.settings_file import load_settings, save_settings
 from bayle.mods import rebuild
 from bayle.mods.backends import Recipe, Tool, program_fingerprint
 

@@ -15,15 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from bayle import __version__, overhauls
-from bayle.config.settings import (
-    FROZEN,
-    LauncherSettings,
-    exe_dir,
-    game_setting,
-    launch_target,
-    load_settings,
-    save_game_settings,
-)
+from bayle.config.app_paths import FROZEN, exe_dir, launch_target
+from bayle.config.settings import LauncherSettings, game_setting
+from bayle.config.settings_file import load_settings, save_game_settings
 from bayle.coop.ini import (
     coop_ini_for,
     has_password,

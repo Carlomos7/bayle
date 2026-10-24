@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from bayle.config.settings import load_settings
+from bayle.config.settings_file import load_settings
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods import layout, move_in

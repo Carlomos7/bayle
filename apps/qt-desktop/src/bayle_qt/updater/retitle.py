@@ -19,7 +19,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from bayle.config import identity
-from bayle.config.settings import identity_matches, is_installed, velopack_root
+from bayle.config.app_paths import identity_matches, is_installed, velopack_root
 
 
 def _inside(path: Path, root: Path) -> bool:

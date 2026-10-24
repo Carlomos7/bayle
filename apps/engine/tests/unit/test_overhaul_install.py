@@ -544,12 +544,12 @@ def test_without_choices_an_installer_setups_side_effects_stay(world):
 
 # ----------------------------------------------------------------------------- the services the pages call
 def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch):
-    from bayle.config import settings
+    from bayle.config import settings_file
     from bayle.platform import logging as run_logging
     from bayle.services import mods as service
 
     assert not service.overhaul_preview_on(world.loc)  # the switch is off by default
-    settings.save_settings(overhaul_install=True)
+    settings_file.save_settings(overhaul_install=True)
     assert service.overhaul_preview_on(world.loc)
     undos = []
     monkeypatch.setattr(run_logging, "set_undo", lambda d: undos.append(d))
@@ -689,7 +689,7 @@ def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
 
 # ----------------------------------------------------------------------------- the generic setup needs no shipped config
 def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(world, monkeypatch, tmp_path):
-    from bayle.config import settings
+    from bayle.config import settings_file
     from bayle.overhauls import config as overhaul_config
     from bayle.services import mods as service
 
@@ -698,7 +698,7 @@ def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(wor
     monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", empty)
     assert service.installable_overhauls("eldenring") == []
     assert not service.overhaul_preview_on(world.loc)  # switch off: hidden
-    settings.save_settings(overhaul_install=True)
+    settings_file.save_settings(overhaul_install=True)
     assert service.overhaul_preview_on(world.loc)
     text = service.overhaul_switch_text("eldenring")
     assert "Lets you set up any mod as an overhaul" in text and "none for this game" not in text

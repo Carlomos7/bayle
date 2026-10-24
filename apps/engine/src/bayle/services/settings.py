@@ -10,16 +10,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from bayle.config.settings import (
-    FROZEN,
-    data_dir,
-    exe_dir,
-    game_setting,
-    launch_target,
-    load_settings,
-    save_game_settings,
-    save_settings,
-)
+from bayle.config.app_paths import FROZEN, data_dir, exe_dir, launch_target
+from bayle.config.settings import game_setting
+from bayle.config.settings_file import load_settings, save_game_settings, save_settings
 from bayle.errors import OperationError
 from bayle.game.catalog import ELDEN_RING
 from bayle.game.locate import PATH_SETTINGS, Locations, saves_dir_problem

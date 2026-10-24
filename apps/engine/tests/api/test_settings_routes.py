@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.config.settings import data_dir
+from bayle.config.app_paths import data_dir
 from bayle.mods.layout import LayoutError
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service

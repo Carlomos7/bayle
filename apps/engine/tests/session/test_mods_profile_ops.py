@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.config.settings import data_dir
+from bayle.config.app_paths import data_dir
 from bayle.services import profile_mods
 from bayle.services.mods import profile_entries, read_profile_settings
 from support import mods_profile, mods_session, refused, tree_state

@@ -5,7 +5,7 @@ import struct
 
 import pytest
 
-from bayle.config import settings
+from bayle.config import settings, settings_file
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
 from bayle.game.locate import Locations, Overrides, installed_dir
@@ -87,9 +87,9 @@ def test_profiles_are_listed_for_the_game_they_support(tmp_path, monkeypatch):
 
 
 def test_settings_are_kept_per_game():
-    settings.save_game_settings("eldenring", setup="er.me3", game_exe="C:/er/eldenring.exe")
-    settings.save_game_settings("nightreign", setup="nr.me3")
-    s = settings.load_settings()
+    settings_file.save_game_settings("eldenring", setup="er.me3", game_exe="C:/er/eldenring.exe")
+    settings_file.save_game_settings("nightreign", setup="nr.me3")
+    s = settings_file.load_settings()
     assert s.profile == "er.me3"  # Elden Ring stays where older builds read it
     assert settings.game_setting(s, "nightreign", "setup") == "nr.me3"
     assert settings.game_setting(s, "nightreign", "game_exe", "") == ""
@@ -99,10 +99,10 @@ def test_settings_are_kept_per_game():
 
 
 def test_forget_profile_only_touches_its_own_game():
-    settings.save_game_settings("eldenring", setup="er.me3")
-    settings.save_game_settings("nightreign", setup="nr.me3")
+    settings_file.save_game_settings("eldenring", setup="er.me3")
+    settings_file.save_game_settings("nightreign", setup="nr.me3")
     core.forget_profile(NR)
-    s = settings.load_settings()
+    s = settings_file.load_settings()
     assert core.remembered_profile(s, NR) is None and core.remembered_profile(s, ER) == "er.me3"
 
 

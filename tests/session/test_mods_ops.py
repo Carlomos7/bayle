@@ -1,11 +1,11 @@
-"""The Mods page's snapshot and read operations through Session.snapshot / run, on a session whose Mods service is the
+"""The Mods page's snapshot and read operations through the route functions, on a session whose Mods service is the
 real one: no Qt, no window. Every profile is invented in the test's own folder."""
 
 import pytest
 
 from bayle.config.settings import data_dir
 from bayle.services import shared_mods as library_service
-from support import er, mods_profile, mods_session, refused, tree_state
+from support import mods_profile, mods_session, refused, tree_state
 
 make = mods_session
 
@@ -46,15 +46,6 @@ def test_no_profile_a_missing_one_or_no_game_gives_an_empty_state(tmp_path):
     other.write_text("x", encoding="utf-8")
     assert not s.snapshot("mods", profile=str(other)).has_profile  # only a .me3 is a profile
     assert not mods_session(lambda: None).snapshot("mods", profile=str(other)).has_profile
-
-
-def test_a_session_without_the_service_says_so():
-    from bayle.session import Session
-    from bayle.work.events import EventBus
-    from bayle.work.jobs import JobManager
-
-    s = Session(JobManager(EventBus(), spawn=lambda run, name=None: run()), locations=er)
-    assert refused(s, "mods.drag", {"profile": "x.me3", "index": 0}).code == "no_mods_service"
 
 
 def test_a_closed_notice_stays_closed_for_the_profile_in_the_session(profile):

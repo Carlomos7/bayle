@@ -1,4 +1,4 @@
-"""The Mods page's operations on a profile's entries through Session.run: no Qt, no window. A refused write changes
+"""The Mods page's operations on a profile's entries through the route functions: no Qt, no window. A refused write changes
 nothing; a job's id is read back from the session's JobManager."""
 
 import pytest

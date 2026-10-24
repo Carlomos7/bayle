@@ -181,15 +181,49 @@ class InlineBackground:
         return None
 
 
+class ServiceCalls:
+    """The mod routers' routes called as functions on a real service, named as the old registry named them
+    ("mods.set_enabled"): no HTTP, no Session. jobs is the JobManager the services start their jobs on."""
+
+    def __init__(self, jobs, **services):
+        self.jobs, self.services = jobs, services
+
+    def _route(self, op):
+        import inspect
+        import typing
+
+        from bayle.api.routers import mod_install, mod_library, mods
+
+        found = [
+            (m.router.prefix[1:], r.endpoint)
+            for m in (mods, mod_install, mod_library)
+            for r in m.router.routes
+            if r.path == f"{m.router.prefix}/{op}"
+        ]
+        assert len(found) == 1, op
+        feature, fn = found[0]
+        hints = typing.get_type_hints(fn)
+        names = list(inspect.signature(fn).parameters)
+        return self.services[feature], fn, (hints[names[1]] if len(names) > 1 else None)
+
+    def run(self, name, params=None):
+        service, fn, model = self._route(name.split(".", 1)[1])
+        return fn(service) if model is None else fn(service, model.model_validate(params or {}))
+
+    def snapshot(self, page, **scope):
+        from bayle.api.routers.mods import ModsScope
+        from bayle.api.routers.mods import page as mods_page
+
+        assert page == "mods"
+        return mods_page(self.services["mods"], ModsScope(**scope))
+
+
 def mods_session(locations=er, **jobs_kw):
-    """A Session over inline jobs whose Mods service is the real one (what the Mods operations are run through)."""
+    """Inline jobs over the real ModsService (what the Mods routes are called on)."""
     from bayle.services.mods_page import ModsService
-    from bayle.session import Session
-    from bayle.session import ops as _ops  # noqa: F401  registers the operations
-    from bayle.work.prompts import PlanStore
 
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs_kw)
-    return Session(jobs, plans=PlanStore(), locations=locations, services={"mods": ModsService(jobs, locations)})
+    return ServiceCalls(jobs, mods=ModsService(jobs, locations))
 
 
 def refused(session, name, params):

@@ -1,5 +1,5 @@
 """The Mods page and its operations over HTTP, on a session whose Mods service is the real one: the same Session,
-reached through the generic routes. Profiles are invented in the test's own folders; every request shape the OpenAPI
+reached through the mods routes. Profiles are invented in the test's own folders; every request shape the OpenAPI
 declares goes through JSON."""
 
 import pytest
@@ -19,13 +19,15 @@ def profile(tmp_path):
 
 @pytest.fixture
 def client():
-    with TestClient(create_app(ApiSettings(token=TOKEN), mods_session()), base_url="http://127.0.0.1") as c:
+    calls = mods_session()
+    app = create_app(ApiSettings(token=TOKEN), jobs=calls.jobs, services=calls.services)
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         yield c
 
 
 def post(client, name, body=None):
-    return client.post(f"/v1/ops/{name}", json=body)
+    return client.post("/v1/" + name.replace(".", "/"), json=body)
 
 
 def job(client, got) -> dict:
@@ -34,12 +36,12 @@ def job(client, got) -> dict:
 
 
 def test_the_page_snapshot_is_served_as_facts_with_its_filters(client, profile):
-    body = client.get("/v1/pages/mods", params={"profile": str(profile)}).json()
+    body = client.get("/v1/mods", params={"profile": str(profile)}).json()
     assert body["has_profile"] and [e["name"] for e in body["facts"]["entries"]] == ["flora", "cloud", "a.dll"]
     assert body["facts"]["display"]["package"] == [0, 1] and body["scan"] is not None
-    empty = client.get("/v1/pages/mods").json()
+    empty = client.get("/v1/mods").json()
     assert (empty["profile"], empty["has_profile"], empty["facts"]) == ("", False, None)
-    assert client.get("/v1/pages/mods", params={"nope": 1}).status_code == 422
+    assert client.get("/v1/mods", params={"nope": 1}).status_code == 422
 
 
 def test_a_command_a_refusal_with_a_code_and_a_job_over_http(client, profile):
@@ -114,19 +116,14 @@ def test_a_malformed_body_is_422_never_500(client, profile):
         assert got.status_code == 422 and got.json()["code"] == "invalid_params", (name, got.text)
     assert post(client, "mods.drag", None).status_code == 422
     assert (
-        client.post("/v1/ops/mods.drag", content=b"{not json", headers={"Content-Type": "application/json"}).status_code
+        client.post("/v1/mods/drag", content=b"{not json", headers={"Content-Type": "application/json"}).status_code
         == 422
     )
     assert profile.read_text(encoding="utf-8").startswith("profileVersion")
 
 
-def test_a_session_without_the_service_answers_with_a_code(profile):
-    from bayle.session import Session
-    from bayle.work.events import EventBus
-    from bayle.work.jobs import JobManager
-
-    session = Session(JobManager(EventBus(), spawn=lambda run, name=None: run()), locations=None)
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+def test_an_app_without_the_service_answers_with_a_code(profile):
+    with TestClient(create_app(ApiSettings(token=TOKEN)), base_url="http://127.0.0.1") as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         got = post(c, "mods.versions", {"profile": str(profile)})
-        assert got.status_code == 400 and got.json()["code"] == "no_mods_service"
+        assert got.status_code == 400 and got.json()["code"] == "not_available"

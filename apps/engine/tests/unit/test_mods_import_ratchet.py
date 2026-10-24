@@ -7,7 +7,7 @@ import ast
 
 from bayle.resources import PACKAGE_DIR
 
-LIMIT = 25  # 81 before the kind registries, the shared types in mods/models.py and the hoisted leaf imports
+LIMIT = 21  # 81 before the kind registries, the shared types in mods/models.py, the hoisted leaf imports and the backends lookup
 
 
 def _targets(node: ast.stmt, mods: set[str]) -> int:

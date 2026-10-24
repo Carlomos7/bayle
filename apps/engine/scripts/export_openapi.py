@@ -10,7 +10,7 @@ from pathlib import Path
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
 
-SNAPSHOT = Path(__file__).resolve().parent.parent / "docs" / "api" / "openapi.json"
+SNAPSHOT = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
 
 
 def render() -> str:

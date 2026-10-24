@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 from fakegame import bnd, dcx, fmg
-from test_overhaul_gaps import TALK, revive_shaped, texts_setup
 from test_overhaul_install import World, files, set_up
 
 from bayle import overhauls
@@ -18,6 +17,42 @@ from bayle.merging import build as B
 from bayle.mods import overhaul_install
 from bayle.mods.overhaul_install import OverhaulError
 from bayle.overhauls import basic
+
+# Copied from the desktop app's test_overhaul_gaps (it also holds Qt-only tests, so it lives there).
+TALK = "script/talk/m00.talkesdbnd.dcx"
+
+
+def revive_shaped(world) -> Path:
+    """Generated here, no real mod files: game files inside mod/, two DLLs and their settings, a binder meant for a
+    game path beside a folder of the game's own base copies, assets for its DLLs."""
+    from fakegame import bnd, dcx
+    from test_engine import GAME_CLIPS
+
+    d = world.tmp / "Downloads" / "Revive Shaped Ä" / "payload"
+    clips = dcx(bnd({**GAME_CLIPS, "mine.hkx": b"mine"}))
+    for rel, data in {
+        "mod/chr/c0000_a00_hi.anibnd.dcx": clips,
+        "mod/regulation.bin": (world.game / "regulation.bin").read_bytes(),
+        "RevivePrototype.dll": b"d",
+        "RevivePrototype.ini": b"[a]\nb=1\n",
+        "audio/hit.wav": b"w",
+        "settings/m00.talkesdbnd.dcx": dcx(bnd({"talk.esd": b"x"})),
+        "settings/base/script/talk/m00.talkesdbnd.dcx": dcx(bnd({"talk.esd": b"y"})),
+    }.items():
+        (d / rel).parent.mkdir(parents=True, exist_ok=True)
+        (d / rel).write_bytes(data)
+    return d
+
+
+def texts_setup(world, texts: dict[str, str]):
+    from bayle.overhauls.config import BasicText
+
+    folder = revive_shaped(world)
+    (folder / "settings/en.json").write_text('{"99002000": "Session settings"}', encoding="utf-8")
+    (folder / "settings/ru.json").write_text('{"99002000": "ru"}', encoding="utf-8")
+    entry = BasicText(file="msg/{each}/menu_dlc02.msgbnd.dcx", table="eventtextfortalk.fmg", texts=texts)
+    b = basic.propose(folder, game="eldenring").model_copy(update={"texts": [entry]})
+    return folder, basic.make(id="revive", label="Revive", game="eldenring", basic=b, folder=folder)
 
 
 @pytest.fixture

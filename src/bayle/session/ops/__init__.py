@@ -12,7 +12,6 @@ from bayle.session.ops import (
     profile_transfer,
     saves,
     settings,
-    shell,
 )
 
 __all__ = [
@@ -26,5 +25,4 @@ __all__ = [
     "profile_transfer",
     "saves",
     "settings",
-    "shell",
 ]

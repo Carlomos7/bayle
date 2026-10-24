@@ -119,7 +119,7 @@ def test_undo_asks_first_and_then_runs_as_a_job(qt_app, activity_entry, host, mo
         assert host.started() == []  # nothing runs until the user applies it
         w.notifier.answer(asked[0][0], True)
         assert host.started() == ["Restoring Grand Merchant..."]
-        assert host.session.jobs.get("j1").result == {"said": "undid it"}
+        assert host.job_manager.get("j1").result == {"said": "undid it"}
     finally:
         closed(w)
 

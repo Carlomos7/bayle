@@ -9,8 +9,9 @@ from bayle.config.settings import LauncherSettings
 from bayle.game import catalog
 from bayle.services import play as core
 from bayle.session.shell import launch
+from bayle.session.shell.facts import OFFLINE, PROFILE, VANILLA
 from bayle.session.shell.launch import Ask, LaunchFlow, Services
-from bayle.views.topbar import OFFLINE, PROFILE, VANILLA
+from bayle.ui.launcher.presenter import question_words as words
 
 
 class LaunchProfile:
@@ -57,8 +58,8 @@ class Ports:
         self.asked.append(ask)
         on_answer(self.answers.pop(0))
 
-    def toast(self, text, error=False):
-        self.toasts.append(text)
+    def toast(self, code, facts=None, error=False):
+        self.toasts.append(code)
 
     def progress(self, label):
         pass
@@ -118,7 +119,7 @@ def flow(state=None, ports=None, calls=None):
 def test_a_failed_backup_starts_nothing_until_the_player_chooses():
     f, ports, calls = flow(ports=Ports([launch.CANCEL]), calls=Calls(backup_fails=9))
     f.start(PROFILE)
-    assert [c.key for c in ports.asked[0].choices] == [launch.RETRY, launch.WITHOUT_BACKUP, launch.CANCEL]
+    assert [c.key for c in ports.asked[0].options] == [launch.RETRY, launch.WITHOUT_BACKUP, launch.CANCEL]
     assert calls.started == [] and ports.jobs == [] and not f.active
 
 
@@ -143,8 +144,8 @@ def test_changed_game_data_online_asks_before_any_launch():
     risk = SimpleNamespace(source="Some Pack")
     f, ports, calls = flow(ports=Ports([launch.CANCEL]), calls=Calls(risk=risk))
     f.start(PROFILE)
-    assert len(ports.asked) == 1 and "fingerprint" in ports.asked[0].lines[0]
-    assert "ban" not in " ".join(ports.asked[0].lines).lower()
+    assert len(ports.asked) == 1 and "fingerprint" in words(ports.asked[0]).lines[0]
+    assert "ban" not in " ".join(words(ports.asked[0]).lines).lower()
     assert calls.started == []
 
 
@@ -278,7 +279,7 @@ def test_stop_after_the_rebuild_lets_it_finish_but_does_not_start():
 def test_with_automatic_rebuilds_off_launch_asks_and_never_starts_silently():
     f, ports, calls, rebuilt = stale_flow([launch.CANCEL], auto=False)
     f.start(PROFILE)
-    assert [c.key for c in ports.asked[0].choices] == [launch.REBUILD, launch.PLAY_ANYWAY, launch.CANCEL]
+    assert [c.key for c in ports.asked[0].options] == [launch.REBUILD, launch.PLAY_ANYWAY, launch.CANCEL]
     assert rebuilt == [] and calls.started == []
     f, ports, calls, rebuilt = stale_flow([launch.PLAY_ANYWAY], auto=False)
     f.start(PROFILE)
@@ -289,18 +290,20 @@ def test_launch_asks_when_the_merged_mods_cannot_be_rebuilt_or_the_tool_is_not_a
     for kwargs in ({"blocked": "the last package is missing"}, {"tool_ok": False}):
         f, ports, calls, rebuilt = stale_flow([launch.CANCEL], **kwargs)
         f.start(PROFILE)
-        assert ports.asked[0].title == "Your merged mods are out of date"
-        assert launch.PLAY_ANYWAY in [c.key for c in ports.asked[0].choices]
+        assert words(ports.asked[0]).title == "Your merged mods are out of date"
+        assert launch.PLAY_ANYWAY in [c.key for c in ports.asked[0].options]
         assert rebuilt == [] and calls.started == []
 
 
 def test_a_failed_update_offers_play_anyway_and_is_not_retried_silently():
     f, ports, calls, rebuilt = stale_flow([launch.PLAY_ANYWAY, launch.CANCEL], fail=True)
     f.start(PROFILE)
-    assert ports.asked[0].title == "The merged mods could not be updated"
+    assert words(ports.asked[0]).title == "The merged mods could not be updated"
     assert [name for name, _ in calls.started] == ["play"]
     f.start(PROFILE)  # same inputs: it asks again instead of rebuilding or starting
-    assert rebuilt == [1] and len(calls.started) == 1 and ports.asked[1].title == "Your merged mods are out of date"
+    assert (
+        rebuilt == [1] and len(calls.started) == 1 and words(ports.asked[1]).title == "Your merged mods are out of date"
+    )
 
 
 def test_launch_reads_the_profile_checks_fresh_each_time():
@@ -314,3 +317,23 @@ def test_launch_reads_the_profile_checks_fresh_each_time():
         core.Problem("profile_missing", path="gone.me3")
     ]  # changed on disk since: the next Launch must see it
     assert f.start(PROFILE) is False and calls.started == []
+
+
+def test_the_gate_and_the_flow_speak_codes_and_qt_words_them_with_the_same_sentences():
+    from dataclasses import asdict
+
+    from bayle.ui.launcher.presenter import say_text
+
+    def said(state):
+        block = launch.gate(state, PROFILE)
+        return say_text("blocked", asdict(block))
+
+    assert said(State(busy=True)) == "Wait for the current job to finish."
+    assert said(State(running=True)) == "Elden Ring is already running. Close it first."
+    assert said(State(exe=False)) == "Elden Ring is not installed"
+    assert said(State(launch_profile=None)) == "No profile"
+    assert said(State(game=catalog.SEKIRO)) == "Not supported yet"
+    f, ports, _ = flow(state=State(running=True))
+    f.start(PROFILE)
+    assert ports.toasts == ["blocked"]
+    assert launch.gate(State(), PROFILE) is None

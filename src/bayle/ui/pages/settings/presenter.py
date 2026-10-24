@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from bayle.errors import OperationError
 from bayle.platform.text import tr
 from bayle.services import play as play_service
+from bayle.services.play import TITLE, VERSION
 from bayle.services.settings import (
     KEEP_RANGE,
     LOCATIONS,
@@ -25,9 +26,10 @@ from bayle.services.settings import (
     game_setting,
 )
 from bayle.services.updates import RELEASES_URL
+from bayle.session.shell import updates as updates_flow
+from bayle.ui.launcher.presenter import install_kind
 from bayle.updates import apply as updates
-from bayle.views import settings as launcher
-from bayle.views.common import Confirm, Refusal
+from bayle.work.prompts import Confirm, Refusal
 
 ME3_RELEASES_URL = "https://github.com/garyttierney/me3/releases"
 LICENCE_FILES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
@@ -379,7 +381,7 @@ def build(page: SettingsFacts) -> SettingsState:
         steam_target=facts.steam_target,
         steam_options=facts.steam_options,
         data_folder=updates.data_location_text(),
-        launcher_line=f"{launcher.TITLE} {launcher.VERSION}  ·  {launcher.install_kind()}",
+        launcher_line=f"{TITLE} {VERSION}  ·  {install_kind(updates_flow.install_kind())}",
         layout=dict(page.layout),
         locations=rows,
         switches=switch_rows,
@@ -393,7 +395,7 @@ def name_errors(check: NameCheck) -> dict[str, str]:
 
 def licence_url(file: str) -> str:
     """A licence file on GitHub at the tag of the running version (D8)."""
-    return f"{GITHUB_BLOB}/v{launcher.VERSION}/{file}"
+    return f"{GITHUB_BLOB}/v{VERSION}/{file}"
 
 
 # ----------------------------------------------------------------------------- the confirms and the refusals

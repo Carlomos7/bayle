@@ -22,9 +22,8 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from bayle.errors import OperationError
 from bayle.game.locate import Locations
-from bayle.views.common import Refusal
 from bayle.work.jobs import JobContext, JobManager
-from bayle.work.prompts import Plan, PlanStore, Proposal
+from bayle.work.prompts import Plan, PlanStore, Proposal, Refusal
 
 Kind = Literal["read", "command", "job", "plan"]
 _KINDS = ("read", "command", "job", "plan")

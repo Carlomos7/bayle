@@ -16,14 +16,11 @@ pytest.importorskip("PySide6.QtQuick")
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
-from bayle.session import Session
-from bayle.session import ops as _registered_operations  # noqa: E402, F401
 from bayle.ui.pages.activity.adapter import ActivityAdapter  # noqa: E402
 from bayle.ui.pages.registry import QmlPage  # noqa: E402
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
-from support import FakeActivityFacts, er  # noqa: E402
+from support import FakeActivityFacts  # noqa: E402
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
 
@@ -74,21 +71,17 @@ class FakeHost:
         self.busy = False
         self.game_running = False
         self.seen = 0
-        self.session = Session(
-            JobManager(
-                EventBus(),
-                spawn=lambda run, name=None: run(),
-                game_running=lambda: self.game_running,
-                external_busy=lambda: self.busy,
-            ),
-            plans=PlanStore(),
-            locations=er,
+        self.job_manager = JobManager(
+            EventBus(),
+            spawn=lambda run, name=None: run(),
+            game_running=lambda: self.game_running,
+            external_busy=lambda: self.busy,
         )
-        self.activity = self.facts = FakeActivityFacts(JOBS, manager=self.session.jobs)
+        self.activity = self.facts = FakeActivityFacts(JOBS, manager=self.job_manager)
 
     def started(self) -> list[str]:
         """The titles of the session jobs started, in order."""
-        return [s.title for s in (self.session.jobs.get(f"j{i}") for i in range(1, 9)) if s]
+        return [s.title for s in (self.job_manager.get(f"j{i}") for i in range(1, 9)) if s]
 
     def mark_seen(self):
         self.seen += 1

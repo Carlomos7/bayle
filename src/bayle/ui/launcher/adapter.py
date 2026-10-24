@@ -19,12 +19,12 @@ from bayle.platform.text import tr
 from bayle.resources import ASSETS_DIR
 from bayle.services import play as core
 from bayle.services.settings import save_settings
+from bayle.ui.launcher import menu, topbar
 from bayle.ui.launcher.host import ShellHost
 from bayle.ui.launcher.menumodel import MenuModel
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages import registry
 from bayle.ui.qml_env import QML_DIR
-from bayle.views import menu, topbar
 
 # The rail, in order (Ctrl+1..5): registry name, label, icon.
 RAIL = (

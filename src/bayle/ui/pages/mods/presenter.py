@@ -20,7 +20,7 @@ from bayle.services.mods_page import ModsPageState, ToolInfo, TrimPlan
 from bayle.services.profile_mods import PageFacts, Removal
 from bayle.services.shared_mods import LibraryMod
 from bayle.ui.pages.mods import load_order
-from bayle.views.common import Confirm, Pick, Refusal
+from bayle.work.prompts import Confirm, Pick, Refusal
 
 BUSY = profile_mods.DELETE_BUSY  # rename_block's code for "a job is running"
 REBUILD_CODES = {  # the engine's refusal codes for a rebuild -> profile_mods' REBUILD_* codes the words are kept by

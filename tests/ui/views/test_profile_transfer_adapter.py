@@ -6,13 +6,10 @@ from pathlib import Path
 
 from bayle.platform.threads import as_worker
 from bayle.services.profile_transfer import ProfileTransferService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.profile_transfer.adapter import ProfileTransferAdapter
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 from support import er
 
 PROFILE = (
@@ -36,7 +33,7 @@ class Host:
         spawn = (lambda run, name=None: self.pending.append(run)) if hold else (lambda run, name=None: run())
         jobs = JobManager(EventBus(), spawn=spawn)
         self.features = Features(ProfileTransferService(jobs, er))
-        self.session = Session(jobs, plans=PlanStore(), locations=er)
+        self.job_manager = jobs
         self.followers: dict[str, object] = {}
 
     def run_in_background(self, work, on_result):
@@ -45,7 +42,7 @@ class Host:
         on_result(got)
 
     def follow_job(self, job_id, done):
-        snap = self.session.jobs.get(job_id)
+        snap = self.job_manager.get(job_id)
         if snap.state == "running":
             self.followers[job_id] = done
         else:
@@ -57,7 +54,7 @@ class Host:
             while self.pending:
                 self.pending.pop(0)()
         for job_id, done in list(self.followers.items()):
-            done(self.session.jobs.get(job_id))
+            done(self.job_manager.get(job_id))
         self.followers.clear()
 
     def pick_folder(self, title):

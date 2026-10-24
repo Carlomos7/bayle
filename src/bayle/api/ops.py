@@ -17,7 +17,7 @@ from fastapi import APIRouter, Query
 from bayle.api.deps import SessionDep
 from bayle.api.models import JobStarted, PlanAnswer, PlanExecuted, PlanOffer, PromptAnswer, PromptAnswered
 from bayle.session import NoParams, OperationSpec, PageSpec, Session
-from bayle.views.common import Refusal, prompt_dict
+from bayle.work.prompts import Refusal, prompt_dict
 
 
 def _page_route(router: APIRouter, spec: PageSpec) -> None:

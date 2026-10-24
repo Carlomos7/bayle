@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from bayle.views.common import Choose, Confirm
+from bayle.work.prompts import Choose, Confirm, Refusal
 
 
 class Notifier(QObject):
@@ -150,3 +150,7 @@ class Notifier(QObject):
         this Notifier: left in place they are a reference cycle that frees the adapter at some later garbage collection."""
         for pending in (self._waiting, self._full, self._actions, self._choosing):
             pending.clear()
+
+
+def say_refusal(notifier: Notifier, refusal: Refusal) -> None:
+    notifier.toast(f"{refusal.title}. {refusal.body}", error=not refusal.info)

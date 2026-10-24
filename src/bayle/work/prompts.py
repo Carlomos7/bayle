@@ -73,12 +73,28 @@ class Choose:
     safety: str = ""
 
 
+@dataclass(frozen=True)
+class Option:
+    key: str
+    role: Literal["primary", "danger", "normal"] = "normal"
+
+
+@dataclass(frozen=True)
+class Question:
+    """A fork with no words: the client words it from the code and the facts (JSON-clean) and answers with an
+    option's key. The Launch flow asks these."""
+
+    code: str
+    facts: dict
+    options: tuple[Option, ...]
+
+
 Prompt = Confirm | Pick | Choose  # what a client can be asked; a Refusal is told, not asked
 
 
-def prompt_dict(words: Confirm | Pick | Choose | Refusal) -> dict:
+def prompt_dict(words: Confirm | Pick | Choose | Question | Refusal) -> dict:
     """The schema as a JSON-clean dict with its kind ("confirm" | "pick" | "choose" | "refusal")."""
-    kind = {Confirm: "confirm", Pick: "pick", Choose: "choose", Refusal: "refusal"}[type(words)]
+    kind = {Confirm: "confirm", Pick: "pick", Choose: "choose", Question: "question", Refusal: "refusal"}[type(words)]
     return {"kind": kind, **json.loads(json.dumps(asdict(words)))}
 
 
@@ -194,10 +210,10 @@ class PromptBroker:
     def __init__(self, publish: Callable[[dict], None]):
         self._publish = publish
         self._lock = threading.Lock()
-        self._open: dict[str, tuple[Choose, Callable[[str], None]]] = {}
+        self._open: dict[str, tuple[Choose | Question, Callable[[str], None]]] = {}
         self._ids = itertools.count(1)
 
-    def ask(self, words: Choose, on_answer: Callable[[str], None], job_id: str | None = None) -> str:
+    def ask(self, words: Choose | Question, on_answer: Callable[[str], None], job_id: str | None = None) -> str:
         with self._lock:
             prompt_id = f"q{next(self._ids)}"
             self._open[prompt_id] = (words, on_answer)
@@ -205,7 +221,7 @@ class PromptBroker:
         self._publish({"prompt_id": prompt_id, **extra, **prompt_dict(words)})
         return prompt_id
 
-    def words(self, prompt_id: str) -> Choose | None:
+    def words(self, prompt_id: str) -> Choose | Question | None:
         """The question still open under prompt_id (a window shows it in its own way)."""
         with self._lock:
             got = self._open.get(prompt_id)

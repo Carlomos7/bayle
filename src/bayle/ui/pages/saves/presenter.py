@@ -16,7 +16,7 @@ from typing import Any
 from bayle.platform.text import plural, tr
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import ReplaceCheck, repair_calls
-from bayle.views.common import Confirm, Refusal
+from bayle.work.prompts import Confirm, Refusal
 
 ATTRIBUTES = (
     ("vig", "Vigor"),

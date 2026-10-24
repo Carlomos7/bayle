@@ -2,8 +2,18 @@ import threading
 
 import pytest
 
-from bayle.views.common import Choice, Choose, Confirm, Pick, Refusal, prompt_dict
-from bayle.work.prompts import Answer, PlanError, PlanStore, PromptBroker
+from bayle.work.prompts import (
+    Answer,
+    Choice,
+    Choose,
+    Confirm,
+    Pick,
+    PlanError,
+    PlanStore,
+    PromptBroker,
+    Refusal,
+    prompt_dict,
+)
 
 WORDS = Confirm("Remove a?", ("a goes",), "Remove", safety="Undo in Activity.")
 

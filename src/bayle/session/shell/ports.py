@@ -1,4 +1,4 @@
-"""The Launch flow's ports as events: a question is a `prompt` event answered by id (Session.answer_prompt, or the
+"""The Launch flow's ports as events: a question (a code and facts) is a `prompt` event answered by id (Session.answer_prompt, or the
 window's own dialog answering the same broker), a toast a `notice` event, a step a refresh of the shell, a job a session
 job. The same ports serve the window and the API; nothing here knows either."""
 
@@ -21,11 +21,11 @@ class EventPorts:
     def ask(self, ask: Ask, on_answer: Callable[[str], None]) -> None:
         self.s.jobs.prompts.ask(ask, on_answer)
 
-    def toast(self, text: str, error: bool = False) -> None:
-        self.s.notice(text, error=error)
+    def toast(self, code: str, facts: dict | None = None, error: bool = False) -> None:
+        self.s.say(code, facts, error=error)
 
-    def progress(self, label: str) -> None:
-        self.s.step = label
+    def progress(self, step: str) -> None:
+        self.s.step = step
         self.s.invalidate("shell")
 
     def background(self, work: Callable[[], Any], on_result: Callable[[Any], None]) -> None:

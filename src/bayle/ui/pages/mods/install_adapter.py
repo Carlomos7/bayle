@@ -21,7 +21,7 @@ from bayle.services.mod_configs import stamp
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mods.install_presenter import InstallDraft
 from bayle.ui.pages.mods.install_presenter import words as install_words
-from bayle.views.common import Confirm
+from bayle.work.prompts import Confirm
 
 
 def query(

@@ -7,8 +7,9 @@ from types import SimpleNamespace
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog
 from bayle.services import play as core
-from bayle.views import menu, topbar
-from bayle.views.topbar import Facts
+from bayle.session.shell.facts import mode_of
+from bayle.ui.launcher import menu, topbar
+from bayle.ui.launcher.topbar import Facts
 
 ER = catalog.ELDEN_RING
 
@@ -34,8 +35,8 @@ def test_the_pill_has_four_states_with_their_reasons():
 def test_vanilla_needs_no_profile_and_the_modes_are_remembered_per_game():
     assert topbar.pill(Facts(game=ER, profile_count=0, mode=topbar.VANILLA)).state == topbar.ENABLED
     s = LauncherSettings(launch_mode="offline", games={"nightreign": {"launch_mode": "vanilla"}})
-    assert topbar.mode_of(s, ER) == "offline" and topbar.mode_of(s, catalog.NIGHTREIGN) == "vanilla"
-    assert topbar.mode_of(LauncherSettings(), ER) == "profile"
+    assert mode_of(s, ER) == "offline" and mode_of(s, catalog.NIGHTREIGN) == "vanilla"
+    assert mode_of(LauncherSettings(), ER) == "profile"
     assert [m["checked"] for m in topbar.mode_menu("offline")] == [False, True, False]
 
 

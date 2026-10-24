@@ -10,17 +10,9 @@ Conventions: a profile is its .me3 path, a client passes it in every call (the s
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
-
-from bayle.errors import Busy, OperationError
-from bayle.game.locate import Locations
-from bayle.services import mods as mod_service
-from bayle.services import mods_page
-from bayle.services.mods_page import ModsPageState, ModsService, run_logged_job, stamp
+from bayle.errors import OperationError
+from bayle.services.mods_page import ModsPageState, ModsService
 from bayle.session.operations import Call, Params, Result, Session, operation, registry
-
-__all__ = ["run_logged_job", "stamp"]  # the ops of mods_install, mods_library and mods_overhaul still use these
 
 
 def _none() -> ModsService:
@@ -56,10 +48,6 @@ class EntryRef(ProfileRef):
 
 class NoticeRef(ProfileRef):
     key: str
-
-
-class Done(Result):
-    note: str = ""
 
 
 class ModsJob(Result):
@@ -113,26 +101,3 @@ class DragTable(Result):
 def drag(call: Call, p: EntryRef) -> DragTable:
     """Ship the ordering so a client drags without asking again: the refusal for every drop spot of this entry."""
     return DragTable(**vars(svc(call.session).drag(p.profile, p.index)))
-
-
-# ----------------------------------------------------------------------------- helpers the other Mods ops still use
-def idle(session: Session) -> None:
-    """A change to a profile waits for the running job (it holds the folder)."""
-    if session.jobs.busy:
-        raise Busy("Wait for the current job to finish.", {"reason": "job"})
-
-
-def entry_of(profile: str, index: int) -> dict:
-    """The profile's entry at index, or OperationError not_found (the profile changed since the page was read)."""
-    entry = next((e for e in mod_service.profile_entries(profile) if e["index"] == index), None)
-    if entry is None:
-        raise OperationError("not_found", "The profile changed; look again.", {"index": index})
-    return entry
-
-
-def start_logged(
-    session: Session, title: str, log_title: str, body: Callable[[Locations], Any], quiet: bool = False
-) -> str:
-    """For a plan's run: start body as a session job that is also an old-style logged one. Returns the job id."""
-    loc = session.locations()
-    return session.start(lambda _ctx: mods_page.run_logged_job(loc, title, log_title, body), title=title, quiet=quiet)

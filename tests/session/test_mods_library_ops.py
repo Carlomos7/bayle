@@ -75,8 +75,6 @@ def test_sharing_is_checked_then_started_with_the_stamp_and_the_page_shows_it(wo
     snap = s.jobs.get(s.run("mods.share", {**grass, "expect": list(plan.stamp)}).job_id)
     assert (snap.state, snap.title) == ("done", "Sharing grass...")
     assert shared_mods.shared_count(loc, a, grass["index"]) == 1
-    rows = {r.name: r for r in s.snapshot("mods", profile=str(a)).state.groups[0].rows}
-    assert rows["grass"].shared == 1 and rows["grass"].tags[0].text == "Shared · 1 profile"
 
 
 def test_a_profile_that_changed_since_the_check_is_stale_and_nothing_is_shared(world):

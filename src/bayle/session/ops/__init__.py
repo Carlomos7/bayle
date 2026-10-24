@@ -1,22 +1,6 @@
 """The operations the program registers on the default registry, one module per page. Importing this package
 registers them all (the API and the window session do)."""
 
-from bayle.session.ops import (
-    mods,
-    mods_entries,
-    mods_install,
-    mods_library,
-    mods_overhaul,
-    mods_profile,
-    shell,
-)
+from bayle.session.ops import shell
 
-__all__ = [
-    "mods",
-    "mods_entries",
-    "mods_install",
-    "mods_library",
-    "mods_overhaul",
-    "mods_profile",
-    "shell",
-]
+__all__ = ["shell"]

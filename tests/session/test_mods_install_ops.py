@@ -1,4 +1,4 @@
-"""The Install mod dialog through Session.run on the real ModInstallService (mods.install_*): no Qt, no window. The
+"""The Install mod dialog through the route functions on the real ModInstallService (mods.install_*): no Qt, no window. The
 engine opens and plans a download and holds it by id; the client sends its choices again with the call that needs
 them."""
 
@@ -12,17 +12,14 @@ from bayle.platform import threads
 from bayle.services import profile_mods
 from bayle.services.mod_install import ModInstallService
 from bayle.services.mods import profile_entries
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
-from support import er, mods_profile
+from support import ServiceCalls, er, mods_profile
 
 
-def make(**jobs_kw) -> Session:
+def make(**jobs_kw) -> ServiceCalls:
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs_kw)
-    return Session(jobs, plans=PlanStore(), locations=er, services={"mod_install": ModInstallService(jobs, er)})
+    return ServiceCalls(jobs, mod_install=ModInstallService(jobs, er))
 
 
 @pytest.fixture

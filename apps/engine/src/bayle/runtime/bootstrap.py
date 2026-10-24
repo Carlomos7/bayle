@@ -34,9 +34,10 @@ from bayle.game.locate import Locations
 from bayle.mods import rebuild as mod_rebuild
 from bayle.platform import cpu, data_folder, instance, paths
 from bayle.platform import logging as run_logging
+from bayle.saves import ports as save_ports
 from bayle.services import startup_recovery
 from bayle.session.startup import StartupStep, recovery_steps
-from bayle.storage import datamigrations, mirror
+from bayle.storage import datamigrations
 from bayle.storage import db as storage_db
 from bayle.storage.activity import ActivityLog
 from bayle.storage.cache import HashCache
@@ -54,7 +55,7 @@ _SLOTS: dict[str, tuple[Any, str]] = {
     "hash_store": (mod_rebuild, "_HASH_STORE"),
     "hash_file_in_use": (mod_rebuild, "_HASH_FILE_IN_USE"),
     "run_store": (mod_rebuild, "_RUN_STORE"),
-    "mirror": (mirror, "_CURRENT"),
+    "mirror": (save_ports, "_CURRENT"),
     "cpu_backend": (cpu, "_backend"),
     "cpu_broadcast": (cpu, "_broadcast"),
     "ui_thread": (cpu, "_ui_thread"),

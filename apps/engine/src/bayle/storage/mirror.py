@@ -25,12 +25,11 @@ from pathlib import Path
 
 from sqlalchemy import delete
 
+from bayle.saves.ports import BACKUP_NOTE
 from bayle.storage.db import Database
 from bayle.storage.models import RecordMirrorRow, utc_now
 
 PROTECTIVE_SCHEMA = 1
-
-BACKUP_NOTE, LIBRARY, HISTORY = "backup-note", "library", "history"
 
 
 def key_of(path: Path | str) -> str:
@@ -112,20 +111,3 @@ class Mirror:
         except Exception as e:
             self._failed(e)
             return False
-
-
-_CURRENT: Mirror | None = None  # bound by bayle.runtime.bootstrap only (None: storage is off, the files alone work)
-
-
-def record(kind: str, path: Path) -> None:
-    if _CURRENT is not None:
-        _CURRENT.record(kind, path)
-
-
-def forget(kind: str, path: Path) -> None:
-    if _CURRENT is not None:
-        _CURRENT.forget(kind, path)
-
-
-def keep_doubt(path: Path) -> bool:
-    return _CURRENT is not None and _CURRENT.keep_doubt(path)

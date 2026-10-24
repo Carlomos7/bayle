@@ -1,0 +1,42 @@
+{
+  "$comment": "What --self-test requires inside a build (technical specification \u00a78.5). Every entry must be present: a missing one is a failure, never a skip. The desktop app's half is bayle_qt/self-test.json. files are relative to the package; min is the least number of matches a glob must have.",
+  "python_modules": [
+    "bayle.cli",
+    "bayle.coop",
+    "bayle.formats",
+    "bayle.game.catalog",
+    "bayle.game.locate",
+    "bayle.merging",
+    "bayle.mods.undo",
+    "bayle.overhauls",
+    "bayle.platform.logging",
+    "bayle.runtime.bootstrap",
+    "bayle.saves",
+    "bayle.services.play",
+    "bayle.storage.db",
+    "alembic",
+    "constrata",
+    "cryptography",
+    "py7zr",
+    "pydantic",
+    "sqlalchemy",
+    "tomlkit"
+  ],
+  "files": [
+    {
+      "glob": "data/games/*.json",
+      "min": 1
+    },
+    {
+      "glob": "data/schemas/*.json",
+      "min": 2
+    },
+    {
+      "path": "storage/migrations/env.py"
+    },
+    {
+      "glob": "storage/migrations/versions/*.py",
+      "min": 2
+    }
+  ]
+}

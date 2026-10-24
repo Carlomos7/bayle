@@ -120,10 +120,12 @@ jobs:
       if: ${{ !startsWith(github.ref, 'refs/tags/') }}
       shell: bash
       run: |
-        latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+        # every published release, pre-releases too: vpk refuses a version equal to any of them, and `gh release view`
+        # gives only the latest stable one (a tree at a published -rc.N then packed a version vpk had seen)
+        tags=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' )
         current=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
-        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c, l = sys.argv[1], sys.argv[2]; m = key(l); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" "$latest")
-        echo "latest published: $latest; this tree: $current; this test build: $next"
+        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c = sys.argv[1]; m = max((key(t) for t in sys.argv[2:]), default=(0, 0, 0)); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" $tags)
+        echo "published: $tags; this tree: $current; this test build: $next"
         [ "$next" = "$current" ] || uv run python scripts/bump_version.py "$next"
 
     # vpk diffs against the previous release's full package to make a delta; none before the first Velopack release.
@@ -236,10 +238,12 @@ jobs:
       if: ${{ !startsWith(github.ref, 'refs/tags/') }}
       shell: bash
       run: |
-        latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+        # every published release, pre-releases too: vpk refuses a version equal to any of them, and `gh release view`
+        # gives only the latest stable one (a tree at a published -rc.N then packed a version vpk had seen)
+        tags=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' )
         current=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
-        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c, l = sys.argv[1], sys.argv[2]; m = key(l); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" "$latest")
-        echo "latest published: $latest; this tree: $current; this test build: $next"
+        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c = sys.argv[1]; m = max((key(t) for t in sys.argv[2:]), default=(0, 0, 0)); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" $tags)
+        echo "published: $tags; this tree: $current; this test build: $next"
         [ "$next" = "$current" ] || uv run python scripts/bump_version.py "$next"
 
     - name: Previous release, for a delta package

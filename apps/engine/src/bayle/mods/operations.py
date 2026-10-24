@@ -35,6 +35,7 @@ from bayle.merging import build
 from bayle.mods import kinds, library, rebuild
 from bayle.mods.checks import same_folder
 from bayle.mods.models import UndoError
+from bayle.mods.tools import EngineHost
 
 
 class OperationError(RuntimeError):
@@ -109,6 +110,9 @@ def commit(op: build.Operation, then=None) -> None:
     kept: the newest one is the one a rollback or an undo takes back."""
     op.commit(then=then)
     _release_others(op)
+
+
+ENGINE_HOST = EngineHost(start, commit, same_folder)  # what mods.engine builds under (see mods.tools)
 
 
 def _release_others(op: build.Operation) -> None:

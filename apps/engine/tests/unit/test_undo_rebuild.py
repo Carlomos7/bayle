@@ -45,7 +45,7 @@ def tool_that_backs_itself_up(w: World):
 
 def test_undo_swaps_the_tools_output_and_the_profile_back_and_redo_swaps_again(tmp_path, monkeypatch):
     w = World(tmp_path, monkeypatch)
-    monkeypatch.setattr("bayle.mods.backends.Tool.run", lambda b, log: tool_that_backs_itself_up(w)(b))
+    monkeypatch.setattr("bayle.mods.backends.CommandTool.run", lambda b, log: tool_that_backs_itself_up(w)(b))
     w.pack("params")
     output_before = (w.winner / "regulation.bin").read_bytes()
     profile_before = w.profile.read_text(encoding="utf-8")

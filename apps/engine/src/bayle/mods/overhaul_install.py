@@ -606,7 +606,15 @@ def install(
             # the build, against the profile as the install leaves it, staged beside the overhaul's folder
             temp.write_text(p.change.text, encoding="utf-8", newline="")
             result = engine.build(
-                temp, p.own / build.output.mod, staged, recipe, p.found.version, log, loc=loc, swap=False
+                temp,
+                p.own / build.output.mod,
+                staged,
+                recipe,
+                p.found.version,
+                log,
+                loc=loc,
+                host=operations.ENGINE_HOST,
+                swap=False,
             )
             built = Path(result["output"])
             _own_manifest(built / build.output.manifest, profile, temp, p, __version__)

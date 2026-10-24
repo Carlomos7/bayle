@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.mods import engine
-from bayle.mods.backends import Recipe
 from bayle.mods.overhaul_manifest import LEGACY_MANIFEST, MANIFEST, find_setup, launcher_installed
+from bayle.mods.tools import EngineHost, Recipe
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -27,7 +27,7 @@ def _read(manifest: Path) -> dict | None:
     return data
 
 
-def recipe(profile: Path, layer: dict, *, loc: Locations) -> Recipe | None:
+def recipe(profile: Path, layer: dict, *, loc: Locations, host: EngineHost) -> Recipe | None:
     """The launcher's build of a package it installed (its manifest with INSTALLED_BY), else None."""
     folder = Path(layer["folder"])
     for cand, name in ((c, n) for c in (folder, folder.parent) for n in (MANIFEST, LEGACY_MANIFEST)):
@@ -35,14 +35,14 @@ def recipe(profile: Path, layer: dict, *, loc: Locations) -> Recipe | None:
         if manifest.is_file():
             data = _read(manifest)
             if data is not None and launcher_installed(data):
-                return _recipe(Path(profile), layer, manifest, data, loc)
+                return _recipe(Path(profile), layer, manifest, data, loc, host)
     return None
 
 
-def _recipe(profile: Path, layer: dict, manifest: Path, data: dict, loc: Locations) -> Recipe:
+def _recipe(profile: Path, layer: dict, manifest: Path, data: dict, loc: Locations, host: EngineHost) -> Recipe:
     setup = find_setup(profile, data)
     matched = engine_match(setup)
-    built = _engine(profile, layer, setup, loc)
+    built = _engine(profile, layer, setup, loc, host)
     problem = None
     if setup is None:
         problem = (
@@ -83,11 +83,13 @@ def _merges(recipe: dict | None) -> set[str]:
 
 
 class _Build:
-    """What Tool.run calls when the launcher builds the mod itself (mods.engine)."""
+    """What CommandTool.run calls when the launcher builds the mod itself (mods.engine)."""
 
-    def __init__(self, profile: Path, layer: dict, setup: Path, recipe: dict, version: str, loc: Locations):
+    def __init__(
+        self, profile: Path, layer: dict, setup: Path, recipe: dict, version: str, loc: Locations, host: EngineHost
+    ):
         self.profile, self.layer, self.setup, self.recipe, self.version = profile, layer, setup, recipe, version
-        self.loc = loc
+        self.loc, self.host = loc, host
         self.describe = (
             f"The launcher builds {recipe['label']} {version} itself from its download in {setup.name} "
             f"({recipe['id']}); nothing from the download runs."
@@ -95,7 +97,16 @@ class _Build:
 
     def __call__(self, log):
 
-        engine.build(self.profile, Path(self.layer["folder"]), self.setup, self.recipe, self.version, log, loc=self.loc)
+        engine.build(
+            self.profile,
+            Path(self.layer["folder"]),
+            self.setup,
+            self.recipe,
+            self.version,
+            log,
+            loc=self.loc,
+            host=self.host,
+        )
 
     def reasons(self, manifest: dict) -> list[str]:
         """Why the build its manifest records is out of date beyond its sources (mods.engine.input_reasons)."""
@@ -108,7 +119,7 @@ def engine_match(setup: Path | None) -> dict | None:
     return engine.match(setup)[0]
 
 
-def _engine(profile: Path, layer: dict, setup: Path | None, loc: Locations):
+def _engine(profile: Path, layer: dict, setup: Path | None, loc: Locations, host: EngineHost):
     """(problem, the build to run, approval key) when a recipe fits the download; None otherwise."""
 
     if setup is None:
@@ -118,4 +129,4 @@ def _engine(profile: Path, layer: dict, setup: Path | None, loc: Locations):
         return None
     game_dir = loc.game_dir()
     problem = None if game_dir and Path(game_dir).is_dir() else "The game was not found."
-    return problem, _Build(profile, layer, setup, recipe, version or "", loc), f"engine|{setup}|{recipe['id']}"
+    return problem, _Build(profile, layer, setup, recipe, version or "", loc, host), f"engine|{setup}|{recipe['id']}"

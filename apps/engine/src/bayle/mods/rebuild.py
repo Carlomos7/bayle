@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from bayle.game import catalog as games
-from bayle.mods import backends, checks, history, kinds, library, overhaul_manifest
+from bayle.mods import backends, checks, history, kinds, library, overhaul_manifest, tools
 from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods import profile_settings as ps
@@ -209,18 +209,21 @@ def _keep_approval(key: str, keys: list[str]) -> None:
 
 def overlay(
     profile: Path, all_layers: list[dict] | None = None, *, loc: Locations
-) -> tuple[dict | None, backends.Tool | None, bool]:
+) -> tuple[dict | None, tools.Tool | None, bool]:
     """(the package that must stay last, its rebuild tool or None, set by hand). Set by hand in Options wins when
     that package is loaded; otherwise it is the package whose rebuild tool is found next to it."""
     profile = Path(profile)
     all_layers = layers(profile) if all_layers is None else all_layers
+    from bayle.mods import operations
+
+    host = operations.ENGINE_HOST
     mark = overlay_mark(profile)
     if mark is not None:
         layer = next((l for l in all_layers if checks.same_folder(l["folder"], mark["package"])), None)
         if layer is not None:
-            return layer, backends.detect_for(profile, layer, mark["rebuild"], loc=loc), True
+            return layer, backends.detect_for(profile, layer, mark["rebuild"], loc=loc, host=host), True
     packs = [l for l in all_layers if (l["folder"] / REGULATION).is_file()]
-    backend = backends.detect(profile, packs, loc=loc) if packs else None
+    backend = backends.detect(profile, packs, loc=loc, host=host) if packs else None
     if backend is None and packs:
         return _declared_last(profile, all_layers, packs), None, False
     return (backend.package if backend else None), backend, False
@@ -337,7 +340,7 @@ def _combine_inputs(all_layers: list[dict], target: dict | None, combine) -> lis
 
 def _shared(all_layers: list[dict], target: dict | None, combine) -> dict[str, list[dict]]:
     """Game files two or more packages before the overlay (other than the combined package) ship."""
-    from bayle.mods.backends import builtin
+    builtin = backends.combine()
 
     skip = combine.package["index"] if combine is not None else None
     order = [l["index"] for l in all_layers]
@@ -348,7 +351,7 @@ def _shared(all_layers: list[dict], target: dict | None, combine) -> dict[str, l
 def health(profile: Path, *, loc: Locations) -> dict:
     """{state, text, packs, winner, backend, reasons, run, combine, can_combine, ...} for the profile; state None
     when this does not apply (not an Elden Ring profile, or no profile)."""
-    from bayle.mods.backends import builtin
+    builtin = backends.combine()
 
     profile = Path(profile)
     out = {
@@ -526,7 +529,7 @@ class MergeError(RuntimeError):
     pass
 
 
-def find_backend(profile: Path, *, loc: Locations) -> backends.Tool | None:
+def find_backend(profile: Path, *, loc: Locations) -> tools.Tool | None:
     """The rebuild tool declared for this profile (set by hand in Options, or found), or None. The launcher's own
     combine is not one: see rebuild()."""
     return overlay(Path(profile), loc=loc)[1]
@@ -536,7 +539,7 @@ def ensure_combined(profile: Path, target: dict | None, *, loc: Locations):
     """The combined-parameters package: made (an empty folder with its record, and an entry right before the
     overlay, or after the last package with parameters) when the profile has none, and moved there when a pack
     ended up after it. Returns its CombineTool."""
-    from bayle.mods.backends import builtin
+    builtin = backends.combine()
 
     profile = Path(profile)
     all_layers = layers(profile)
@@ -613,7 +616,7 @@ def rebuild(profile: Path, log, combine: bool | None = None, *, loc: Locations) 
     ship parameters, or when combine is True), then the overlay's rebuild tool, if there is one. Keeps the profile's
     own text when a tool only rewrote it and verifies the result. Raises MergeError (and records the failure)
     otherwise. Returns {backend, profile_note}."""
-    from bayle.mods.backends import builtin
+    builtin = backends.combine()
 
     profile = Path(profile)
     if not is_elden_ring(profile):
@@ -662,7 +665,7 @@ def rebuild(profile: Path, log, combine: bool | None = None, *, loc: Locations) 
             tool_backup = find_tool_backup(profile, tool_started)
             note = keep_profile_text(profile, before_tool, tool)
             log(f"merge: {note}")
-    except backends.BackendError as e:
+    except tools.BackendError as e:
         if comb is None and tool is not None and mod_manage.read_text(profile) != original:
             writer = ProfileWriter(profile)  # the tool rewrote the profile and failed: the text before it comes back
             writer.replace_text(original)
@@ -839,7 +842,7 @@ def offer(profile: Path, root: Path, regulation_packages: list[dict], *, loc: Lo
     """For installing a package with a regulation.bin: what can be offered after the install and plain notes about
     it. merge_combine: the launcher would combine this pack's parameters with the other packs'. merge_tool: the
     overlay's rebuild tool would run. merge_target: the package new packs go before. loc: the game's locations."""
-    from bayle.mods.backends import builtin
+    builtin = backends.combine()
 
     out: dict = {
         "merge_offered": False,

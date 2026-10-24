@@ -25,7 +25,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from bayle.mods.backends import Recipe
+from bayle.mods.tools import EngineHost, Recipe
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -71,8 +71,11 @@ def load(file: Path) -> dict | None:
     return data
 
 
-def recipe(profile: Path, layer: dict, file: Path | None = None, *, loc: Locations) -> Recipe | None:
-    """loc: the game's locations, for the {game_dir}, {game_exe} and {me3} placeholders."""
+def recipe(
+    profile: Path, layer: dict, file: Path | None = None, *, loc: Locations, host: EngineHost | None = None
+) -> Recipe | None:
+    """loc: the game's locations, for the {game_dir}, {game_exe} and {me3} placeholders. host: for the launcher's own
+    build only (backends.launcher_build); a declared tool runs its own command."""
     folder = Path(layer["folder"])
     candidates = [Path(file)] if file is not None else [folder / FILE, folder.parent / FILE]
     for f in candidates:

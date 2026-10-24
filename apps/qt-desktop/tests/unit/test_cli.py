@@ -16,6 +16,7 @@ from bayle.runtime import bootstrap
 from bayle.services import play as core
 from bayle.storage import db as storage_db
 
+from bayle_qt import entry
 from bayle_qt.updater import apply, headless
 
 
@@ -51,7 +52,13 @@ def hooks(**over):
     def unexpected(*args):
         raise AssertionError("unexpected window hook")
 
-    return cli.WindowHooks(**{"shell_main": unexpected, "ask": unexpected, "self_test": unexpected, **over})
+    return cli.WindowHooks(
+        **{
+            "shell_main": unexpected, "ask": unexpected, "self_test": unexpected,
+            "startup": entry._startup, "ready": entry._ready, "program": entry._program(),
+            **over,
+        }
+    )  # fmt: skip
 
 
 def argv(monkeypatch, *args):
@@ -68,7 +75,7 @@ def test_update_flag_passes_the_other_arguments(monkeypatch, quiet):
     argv(monkeypatch, "--update", "--game", "er")
     seen = []
     monkeypatch.setattr(headless, "update_headless", lambda args: seen.append(args) or 0)
-    assert cli.main() == 0
+    assert cli.main(window=hooks()) == 0
     assert seen == [["--game", "er"]]
     assert quiet.levels == ["INFO"]
 
@@ -165,7 +172,7 @@ def test_frozen_build_runs_velopack_startup_first(monkeypatch, quiet):
     started = []
     monkeypatch.setattr(apply, "velopack_startup", lambda: started.append(True))
     monkeypatch.setattr(headless, "update_headless", lambda args: 0)
-    assert cli.main() == 0
+    assert cli.main(window=hooks()) == 0
     assert started == [True]
 
 
@@ -242,7 +249,7 @@ def test_play_is_handed_to_an_open_window(monkeypatch, quiet):
     monkeypatch.setattr(instance, "send", lambda message: message == "play er")
     monkeypatch.setattr(updates, "mark_ready", marks.append)
     monkeypatch.setattr(run_logging, "start_log", lambda *args: starts.append(args))
-    assert cli.play_from_shortcut(SimpleNamespace(key="er")) == 0
+    assert cli.play_from_shortcut(SimpleNamespace(key="er"), window=hooks()) == 0
     assert marks == ["play"] and starts == [("launcher: play (no window)", "er")]
 
 
@@ -316,12 +323,12 @@ def test_notice_offers_the_launcher_and_opens_it_for_the_game(monkeypatch, quiet
     cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "a mod needs a rebuild", window=asked.window)
     assert asked[0][0] == "Elden Ring was not started: your mods need a rebuild"
     assert "a mod needs a rebuild" in asked[0][1]
-    assert opened == [[sys.executable, "-m", "bayle", "--game", "er"]]
+    assert opened == [[sys.executable, "-m", "bayle_qt", "--game", "er"]]
 
 
 def test_notice_in_the_frozen_build_reopens_the_executable(monkeypatch, quiet):
-    asked = _notice_box(monkeypatch, 0)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
+    asked = _notice_box(monkeypatch, 0)
     opened = []
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args))
     cli.not_started_notice(SimpleNamespace(key="er", name="Elden Ring"), "why", window=asked.window)
@@ -353,11 +360,9 @@ def test_notice_without_a_display_logs_why(monkeypatch, quiet):
 def test_the_entry_module_exits_with_the_command_lines_code(monkeypatch):
     import runpy
 
-    from bayle_qt import entry
-
     monkeypatch.setattr(entry, "main", lambda: 9)
     with pytest.raises(SystemExit) as exit_info:
-        runpy.run_module("bayle.__main__", run_name="__main__")
+        runpy.run_module("bayle_qt.__main__", run_name="__main__")
     assert exit_info.value.code == 9
 
 
@@ -374,7 +379,7 @@ def test_headless_paths_import_no_qt(tmp_path):
         from bayle import cli
 
         for flags in (["--worker"], ["--update"], ["--check-storage"], ["--play", "--game", "nope"]):
-            with mock.patch("bayle.platform.cpu.worker_main", return_value=0),                  mock.patch("bayle_qt.updater.headless.update_headless", return_value=0):
+            with mock.patch("bayle.platform.cpu.worker_main", return_value=0):
                 cli.main(["bayle", *flags])
         assert not [m for m in sys.modules if m.split(".")[0] == "PySide6"], "Qt was imported"
         assert not [m for m in sys.modules if m.startswith("bayle_qt")], "bayle_qt was imported"

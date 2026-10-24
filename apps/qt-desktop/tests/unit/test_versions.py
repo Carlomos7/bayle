@@ -46,6 +46,10 @@ def test_bump_version_rejects(v):
 
 
 def test_bump_version_reads_both_version_files():
-    for path, rx in _bump_version().FILES.items():
+    for path, rx, written in _bump_version().FILES:
         m = rx.search(path.read_text(encoding="utf-8"))
-        assert m and m.group(1) == __version__
+        assert m and m.group(1) == written(__version__), path
+
+
+def test_bump_version_writes_the_lock_form():
+    assert _bump_version().pep440("4.6.0-rc.3") == "4.6.0rc3" and _bump_version().pep440("4.6.0") == "4.6.0"

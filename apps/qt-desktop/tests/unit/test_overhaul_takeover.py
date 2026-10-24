@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from bayle.mods import overhaul_install, overhaul_takeover
 from bayle.mods.overhaul_install import Leftover, OverhaulError
-from test_overhaul_install import PROFILE, World, files, legacy
+from overhaul_world import PROFILE, World, files, legacy
 
 
 @pytest.fixture

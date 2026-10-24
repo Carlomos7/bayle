@@ -10,9 +10,8 @@ from bayle.platform.threads import as_worker
 from bayle.services.mod_configs import ModConfigsService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
+from overhaul_world import PROFILE, World, mixed_mod, other_of
 from PySide6.QtCore import QCoreApplication
-from test_mod_configs_ops import other_of
-from test_overhaul_install import PROFILE, World, mixed_mod
 
 from bayle_qt.pages.mod_configs.adapter import ModConfigsAdapter
 

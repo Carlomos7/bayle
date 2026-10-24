@@ -22,6 +22,7 @@ bayle-engine = { path = "../engine", editable = true }
 
 [dependency-groups]
 dev = [
+    "bayle-engine[api]",  # some adapter tests drive the engine's routers
     "pytest>=9.0.2",
     "httpx>=0.28.1",
     "coverage>=7.13.0",

@@ -1,11 +1,11 @@
-"""Build Roundtable Souls: tests, icon, PyInstaller (one folder), then a Velopack release with vpk, then the share
+"""Build Bayle (the desktop program): tests, icon, PyInstaller (one folder), then a Velopack release with vpk, then the share
 bundle (scripts/make_share.py).
 
 uv run python scripts/build.py                     everything
 uv run python scripts/build.py --no-test           skip the test run
 uv run python scripts/build.py --no-pack           PyInstaller only (dist/RoundtableSouls), no vpk
 uv run python scripts/build.py --identity t.json   bake an identity override into the build (isolated test builds:
-                                                   own app ID, title, feed and key; see src/bayle/config/identity.py)
+                                                   own app ID, title, feed and key; see apps/engine/src/bayle/config/identity.py)
 
 vpk must match the velopack package in uv.lock (VPK_VERSION); it is found as $VPK, then on PATH. Windows builds
 pack for win-x64 (Setup.exe, a portable zip, packages), Linux builds an AppImage for linux-x64. A previous release's
@@ -14,6 +14,7 @@ full package in dist/vpk (vpk download github) lets vpk make a delta package.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -22,12 +23,25 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PKG = ROOT / "src" / "bayle"
+PKG = ROOT / "src" / "bayle_qt"  # the window program: qml, assets, icon, updater data, self-test.json
+
+
+def engine_package() -> Path:
+    """The engine's bayle package, wherever it is installed (an editable path dependency at ../engine in a checkout)."""
+    spec = importlib.util.find_spec("bayle")
+    if spec is None or not spec.submodule_search_locations:
+        raise SystemExit("build: the bayle engine package is not installed (uv sync in apps/qt-desktop)")
+    return Path(next(iter(spec.submodule_search_locations)))
+
+
 BUILD = ROOT / "build"
 DIST = ROOT / "dist"
 EXE_NAME = "RoundtableSouls"
 VPK_VERSION = "1.2.161"  # = the velopack Python package pinned in pyproject.toml
 WINDOWS = sys.platform == "win32"
+
+
+MIGRATIONS = engine_package() / "storage" / "migrations"
 
 
 def run(*args: str | Path, env: dict | None = None) -> None:
@@ -63,18 +77,18 @@ def pyinstaller(py: str, identity_file: Path | None) -> Path:
         shutil.copyfile(identity_file, staged)
         extra = ["--add-data", f"{staged}{os.pathsep}bayle/data"]
     # Alembic loads the migration scripts by path, so they ship as files (--collect-data leaves .py files out).
-    extra += ["--add-data", f"{PKG / 'storage' / 'migrations'}{os.pathsep}bayle/storage/migrations"]
+    extra += ["--add-data", f"{MIGRATIONS}{os.pathsep}bayle/storage/migrations"]
     run(
         py, "-m", "PyInstaller", "--noconfirm", "--onedir", "--windowed", "--name", EXE_NAME,
-        "--icon", PKG / "assets" / "icon.ico", "--paths", ROOT / "src",
-        "--collect-data", "bayle", "--collect-all", "py7zr",
+        "--icon", PKG / "assets" / "icon.ico", "--paths", ROOT / "src", "--paths", engine_package().parent,
+        "--collect-data", "bayle", "--collect-data", "bayle_qt", "--collect-all", "py7zr",
         "--collect-all", "velopack", "--exclude-module", "tkinter",
         "--exclude-module", "PySide6.QtWidgets",  # nothing imports it any more (the packaged --self-test is the check)
         *extra,
         # our hook for PySide6.QtQml: only the QML modules the launcher imports (PyInstaller's takes every one Qt ships)
         "--additional-hooks-dir", ROOT / "scripts" / "pyinstaller_hooks",
         "--hidden-import", "PySide6.QtSvg",  # the self-test needs it; Fluent Widgets used to pull it in
-        "--hidden-import", "lupa.lua51",  # imported inside a function (overhauls/lua_check.py); only Lua 5.1 is used
+        "--hidden-import", "lupa.lua51",  # imported inside a function (bayle/overhauls/lua_check.py); only Lua 5.1 is used
         "--distpath", DIST, "--workpath", BUILD / "work", "--specpath", BUILD, ROOT / "scripts" / "entry.py",
     )  # fmt: skip
     folder = DIST / EXE_NAME
@@ -100,7 +114,7 @@ def check_migrations(folder: Path) -> None:
     """Every migration script and Alembic's env.py must be in the build as a file, byte for byte; without them the
     packaged program cannot create or upgrade its database. (Running the build with --check-storage then proves it
     opens one: the release workflow does.)"""
-    source = PKG / "storage" / "migrations"
+    source = MIGRATIONS
     wanted = [p.relative_to(source) for p in source.rglob("*") if p.is_file() and "__pycache__" not in p.parts]
     shipped = next((p for p in folder.rglob("migrations") if p.parent.name == "storage"), None)
     missing = [
@@ -117,7 +131,6 @@ def check_sqlite() -> None:
     program that runs without its database. Checked before anything is built."""
     import sqlite3
 
-    sys.path.insert(0, str(ROOT / "src"))
     from bayle.storage.db import sqlite_problem
 
     problem = sqlite_problem(sqlite3.sqlite_version)
@@ -131,7 +144,6 @@ def load_identity(path: Path | None):
     import json
     from dataclasses import fields
 
-    sys.path.insert(0, str(ROOT / "src"))
     from bayle.config.identity import Identity
 
     if path is None:

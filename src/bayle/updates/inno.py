@@ -112,7 +112,8 @@ def create_shortcut(lnk: Path, target: Path) -> None:
 
 def _running(exe: Path) -> bool:
     ps = (
-        "Get-Process | Where-Object { $_.Path -and $_.Path -ieq '" + str(exe).replace("'", "''") + "' } | "
+        "Get-CimInstance Win32_Process -Property ExecutablePath | Where-Object { $_.ExecutablePath -and "  # fast: no per-process open
+        "$_.ExecutablePath -ieq '" + str(exe).replace("'", "''") + "' } | "
         "Measure-Object | Select-Object -ExpandProperty Count"
     )
     out = subprocess.run(

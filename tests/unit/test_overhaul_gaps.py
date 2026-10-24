@@ -415,63 +415,40 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
 
 
 # ----------------------------------------------------------------------------- gap 4: a matched setup is pre-filled
-def open_draft(world, plan):
-    """An Install mod draft in a session, the way the dialog holds it: (session, draft id, its state)."""
-    from bayle.session import Session
-    from bayle.session import ops as _ops  # noqa: F401  registers the operations
-    from bayle.session.ops.mods_install import DraftState, drafts
-    from bayle.views.mod_install import InstallDraft
+def open_install(world, monkeypatch, folder):
+    """An open install in the engine, the way the dialog holds it: (the service, its OpenedInstall)."""
+    from bayle.services import mods as mod_service
+    from bayle.services.mod_install import ModInstallService
     from bayle.work.events import EventBus
     from bayle.work.jobs import JobManager
-    from bayle.work.prompts import PlanStore
 
-    session = Session(
-        JobManager(EventBus(), spawn=lambda run, name=None: run()),
-        plans=PlanStore(),
-        locations=lambda: world.loc,
-    )
-    state = DraftState(InstallDraft(plan, world.profile, overhaul_on=True), world.profile)
-    state.planned = state.key()
-    return session, drafts(session).add(state), state
+    monkeypatch.setattr(mod_service, "overhaul_preview_on", lambda loc: True)  # the Settings switch
+    service = ModInstallService(JobManager(EventBus(), spawn=lambda run, name=None: run()), lambda: world.loc)
+    return service, service.open(world.profile, folder)
 
 
-def refresh(session, draft_id):
-    """What the dialog asks for after its pause: the replan, then the preview (on a worker)."""
-    from bayle.platform.threads import as_worker
-
-    with as_worker():
-        session.run("mods.install_replan", {"draft_id": draft_id})
-        return session.run("mods.install_preview", {"draft_id": draft_id})
-
-
-def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world):
+def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world, monkeypatch):
     from test_overhaul_install import set_up
 
     from bayle import overhauls
-    from bayle.services import mods as mod_service
+    from bayle.services.mod_configs import SetupValues
 
     folder, toml, _out = set_up(world)
     config = overhauls.read(toml)
     natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
     config = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
     toml.write_text(__import__("bayle.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")
-    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
-    assert plan.get("overhaul")
-    session, draft_id, state = open_draft(world, plan)
-    draft = state.draft
-    assert draft.overhaul_mode == "matched"
-    refresh(session, draft_id)
-    view = draft.view()
-    assert view["natives"][0]["initializer"] == "Boot"  # pre-filled from the saved setup
-    assert {"MixedMod.ini"} <= {r["file"] for r in view["files"]}
-    assert not state.via_setup
-    got = session.run(
-        "mods.install_edit",
-        {"draft_id": draft_id, "field": "native", "key": "MixedMod.dll", "kind": "early", "text": "true"},
+    service, opened = open_install(world, monkeypatch, folder)
+    assert opened.plan["option"] == "matched"
+    got = service.check_overhaul(opened.install_id, "mixed-mod")
+    assert got.mode == "matched" and got.editable
+    assert got.natives[0]["initializer"] == "Boot"  # pre-filled from the saved setup
+    assert {"MixedMod.ini"} <= {r["file"] for r in got.files}
+    edited = SetupValues(
+        [{**got.natives[0], "load_early": True}], {r["file"]: r["choices"][0] for r in got.files}, {}, None
     )
-    assert got.pending and got.view["busy"]  # a new preview is asked for
-    refresh(session, draft_id)
-    assert state.via_setup and state.preview.found.config.basic.natives[0].load_early is True
+    again = service.check_overhaul(opened.install_id, "mixed-mod", edited)
+    assert again.mode == "setup" and again.natives[0]["load_early"] is True  # installed as a setup, config saved
 
 
 def test_a_dll_with_the_name_of_one_already_in_the_profile_is_said_in_the_review(world):
@@ -533,62 +510,44 @@ def test_the_left_out_note_ignores_the_case_of_the_folder(world):
     assert any("cfg/a.ini is left out" in n for n in p.notes)
 
 
-def test_the_files_table_is_read_off_the_ui_thread_and_a_fresh_config_forgets_earlier_edits(world, monkeypatch):
+def test_the_files_table_is_read_off_the_ui_thread(world, monkeypatch):
     from test_overhaul_install import set_up
 
     from bayle.platform import threads
-    from bayle.services import mods as mod_service
 
     folder, _toml, _out = set_up(world)
-    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
-    real = mod_service.setup_file_rows
-
-    def rows(config, where):
-        threads.assert_not_ui_thread("the Files table")  # reads the whole download
-        return real(config, where)
-
-    monkeypatch.setattr(mod_service, "setup_file_rows", rows)
-    session, draft_id, state = open_draft(world, plan)
+    service, opened = open_install(world, monkeypatch, folder)
     threads.enable()  # this thread is "the UI thread" from here on
     try:
-        session.run("mods.install_edit", {"draft_id": draft_id, "field": "tick", "key": "x", "on": True})  # in memory
         with pytest.raises(threads.UiThreadIO):
-            session.run("mods.install_preview", {"draft_id": draft_id})  # asked on the UI thread: refused
-        refresh(session, draft_id)
+            service.check_overhaul(opened.install_id, "mixed-mod")  # reads the whole download: refused
+        with threads.as_worker():
+            assert service.check_overhaul(opened.install_id, "mixed-mod").files
     finally:
         threads.disable()
-    assert state.draft.files
-    state.edited = True
-    state.config_for = ()  # the name or variant changed: the config is proposed again
-    state.previewed = ()
-    refresh(session, draft_id)
-    assert state.edited is False
 
 
-def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen(world):
+def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen(world, monkeypatch):
     from test_overhaul_texts_propose import download
 
-    from bayle.services import mods as mod_service
+    from bayle.services.mod_configs import SetupValues
 
     folder = download(world.tmp / "dl" / "Texty", {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
     (folder / "mod/chr").mkdir(parents=True)
     (folder / "mod/chr/a.anibnd.dcx").write_bytes(b"x")
-    plan = mod_service.plan_mod_install(world.profile, folder, loc=world.loc)
-    session, draft_id, state = open_draft(world, plan)
-    draft = state.draft
-    draft.overhaul = True
-    refresh(session, draft_id)
-    (row,) = draft.view()["texts"]
-    assert row["table"] == "" and [c["label"] for c in row["choices"]] == ["(choose a table)", "A.fmg", "B.fmg"]
-    assert not draft.can_install() and any("Choose the table" in r for r in draft.preview["refusals"])
-    session.run("mods.install_edit", {"draft_id": draft_id, "field": "table", "key": row["file"], "text": "B.fmg"})
-    refresh(session, draft_id)
-    assert draft.view()["texts"][0]["table"] == "B.fmg"
-    assert not any("Choose the table" in r for r in draft.preview["refusals"])
+    service, opened = open_install(world, monkeypatch, folder)
+    got = service.check_overhaul(opened.install_id, "Texty")
+    assert got.editable, got.refusals
+    (row,) = got.texts
+    assert row["table"] == "" and row["tables"] == ["A.fmg", "B.fmg"]
+    assert any("Choose the table" in r for r in got.refusals)
+    chosen = SetupValues(list(got.natives), {r["file"]: r["choices"][0] for r in got.files}, {row["file"]: "B.fmg"})
+    after = service.check_overhaul(opened.install_id, "Texty", chosen)
+    assert after.texts[0]["table"] == "B.fmg" and not any("Choose the table" in r for r in after.refusals)
 
 
 def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
-    from bayle.session.ops.mods_install import setup_notes
+    from bayle.services.mod_install import setup_notes
 
     folder = make_folder(tmp_path / "dl", ["mod/chr/a.anibnd.dcx", "M.dll"])
     b = basic.propose(folder, game="eldenring").model_copy(update={"files": {"old/gone.ini": "leave"}})
@@ -599,7 +558,7 @@ def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
 
 def test_a_saved_setup_with_flat_paths_carries_over_to_a_download_with_a_package_root(tmp_path):
     from bayle.overhauls.config import Basic, BasicNative
-    from bayle.views.file_actions import shown_path
+    from bayle.ui.pages.mods.file_actions import shown_path
 
     folder = make_folder(tmp_path, ["A.dll", "B.dll", "mod/regulation.bin", "mod/chr/c0000.anibnd.dcx", "cfg/a.ini"])
     saved = Basic(

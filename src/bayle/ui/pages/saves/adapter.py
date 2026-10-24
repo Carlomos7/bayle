@@ -1,9 +1,9 @@
 """The Saves page's adapter: the thin QObject the QML page binds to (technical specification §8.10, Saves). What to show
-comes from the presenter, what a change does from the session's saves operations (session/ops/saves.py).
+comes from the presenter, what a change does from the engine (services/saves_page.py).
 
-The read (every live save, the Library, the Backups) is the session's `saves` snapshot, run on the host's worker. Each
-write is an operation: a plan (the presenter's words asked through the Notifier, the answer sent back) whose answer
-starts a job, or a job at once. The adapter follows the job on the host, tells its result with Undo once the page is
+Everything goes to the engine's SavesService on the host's worker. A write to a live save is a check (the facts the
+presenter words and asks through the Notifier) and, on yes, a start with the stamp the check gave: if a file changed
+since, the page asks once more. The adapter follows the job on the host, tells its result with Undo once the page is
 read again, and holds no decision about what to write or how to back it up."""
 
 from __future__ import annotations
@@ -16,11 +16,10 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from bayle.errors import OperationError
 from bayle.platform.text import tr
 from bayle.services.saves_page import SavesService, retention_limits
-from bayle.session import Session
 from bayle.ui.notifications import Notifier
+from bayle.ui.pages.saves.presenter import SavesPresenter
 from bayle.ui.refresh import Refresher
 from bayle.views.common import Refusal
-from bayle.views.saves import SavesPresenter
 
 
 class SavesHost(Protocol):
@@ -32,8 +31,6 @@ class SavesHost(Protocol):
     def game_running(self) -> bool: ...
     @property
     def locations(self) -> Any: ...
-    @property
-    def session(self) -> Session: ...
     @property
     def saves_service(self) -> SavesService: ...
     def run_in_background(self, work, on_result) -> None: ...
@@ -64,7 +61,7 @@ class SavesAdapter(QObject):
         self._names: dict = {}
         self._loading = False
         self._refresher = Refresher(host, lambda: host.locations, self._build, self._apply, busy=self._set_loading)
-        self._after: dict = {}  # a write's result {text, save, backup}; told at the next read
+        self._after: dict = {}  # a write's {text, save, backup}; told at the next read
         self._adopt = False  # the next read is a user's Refresh: it also takes in older backup folders
         self._sheet_path, self._sheet_slot = "", 0
         self._repair_path = ""
@@ -220,9 +217,14 @@ class SavesAdapter(QObject):
     def _undo(self, save: Path, backup: Path) -> None:
         """The toast's Undo: the same record the Activity page offers (mods.undo, type save-restore)."""
         if not self._blocked():
-            self._job("saves.undo_change", {"save": str(save), "backup": str(backup)}, tell=False)
+            self._start(
+                lambda: self.host.saves_service.undo_change(
+                    save, backup, title=tr("Undoing the change to {name}...").format(name=save.name)
+                ),
+                None,
+            )
 
-    # ---- the gate every write goes through (the session enforces it too; this tells the player at once)
+    # ---- the gate every write goes through (the job manager enforces it too; this tells the player at once)
     def _blocked(self, read_only: bool = False) -> bool:
         """read_only: a twin that only reads the live save (Save a copy, Import) is refused for a running job only."""
         if self.host.busy or (self.host.game_running and not read_only):
@@ -245,14 +247,10 @@ class SavesAdapter(QObject):
         else:
             self.notifier.toast(e.message, error=True)
 
-    # ---- asking the session (on the host's worker; the answer lands on the UI thread)
-    def _call(self, name: str, params: dict | None, done=None, fail: str = "", settle=None) -> None:
-        """Run an operation. done(result) on success; an OperationError is a toast (titled fail); settle() either way."""
-        session = self.host.session
-        self._query(lambda: session.run(name, params), done, fail, settle)
-
+    # ---- asking the engine (on the host's worker; the answer lands on the UI thread)
     def _query(self, read, done=None, fail: str = "", settle=None) -> None:
-        """Like _call for a read of the engine's Saves interface: read() runs on the host's worker."""
+        """read() runs on the host's worker (an engine call); done(result) on success, an OperationError is a toast (titled
+        fail); settle() either way."""
 
         def work():
             try:
@@ -270,26 +268,21 @@ class SavesAdapter(QObject):
 
         self.host.run_in_background(work, landed)
 
-    def _job(self, name: str, params: dict | None, tell: bool = True) -> None:
-        """Run a job operation and follow it: when it ends its result is told (tell) and the page is read again."""
-        self._call(name, params, lambda job_id: self._follow(job_id, tell))
-
-    def _follow(self, job_id: str, tell: bool = True) -> None:
-        def ended(snap) -> None:
-            if tell and snap is not None and snap.state == "done" and isinstance(snap.result, dict):
-                self._after.update(snap.result)
-            self._read()
-
-        self.host.follow_job(job_id, ended)
-
     def _start(self, begin, words) -> None:
-        """A job the service starts (Back up, Save a copy, Import): begin() runs on the worker and returns its id. When
-        it ends, words(result) is the toast (no Undo: they add copies, they change no save) or the failure code's
-        sentence; the page is read again either way."""
+        """A job the service starts: begin() runs on the worker and returns its id."""
+        self._query(begin, lambda job_id: self._follow(job_id, words))
+
+    def _follow(self, job_id: str, words) -> None:
+        """When the job ends, words(result) is the toast (None: silent) or the failure code's sentence; the page is
+        read again either way. A write that took a backup is told after that read, with the Undo that puts it back."""
 
         def ended(snap) -> None:
             if snap is not None and snap.state == "done" and isinstance(snap.result, dict):
-                self.notifier.toast(words(snap.result))
+                text = words(snap.result) if words is not None else ""
+                if snap.result.get("save") and snap.result.get("backup"):
+                    self._after.update(text=text, save=snap.result["save"], backup=snap.result["backup"])
+                elif text:
+                    self.notifier.toast(text)
             elif snap is not None and snap.state == "failed" and snap.error is not None:
                 err = snap.error
                 self.notifier.toast(
@@ -297,42 +290,7 @@ class SavesAdapter(QObject):
                 )
             self._read()
 
-        self._query(begin, lambda job_id: self.host.follow_job(job_id, ended))
-
-    def _ask(self, name: str, params: dict, fail: str = "", then=None) -> None:
-        """A plan operation: the session offers it, the Notifier asks in its words, and the answer goes back. A job
-        the answer starts is followed; one that finishes inline (a removal) calls then()."""
-
-        def offered(plan) -> None:
-            if isinstance(plan, Refusal):
-                self._refuse(plan)
-                return
-            self.notifier.ask(
-                plan.words,
-                lambda ok, option: self._answer(plan.id, ok, option, fail, then),
-                destructive=plan.destructive,
-            )
-
-        self._call(name, params, offered, fail)
-
-    def _answer(self, plan_id: str, ok: bool, option: bool, fail: str, then) -> None:
-        session = self.host.session
-
-        def work():
-            try:
-                return session.answer(plan_id, {"ok": ok, "option": bool(option)})
-            except OperationError as e:  # busy, expired, or changed since
-                return e
-
-        def landed(got) -> None:
-            if isinstance(got, OperationError):
-                self._fail(got, fail)
-            elif ok and isinstance(got, str):
-                self._follow(got)
-            elif ok and then is not None:
-                then()
-
-        self.host.run_in_background(work, landed)
+        self.host.follow_job(job_id, ended)
 
     def _open(self, which: str) -> None:
         self._query(lambda: self.host.saves_service.folder(which), lambda f: self.host.open_path(f) if f else None)
@@ -507,30 +465,42 @@ class SavesAdapter(QObject):
 
     @Slot(str, int, str, int)
     def copyCharacter(self, source: str, src_slot: int, target: str, dst_slot: int) -> None:
-        if not self._blocked():
-            self._ask(
-                "saves.copy_character",
-                {"source": source, "src_slot": src_slot, "target": target, "dst_slot": dst_slot},
-            )
+        if self._blocked():
+            return
+        service = self.host.saves_service
+        self._confirm_write(
+            lambda: service.check_copy_character(source, src_slot, target, dst_slot),
+            lambda c: self.presenter.character_copy(
+                c.plan, Path(c.source).name, Path(c.target).name, dst_slot, c.same_file
+            ),
+            lambda c: service.copy_character(
+                source,
+                src_slot,
+                target,
+                dst_slot,
+                c.stamp,
+                title=tr("Copying a character into {name}...").format(name=Path(target).name),
+            ),
+            self.presenter.copy_done,
+            tr("This cannot be done"),
+            destructive=lambda c: bool(c.plan["replaces"]),
+        )
 
     # ---- 2. Replace a live save with a file
     @Slot(str, str, str)
     def replaceFromLibrary(self, folder: str, entry_id: str, target: str) -> None:
         if self._blocked():
             return
-        plan = {"folder": folder, "entry_id": entry_id, "target": target}
-
-        def checked(entry) -> None:
-            if entry["changed_outside"]:  # the copy's file is not what the launcher stored: ask first
-                self.notifier.ask(
-                    self.presenter.changed_outside(entry["name"]),
-                    lambda ok, _o: self._ask("saves.replace_from_library", plan) if ok else None,
-                )
-            else:
-                self._ask("saves.replace_from_library", plan)
-
-        self._query(
-            lambda: self.host.saves_service.copy_entry(folder, entry_id), checked, fail=tr("This copy cannot be used")
+        service = self.host.saves_service
+        self._confirm_write(
+            lambda: service.check_replace_from_library(folder, entry_id, target),
+            self.presenter.replace_check,
+            lambda c: service.replace_from_library(
+                folder, entry_id, target, c.stamp, title=tr("Replacing {name}...").format(name=Path(target).name)
+            ),
+            self.presenter.replace_done,
+            tr("This copy cannot be used"),
+            before=lambda c: self.presenter.changed_outside(c.label) if c.changed_outside else None,
         )
 
     @Slot(str)
@@ -538,13 +508,34 @@ class SavesAdapter(QObject):
         if self._blocked():
             return
         src = self.host.pick_file(tr("Replace with a save file"), "Save files (*.sl2 *.co2);;All files (*)")
-        if src is not None:
-            self._ask("saves.replace_from_file", {"source": str(src), "target": target})
+        if src is None:
+            return
+        service = self.host.saves_service
+        self._confirm_write(
+            lambda: service.check_replace_from_file(src, target),
+            self.presenter.replace_check,
+            lambda c: service.replace_from_file(
+                src, target, c.stamp, title=tr("Replacing {name}...").format(name=Path(target).name)
+            ),
+            self.presenter.replace_done,
+            tr("This cannot be done"),
+        )
 
     @Slot(str, str)
     def restoreBackup(self, backup: str, target: str) -> None:
-        if not self._blocked():
-            self._ask("saves.restore_backup", {"backup": backup, "target": target})
+        if self._blocked():
+            return
+        service = self.host.saves_service
+        self._confirm_write(
+            lambda: service.check_restore_backup(backup, target),
+            lambda c: self.presenter.restore(c.backup, Path(target).name),
+            lambda c: service.restore_backup(
+                backup, target, c.stamp, title=tr("Restoring {name}...").format(name=Path(target).name)
+            ),
+            self.presenter.restore_done,
+            tr("This cannot be done"),
+            destructive=lambda _c: False,
+        )
 
     # ---- the saved copies' upkeep (the Library file and the Backups list; no live save is written)
     @Slot(str, str)
@@ -563,9 +554,12 @@ class SavesAdapter(QObject):
             fail=tr("Could not change it"),
         )
 
-    def _confirm_remove(self, check, words, remove, done, fail: str, again: bool = True) -> None:
-        """check on a worker, ask in words(facts), on yes remove(facts) with what was shown. A stale answer (it changed
-        since) asks once more with fresh words; a decline does nothing."""
+    def _confirm(
+        self, check, words, act, done, fail: str, destructive=lambda _f: True, before=None, again=True
+    ) -> None:
+        """check on a worker, ask in words(facts), on yes act(facts) with what was shown, then done(its result). A stale
+        answer (it changed since) asks once more with fresh words; a decline does nothing. destructive(facts) says
+        whether the answer is a dangerous one; before(facts) is a Confirm to ask first (None: none)."""
 
         def checked(facts) -> None:
             def answered(ok: bool, _option: bool) -> None:
@@ -574,7 +568,7 @@ class SavesAdapter(QObject):
 
                 def work():
                     try:
-                        return remove(facts)
+                        return act(facts)
                     except OperationError as e:
                         if e.code == "stale" and again:
                             return "stale"  # a result, not an error: _query would toast an OperationError
@@ -582,15 +576,26 @@ class SavesAdapter(QObject):
 
                 def landed(got) -> None:
                     if got == "stale":
-                        self._confirm_remove(check, words, remove, done, fail, again=False)
+                        self._confirm(check, words, act, done, fail, destructive, before, again=False)
                     else:
-                        done()
+                        done(got)
 
                 self._query(work, landed, fail=fail)
 
-            self.notifier.ask(words(facts), answered, destructive=True)
+            def ask() -> None:
+                self.notifier.ask(words(facts), answered, destructive=destructive(facts))
+
+            first = before(facts) if before is not None else None
+            if first is None:
+                ask()
+            else:
+                self.notifier.ask(first, lambda ok, _o: ask() if ok else None)
 
         self._query(check, checked, fail=fail)
+
+    def _confirm_write(self, check, words, act, done_words, fail: str, **kw) -> None:
+        """_confirm for a write to a live save: act(facts) starts the job and returns its id, which is followed."""
+        self._confirm(check, words, act, lambda job_id: self._follow(job_id, done_words), fail, **kw)
 
     @Slot(str)
     def deleteBackup(self, backup: str) -> None:
@@ -600,11 +605,11 @@ class SavesAdapter(QObject):
             self.notifier.toast(tr("Backup removed"))
             self._read()
 
-        self._confirm_remove(
+        self._confirm(
             lambda: service.check_delete_backup(backup),
             lambda f: self.presenter.delete_backup({"path": str(f.path), "time": f.when[11:16], "action": f.action}),
             lambda f: service.delete_backup(backup, f.stamp),
-            removed,
+            lambda _r: removed(),
             tr("Could not remove"),
         )
 
@@ -619,11 +624,11 @@ class SavesAdapter(QObject):
     @Slot(str, str)
     def removeCopy(self, folder: str, entry_id: str) -> None:
         service = self.host.saves_service
-        self._confirm_remove(
+        self._confirm(
             lambda: service.check_remove_copy(folder, entry_id),
             self.presenter.remove_copy,
             lambda name: service.remove_copy(folder, entry_id, name),
-            self._read,
+            lambda _r: self._read(),
             tr("Could not remove"),
         )
 
@@ -665,7 +670,10 @@ class SavesAdapter(QObject):
     @Slot()
     def postSessionRepair(self) -> None:
         if not self._blocked():
-            self._job("saves.post_session_repair", None)
+            self._start(
+                lambda: self.host.saves_service.post_session_repair(title=tr("Repairing saves...")),
+                self.presenter.post_session_repair_done,
+            )
 
     # ---- Check & repair
     @Slot(str)
@@ -745,8 +753,17 @@ class SavesAdapter(QObject):
         if self._blocked():
             return
         info, keys = self._info(self._repair_path), self._ticked()
-        if info is not None and keys:
-            self._ask("saves.repair", {"path": str(info["path"]), "keys": [list(k) for k in keys]})
+        if info is None or not keys:
+            return
+        path, service = str(info["path"]), self.host.saves_service
+        self._confirm_write(
+            lambda: service.check_repair(path, keys),
+            lambda c: self.presenter.repair_confirm(c.info, c.keys),
+            lambda c: service.repair(path, keys, c.stamp, title=tr("Repairing {name}...").format(name=Path(path).name)),
+            self.presenter.repair_done,
+            tr("This cannot be done"),
+            destructive=lambda _c: False,
+        )
 
     # ---- the character sheet (read-only)
     @Slot(str, int)
@@ -760,7 +777,7 @@ class SavesAdapter(QObject):
         self.sheetChanged.emit()
 
     def _reload_sheet(self) -> None:
-        """Read the character from the session; the sheet opens (or refreshes) when it lands."""
+        """Read the character from the service; the sheet opens (or refreshes) when it lands."""
         path, slot = self._sheet_path, self._sheet_slot
         if self._info(path) is None:
             self._sheet = {}

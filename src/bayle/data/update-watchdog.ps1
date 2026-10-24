@@ -54,9 +54,10 @@ while ((Get-Date) -lt $deadline) {
 
 Say "$Version did not report ready; putting the previous version back from $Package"
 $current = Join-Path $Root 'current'
-Get-Process -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -and $_.Path.StartsWith($current, [StringComparison]::OrdinalIgnoreCase) } |
-    Stop-Process -Force -ErrorAction SilentlyContinue
+# CIM, not Get-Process: reading each process's .Path opens it, 40+ s with a few hundred processes running
+Get-CimInstance Win32_Process -Property ProcessId, ExecutablePath -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($current, [StringComparison]::OrdinalIgnoreCase) } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Get-ChildItem -Path (Join-Path $Root 'packages') -Filter "*-$Version-*.nupkg" -ErrorAction SilentlyContinue |
     Remove-Item -Force -ErrorAction SilentlyContinue
 $record = [ordered]@{

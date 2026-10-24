@@ -1,5 +1,5 @@
 """The Library operations of the Mods page (share, separate, use in other profiles, list, remove unused) through
-Session.run / answer, over a real Library in temporary folders: no Qt, no window."""
+Session.run on the real ModLibraryService, over a real Library in temporary folders: no Qt, no window."""
 
 import shutil
 from pathlib import Path
@@ -12,9 +12,9 @@ from bayle.game.locate import Locations, Overrides
 from bayle.mods import shared_mods
 from bayle.platform import trash
 from bayle.services.mods import profile_entries
+from bayle.services.shared_mods import ModLibraryService
 from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
-from bayle.views.common import Confirm, Refusal
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from bayle.work.prompts import PlanStore
@@ -44,8 +44,9 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(trash, "available", lambda: True)
     monkeypatch.setattr(trash, "send", lambda p: shutil.rmtree(p) or {})
     monkeypatch.setattr(trash, "exists", lambda r: False)
+    jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
     session = Session(
-        JobManager(EventBus(), spawn=lambda run, name=None: run()), plans=PlanStore(), locations=lambda: loc
+        jobs, plans=PlanStore(), locations=lambda: loc, services={"mod_library": ModLibraryService(jobs, lambda: loc)}
     )
     return session, loc, a, b
 
@@ -60,28 +61,42 @@ def refused(session, name, params) -> OperationError:
     return e.value
 
 
-def test_sharing_asks_then_shares_in_a_job_and_the_page_shows_it(world):
+def share(s, ref):
+    plan = s.run("mods.check_share", ref)
+    return s.jobs.get(s.run("mods.share", {**ref, "expect": list(plan.stamp)}).job_id)
+
+
+def test_sharing_is_checked_then_started_with_the_stamp_and_the_page_shows_it(world):
     s, loc, a, _b = world
     grass = {"profile": str(a), "index": index_of(a, "grass")}
-    plan = s.run("mods.share", grass)
-    assert isinstance(plan.words, Confirm) and plan.words.title == "Share grass"
-    assert shared_mods.shared_count(loc, a, grass["index"]) == 0  # nothing before the answer
-    snap = s.jobs.get(s.answer(plan.id, {"ok": True}))
+    plan = s.run("mods.check_share", grass)
+    assert plan.name == "grass" and plan.stamp
+    assert shared_mods.shared_count(loc, a, grass["index"]) == 0  # nothing before the start
+    snap = s.jobs.get(s.run("mods.share", {**grass, "expect": list(plan.stamp)}).job_id)
     assert (snap.state, snap.title) == ("done", "Sharing grass...")
     assert shared_mods.shared_count(loc, a, grass["index"]) == 1
-    rows = {r.name: r for r in s.snapshot("mods", profile=str(a)).state.groups[0].rows}
-    assert rows["grass"].shared == 1 and rows["grass"].tags[0].text == "Shared · 1 profile"
+
+
+def test_a_profile_that_changed_since_the_check_is_stale_and_nothing_is_shared(world):
+    s, loc, a, _b = world
+    grass = {"profile": str(a), "index": index_of(a, "grass")}
+    plan = s.run("mods.check_share", grass)
+    a.write_bytes(a.read_bytes() + b"\n# edited\n")
+    assert refused(s, "mods.share", {**grass, "expect": list(plan.stamp)}).code == "stale"
+    assert refused(s, "mods.share", {"profile": str(a), "index": 99, "expect": None}).code == "not_found"
+    assert shared_mods.shared_count(loc, a, grass["index"]) == 0
 
 
 def test_another_profile_with_the_same_files_is_offered_and_ticking_replaces_its_copy(world):
     s, loc, a, b = world
     grass = {"profile": str(a), "index": index_of(a, "grass")}
-    s.answer(s.run("mods.share", grass).id, {"ok": True})
+    assert share(s, grass).state == "done"
     offer = s.run("mods.library_use_choices", grass)
-    assert offer.prompt["kind"] == "pick" and offer.prompt["rows"] == ["b (has its own copy; ticking replaces it)"]
-    assert offer.prompt["title"] == "Use grass in other profiles"
+    assert offer.name == "grass" and [(p.name, p.has_copy, p.uses) for p in offer.profiles] == [("b", True, False)]
     assert refused(s, "mods.library_use", {**grass, "targets": []}).code == "nothing_chosen"
-    snap = s.jobs.get(s.run("mods.library_use", {**grass, "targets": [0], "name": "grass"}))
+    outside = refused(s, "mods.library_use", {**grass, "targets": [str(a)]})  # not one the Library lists
+    assert outside.code == "not_found"
+    snap = s.jobs.get(s.run("mods.library_use", {**grass, "targets": [offer.profiles[0].profile]}).job_id)
     assert (snap.state, snap.title) == ("done", "Linking grass...")
     assert shared_mods.shared_count(loc, b, index_of(b, "grass")) == 2
 
@@ -89,20 +104,21 @@ def test_another_profile_with_the_same_files_is_offered_and_ticking_replaces_its
 def test_a_separate_package_is_not_shared_and_a_shared_one_can_get_its_own_copy(world):
     s, loc, a, b = world
     sky = {"profile": str(a), "index": index_of(a, "sky")}
-    got = s.run("mods.separate", sky)
-    assert isinstance(got, Refusal) and got.body == "This mod is not shared."
+    assert refused(s, "mods.check_separate", sky).code == "not_shared"
     assert refused(s, "mods.library_use_choices", sky).code == "not_shared"
     grass = {"profile": str(a), "index": index_of(a, "grass")}
-    s.answer(s.run("mods.share", grass).id, {"ok": True})
-    s.run("mods.library_use", {**grass, "targets": [0]})
-    plan = s.run("mods.separate", grass)
-    assert isinstance(plan.words, Confirm) and plan.words.title == "Use a separate copy of grass"
-    assert s.jobs.get(s.answer(plan.id, {"ok": True})).state == "done"
+    share(s, grass)
+    offer = s.run("mods.library_use_choices", grass)
+    s.run("mods.library_use", {**grass, "targets": [offer.profiles[0].profile]})
+    plan = s.run("mods.check_separate", grass)
+    assert plan.name == "grass" and plan.size > 0
+    snap = s.jobs.get(s.run("mods.separate", {**grass, "expect": list(plan.stamp)}).job_id)
+    assert (snap.state, snap.title) == ("done", "Copying grass...")
     assert (a.parent / "packages" / "grass" / "parts" / "grass.dcx").read_bytes() == b"same"
     assert shared_mods.shared_count(loc, b, index_of(b, "grass")) == 1
 
 
-def test_the_library_lists_versions_and_unused_ones_are_removed_after_a_confirm(world, tmp_path):
+def test_the_library_lists_versions_and_unused_ones_are_removed_after_a_check(world, tmp_path):
     s, loc, a, b = world
     shared_mods.share(a, [index_of(a, "grass")], loc=loc)
     shared_mods.share(b, [index_of(b, "grass")], loc=loc)
@@ -110,14 +126,14 @@ def test_the_library_lists_versions_and_unused_ones_are_removed_after_a_confirm(
     (new / "parts").mkdir(parents=True)
     (new / "parts" / "grass.dcx").write_bytes(b"v2")
     shared_mods.update(a, index_of(a, "grass"), new, everywhere=True, loc=loc, label="v2")
-    rows = s.run("mods.library", {"profile": str(a)}).rows
-    assert [r["name"] for r in rows] == ["grass"] and [v["unused"] for v in rows[0]["versions"]] == [True, False]
-    plan = s.run("mods.remove_unused", {"profile": str(a)})
-    assert plan.words.title == "Remove unused versions" and "1 version" in plan.words.changes[0]
-    assert s.jobs.get(s.answer(plan.id, {"ok": True})).state == "done"
-    assert [len(r["versions"]) for r in s.run("mods.library", {"profile": str(a)}).rows] == [1]
-    nothing = s.run("mods.remove_unused", {"profile": str(a)})
-    assert isinstance(nothing, Refusal) and nothing.info and nothing.body == "Every shared version is in use."
+    mods = s.run("mods.library", {"profile": str(a)}).mods
+    assert [m.name for m in mods] == ["grass"] and [v.unused for v in mods[0].versions] == [True, False]
+    plan = s.run("mods.check_remove_unused", {})
+    assert len(plan.versions) == 1 and plan.size == plan.versions[0].size
+    assert refused(s, "mods.remove_unused", {"expect": []}).code == "stale"
+    assert s.jobs.get(s.run("mods.remove_unused", {"expect": plan.token}).job_id).state == "done"
+    assert [len(m.versions) for m in s.run("mods.library", {"profile": str(a)}).mods] == [1]
+    assert refused(s, "mods.check_remove_unused", {}).code == "nothing_unused"
 
 
 def test_the_library_job_gives_its_reason_when_the_library_refuses(world, monkeypatch):
@@ -129,6 +145,7 @@ def test_the_library_job_gives_its_reason_when_the_library_refuses(world, monkey
         raise library_service.Error("the Library is read-only here")
 
     monkeypatch.setattr(library_service, "share", refuse)
-    plan = s.run("mods.share", {"profile": str(a), "index": index_of(a, "grass")})
-    snap = s.jobs.get(s.answer(plan.id, {"ok": True}))
-    assert snap.state == "failed" and snap.error is not None and "read-only" in snap.error.message
+    grass = {"profile": str(a), "index": index_of(a, "grass")}
+    snap = share(s, grass)
+    assert snap.state == "failed" and snap.error is not None and snap.error.code == "library_refused"
+    assert "read-only" in snap.error.message

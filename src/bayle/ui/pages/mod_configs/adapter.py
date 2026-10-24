@@ -23,9 +23,9 @@ from bayle.services.features import Features
 from bayle.ui.models import plain
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.mod_configs.presenter import ModConfigsPresenter
+from bayle.ui.pages.mods.presenter import ModsPresenter
 from bayle.ui.refresh import Refresher
 from bayle.views.common import Confirm, Pick, Refusal
-from bayle.views.mods import ModsPresenter
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 

@@ -160,6 +160,7 @@ def test_duplicate_asks_and_can_share_with_the_original(qt_app, world):
 
 def test_the_install_dialog_offers_keep_separate_or_share_for_identical_files(qt_app, world, tmp_path, shots):
     from bayle.services import mods as mod_service
+    from bayle.services.mod_install import plan_facts
     from bayle.ui.pages.mods.install_presenter import InstallDraft
 
     loc, a, b = world
@@ -172,16 +173,14 @@ def test_the_install_dialog_offers_keep_separate_or_share_for_identical_files(qt
     host = LibraryHost(c, loc)
     w = opened(host)
     try:
-        draft = InstallDraft(plan, c)
+        draft = InstallDraft(plan_facts(plan), c)
         view = draft.view()["library"]
         assert [o["text"] for o in view["options"]] == ["Keep separate", "Share"] and view["choice"] == "separate"
-        assert draft.finish()["library_choice"] == "separate"
+        assert draft.choices().library_choice == "separate"
         draft.library_choice = "share"
-        assert draft.finish()["library_choice"] == "share"
-        from bayle.session.ops.mods_install import DraftState, drafts
-
+        assert draft.choices().library_choice == "share"
         installer = w.adapter.installer
-        installer._draft = drafts(host.session).add(DraftState(draft, c))  # the session holds the draft
+        installer._draft = draft  # the dialog's adapter holds the draft
         installer._view = draft.view()
         installer.viewChanged.emit()
         installer.openRequested.emit()

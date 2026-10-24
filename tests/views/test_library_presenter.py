@@ -83,7 +83,7 @@ def test_the_install_choices_and_their_defaults():
     v = d.view()["library"]
     assert [o["text"] for o in v["options"]] == ["Update here", "Update everywhere"] and v["choice"] == "here"
     d.library_choice = "everywhere"
-    assert d.finish()["library_choice"] == "everywhere"
+    assert d.choices().library_choice == "everywhere"
     one = InstallDraft(install_plan(shared={"index": 0, "name": "Grass", "profiles": 1}), Path("p/a.me3")).view()
     assert [o["key"] for o in one["library"]["options"]] == ["here"]
     plain = InstallDraft(install_plan(), Path("p/a.me3"))

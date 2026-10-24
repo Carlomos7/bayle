@@ -6,9 +6,6 @@ import time
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-from bayle_qt import self_test
-from bayle_qt.launcher.host import ShellHost
-
 
 def settled(cond, ms=4000) -> bool:
     end = time.time() + ms / 1000
@@ -19,8 +16,8 @@ def settled(cond, ms=4000) -> bool:
 
 
 @pytest.fixture
-def host(qt_app, tmp_path):
-    return ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
+def host(qt_app, shell_host):
+    return shell_host
 
 
 def test_a_follower_gets_the_snapshot_whether_it_asks_before_or_after_the_end(host):

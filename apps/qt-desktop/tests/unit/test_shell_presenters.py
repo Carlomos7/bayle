@@ -130,12 +130,10 @@ class _Page:
         pass
 
 
-def test_the_unsaved_rule_asks_before_leaving_and_discard_or_save_goes_on(tmp_path):
-    from bayle_qt import self_test
+def test_the_unsaved_rule_asks_before_leaving_and_discard_or_save_goes_on(shell_host):
     from bayle_qt.launcher.adapter import ShellAdapter
-    from bayle_qt.launcher.host import ShellHost
 
-    host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
+    host = shell_host
     shell = ShellAdapter(host)
     page = _Page()
     host.register_page("mods", page)

@@ -5,7 +5,6 @@ import time
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-from bayle_qt import self_test
 from bayle_qt.launcher.adapter import ShellAdapter
 from bayle_qt.launcher.host import ShellHost
 from bayle_qt.shell import updates as updates_mod
@@ -31,10 +30,10 @@ def _wait(cond):
         (feed.UpdateCheck("fresh", offer={"version": "99.0.0", "url": "u", "assets": {}, "notes": ""}), False),
     ],
 )
-def test_a_forced_check_shows_a_line_and_a_toast_on_a_listened_notifier(qt_app, tmp_path, monkeypatch, check, error):
+def test_a_forced_check_shows_a_line_and_a_toast_on_a_listened_notifier(qt_app, shell_host, monkeypatch, check, error):
     monkeypatch.setattr(updates_mod.feed, "check_launcher_update", lambda force=False: check)
     monkeypatch.setattr(updates_mod.feed, "check_advisory", lambda force=False: None)
-    host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
+    host = shell_host
     shell = ShellAdapter(host)
     seen = []
     for n in shell._all_notifiers():
@@ -72,14 +71,14 @@ def _toast(w) -> str:
     return ""
 
 
-def test_the_real_shell_renders_the_check_toast_and_other_pages_toasts(qt_app, tmp_path, monkeypatch):
+def test_the_real_shell_renders_the_check_toast_and_other_pages_toasts(qt_app, shell_host, monkeypatch):
     from bayle_qt.launcher.window import ShellWindow
 
     monkeypatch.setattr(updates_mod.feed, "check_launcher_update", lambda force=False: feed.UpdateCheck("fresh"))
     monkeypatch.setattr(updates_mod.feed, "check_advisory", lambda force=False: None)
     # the Settings page asks me3 on a thread that outlives the test: no real me3, network or settings write
     monkeypatch.setattr(ShellHost, "me3_facts", lambda self: {})
-    host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
+    host = shell_host
     w = ShellWindow(host)
     try:
         assert w.build() and w.window is not None

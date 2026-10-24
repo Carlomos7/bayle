@@ -2,7 +2,6 @@
 
 import pytest
 
-from bayle_qt import self_test
 from bayle_qt.launcher.host import ShellHost
 from bayle_qt.launcher.window import ShellWindow
 
@@ -25,9 +24,9 @@ def _box(item):
     return p.x(), p.y(), item.width(), item.height()
 
 
-def test_the_row_has_menus_left_title_centred_and_buttons_right(qt_app, tmp_path, monkeypatch):
+def test_the_row_has_menus_left_title_centred_and_buttons_right(qt_app, shell_host, monkeypatch):
     monkeypatch.setattr(ShellHost, "me3_facts", lambda self: {})
-    w = ShellWindow(ShellHost(self_test._Context(tmp_path, "dark")))  # type: ignore[arg-type]
+    w = ShellWindow(shell_host)
     try:
         assert w.build() and w.window is not None
         w.window.resize(1100, 760)

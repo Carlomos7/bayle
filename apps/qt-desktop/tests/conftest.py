@@ -270,3 +270,15 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
 def pytest_collection_modifyitems(items):
     """The tests of the real Recycle Bin run last: the shell it loads must not come before Qt's first QML window."""
     items.sort(key=lambda item: item.get_closest_marker("real_recycle_bin") is not None)
+
+
+@pytest.fixture
+def shell_host(tmp_path):
+    """A ShellHost on the self-test's Context over tmp_path, shut down after the test so none of its threads (jobs,
+    the game watch) outlives it: one still in the shell while Qt objects were garbage-collected crashed a run."""
+    from bayle_qt import self_test
+    from bayle_qt.launcher.host import ShellHost
+
+    host = ShellHost(self_test._Context(tmp_path, "dark"))  # type: ignore[arg-type]
+    yield host
+    host.shutdown()

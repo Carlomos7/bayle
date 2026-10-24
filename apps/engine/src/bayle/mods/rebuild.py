@@ -124,9 +124,9 @@ def sha256(path: Path) -> str | None:
 
 # ----------------------------------------------------------------------------- layers
 def is_elden_ring(profile: Path) -> bool:
-    from bayle.platform import paths
+    from bayle.platform import me3_paths
 
-    named = paths.profile_games(Path(profile))
+    named = me3_paths.profile_games(Path(profile))
     return games.ELDEN_RING.key in named if named else True  # a profile that names no game counts as Elden Ring's
 
 

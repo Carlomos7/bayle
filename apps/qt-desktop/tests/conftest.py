@@ -28,7 +28,7 @@ from urllib.request import url2pathname
 
 import pytest
 from bayle.config import settings
-from bayle.platform import data_folder, instance
+from bayle.platform import data_folder, instance, me3_paths
 from bayle.platform import paths as common
 from bayle.runtime import bootstrap
 from bayle.saves import backups as save_backups
@@ -260,10 +260,10 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
     locks = Path(tempfile.mkdtemp(prefix="rsl-"))
     monkeypatch.setattr(instance, "_lock_dir", lambda: locks)
     common.clear_detection_cache()
-    common._PROFILE_GAMES_CACHE.clear()
+    me3_paths._PROFILE_GAMES_CACHE.clear()
     yield
     common.clear_detection_cache()
-    common._PROFILE_GAMES_CACHE.clear()
+    me3_paths._PROFILE_GAMES_CACHE.clear()
     shutil.rmtree(locks, ignore_errors=True)
 
 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from bayle.config.settings import LauncherSettings, game_setting
 from bayle.game import catalog
-from bayle.platform import paths
+from bayle.platform import me3_paths, paths, steam_paths
 
 PATH_SETTINGS = ("me3_path", "game_exe", "me3_profile_dir", "saves_dir")  # Settings > Locations; blank = detect
 
@@ -133,10 +133,10 @@ class Locations:
 
     # ------------------------------------------------------------------ me3
     def me3_exe(self) -> Path | None:
-        return paths.me3_exe(self.overrides.me3_exe)
+        return me3_paths.me3_exe(self.overrides.me3_exe)
 
     def me3_profiles_dir(self) -> Path | None:
-        return paths.me3_profiles_dir(self.overrides.profiles_dir)
+        return me3_paths.me3_profiles_dir(self.overrides.profiles_dir)
 
     def me3_profiles(self, game: catalog.Game | None = None) -> list[Path]:
         """User-made .me3 profiles for the game (the *-default.me3 ones me3 generates are skipped). A profile that
@@ -146,9 +146,9 @@ class Locations:
         game = game or self.game
         home = self.me3_profiles_dir()
         also = [layout.game_root(home, game.key)] if home is not None else []
-        return paths.find_profiles(home, game.key, catalog.ELDEN_RING.key, also)
+        return me3_paths.find_profiles(home, game.key, catalog.ELDEN_RING.key, also)
 
 
 def installed_dir(game: catalog.Game) -> Path | None:
     """The folder with this game's exe in any Steam library, or None (cached per game for the session)."""
-    return paths.find_installed(game.key, game.install_dir, game.exe)
+    return steam_paths.find_installed(game.key, game.install_dir, game.exe)

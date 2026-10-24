@@ -41,7 +41,7 @@ from bayle.mods import operations as mod_operations
 from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods import rebuild as mod_merge
-from bayle.platform import desktop, me3_info, paths, steam
+from bayle.platform import desktop, me3_info, me3_paths, steam
 from bayle.platform import logging as run_logging
 from bayle.platform import session as me3_session
 from bayle.platform.files import (
@@ -142,7 +142,7 @@ class LaunchProfile:
         if not Path(self.profile).is_file():
             out.append(Problem("profile_missing", path=self.profile))
         elif self.kind == "me3":
-            named = paths.profile_games(Path(self.profile))
+            named = me3_paths.profile_games(Path(self.profile))
             if named and self.game.key not in named:
                 other = ", ".join(games.get(k).name if k in games.BY_KEY else k for k in named)
                 out.append(Problem("wrong_game", detail=f"{other}, not {self.game.name}"))

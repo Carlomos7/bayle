@@ -12,6 +12,7 @@ from bayle.game import locate
 from bayle.mods import backends, install, remove
 from bayle.mods import profile_edit as M
 from bayle.mods import rebuild as merge
+from bayle.platform import me3_paths
 from bayle.platform import paths as common
 from support import er
 
@@ -211,7 +212,7 @@ def test_sources_written_on_another_pc_are_found_here(world):
 
 def test_not_for_other_games(world):
     world.profile.write_text('[[supports]]\ngame = "nightreign"\n\n' + world.profile.read_text(encoding="utf-8"))
-    common._PROFILE_GAMES_CACHE.clear()
+    me3_paths._PROFILE_GAMES_CACHE.clear()
     assert merge.health(world.profile, loc=er())["state"] is None
 
 

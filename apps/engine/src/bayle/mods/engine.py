@@ -47,12 +47,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle import formats, overhauls
-from bayle.formats import FormatError
+from bayle.formats import FormatError, me3_profile
 from bayle.game import catalog as games
 from bayle.game import config as game_config
 from bayle.game import knowledge
 from bayle.game import oodle as game_oodle
-from bayle.mods import profile_edit as mod_manage
 from bayle.mods.models import EngineError
 from bayle.mods.tools import EngineHost
 from bayle.overhauls import hks_check, hooks, lua_check
@@ -133,11 +132,11 @@ def layers(profile: Path, target_folder: Path, host: EngineHost) -> list[Path]:
 
     rows = [
         e
-        for e in mod_manage.entries(profile)
+        for e in me3_profile.entries(me3_profile.read_text(profile))
         if e["kind"] == "package"
         and e.get("enabled", True)
         and e.get("path")
-        and not host.same_folder(mod_manage.resolve(profile, e["path"]), target_folder)
+        and not host.same_folder(me3_profile.resolve(profile, e["path"]), target_folder)
     ]
     ids = [(e.get("id") or Path(e["path"]).name) for e in rows]
     if len(set(ids)) != len(ids):
@@ -156,7 +155,7 @@ def layers(profile: Path, target_folder: Path, host: EngineHost) -> list[Path]:
         if i is None:
             raise EngineError("The profile's package load order loops.")
         done.add(ids[i])
-        out.append(mod_manage.resolve(profile, rows[i]["path"]))
+        out.append(me3_profile.resolve(profile, rows[i]["path"]))
     for p in out:
         if not p.is_dir():
             raise EngineError(f"An enabled package's folder is missing: {p}")
@@ -170,7 +169,7 @@ def unmet(profile: Path, recipe: dict) -> list[str]:
     requires = [overhauls.Requirement.model_validate(r) for r in recipe.get("requires") or []]
     if not requires:
         return []
-    found = overhauls.requirements.unmet(requires, mod_manage.entries(profile))
+    found = overhauls.requirements.unmet(requires, me3_profile.entries(me3_profile.read_text(profile)))
     return [overhauls.requirements.refusal(recipe["label"], req) for req, _state in found]
 
 

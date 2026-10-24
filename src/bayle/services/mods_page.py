@@ -5,6 +5,7 @@ that is mods.recover on the session. The presenter (views.mods) turns the result
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from bayle.services import coop as coop_service
 from bayle.services import mods as mod_service
 from bayle.services import play as play_service
 from bayle.services import profile_mods
+from bayle.work.jobs import JobManager
 
 
 @dataclass(frozen=True)
@@ -86,3 +88,11 @@ def drop_reasons(profile, kind: str, index: int, *, loc: Locations) -> dict[int,
         except Exception as e:
             out[to] = str(e)
     return out
+
+
+class ModsService:
+    """The Mods page (its facts, the profile' mods, the profile itself) for one engine: jobs is its JobManager, locations the current game's Locations (None: no game selected).
+    Returns data and OperationError codes, never wording: the Qt page words them."""
+
+    def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
+        self._jobs, self._locations = jobs, locations

@@ -4,11 +4,14 @@ updates and removing unused versions. Each leaves the Activity undo record (mods
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from bayle.game.locate import Locations
 from bayle.mods import shared_mods
 from bayle.platform import logging as run_logging
+from bayle.work.jobs import JobManager
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -128,3 +131,11 @@ def duplicates(loc: Locations) -> tuple[int, int]:
 
 def separate_copies(profile: Path, *, loc: Locations) -> list[shared_mods.Copy]:
     return shared_mods.separate_copies(loc, only=Path(profile))
+
+
+class ModLibraryService:
+    """The shared mod Library (versions kept once for every profile) for one engine: jobs is its JobManager, locations the current game's Locations (None: no game selected).
+    Returns data and OperationError codes, never wording: the Qt page words them."""
+
+    def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
+        self._jobs, self._locations = jobs, locations

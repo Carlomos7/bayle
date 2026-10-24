@@ -8,11 +8,8 @@ from test_overhaul_install import PROFILE, World, mixed_mod
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
 from bayle.services.mod_configs import ModConfigsService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 TOKEN = "t" * 32
 
@@ -37,8 +34,10 @@ def env(tmp_path, monkeypatch):
     world = World(tmp_path, monkeypatch)
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
     service = ModConfigsService(jobs, lambda: world.loc)
-    session = Session(jobs, plans=PlanStore(), locations=lambda: world.loc, services={"mod_configs": service})
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"mod_configs": service}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         yield Env(world, c)
 

@@ -1,33 +1,6 @@
-"""The session layer: what every client (the window, the HTTP layer) talks to. No Qt. Above views and services."""
+"""The desktop app's engine-side controller (shell/: Shell, Launch and Update flows, the game watch) and the
+start-up steps it runs (startup). No Qt."""
 
-from bayle.session.operations import (
-    Call,
-    NoParams,
-    OperationRegistry,
-    OperationSpec,
-    PageSpec,
-    Params,
-    PlanAnswers,
-    Result,
-    Session,
-    StartupStep,
-    StepReport,
-    operation,
-    registry,
-)
+from bayle.session.startup import StartupStep, StepReport, run_steps
 
-__all__ = [
-    "Call",
-    "NoParams",
-    "OperationRegistry",
-    "OperationSpec",
-    "PageSpec",
-    "Params",
-    "PlanAnswers",
-    "Result",
-    "Session",
-    "StartupStep",
-    "StepReport",
-    "operation",
-    "registry",
-]
+__all__ = ["StartupStep", "StepReport", "run_steps"]

@@ -10,11 +10,8 @@ from bayle.mods.layout import LayoutError
 from bayle.services import layout as layout_service
 from bayle.services import play as play_service
 from bayle.services.settings import SettingsService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 from support import er
 
 TOKEN = "t" * 32
@@ -23,8 +20,10 @@ TOKEN = "t" * 32
 @pytest.fixture
 def client():
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
-    session = Session(jobs, plans=PlanStore(), locations=er, services={"settings": SettingsService(jobs, er)})
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"settings": SettingsService(jobs, er)}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         yield c
 

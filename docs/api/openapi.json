@@ -385,6 +385,20 @@
         "title": "CheckExportParams",
         "type": "object"
       },
+      "CheckParams": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "CheckParams",
+        "type": "object"
+      },
       "Choices": {
         "additionalProperties": false,
         "description": "What the player set in the dialog (services.mod_install.InstallChoices).",
@@ -936,17 +950,6 @@
         "title": "Dependency",
         "type": "object"
       },
-      "Done": {
-        "properties": {
-          "ok": {
-            "default": true,
-            "title": "Ok",
-            "type": "boolean"
-          }
-        },
-        "title": "Done",
-        "type": "object"
-      },
       "DragTable": {
         "properties": {
           "kind": {
@@ -1454,20 +1457,6 @@
         "title": "FolderParam",
         "type": "object"
       },
-      "FolderParams": {
-        "additionalProperties": false,
-        "properties": {
-          "folder": {
-            "title": "Folder",
-            "type": "string"
-          }
-        },
-        "required": [
-          "folder"
-        ],
-        "title": "FolderParams",
-        "type": "object"
-      },
       "FolderPath": {
         "properties": {
           "path": {
@@ -1574,76 +1563,6 @@
           "profile"
         ],
         "title": "FormParams",
-        "type": "object"
-      },
-      "GameEntry": {
-        "properties": {
-          "checked": {
-            "title": "Checked",
-            "type": "boolean"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "short": {
-            "title": "Short",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "tint": {
-            "title": "Tint",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "name",
-          "short",
-          "tint",
-          "status",
-          "checked"
-        ],
-        "title": "GameEntry",
-        "type": "object"
-      },
-      "GameParams": {
-        "additionalProperties": false,
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "remember": {
-            "default": true,
-            "title": "Remember",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "key"
-        ],
-        "title": "GameParams",
-        "type": "object"
-      },
-      "GameSet": {
-        "properties": {
-          "game": {
-            "title": "Game",
-            "type": "string"
-          }
-        },
-        "required": [
-          "game"
-        ],
-        "title": "GameSet",
         "type": "object"
       },
       "GameStateData": {
@@ -1851,20 +1770,6 @@
           "resource"
         ],
         "title": "ImportProfileParams",
-        "type": "object"
-      },
-      "IndexParams": {
-        "additionalProperties": false,
-        "properties": {
-          "index": {
-            "title": "Index",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "index"
-        ],
-        "title": "IndexParams",
         "type": "object"
       },
       "IniParams": {
@@ -2204,34 +2109,6 @@
         "title": "KindParams",
         "type": "object"
       },
-      "LaunchParams": {
-        "additionalProperties": false,
-        "properties": {
-          "allow_without_backup": {
-            "default": false,
-            "title": "Allow Without Backup",
-            "type": "boolean"
-          },
-          "mode": {
-            "anyOf": [
-              {
-                "enum": [
-                  "profile",
-                  "offline",
-                  "vanilla"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mode"
-          }
-        },
-        "title": "LaunchParams",
-        "type": "object"
-      },
       "LaunchRef": {
         "additionalProperties": false,
         "description": "The profile as the setup the shell launches: kind \"me3\" or \"manifest\" (an overhaul installer's), and its source.",
@@ -2255,19 +2132,6 @@
           "profile"
         ],
         "title": "LaunchRef",
-        "type": "object"
-      },
-      "Launched": {
-        "properties": {
-          "started": {
-            "title": "Started",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "started"
-        ],
-        "title": "Launched",
         "type": "object"
       },
       "LayoutCheck": {
@@ -2577,24 +2441,6 @@
         "title": "LibraryVersion",
         "type": "object"
       },
-      "Link": {
-        "properties": {
-          "action": {
-            "title": "Action",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text",
-          "action"
-        ],
-        "title": "Link",
-        "type": "object"
-      },
       "LogData": {
         "properties": {
           "level": {
@@ -2721,20 +2567,6 @@
           "missing"
         ],
         "title": "LogView",
-        "type": "object"
-      },
-      "Me3": {
-        "properties": {
-          "facts": {
-            "additionalProperties": true,
-            "title": "Facts",
-            "type": "object"
-          }
-        },
-        "required": [
-          "facts"
-        ],
-        "title": "Me3",
         "type": "object"
       },
       "Me3SettingsView": {
@@ -2895,38 +2727,6 @@
           "size"
         ],
         "title": "ModRow",
-        "type": "object"
-      },
-      "ModeParams": {
-        "additionalProperties": false,
-        "properties": {
-          "mode": {
-            "enum": [
-              "profile",
-              "offline",
-              "vanilla"
-            ],
-            "title": "Mode",
-            "type": "string"
-          }
-        },
-        "required": [
-          "mode"
-        ],
-        "title": "ModeParams",
-        "type": "object"
-      },
-      "ModeSet": {
-        "properties": {
-          "mode": {
-            "title": "Mode",
-            "type": "string"
-          }
-        },
-        "required": [
-          "mode"
-        ],
-        "title": "ModeSet",
         "type": "object"
       },
       "ModsPageState": {
@@ -3240,76 +3040,6 @@
         "title": "NavigateEvent",
         "type": "object"
       },
-      "NewProfileParams": {
-        "additionalProperties": false,
-        "properties": {
-          "include_seamless": {
-            "default": false,
-            "title": "Include Seamless",
-            "type": "boolean"
-          },
-          "name": {
-            "default": "",
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "title": "NewProfileParams",
-        "type": "object"
-      },
-      "NoticeAction": {
-        "description": "key: what the window runs (update | download | notes | skip | restart | later | again | releases | details);\nurl: for the keys that open a page.",
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "primary": {
-            "default": false,
-            "title": "Primary",
-            "type": "boolean"
-          },
-          "tip": {
-            "default": "",
-            "title": "Tip",
-            "type": "string"
-          },
-          "url": {
-            "default": "",
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label"
-        ],
-        "title": "NoticeAction",
-        "type": "object"
-      },
-      "NoticeActionParams": {
-        "additionalProperties": false,
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "notice_id": {
-            "title": "Notice Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "notice_id",
-          "key"
-        ],
-        "title": "NoticeActionParams",
-        "type": "object"
-      },
       "NoticeClosed": {
         "properties": {
           "key": {
@@ -3378,20 +3108,6 @@
           "data"
         ],
         "title": "NoticeEvent",
-        "type": "object"
-      },
-      "NoticeParams": {
-        "additionalProperties": false,
-        "properties": {
-          "notice_id": {
-            "title": "Notice Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "notice_id"
-        ],
-        "title": "NoticeParams",
         "type": "object"
       },
       "NoticeRef": {
@@ -4289,137 +4005,6 @@
           "expect"
         ],
         "title": "PasteStartParams",
-        "type": "object"
-      },
-      "PathParams": {
-        "additionalProperties": false,
-        "properties": {
-          "path": {
-            "title": "Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ],
-        "title": "PathParams",
-        "type": "object"
-      },
-      "Picked": {
-        "properties": {
-          "changed": {
-            "title": "Changed",
-            "type": "boolean"
-          },
-          "index": {
-            "title": "Index",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "changed",
-          "index"
-        ],
-        "title": "Picked",
-        "type": "object"
-      },
-      "Pill": {
-        "properties": {
-          "can_launch": {
-            "default": false,
-            "title": "Can Launch",
-            "type": "boolean"
-          },
-          "link": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Link"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "mode": {
-            "title": "Mode",
-            "type": "string"
-          },
-          "mode_text": {
-            "title": "Mode Text",
-            "type": "string"
-          },
-          "reason": {
-            "default": "",
-            "title": "Reason",
-            "type": "string"
-          },
-          "state": {
-            "title": "State",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          },
-          "warn": {
-            "default": false,
-            "title": "Warn",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "mode",
-          "mode_text",
-          "state",
-          "text"
-        ],
-        "title": "Pill",
-        "type": "object"
-      },
-      "PlanAnswer": {
-        "properties": {
-          "choice": {
-            "default": "",
-            "title": "Choice",
-            "type": "string"
-          },
-          "ok": {
-            "default": true,
-            "title": "Ok",
-            "type": "boolean"
-          },
-          "option": {
-            "default": false,
-            "title": "Option",
-            "type": "boolean"
-          },
-          "ticked": {
-            "default": [],
-            "items": {
-              "type": "integer"
-            },
-            "title": "Ticked",
-            "type": "array"
-          }
-        },
-        "title": "PlanAnswer",
-        "type": "object"
-      },
-      "PlanExecuted": {
-        "properties": {
-          "job_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Job Id"
-          }
-        },
-        "title": "PlanExecuted",
         "type": "object"
       },
       "PreviewImportParams": {
@@ -5930,19 +5515,6 @@
         "title": "SaveTextParams",
         "type": "object"
       },
-      "SavedLogs": {
-        "properties": {
-          "path": {
-            "title": "Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ],
-        "title": "SavedLogs",
-        "type": "object"
-      },
       "SavesBackUpParams": {
         "additionalProperties": false,
         "properties": {
@@ -6838,101 +6410,6 @@
         "title": "SheetParams",
         "type": "object"
       },
-      "ShellState": {
-        "properties": {
-          "game": {
-            "title": "Game",
-            "type": "string"
-          },
-          "game_name": {
-            "title": "Game Name",
-            "type": "string"
-          },
-          "game_ready": {
-            "title": "Game Ready",
-            "type": "boolean"
-          },
-          "game_running": {
-            "title": "Game Running",
-            "type": "boolean"
-          },
-          "games": {
-            "items": {
-              "$ref": "#/components/schemas/GameEntry"
-            },
-            "title": "Games",
-            "type": "array"
-          },
-          "mode": {
-            "title": "Mode",
-            "type": "string"
-          },
-          "modes": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Modes",
-            "type": "array"
-          },
-          "pill": {
-            "$ref": "#/components/schemas/Pill"
-          },
-          "profile_index": {
-            "title": "Profile Index",
-            "type": "integer"
-          },
-          "profiles": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Profiles",
-            "type": "array"
-          },
-          "status": {
-            "$ref": "#/components/schemas/Status"
-          },
-          "unseen": {
-            "default": 0,
-            "title": "Unseen",
-            "type": "integer"
-          },
-          "updates": {
-            "$ref": "#/components/schemas/UpdatesState"
-          }
-        },
-        "required": [
-          "game",
-          "game_name",
-          "game_ready",
-          "games",
-          "profiles",
-          "profile_index",
-          "mode",
-          "modes",
-          "pill",
-          "status",
-          "game_running"
-        ],
-        "title": "ShellState",
-        "type": "object"
-      },
-      "Shortcuts": {
-        "properties": {
-          "changed": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Changed",
-            "type": "array"
-          }
-        },
-        "required": [
-          "changed"
-        ],
-        "title": "Shortcuts",
-        "type": "object"
-      },
       "Sources": {
         "properties": {
           "skipped": {
@@ -7210,44 +6687,6 @@
           "data"
         ],
         "title": "StartedEvent",
-        "type": "object"
-      },
-      "Status": {
-        "properties": {
-          "busy": {
-            "default": false,
-            "title": "Busy",
-            "type": "boolean"
-          },
-          "link": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Link"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          },
-          "to_activity": {
-            "default": true,
-            "title": "To Activity",
-            "type": "boolean"
-          },
-          "tone": {
-            "default": "muted",
-            "title": "Tone",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "title": "Status",
         "type": "object"
       },
       "StrandedParams": {
@@ -7547,76 +6986,6 @@
         "title": "UnusedVersion",
         "type": "object"
       },
-      "UpdateNotice": {
-        "properties": {
-          "actions": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/NoticeAction"
-            },
-            "title": "Actions",
-            "type": "array"
-          },
-          "body": {
-            "title": "Body",
-            "type": "string"
-          },
-          "closable": {
-            "default": true,
-            "title": "Closable",
-            "type": "boolean"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "level",
-          "title",
-          "body"
-        ],
-        "title": "UpdateNotice",
-        "type": "object"
-      },
-      "UpdatesState": {
-        "properties": {
-          "checking": {
-            "default": false,
-            "title": "Checking",
-            "type": "boolean"
-          },
-          "line": {
-            "default": "",
-            "title": "Line",
-            "type": "string"
-          },
-          "notices": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/UpdateNotice"
-            },
-            "title": "Notices",
-            "type": "array"
-          },
-          "tone": {
-            "default": "muted",
-            "title": "Tone",
-            "type": "string"
-          }
-        },
-        "title": "UpdatesState",
-        "type": "object"
-      },
       "UseChoices": {
         "properties": {
           "mod_id": {
@@ -7782,20 +7151,6 @@
         "title": "VersionRow",
         "type": "object"
       },
-      "bayle__api__routers__mods__CheckParams": {
-        "additionalProperties": false,
-        "properties": {
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "title": "CheckParams",
-        "type": "object"
-      },
       "bayle__api__routers__mods__ToolInfo": {
         "properties": {
           "key": {
@@ -7851,18 +7206,6 @@
           "key"
         ],
         "title": "ToolInfo",
-        "type": "object"
-      },
-      "bayle__session__ops__shell__CheckParams": {
-        "additionalProperties": false,
-        "properties": {
-          "force": {
-            "default": true,
-            "title": "Force",
-            "type": "boolean"
-          }
-        },
-        "title": "CheckParams",
         "type": "object"
       }
     },
@@ -10887,7 +10230,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/bayle__api__routers__mods__CheckParams"
+                "$ref": "#/components/schemas/CheckParams"
               }
             }
           },
@@ -12560,628 +11903,6 @@
         ]
       }
     },
-    "/v1/ops/shell.add_profile": {
-      "post": {
-        "operationId": "op_shell_add_profile",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PathParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Picked"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.add_profile (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.check_updates": {
-      "post": {
-        "operationId": "op_shell_check_updates",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/bayle__session__ops__shell__CheckParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Done"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.check_updates (command)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.clear_dead_processes": {
-      "post": {
-        "operationId": "op_shell_clear_dead_processes",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Started"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.clear_dead_processes (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.dismiss_notice": {
-      "post": {
-        "operationId": "op_shell_dismiss_notice",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NoticeParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Done"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.dismiss_notice (command)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.launch": {
-      "post": {
-        "operationId": "op_shell_launch",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LaunchParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Launched"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.launch (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.me3": {
-      "post": {
-        "operationId": "op_shell_me3",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Me3"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.me3 (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.new_profile": {
-      "post": {
-        "operationId": "op_shell_new_profile",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewProfileParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Started"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.new_profile (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.pick_profile": {
-      "post": {
-        "operationId": "op_shell_pick_profile",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IndexParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Picked"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.pick_profile (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.save_logs": {
-      "post": {
-        "operationId": "op_shell_save_logs",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FolderParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedLogs"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.save_logs (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.set_game": {
-      "post": {
-        "operationId": "op_shell_set_game",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GameParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GameSet"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.set_game (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.set_mode": {
-      "post": {
-        "operationId": "op_shell_set_mode",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ModeParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModeSet"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.set_mode (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.steam_shortcuts": {
-      "post": {
-        "operationId": "op_shell_steam_shortcuts",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Shortcuts"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.steam_shortcuts (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/ops/shell.update_action": {
-      "post": {
-        "operationId": "op_shell_update_action",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NoticeActionParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Done"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "shell.update_action (command, writes)",
-        "tags": [
-          "shell"
-        ]
-      }
-    },
-    "/v1/pages/shell": {
-      "get": {
-        "operationId": "page_shell",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ShellState"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Page Shell",
-        "tags": [
-          "pages"
-        ]
-      }
-    },
-    "/v1/plans/{plan_id}": {
-      "post": {
-        "description": "Answer a plan the client was offered: runs it once. Errors: unknown_plan, plan_expired, plan_stale.",
-        "operationId": "answer_plan",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "plan_id",
-            "required": true,
-            "schema": {
-              "title": "Plan Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PlanAnswer"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PlanExecuted"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Answer Plan",
-        "tags": [
-          "plans"
-        ]
-      }
-    },
     "/v1/profile_transfer": {
       "get": {
         "operationId": "profile_transfer",
@@ -13554,7 +12275,7 @@
     },
     "/v1/prompts/{prompt_id}": {
       "post": {
-        "description": "Answer a question a running job or the Launch flow asked (a `prompt` event). Error: unknown_prompt.",
+        "description": "Answer a question a running job asked (a `prompt` event). Error: unknown_prompt.",
         "operationId": "answer_prompt",
         "parameters": [
           {
@@ -13606,7 +12327,7 @@
         ],
         "summary": "Answer Prompt",
         "tags": [
-          "plans"
+          "jobs"
         ]
       }
     },

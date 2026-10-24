@@ -22,18 +22,19 @@ from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
 from bayle.services import play as core
 from bayle.services.settings import load_settings
-from bayle.session import ops as _registered_operations  # noqa: F401  registers the program's operations
+from bayle.session.shell import facts as topbar
 from bayle.session.shell.service import Shell
 from bayle.session.shell.state import Context
 from bayle.ui.host import Host
 from bayle.ui.jobs import Jobs, run_async
+from bayle.ui.launcher import presenter
 from bayle.ui.launcher.instance import InstanceServer
 from bayle.ui.notifications import Notifier
 from bayle.updates import apply as updates
 from bayle.updates import inno as migration
 from bayle.updates import retitle
-from bayle.views import topbar
 from bayle.work.events import Event
+from bayle.work.prompts import Question
 
 
 class Pickers(Protocol):
@@ -71,7 +72,7 @@ class ShellHost(QObject):
         self.jobs = Jobs(self)  # the shell's background: results come back on this (the UI) thread
         self.shell = Shell(ctx, background=self.jobs, restart=self.restart_for_update, open_url=desktop.open_path)
         self.state = self.shell.state
-        self.session = self.shell.session
+        self.job_manager = self.shell.jobs  # the engine's one JobManager
         self.features = self.shell.features
         self.activity = self.shell.activity
         self.settings_service = self.shell.settings
@@ -116,7 +117,11 @@ class ShellHost(QObject):
             elif e.type == "game.state":
                 self.changed.emit()
             elif e.type == "notice":
-                text = str(e.data.get("text") or "")
+                text = (
+                    presenter.say_text(e.data["code"], e.data.get("facts"))
+                    if e.data.get("code")
+                    else str(e.data.get("text") or "")
+                )
                 if e.data.get("details"):
                     self.notifier.toast_action(text, tr("Details"), lambda: self.show_page("activity"))
                 else:
@@ -129,6 +134,8 @@ class ShellHost(QObject):
         prompts = self.shell.jobs.prompts
         prompt_id = str(e.data.get("prompt_id") or "")
         words = prompts.words(prompt_id)
+        if isinstance(words, Question):
+            words = presenter.question_words(words)
         if words is not None:
             self.notifier.choose(words, lambda key: prompts.answer(prompt_id, key))
 
@@ -159,12 +166,12 @@ class ShellHost(QObject):
             self.changed.emit()
             follower = self._followers.pop(job_id, None)
             if follower is not None:
-                follower(self.session.jobs.get(job_id))
+                follower(self.job_manager.get(job_id))
 
     def follow_job(self, job_id: str, done: Callable[[Any], None]) -> None:
         """done(JobSnapshot) on the UI thread when the session job ends (at once when it already has). A page tells
         the job's result with it (a toast with Undo, a read of the page)."""
-        snap = self.session.jobs.get(job_id)
+        snap = self.job_manager.get(job_id)
         if snap is not None and snap.state != "running":
             done(snap)
         else:
@@ -566,7 +573,7 @@ class ShellHost(QObject):
         self.updates.check(force=True)
 
     def update_state(self) -> dict:
-        return self.updates.state()
+        return presenter.update_state(self.updates.state())
 
     def watch_updates(self, call) -> None:
         self.updates.watch(call)
@@ -581,8 +588,8 @@ class ShellHost(QObject):
         """Restart now: the shell closes cleanly (asking about a running job and unsaved edits), then the update is
         applied when this process exits."""
         why = self.shell.cannot_update()
-        if why:
-            self.notifier.toast(f"{tr('Cannot restart now')}: {why}", error=True)
+        if why is not None:
+            self.notifier.toast(f"{tr('Cannot restart now')}: {presenter.say_text(why.code, why.facts)}", error=True)
             return
 
         def go() -> None:

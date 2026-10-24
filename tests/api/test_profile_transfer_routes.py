@@ -11,11 +11,8 @@ from fastapi.testclient import TestClient
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
 from bayle.services.profile_transfer import ProfileTransferService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 from support import er
 
 TOKEN = "t" * 32
@@ -58,8 +55,10 @@ class Env:
 def env(tmp_path):
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
     service = ProfileTransferService(jobs, er)
-    session = Session(jobs, plans=PlanStore(), locations=er, services={"profile_transfer": service})
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"profile_transfer": service}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         yield Env(tmp_path, c)
 

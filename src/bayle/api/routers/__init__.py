@@ -11,9 +11,8 @@ from bayle.api.routers import (
     profile_transfer,
     saves,
     settings,
-    shell,
 )
 
 ALL: list[APIRouter] = [
-    m.router for m in (activity, settings, saves, profile_transfer, mod_configs, mods, mod_install, mod_library, shell)
+    m.router for m in (activity, settings, saves, profile_transfer, mod_configs, mods, mod_install, mod_library)
 ]

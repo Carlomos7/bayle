@@ -19,7 +19,7 @@ from bayle.services.saves_page import SavesService, retention_limits
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.saves.presenter import SavesPresenter
 from bayle.ui.refresh import Refresher
-from bayle.views.common import Refusal
+from bayle.work.prompts import Refusal
 
 
 class SavesHost(Protocol):

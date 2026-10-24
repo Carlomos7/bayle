@@ -1,5 +1,6 @@
-"""`bayle --backend`: bind 127.0.0.1:0, print one JSON handshake line when ready, stop when stdin reaches EOF. The
-Session it serves is built on the engine's jobs, plans, activity log and start-up steps (runtime.bootstrap), as the window's is."""
+"""`bayle --backend`: bind 127.0.0.1:0, print one JSON handshake line when ready, stop when stdin reaches EOF. It
+serves the engine's feature interfaces (services.features) on the engine's jobs and activity log, as the window
+uses them (runtime.bootstrap)."""
 
 from __future__ import annotations
 
@@ -15,13 +16,12 @@ from bayle import __version__
 from bayle.api.app import create_app
 from bayle.api.models import CONTRACT_VERSION
 from bayle.services import features
-from bayle.session import Session
 
 
 async def serve(engine) -> None:
     services = features.build(engine.jobs, engine.activity, lambda: engine.locations).services()
-    session = Session(engine.jobs, plans=engine.plans, startup_steps=engine.startup(), services=services)
-    app = create_app(session=session)  # BAYLE_API_TOKEN missing -> raises before anything is printed
+    # BAYLE_API_TOKEN missing -> raises before anything is printed
+    app = create_app(jobs=engine.jobs, services=services)
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False, timeout_graceful_shutdown=2))

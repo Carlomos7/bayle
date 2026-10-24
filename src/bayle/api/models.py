@@ -194,25 +194,6 @@ class JobStarted(BaseModel):
     job_id: str  # follow it on /v1/events or GET /v1/jobs/{job_id}
 
 
-class PlanOffer(BaseModel):
-    """A plan operation's answer: a question to show (prompt: kind confirm | pick | choose, plus its words) and the
-    plan_id to answer on POST /v1/plans/{plan_id}; or, with plan_id null, a refusal (kind refusal: title and body)."""
-
-    plan_id: str | None = None
-    prompt: dict[str, Any]
-
-
-class PlanAnswer(BaseModel):
-    ok: bool = True  # false = cancelled: nothing runs
-    option: bool = False
-    choice: str = ""
-    ticked: list[int] = []
-
-
-class PlanExecuted(BaseModel):
-    job_id: str | None = None  # the job the plan started (null when cancelled)
-
-
 class PromptAnswer(BaseModel):
     choice: str  # the key of one of the prompt's choices
 

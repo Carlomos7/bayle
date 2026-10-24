@@ -126,7 +126,6 @@ class FakeShellContext:
     def __init__(self, data_dir: Path, spawn=None):
         from bayle.config.settings import LauncherSettings
         from bayle.services.settings import load_settings, save_settings
-        from bayle.work.prompts import PlanStore
 
         self._load = load_settings
 
@@ -140,7 +139,6 @@ class FakeShellContext:
         self.game = catalog.ELDEN_RING
         self.locations = Locations.from_settings(self.settings, self.game)
         self.jobs = JobManager(EventBus(), spawn=spawn)  # spawn: how jobs get a thread (inline in most tests)
-        self.plans = PlanStore()
         self.activity = None
 
     def startup(self, profile):

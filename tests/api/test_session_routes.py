@@ -6,11 +6,9 @@ from fastapi.testclient import TestClient
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
 from bayle.mods import undo as mod_undo
-from bayle.session import Session
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
-from support import FakeActivityFacts, er
+from support import FakeActivityFacts
 
 TOKEN = "t" * 32
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -26,10 +24,10 @@ JOBS = [
 def client():
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
     logs = {"i1.log": {"entries": [], "cut": False, "missing": False}}
-    session = Session(
-        jobs, plans=PlanStore(), locations=er, services={"activity": FakeActivityFacts(JOBS, logs=logs, manager=jobs)}
-    )
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"activity": FakeActivityFacts(JOBS, logs=logs, manager=jobs)}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update(AUTH)
         yield c
 

@@ -12,7 +12,7 @@ from bayle.errors import OperationError
 from bayle.mods import profile_import
 from bayle.platform.text import plural, tr
 from bayle.services import profile_transfer as pt
-from bayle.views.common import Confirm
+from bayle.work.prompts import Confirm
 
 
 def size_text(n: int) -> str:

@@ -24,16 +24,14 @@ from bayle.services.features import Features
 from bayle.services.mod_install import ModInstallService
 from bayle.services.mods_page import Dependency, ModsService, OptionsChange, ToolInfo
 from bayle.services.shared_mods import ModLibraryService
-from bayle.session import Session
 from bayle.ui.models import RowsModel, plain
-from bayle.ui.notifications import Notifier
-from bayle.ui.pages.calls import Calls, say_refusal
+from bayle.ui.notifications import Notifier, say_refusal
 from bayle.ui.pages.mods import load_order, take_over
 from bayle.ui.pages.mods.install_adapter import InstallAdapter
 from bayle.ui.pages.mods.presenter import BUSY, ModsPresenter, ModsState, ModsView, RemovalAsk
 from bayle.ui.pages.undo import ask_undo
 from bayle.ui.refresh import Refresher, stat_key
-from bayle.views.common import Confirm, Pick, Refusal, prompt_dict
+from bayle.work.prompts import Confirm, Pick, Refusal, prompt_dict
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",
@@ -70,9 +68,6 @@ class ModsHost(Protocol):
     def game_running(self) -> bool: ...
     @property
     def features(self) -> Features: ...
-    @property
-    def session(self) -> Session: ...  # only Take over still asks the session (its own rewrite drops this)
-
     @property
     def activity(self) -> ActivityService: ...
     @property
@@ -141,7 +136,6 @@ class ModsAdapter(QObject):
         self._drag: dict = {}
         self._picks: dict[str, Any] = {}  # an open tick list's key -> what runs with the ticked indexes
         self._hint: Any = None  # the Library disk hint (a Notice), worked out after the page shows
-        self._calls = Calls(host, notifier)  # only Take over (take_over.py) still uses it
         self._checked: tuple[str, str] = ("", "")  # the text the parse gate last judged, and its verdict
         self._state: ModsState = self.presenter.page(None)
         self._loading = False

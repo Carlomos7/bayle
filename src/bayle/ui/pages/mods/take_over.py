@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING, Any
 
 from bayle.errors import OperationError
 from bayle.platform.text import tr
-from bayle.ui.pages.calls import say_refusal
+from bayle.ui.notifications import say_refusal
 from bayle.ui.pages.mods.install_adapter import query
-from bayle.views.common import Confirm, Pick, Refusal, prompt_dict
+from bayle.work.prompts import Confirm, Pick, Refusal, prompt_dict
 
 if TYPE_CHECKING:
     from bayle.services.mod_install import OverhaulChoices, OverhaulPlan

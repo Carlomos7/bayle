@@ -9,20 +9,18 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
 from bayle.services.settings import SettingsService
-from bayle.session import Session
 from bayle.ui.pages.registry import QmlPage
 from bayle.ui.pages.settings.adapter import SettingsAdapter
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 
 class SettingsHost:
     busy = False
 
     def __init__(self):
-        self.session = Session(JobManager(EventBus()), plans=PlanStore())
-        self.settings_service = SettingsService(self.session.jobs, lambda: None)
+        self.job_manager = JobManager(EventBus())
+        self.settings_service = SettingsService(self.job_manager, lambda: None)
 
     def run_job(self, job, status, on_done=None):
         pass

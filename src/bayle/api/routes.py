@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from bayle.api.deps import JobsDep
-from bayle.api.models import ApiEvent, ErrorData, Job, ProgressData
+from bayle.api.models import ApiEvent, ErrorData, Job, ProgressData, PromptAnswer, PromptAnswered
 from bayle.errors import OperationError
 from bayle.work.events import Subscription
 from bayle.work.jobs import JobSnapshot
@@ -84,3 +84,11 @@ async def events(
             await wake.wait()
     finally:
         sub.close()
+
+
+@router.post("/prompts/{prompt_id}", tags=["jobs"])
+def answer_prompt(jobs: JobsDep, prompt_id: str, body: PromptAnswer) -> PromptAnswered:
+    """Answer a question a running job asked (a `prompt` event). Error: unknown_prompt."""
+    if not jobs.prompts.answer(prompt_id, body.choice):
+        raise OperationError("unknown_prompt", "That question is no longer open.", {"prompt_id": prompt_id})
+    return PromptAnswered()

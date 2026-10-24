@@ -15,11 +15,8 @@ from bayle.saves import regulation as save_regulation
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 TOKEN = "t" * 32
 OLD, OTHER = b"old save " * 40, b"other save " * 40
@@ -68,10 +65,10 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(saves_service, "save_info", lambda path, game=None, kind=None, *, loc: dict(info))
     monkeypatch.setattr(saves_service.save_analyze, "format_health_report", lambda i: f"report of {i['name']}")
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
-    session = Session(
-        jobs, plans=PlanStore(), locations=lambda: loc, services={"saves": SavesService(jobs, lambda: loc)}
-    )
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"saves": SavesService(jobs, lambda: loc)}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         e = Env(tmp_path, c)
         e.loc = loc

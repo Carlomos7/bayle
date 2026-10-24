@@ -183,6 +183,15 @@ jobs:
       timeout-minutes: 20  # every wait in it is also bounded and reported (scripts/ci/velopack-update-test.py)
       run: uv run python scripts/ci/velopack-update-test.py
 
+    # The previous release updates to a broken build of this one (its window's QML removed, packed as a higher,
+    # never-published version, served only by the script's local feed from the runner's temp folder): the previous
+    # release's own watchdog must put it back, it must run again with the player's data intact and the broken
+    # version blocked. Nothing of it is uploaded.
+    - name: Rollback test (a broken update is undone by the previous release's watchdog)
+      if: steps.prev.outputs.found == 'true'
+      timeout-minutes: 25  # every wait in it is also bounded and reported
+      run: uv run python scripts/ci/velopack-update-test.py --broken
+
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: windows

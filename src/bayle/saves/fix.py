@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import os
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from bayle.platform.files import durable_write, read_settled
@@ -96,24 +97,30 @@ def _sign_ud10(data: bytearray, ud10_pos: int) -> None:
 
 
 def _commit(
-    save: Path, data: bytes, touched_slots: list[int], expect_ud10_ok: bool, manifest: dict | None = None
+    save: Path,
+    data: bytes,
+    touched_slots: list[int],
+    expect_ud10_ok: bool,
+    manifest: dict | None = None,
+    check: Callable[[dict], None] | None = None,
 ) -> Path:
-    """Verify the new bytes parse with matching MD5s, back the original up, then replace it."""
-    tmp = save.with_name(save.name + ".roundtable.tmp")
-    tmp.write_bytes(data)
-    try:
+    """Write data over save (durable_write): the written temp copy must parse with matching MD5s and pass check
+    (the caller's own test of the parsed copy, raising FixError), then the original is backed up and replaced.
+    Returns the backup. Any failure before the replace leaves the save untouched and no backup taken."""
+
+    def verify(tmp: Path) -> None:
         r = L.parse(str(tmp))
         for i in touched_slots:
             if not r["slot_md5_ok"][i]:
                 raise FixError(f"slot {i + 1} checksum did not verify after the write")
         if expect_ud10_ok and not r["ud10_md5_ok"]:
             raise FixError("profile summary checksum did not verify after the write")
-        bak = backup(save, manifest)
-        tmp.replace(save)
-        return bak
-    finally:
-        if tmp.exists():
-            tmp.unlink()
+        if check is not None:
+            check(r)
+
+    bak = durable_write(save, data, verify=verify, before_replace=lambda: backup(save, manifest))
+    assert bak is not None
+    return bak
 
 
 def repair_checksums(save: Path, log=None) -> dict:

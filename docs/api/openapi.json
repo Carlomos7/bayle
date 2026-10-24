@@ -219,83 +219,6 @@
         "title": "BasicNative",
         "type": "object"
       },
-      "BigExportParams": {
-        "additionalProperties": false,
-        "properties": {
-          "author": {
-            "default": "",
-            "title": "Author",
-            "type": "string"
-          },
-          "changelog": {
-            "default": "",
-            "title": "Changelog",
-            "type": "string"
-          },
-          "chosen": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Chosen",
-            "type": "array"
-          },
-          "folder": {
-            "title": "Folder",
-            "type": "string"
-          },
-          "kind": {
-            "default": "list",
-            "title": "Kind",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "password": {
-            "default": false,
-            "title": "Password",
-            "type": "boolean"
-          },
-          "profile": {
-            "title": "Profile",
-            "type": "string"
-          },
-          "readme": {
-            "default": "",
-            "title": "Readme",
-            "type": "string"
-          },
-          "size": {
-            "title": "Size",
-            "type": "integer"
-          },
-          "version": {
-            "default": "",
-            "title": "Version",
-            "type": "string"
-          },
-          "with_configs": {
-            "default": true,
-            "title": "With Configs",
-            "type": "boolean"
-          },
-          "with_save": {
-            "default": false,
-            "title": "With Save",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "profile",
-          "name",
-          "folder",
-          "size"
-        ],
-        "title": "BigExportParams",
-        "type": "object"
-      },
       "CancelledEvent": {
         "properties": {
           "data": {
@@ -396,6 +319,33 @@
           "dst_slot"
         ],
         "title": "CharacterParams",
+        "type": "object"
+      },
+      "CheckExportParams": {
+        "additionalProperties": false,
+        "properties": {
+          "chosen": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chosen",
+            "type": "array"
+          },
+          "kind": {
+            "default": "list",
+            "title": "Kind",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "CheckExportParams",
         "type": "object"
       },
       "ClashFile": {
@@ -754,6 +704,24 @@
         "title": "ErrorData",
         "type": "object"
       },
+      "ExportChecked": {
+        "properties": {
+          "big": {
+            "title": "Big",
+            "type": "boolean"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size",
+          "big"
+        ],
+        "title": "ExportChecked",
+        "type": "object"
+      },
       "ExportListing": {
         "properties": {
           "mods": {
@@ -826,6 +794,25 @@
         "title": "FailedEvent",
         "type": "object"
       },
+      "FileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "path"
+        ],
+        "title": "FileParams",
+        "type": "object"
+      },
       "FileRead": {
         "description": "A file as read: the text exactly (line breaks as \\n) and what writing it back needs. The client builds the\nform from the text (services.mod_configs.parse_doc).",
         "properties": {
@@ -838,17 +825,22 @@
             "type": "string"
           },
           "fingerprint": {
-            "default": "",
-            "title": "Fingerprint",
-            "type": "string"
-          },
-          "fingerprint_note": {
-            "default": "",
-            "title": "Fingerprint Note",
-            "type": "string"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fingerprint"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "path": {
             "title": "Path",
+            "type": "string"
+          },
+          "regulation": {
+            "default": "",
+            "title": "Regulation",
             "type": "string"
           },
           "seamless": {
@@ -900,6 +892,29 @@
           "stamp"
         ],
         "title": "FileRead",
+        "type": "object"
+      },
+      "Fingerprint": {
+        "properties": {
+          "short": {
+            "title": "Short",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "short",
+          "size",
+          "source"
+        ],
+        "title": "Fingerprint",
         "type": "object"
       },
       "FinishParams": {
@@ -1329,9 +1344,14 @@
           "ini": {
             "title": "Ini",
             "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
           }
         },
         "required": [
+          "profile",
           "ini"
         ],
         "title": "IniParams",
@@ -2071,8 +2091,21 @@
         "title": "MergeHealth",
         "type": "object"
       },
+      "ModConfigsJob": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "ModConfigsJob",
+        "type": "object"
+      },
       "ModConfigsState": {
-        "description": "The page's snapshot: the profile it was read for (\"\" when there is none) and its mods with settings files.",
+        "description": "The page's facts: the profile they were read for (\"\" when there is none) and its mods with settings files.",
         "properties": {
           "nodes": {
             "items": {
@@ -2822,9 +2855,9 @@
       },
       "Opened": {
         "properties": {
-          "file": {
+          "author": {
             "default": "",
-            "title": "File",
+            "title": "Author",
             "type": "string"
           },
           "folder": {
@@ -2832,10 +2865,14 @@
             "title": "Folder",
             "type": "string"
           },
-          "is_zip": {
-            "default": false,
-            "title": "Is Zip",
-            "type": "boolean"
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
           },
           "names": {
             "default": [],
@@ -2863,10 +2900,16 @@
           "resource": {
             "title": "Resource",
             "type": "string"
+          },
+          "version": {
+            "default": "",
+            "title": "Version",
+            "type": "string"
           }
         },
         "required": [
-          "resource"
+          "resource",
+          "kind"
         ],
         "title": "Opened",
         "type": "object"
@@ -3225,16 +3268,136 @@
             "title": "Ini",
             "type": "string"
           },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
           "text": {
             "title": "Text",
             "type": "string"
           }
         },
         "required": [
+          "profile",
           "ini",
           "text"
         ],
         "title": "PasteParams",
+        "type": "object"
+      },
+      "PastePlan": {
+        "properties": {
+          "changes": {
+            "additionalProperties": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Changes",
+            "type": "object"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          },
+          "unknown": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknown",
+            "type": "array"
+          }
+        },
+        "required": [
+          "changes",
+          "unknown",
+          "stamp"
+        ],
+        "title": "PastePlan",
+        "type": "object"
+      },
+      "PasteStartParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "ini": {
+            "title": "Ini",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "ini",
+          "text",
+          "expect"
+        ],
+        "title": "PasteStartParams",
+        "type": "object"
+      },
+      "Pasted": {
+        "properties": {
+          "saved": {
+            "title": "Saved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "saved"
+        ],
+        "title": "Pasted",
         "type": "object"
       },
       "PathParams": {
@@ -3462,6 +3625,11 @@
       },
       "PreviewView": {
         "properties": {
+          "bundled": {
+            "default": false,
+            "title": "Bundled",
+            "type": "boolean"
+          },
           "cards": {
             "default": [],
             "items": {
@@ -3509,6 +3677,10 @@
             "title": "Refusals",
             "type": "array"
           },
+          "serial": {
+            "title": "Serial",
+            "type": "integer"
+          },
           "skipped": {
             "default": [],
             "items": {
@@ -3523,6 +3695,9 @@
             "type": "boolean"
           }
         },
+        "required": [
+          "serial"
+        ],
         "title": "PreviewView",
         "type": "object"
       },
@@ -4301,6 +4476,10 @@
             "title": "Path",
             "type": "string"
           },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
           "text": {
             "default": "",
             "title": "Text",
@@ -4308,6 +4487,7 @@
           }
         },
         "required": [
+          "profile",
           "path",
           "expect",
           "kind"
@@ -4951,6 +5131,65 @@
         "title": "SetupForm",
         "type": "object"
       },
+      "SetupPlan": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "refusals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refusals",
+            "type": "array"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "label",
+          "lines",
+          "notes",
+          "refusals",
+          "stamp"
+        ],
+        "title": "SetupPlan",
+        "type": "object"
+      },
       "SetupSaved": {
         "properties": {
           "name": {
@@ -5179,6 +5418,97 @@
           "stamp"
         ],
         "title": "Stamp",
+        "type": "object"
+      },
+      "StartInstallParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/SetupForm"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "overhaul_id": {
+            "default": "",
+            "title": "Overhaul Id",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "folder",
+          "name",
+          "form",
+          "expect"
+        ],
+        "title": "StartInstallParams",
+        "type": "object"
+      },
+      "StartTurnOffParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "StartTurnOffParams",
         "type": "object"
       },
       "Started": {
@@ -5422,16 +5752,34 @@
             "title": "File",
             "type": "string"
           },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
           "target": {
             "title": "Target",
             "type": "string"
           }
         },
         "required": [
+          "profile",
           "target",
           "file"
         ],
         "title": "TieParams",
+        "type": "object"
+      },
+      "TransferJob": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "TransferJob",
         "type": "object"
       },
       "Unlisted": {
@@ -5676,12 +6024,17 @@
             "title": "Ini",
             "type": "string"
           },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
           "to": {
             "title": "To",
             "type": "string"
           }
         },
         "required": [
+          "profile",
           "ini",
           "to"
         ],
@@ -5696,7 +6049,6 @@
             "type": "string"
           },
           "profile": {
-            "default": "",
             "title": "Profile",
             "type": "string"
           },
@@ -5707,6 +6059,7 @@
           }
         },
         "required": [
+          "profile",
           "path"
         ],
         "title": "OpenParams",
@@ -5880,6 +6233,17 @@
             "title": "Chosen",
             "type": "array"
           },
+          "expect": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
           "folder": {
             "title": "Folder",
             "type": "string"
@@ -5934,6 +6298,17 @@
       "bayle__session__ops__profile_transfer__ImportParams": {
         "additionalProperties": false,
         "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
           "resource": {
             "title": "Resource",
             "type": "string"
@@ -6686,11 +7061,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModConfigsJob"
                 }
               }
             },
@@ -6712,7 +7087,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mod_configs.apply_setup (job, writes)",
+        "summary": "mod_configs.apply_setup (command, writes)",
         "tags": [
           "mod_configs"
         ]
@@ -6759,6 +7134,144 @@
           }
         ],
         "summary": "mod_configs.attach (command, writes)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.check_install_setup": {
+      "post": {
+        "operationId": "op_mod_configs_check_install_setup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallSetupParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.check_install_setup (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.check_paste": {
+      "post": {
+        "operationId": "op_mod_configs_check_paste",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastePlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.check_paste (read)",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/ops/mod_configs.check_turn_off": {
+      "post": {
+        "operationId": "op_mod_configs_check_turn_off",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mod_configs.check_turn_off (read)",
         "tags": [
           "mod_configs"
         ]
@@ -6828,7 +7341,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__mod_configs__Done"
+                  "$ref": "#/components/schemas/ModConfigsJob"
                 }
               }
             },
@@ -6863,7 +7376,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InstallSetupParams"
+                "$ref": "#/components/schemas/StartInstallParams"
               }
             }
           },
@@ -6874,7 +7387,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModConfigsJob"
                 }
               }
             },
@@ -6896,7 +7409,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mod_configs.install_setup (plan, writes)",
+        "summary": "mod_configs.install_setup (command, writes)",
         "tags": [
           "mod_configs"
         ]
@@ -7001,7 +7514,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PasteParams"
+                "$ref": "#/components/schemas/PasteStartParams"
               }
             }
           },
@@ -7012,7 +7525,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Pasted"
                 }
               }
             },
@@ -7034,7 +7547,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mod_configs.paste (plan, writes)",
+        "summary": "mod_configs.paste (command, writes)",
         "tags": [
           "mod_configs"
         ]
@@ -7231,7 +7744,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PathParams"
+                "$ref": "#/components/schemas/FileParams"
               }
             }
           },
@@ -7277,7 +7790,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileParams"
+                "$ref": "#/components/schemas/StartTurnOffParams"
               }
             }
           },
@@ -7288,7 +7801,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModConfigsJob"
                 }
               }
             },
@@ -7310,7 +7823,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mod_configs.turn_off (plan, writes)",
+        "summary": "mod_configs.turn_off (command, writes)",
         "tags": [
           "mod_configs"
         ]
@@ -9984,14 +10497,14 @@
         ]
       }
     },
-    "/v1/ops/profile_transfer.confirm_export": {
+    "/v1/ops/profile_transfer.check_export": {
       "post": {
-        "operationId": "op_profile_transfer_confirm_export",
+        "operationId": "op_profile_transfer_check_export",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BigExportParams"
+                "$ref": "#/components/schemas/CheckExportParams"
               }
             }
           },
@@ -10002,7 +10515,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ExportChecked"
                 }
               }
             },
@@ -10024,7 +10537,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "profile_transfer.confirm_export (plan, writes)",
+        "summary": "profile_transfer.check_export (command)",
         "tags": [
           "profile_transfer"
         ]
@@ -10090,11 +10603,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/TransferJob"
                 }
               }
             },
@@ -10116,7 +10629,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "profile_transfer.export (job, writes)",
+        "summary": "profile_transfer.export (command, writes)",
         "tags": [
           "profile_transfer"
         ]
@@ -10136,11 +10649,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/TransferJob"
                 }
               }
             },
@@ -10162,7 +10675,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "profile_transfer.import (job, writes)",
+        "summary": "profile_transfer.import (command, writes)",
         "tags": [
           "profile_transfer"
         ]

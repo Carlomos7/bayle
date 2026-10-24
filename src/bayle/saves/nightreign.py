@@ -23,6 +23,7 @@ from pathlib import Path
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
+from bayle.platform.files import durable_write
 from bayle.saves import container
 from bayle.saves import fix as save_fix
 
@@ -267,29 +268,24 @@ def repair(
     if new == data:
         say("  nothing to do")
         return False
-    bak = save_fix.backup(
-        save,
-        {
-            "action": "Before repairing the Nightreign save",
-            "changes": (
-                (["regulation section restored from a healthy copy"] if restore_blob is not None else [])
-                + (["section checksums recomputed"] if not status["checksum_all_ok"] or restore_blob else [])
-            )
-            or ["sections re-signed"],
-        },
-    )
-    tmp = save.with_name(save.name + ".roundtable.tmp")
-    tmp.write_bytes(new)
-    try:
+    manifest = {
+        "action": "Before repairing the Nightreign save",
+        "changes": (
+            (["regulation section restored from a healthy copy"] if restore_blob is not None else [])
+            + (["section checksums recomputed"] if not status["checksum_all_ok"] or restore_blob else [])
+        )
+        or ["sections re-signed"],
+    }
+
+    def verify(tmp: Path) -> None:
         check = inspect(tmp.read_bytes())
         if not check["checksum_all_ok"]:
             raise NightreignSaveError("checksums did not verify after the write")
         if restore_blob is not None and not check["regulation_ok"]:
             raise NightreignSaveError("regulation section did not verify after the write")
-        tmp.replace(save)
-    finally:
-        if tmp.exists():
-            tmp.unlink()
+
+    # the backup is taken once the written copy has verified, just before it replaces the save
+    bak = durable_write(save, new, verify=verify, before_replace=lambda: save_fix.backup(save, manifest))
     say(f"  backup: {bak}")
     say(f"  wrote:  {save}")
     return True

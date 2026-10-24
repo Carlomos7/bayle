@@ -72,6 +72,7 @@ class ShellHost(QObject):
         self.shell = Shell(ctx, background=self.jobs, restart=self.restart_for_update, open_url=desktop.open_path)
         self.state = self.shell.state
         self.session = self.shell.session
+        self.features = self.shell.features
         self.activity = self.shell.activity
         self.settings_service = self.shell.settings
         self.saves_service = self.shell.saves

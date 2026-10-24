@@ -72,7 +72,7 @@ class _Context:
     own empty ones), the settings in memory."""
 
     def __init__(self, data_dir: Path, theme: str):
-        from bayle.config.settings import LauncherSettings
+        from bayle.config.settings import LauncherSettings, save_settings
         from bayle.game import catalog
         from bayle.game.locate import Locations
         from bayle.work.events import EventBus
@@ -82,6 +82,8 @@ class _Context:
         (data_dir / "profiles").mkdir(exist_ok=True)
         (data_dir / "saves").mkdir(exist_ok=True)
         self.data_dir = data_dir
+        # no network from a self-test: a release check could still be writing when the temporary folder is removed
+        save_settings(check_me3_updates=False, check_launcher_updates=False)
         self.settings = LauncherSettings(
             theme=theme,  # type: ignore[arg-type]
             me3_profile_dir=str(data_dir / "profiles"),
@@ -151,6 +153,7 @@ def _shell(report: Report, app, data_dir: Path) -> None:
                         raise RuntimeError(f"{len(w.warnings)} QML warning(s): " + "; ".join(w.warnings))
                 finally:
                     w.dispose()
+                    host.shutdown()  # background reads (the Settings page's me3 facts) end before the folder goes
                     app.processEvents()
 
             report.check(f"shell in the {theme} theme at {width} px, every page", shell)

@@ -453,15 +453,22 @@ def _swap_in(save_dir: Path, entry_id: str, live: Path, outgoing_name: str | Non
     data = src.read_bytes()
     check_whole(data, game)
     data, signed = signed_for_account(data, live, game)
-    outgoing, bak = None, None
+    outgoing = None
     if live.exists():
         outgoing = add(save_dir, live, outgoing_name or default_name(live, game), game, action="swapped out")
-        bak = save_fix.backup(live, {"action": f"Before swapping in '{entry['name']}'", "changes": [entry["name"]]})
-    tmp = live.with_name(live.name + ".roundtable.tmp")
-    tmp.write_bytes(data)
-    tmp.replace(live)
-    if hashlib.sha256(live.read_bytes()).hexdigest() != hashlib.sha256(data).hexdigest():
-        raise LibraryError(f"{live.name} did not read back the same after the swap; restore it from Backups.")
+    manifest = {"action": f"Before swapping in '{entry['name']}'", "changes": [entry["name"]]}
+
+    def same(path: Path, why: str) -> None:
+        if path.read_bytes() != data:
+            raise LibraryError(f"{live.name} {why}")
+
+    bak = durable_write(
+        live,
+        data,
+        verify=lambda tmp: same(tmp, "was not written as expected; nothing was changed."),
+        before_replace=(lambda: save_fix.backup(live, manifest)) if outgoing is not None else None,
+        after=lambda p: same(p, "did not read back the same after the swap; restore it from Backups."),
+    )
     # The swap has happened: from here on nothing undoes it or reports it as failed.
     warning = _record(
         save_dir,

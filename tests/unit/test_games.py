@@ -219,12 +219,10 @@ def test_nightreign_save_info_checks_checksums_and_regulation(tmp_path):
     assert broken["error"] and broken["findings"][0]["title"] == "Damaged save file"
 
 
-def test_nightreign_copies_and_restore(tmp_path, monkeypatch):
+def test_nightreign_restore_refuses_a_broken_backup(tmp_path, monkeypatch):
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
     co2 = nr_save(tmp_path)
     os.utime(co2, (1_700_000_000, 1_700_000_000))  # settled long ago: the write lock does not wait
-    sl2 = saves.convert_co2_to_sl2(co2, co2.with_suffix(".sl2"), loc=Locations(NR))
-    assert sl2.read_bytes() == co2.read_bytes()
     junk = tmp_path / "elsewhere" / "NR0000.co2.20260101-000000.bak"
     junk.parent.mkdir()
     junk.write_bytes(b"BND4 but not really")

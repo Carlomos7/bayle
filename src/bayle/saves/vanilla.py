@@ -264,11 +264,8 @@ def apply_restore(
         for b in p["blocked"]:
             say(f"  {who}: kept {b['name']} ({b.get('why')})")
 
-    # verify: the new bytes must parse, every chosen entry must be gone and every chosen row neutral
-    tmp = save.with_name(save.name + ".roundtable.verify")
-    tmp.write_bytes(data)
-    try:
-        r2 = L.parse(str(tmp))
+    # verify: the written copy must parse, every chosen entry must be gone and every chosen row neutral
+    def cleared(r2: dict) -> None:
         catalog = A.Catalog.for_save(r2, items)
         for p in work:
             s2 = r2["slots"][p["slot"]]
@@ -282,11 +279,8 @@ def apply_restore(
             for o in p["orphans"]:
                 if not catalog.is_game_item(s2["ga_items"][o["row"]]["item_id"]):
                     raise F.FixError(f"slot {p['slot'] + 1}: leftover row {o['name']} still foreign; not writing")
-    finally:
-        if tmp.exists():
-            tmp.unlink()
-    bak = F._commit(
-        save, bytes(data), touched, r["ud10_md5_ok"], {"action": "Before removing mod items", "changes": changes}
-    )
+
+    manifest = {"action": "Before removing mod items", "changes": changes}
+    bak = F._commit(save, bytes(data), touched, r["ud10_md5_ok"], manifest, check=cleared)
     say(f"  backup: {bak}")
     return {"done": done, "blocked": [b for p in plan for b in p["blocked"]], "backup": bak}

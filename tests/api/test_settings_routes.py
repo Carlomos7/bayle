@@ -53,7 +53,7 @@ def test_renaming_checks_then_starts_a_job_for_what_the_client_saw(client, monke
     changes = client.post("/v1/ops/settings.check_rename", json=names).json()["changes"]
     assert list(changes) == ["pattern"]
     stale = client.post("/v1/ops/settings.rename_layout", json={**names, "expect": {"pattern": ["a", "b"]}})
-    assert stale.status_code == 400 and stale.json()["code"] == "stale"
+    assert stale.status_code == 409 and stale.json()["code"] == "stale"
     started = client.post("/v1/ops/settings.rename_layout", json={**names, "expect": changes}).json()
     assert client.get(f"/v1/jobs/{started['job_id']}").json()["state"] == "done"
     nothing = client.post("/v1/ops/settings.check_rename", json={})

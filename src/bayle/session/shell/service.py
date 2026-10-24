@@ -25,11 +25,10 @@ from bayle.game.locate import installed_dir
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr
+from bayle.services import features
 from bayle.services import play as core
-from bayle.services.activity import ActivityService
 from bayle.services.mods import me3_facts
-from bayle.services.saves_page import SavesService
-from bayle.services.settings import SettingsService, load_settings, save_game_settings
+from bayle.services.settings import load_settings, save_game_settings
 from bayle.session.operations import Session, StepReport
 from bayle.session.shell import launch
 from bayle.session.shell.background import Background, ThreadBackground
@@ -95,15 +94,14 @@ class Shell:
             game_running=lambda: self.state.game_running, external_busy=lambda: self.flow.active, observer=self._observe
         )
         self.bus = self.jobs.bus
-        self.activity = ActivityService(self.jobs, ctx.activity, lambda: self.state.locations)
-        self.settings = SettingsService(self.jobs, lambda: self.state.locations)
-        self.saves = SavesService(self.jobs, lambda: self.state.locations)
+        self.features = features.build(self.jobs, ctx.activity, lambda: self.state.locations)
+        self.activity, self.settings, self.saves = self.features.activity, self.features.settings, self.features.saves
         self.session = Session(
             self.jobs,
             plans=ctx.plans,
             locations=lambda: self.state.locations,
             startup_steps=ctx.startup(self.state.profile_path),
-            services={"shell": self, "activity": self.activity, "settings": self.settings, "saves": self.saves},
+            services={"shell": self, **self.features.services()},
         )
         self.flow = launch.LaunchFlow(self.state, EventPorts(self))
         self.updates = UpdateFlow(

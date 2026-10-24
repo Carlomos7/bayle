@@ -29,6 +29,7 @@ import argparse
 import hashlib
 from pathlib import Path
 
+from bayle.platform.files import durable_write
 from bayle.platform.logging import fail, log
 
 UD11_OFF = 0x19603B0
@@ -101,9 +102,19 @@ def repair(save, reg, header, force=False, out_path=None, dry_run=False):
 
     data[UD11_OFF : UD11_OFF + UD11_SIZE] = rebuild_block(reg, header)
     out = Path(out_path) if out_path else save
-    if out == save:
+
+    def verify(tmp: Path) -> None:
+        # the written copy, read back: the same bytes, still a whole PC save, its new block signed
+        written = tmp.read_bytes()
+        block = written[UD11_OFF : UD11_OFF + UD11_SIZE]
+        if written != data or not is_pc_save(written) or hashlib.md5(block[0x10:]).digest() != block[:0x10]:
+            raise RuntimeError(f"{out.name}: the repaired copy did not read back as written; nothing was changed")
+
+    def back_up() -> None:
         log(f"  backup: {backup(save)}")
-    out.write_bytes(data)
+
+    # a replace, never a rewrite in place: a crash part way leaves the save as it was (the backup is the Undo)
+    durable_write(out, bytes(data), verify=verify, before_replace=back_up if out == save else None)
     log(f"  wrote:  {out}")
     return True
 

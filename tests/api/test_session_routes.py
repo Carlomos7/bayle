@@ -60,7 +60,7 @@ def test_undo_starts_a_job_for_the_record_the_client_saw(client, monkeypatch):
     monkeypatch.setattr(mod_undo, "run", lambda u, log, loc: "undid it")
     expect = JOBS[0]["undo"]
     stale = client.post("/v1/ops/activity.undo", json={"job_id": "i1", "expect": {**expect, "name": "other"}})
-    assert stale.status_code == 400 and stale.json()["code"] == "stale"
+    assert stale.status_code == 409 and stale.json()["code"] == "stale"
     started = client.post("/v1/ops/activity.undo", json={"job_id": "i1", "expect": expect}).json()
     job = client.get(f"/v1/jobs/{started['job_id']}").json()
     assert (job["state"], job["result"]) == ("done", {"said": "undid it"})

@@ -144,7 +144,7 @@ def save_file(tmp_path, monkeypatch):
     path.write_bytes(bytes(data))
 
     state = {"post": {}}
-    monkeypatch.setattr(L, "parse", lambda p: parsed_save(post=(".roundtable" in Path(p).name), **state["post"]))
+    monkeypatch.setattr(L, "parse", lambda p: parsed_save(post=Path(p).suffix == ".tmp", **state["post"]))
     taken = []
     monkeypatch.setattr(F, "backup", lambda save, manifest=None: taken.append(manifest) or Path(str(save) + ".bak"))
     return SimpleNamespace(path=path, state=state, taken=taken)

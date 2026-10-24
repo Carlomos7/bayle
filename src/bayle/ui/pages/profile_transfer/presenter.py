@@ -1,6 +1,6 @@
 """The Export / Import profile page's presenter (technical specification, "Export / Import profile"): every word the
-page shows and the plain-text form of the facts services/profile_transfer.py reads. Plain Python, every string
-through tr()."""
+page shows and the plain-text form of the facts the engine's Profile transfer interface
+(services.profile_transfer.ProfileTransferService) returns. Plain Python, every string through tr()."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from bayle.errors import OperationError
+from bayle.mods import profile_import
 from bayle.platform.text import plural, tr
 from bayle.services import profile_transfer as pt
 from bayle.views.common import Confirm
@@ -34,27 +36,6 @@ class ModLike(Protocol):
     def enabled(self) -> bool: ...
 
 
-class PreviewLike(Protocol):
-    """What an import preview tells the page (session.ops.profile_transfer.PreviewView)."""
-
-    @property
-    def cards(self) -> list[dict[str, Any]]: ...
-    @property
-    def skipped(self) -> list[str]: ...
-    @property
-    def notes(self) -> list[str]: ...
-    @property
-    def refusals(self) -> list[str]: ...
-    @property
-    def clashes(self) -> list[dict[str, Any]]: ...
-    @property
-    def lines(self) -> list[str]: ...
-    @property
-    def undecided(self) -> bool: ...
-    @property
-    def ok(self) -> bool: ...
-
-
 @dataclass
 class PageInputs:
     """Everything the page's state is built from: the adapter's form fields and what the session last answered."""
@@ -70,8 +51,8 @@ class PageInputs:
     incoming_file: str = ""  # the open file's one-line description ("" when none is open)
     incoming_zip: bool = False
     incoming_readme: str = ""
-    preview: PreviewLike | None = None
-    bundled: PreviewLike | None = None
+    preview: pt.PreviewFacts | None = None
+    bundled: pt.PreviewFacts | None = None
     ticked: set[str] = field(default_factory=set)
     new_profile: bool = True
     new_name: str = ""
@@ -203,7 +184,7 @@ class ProfileTransferPresenter:
         ex["run"] = dict(i.run)
         ex["fullLabel"] = f"{words['fullExport']} ({size_text(size)})" if picked else words["fullExport"]
         prev = i.preview
-        cards = [{**c, "checked": c["key"] in i.ticked} for c in prev.cards] if prev else []
+        cards = [{**c, "checked": c["key"] in i.ticked} for c in self.cards(prev.cards)] if prev else []
         imp: dict[str, Any] = {
             "file": i.incoming_file,
             "isZip": i.incoming_zip,
@@ -216,7 +197,7 @@ class ProfileTransferPresenter:
             "newName": i.new_name,
             "error": i.error,
             "pct": i.import_pct,
-            "clashes": list(prev.clashes) if prev else [],
+            "clashes": self.clashes(prev.clashes, i.new_profile) if prev else [],
         }
         imp["canImport"] = bool(
             prev and not prev.refusals and (i.ticked & {c["key"] for c in cards}) and not prev.undecided
@@ -231,7 +212,7 @@ class ProfileTransferPresenter:
             "newProfile": i.new_profile,
             "newName": i.new_name,
             "canImport": bool(b and b.ok and not b.undecided),
-            "clashes": list(b.clashes) if b else [],
+            "clashes": self.clashes(b.clashes, i.new_profile) if b else [],
         }
         return {
             "hasProfile": i.profile is not None,
@@ -243,9 +224,6 @@ class ProfileTransferPresenter:
 
     def readme(self, name: str, version: str, author: str, picked: list[ModLike]) -> str:
         return pt.readme_text(name, version, author, [(m.name, m.enabled) for m in picked])
-
-    def is_big(self, size: int) -> bool:
-        return size >= pt.LARGE_EXPORT
 
     def seconds(self, s: float) -> str:
         s = int(round(s))
@@ -321,17 +299,16 @@ class ProfileTransferPresenter:
         return tr("Open folder")
 
     # ---- import
-    def file_line(self, incoming: pt.Incoming) -> str:
-        s = incoming.share
-        bits = [s.name or incoming.path.stem]
-        if s.profile_version:
-            bits.append(tr("version {v}").format(v=s.profile_version))
-        if s.author:
-            bits.append(tr("by {a}").format(a=s.author))
-        kind = tr("full export") if incoming.kind == "zip" else tr("share list")
+    def file_line(self, opened: pt.Opened) -> str:
+        bits = [opened.name]
+        if opened.version:
+            bits.append(tr("version {v}").format(v=opened.version))
+        if opened.author:
+            bits.append(tr("by {a}").format(a=opened.author))
+        kind = tr("full export") if opened.kind == "zip" else tr("share list")
         return " · ".join(bits) + "  (" + kind + ")"
 
-    def cards(self, prev: pt.Preview) -> list[dict]:
+    def cards(self, cards: list[pt.CardFacts]) -> list[dict]:
         return [
             {
                 "key": c.key,
@@ -341,14 +318,14 @@ class ProfileTransferPresenter:
                 "leftOut": c.left_out,
                 "isNew": c.new,
             }
-            for c in prev.cards
+            for c in cards
         ]
 
-    def clashes(self, prev, new_profile: bool) -> list[dict]:
+    def clashes(self, clashes: list[profile_import.Clash], new_profile: bool) -> list[dict]:
         """The cards for mods that differ from an installed one (profile_import.ImportPreview.clashes). Versions are
         labels only; nothing here says which copy is newer."""
         out = []
-        for c in prev.clashes:
+        for c in clashes:
             parts = []
             if c.changed[0]:
                 n = plural("{n} file changed", "{n} files changed", c.changed[0]).format(n=c.changed[0])
@@ -384,6 +361,20 @@ class ProfileTransferPresenter:
     def import_failed(self, why: str) -> str:
         return tr("Not imported. {why}").format(why=why)
 
-    def lines_of(self, prev) -> list[str]:
-        """The S3g preview lines of a bundled profile."""
-        return list(prev.lines)
+    def error_text(self, e: OperationError) -> str:
+        """The sentence for an engine refusal; a code without words of its own shows the engine's message."""
+        if e.code == "name_needed":
+            return tr("Give the new profile a name.")
+        if e.code == "no_preview":
+            return tr("Preview the file first.")
+        if e.code == "not_found" and "resource" in e.details:
+            return tr("That file is no longer open. Open it again.")
+        if e.code == "stale":
+            return tr("That changed since you were asked. Try again.")
+        if e.code == "busy":
+            return (
+                tr("The game is running.")
+                if e.details.get("reason") == "game_running"
+                else tr("Another operation is running.")
+            )
+        return e.message

@@ -147,7 +147,7 @@ def test_a_files_choice_that_the_file_cannot_have_is_refused(tmp_path):
 
 def test_the_files_table_rows_are_choices_with_a_game_path_for_a_placed_file(tmp_path):
     from bayle.services import mod_configs
-    from bayle.views.mod_configs import ModConfigsPresenter
+    from bayle.ui.pages.mod_configs.presenter import ModConfigsPresenter
 
     folder = placed_folder(tmp_path / "dl")
     config = basic.make(

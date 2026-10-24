@@ -1,30 +1,21 @@
 """The Saves page's operations: its snapshot (live saves, Library, Backups), the reads (health report, character
 sheet, one Library copy), the Library's and Backups' upkeep, and every write to a live save.
 
-A write to a live save is a job (a logged one that backs up first and returns how to take it back: Written.undo) or a
-plan whose answer starts that job; the session's gate (no game, no other writing job) is the job manager's. A plan
-checks the same gate first so the player is told why before being asked. Errors are OperationError codes.
-
-The reads and the upkeep are handed straight to the session's SavesService (services.saves_page), with no wording:
-the two removals are a check (what would go) and a start (with what the client confirmed). Temporary, as for
-Settings: the Qt page calls the service itself."""
+Each is handed straight to the session's SavesService (services.saves_page), with no wording. A write to a live save
+is a check (the facts a client words, and the stamp of the files read) and a start (with what the client confirmed:
+refused as stale when a file changed since) that returns a job id; the job's result holds the facts and the Undo
+record. The game gate and the other-write gate are the job manager's. Errors are OperationError codes. Temporary, as
+for Settings: the Qt page calls the service itself."""
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 from bayle.errors import OperationError
-from bayle.platform.text import tr
-from bayle.services import saves as saves_service
-from bayle.services import saves_page as svc
 from bayle.services.saves_page import SavesService
 from bayle.session.operations import Call, NoParams, Params, Result, Session, operation, registry
-from bayle.views.common import Refusal
-from bayle.views.saves import SavesPresenter
-from bayle.work.prompts import Answer, Proposal
 
 
 # ----------------------------------------------------------------------------- models
@@ -35,15 +26,6 @@ class SavesState:
     infos: list[dict[str, Any]]
     libraries: dict[str, dict[str, Any]]
     backups: list[dict[str, Any]]
-
-
-class Written(Result):
-    """What a save write did. undo is the record the jobs index holds (Activity's Undo and saves.undo_change use it)."""
-
-    text: str
-    save: str | None = None
-    backup: str | None = None
-    undo: dict[str, Any] | None = None
 
 
 class Said(Result):
@@ -94,11 +76,18 @@ class ImportParams(Params):
     name: str | None = None  # a name for a single file; None: each is named by default
 
 
-class CharacterParams(Params):
+Stamp = list[tuple[int, int] | None]  # (mtime_ns, size) of each file a check read, None: it was not there
+
+
+class CharacterRef(Params):
     source: str
     src_slot: int
     target: str
     dst_slot: int
+
+
+class CharacterParams(CharacterRef):
+    expect: Stamp  # the stamp check_copy_character gave and the client confirmed
 
 
 class CopyRef(Params):
@@ -106,18 +95,30 @@ class CopyRef(Params):
     entry_id: str
 
 
-class ReplaceCopyParams(CopyRef):
+class ReplaceCopyRef(CopyRef):
     target: str
 
 
-class ReplaceFileParams(Params):
+class ReplaceCopyParams(ReplaceCopyRef):
+    expect: Stamp
+
+
+class ReplaceFileRef(Params):
     source: str
     target: str
 
 
-class RestoreParams(Params):
+class ReplaceFileParams(ReplaceFileRef):
+    expect: Stamp
+
+
+class RestoreRef(Params):
     backup: str
     target: str
+
+
+class RestoreParams(RestoreRef):
+    expect: Stamp
 
 
 class BackupRef(Params):
@@ -140,6 +141,38 @@ class RemoveCopyParams(CopyRef):
     expect: str  # the name check_remove_copy gave and the client confirmed
 
 
+class CopyCheck(Result):
+    plan: dict[str, Any]  # services.saves_page.plan_character_copy: the character, what it replaces, the signing
+    source: str
+    target: str
+    same_file: bool
+    stamp: Stamp
+
+
+class ReplaceCheck(Result):
+    source: str
+    target: str
+    label: str
+    from_library: bool
+    changed_outside: bool
+    rows: list[dict[str, Any]]
+    signed: bool
+    holders: int
+    stamp: Stamp
+
+
+class RestoreCheck(Result):
+    backup: dict[str, Any]  # the backup's row of list_backups
+    target: str
+    stamp: Stamp
+
+
+class RepairCheck(Result):
+    info: dict[str, Any]  # services.saves.save_info
+    keys: list[list[str | int]]
+    stamp: Stamp
+
+
 class BackupFacts(Result):
     path: str
     save_name: str
@@ -156,8 +189,12 @@ class StrandedParams(CopyRef):
     restore: bool
 
 
-class RepairParams(PathParams):
+class RepairRef(PathParams):
     keys: list[list[str | int]]  # the ticked boxes as the presenter names them (("checksum", 2), ("item", 1, 500))
+
+
+class RepairParams(RepairRef):
+    expect: Stamp
 
 
 class SheetParams(PathParams):
@@ -174,48 +211,9 @@ class UndoParams(Params):
 
 
 # ----------------------------------------------------------------------------- helpers
-def _presenter() -> SavesPresenter:
-    return SavesPresenter()
-
-
-def _written(w: svc.Written) -> Written:
-    return Written(
-        text=w.text,
-        save=None if w.save is None else str(w.save),
-        backup=None if w.backup is None else str(w.backup),
-        undo=w.undo,
-    )
-
-
-def _gate(session: Session, read_only: bool = False) -> Refusal | None:
-    """Why a write cannot start now (a job runs; the game runs, unless the write only reads the live save)."""
-    jobs = session.jobs
-    if jobs.busy or (jobs.game_running and not read_only):
-        return _presenter().refusal_busy(session.locations().game.name, jobs.game_running and not jobs.busy)
-    return None
-
-
-def _stamp(path: Path) -> object:
-    """A cheap read of a file for a plan's staleness: it is refused when the file changed since the question."""
-    try:
-        st = os.stat(path)
-    except OSError:
-        return None
-    return st.st_mtime_ns, st.st_size
-
-
-def _start(session: Session, title: str, write: Any) -> str:
-    """Start a save write (write(loc) -> svc.Written) as a session job."""
-    loc = session.locations()
-    return session.start(lambda _ctx: _written(write(loc)), title=title)
-
-
-def _unusable(e: OperationError) -> Refusal:
-    return Refusal(tr("This copy cannot be used"), e.message)
-
-
-def _plan_failed(e: Exception) -> Refusal:
-    return Refusal(tr("This cannot be done"), str(e))
+def _facts(checked: Any) -> dict[str, Any]:
+    """A check's fields for its Result model (paths as text)."""
+    return {k: str(v) if isinstance(v, Path) else v for k, v in vars(checked).items()}
 
 
 # ----------------------------------------------------------------------------- the page and its reads
@@ -324,11 +322,9 @@ def back_up(call: Call, p: BackUpParams) -> SavesJob:
     return SavesJob(job_id=_saves(call.session).back_up(p.paths, everything=p.everything))
 
 
-@operation(
-    "saves.post_session_repair", result=Written, kind="job", writes=True, title=lambda p: tr("Repairing saves...")
-)
-def post_session_repair(call: Call, p: NoParams) -> Written:
-    return _written(svc.post_session_repair(loc=call.session.locations()))
+@operation("saves.post_session_repair", result=SavesJob, kind="command", writes=True)
+def post_session_repair(call: Call, p: NoParams) -> SavesJob:
+    return SavesJob(job_id=_saves(call.session).post_session_repair())
 
 
 @operation("saves.save_copy", params=SaveCopyParams, result=SavesJob, kind="command", writes=True)
@@ -343,138 +339,64 @@ def import_files(call: Call, p: ImportParams) -> SavesJob:
     return SavesJob(job_id=_saves(call.session).import_files(p.files, p.name))
 
 
-@operation(
-    "saves.undo_change",
-    params=UndoParams,
-    result=Said,
-    kind="job",
-    writes=True,
-    title=lambda p: tr("Undoing the change to {name}...").format(name=Path(p.save).name),
-)
-def undo_change(call: Call, p: UndoParams) -> Said:
-    """The toast's Undo: put the backup taken before a write back over the save."""
-    return Said(text=svc.undo_change(Path(p.save), Path(p.backup), loc=call.session.locations()))
+@operation("saves.undo_change", params=UndoParams, result=SavesJob, kind="command", writes=True)
+def undo_change(call: Call, p: UndoParams) -> SavesJob:
+    """The toast's Undo: put the backup taken before a write back over the save. The job's result is {"file"}."""
+    return SavesJob(job_id=_saves(call.session).undo_change(p.save, p.backup))
 
 
-# ----------------------------------------------------------------------------- plans: ask, then a job
-@operation("saves.copy_character", params=CharacterParams, result=Written, kind="plan", writes=True)
-def copy_character(call: Call, p: CharacterParams) -> Proposal | Refusal:
-    session = call.session
-    if (no := _gate(session)) is not None:
-        return no
-    src, dst = Path(p.source), Path(p.target)
-    try:
-        plan = svc.plan_character_copy(src, p.src_slot, dst, p.dst_slot)
-    except Exception as e:
-        return _plan_failed(e)
-    same = src.resolve() == dst.resolve()
-    words = _presenter().character_copy(plan, src.name, dst.name, p.dst_slot, same)
-
-    def run(_a: Answer) -> str:
-        return _start(
-            session,
-            tr("Copying a character into {name}...").format(name=dst.name),
-            lambda loc: svc.copy_character(src, p.src_slot, dst, p.dst_slot, loc=loc),
-        )
-
-    return Proposal(words, run, stale=lambda: (_stamp(src), _stamp(dst)), destructive=bool(plan["replaces"]))
+# ----------------------------------------------------------------------------- writes to live saves: check, then start
+# Each start's job result is the write's facts plus "save", "backup" and "undo" (the record Activity's Undo uses).
+@operation("saves.check_copy_character", params=CharacterRef, result=CopyCheck)
+def check_copy_character(call: Call, p: CharacterRef) -> CopyCheck:
+    return CopyCheck(**_facts(_saves(call.session).check_copy_character(p.source, p.src_slot, p.target, p.dst_slot)))
 
 
-def _replace_plan(
-    session: Session, source: Path, target: Path, label: str, restore: bool, start: Any
-) -> Proposal | Refusal:
-    if (no := _gate(session)) is not None:
-        return no
-    loc = session.locations()
-    try:
-        facts = svc.replace_facts(source, target, loc=loc)
-    except Exception as e:
-        return _plan_failed(e)
-    pres = _presenter()
-    kinds = None
-    if source.suffix.lower() != target.suffix.lower():
-        kinds = (pres.kind_of(source), pres.kind_of(target))
-    words = pres.replace(
-        label,
-        target.name,
-        facts["rows"],
-        facts["signed"],
-        facts["holders"],
-        target.suffix.lower() == ".sl2",
-        restore=restore,
-        kinds=kinds,
-    )
-
-    def run(_a: Answer) -> str:
-        return _start(session, tr("Replacing {name}...").format(name=target.name), start)
-
-    return Proposal(words, run, stale=lambda: (_stamp(source), _stamp(target)), destructive=True)
+@operation("saves.copy_character", params=CharacterParams, result=SavesJob, kind="command", writes=True)
+def copy_character(call: Call, p: CharacterParams) -> SavesJob:
+    """A job; its result is {"character", "slot", "file", "save", "backup", "undo"}."""
+    return SavesJob(job_id=_saves(call.session).copy_character(p.source, p.src_slot, p.target, p.dst_slot, p.expect))
 
 
-@operation("saves.replace_from_library", params=ReplaceCopyParams, result=Written, kind="plan", writes=True)
-def replace_from_library(call: Call, p: ReplaceCopyParams) -> Proposal | Refusal:
-    session = call.session
-    if (no := _gate(session)) is not None:
-        return no
-    folder_, tgt = Path(p.folder), Path(p.target)
-    try:
-        entry = svc.library_entry(folder_, p.entry_id)
-    except OperationError as e:
-        return _unusable(e)
-    return _replace_plan(
-        session,
-        entry["path"],
-        tgt,
-        entry["name"],
-        True,
-        lambda loc: svc.replace_with_copy(folder_, p.entry_id, tgt, entry["name"], loc=loc),
-    )
+@operation("saves.check_replace_from_library", params=ReplaceCopyRef, result=ReplaceCheck)
+def check_replace_from_library(call: Call, p: ReplaceCopyRef) -> ReplaceCheck:
+    return ReplaceCheck(**_facts(_saves(call.session).check_replace_from_library(p.folder, p.entry_id, p.target)))
 
 
-@operation("saves.replace_from_file", params=ReplaceFileParams, result=Written, kind="plan", writes=True)
-def replace_from_file(call: Call, p: ReplaceFileParams) -> Proposal | Refusal:
-    src, tgt = Path(p.source), Path(p.target)
-    return _replace_plan(call.session, src, tgt, src.name, False, lambda loc: svc.replace_with_file(src, tgt, loc=loc))
+@operation("saves.replace_from_library", params=ReplaceCopyParams, result=SavesJob, kind="command", writes=True)
+def replace_from_library(call: Call, p: ReplaceCopyParams) -> SavesJob:
+    """A job; its result is {"file", "source", "save", "backup", "undo"}."""
+    return SavesJob(job_id=_saves(call.session).replace_from_library(p.folder, p.entry_id, p.target, p.expect))
 
 
-@operation("saves.restore_backup", params=RestoreParams, result=Written, kind="plan", writes=True)
-def restore_backup(call: Call, p: RestoreParams) -> Proposal | Refusal:
-    session = call.session
-    if (no := _gate(session)) is not None:
-        return no
-    bak, tgt = Path(p.backup), Path(p.target)
-    row = next((b for b in saves_service.list_backups(loc=session.locations()) if str(b["path"]) == p.backup), None)
-    if row is None:
-        raise OperationError("not_found", tr("That backup is no longer listed."), {"backup": p.backup})
-
-    def run(_a: Answer) -> str:
-        return _start(
-            session,
-            tr("Restoring {name}...").format(name=tgt.name),
-            lambda loc: svc.restore_from_backup(bak, tgt, loc=loc),
-        )
-
-    return Proposal(_presenter().restore(row, tgt.name), run, stale=lambda: (_stamp(bak), _stamp(tgt)))
+@operation("saves.check_replace_from_file", params=ReplaceFileRef, result=ReplaceCheck)
+def check_replace_from_file(call: Call, p: ReplaceFileRef) -> ReplaceCheck:
+    return ReplaceCheck(**_facts(_saves(call.session).check_replace_from_file(p.source, p.target)))
 
 
-@operation("saves.repair", params=RepairParams, result=Written, kind="plan", writes=True)
-def repair(call: Call, p: RepairParams) -> Proposal | Refusal:
-    session = call.session
-    if (no := _gate(session)) is not None:
-        return no
-    path = Path(p.path)
-    keys = [tuple(k) for k in p.keys]
-    if not keys:
-        raise OperationError("invalid_params", tr("Tick at least one item to repair."))
-    pres = _presenter()
-    info = saves_service.save_info(path, loc=session.locations())
-    calls = pres.calls(keys)
+@operation("saves.replace_from_file", params=ReplaceFileParams, result=SavesJob, kind="command", writes=True)
+def replace_from_file(call: Call, p: ReplaceFileParams) -> SavesJob:
+    """A job; its result is {"file", "source", "save", "backup", "undo"}."""
+    return SavesJob(job_id=_saves(call.session).replace_from_file(p.source, p.target, p.expect))
 
-    def run(_a: Answer) -> str:
-        return _start(
-            session,
-            tr("Repairing {name}...").format(name=path.name),
-            lambda loc: svc.repair(path, calls, len(keys), loc=loc),
-        )
 
-    return Proposal(pres.repair_confirm(info, keys), run, stale=lambda: _stamp(path))
+@operation("saves.check_restore_backup", params=RestoreRef, result=RestoreCheck)
+def check_restore_backup(call: Call, p: RestoreRef) -> RestoreCheck:
+    return RestoreCheck(**_facts(_saves(call.session).check_restore_backup(p.backup, p.target)))
+
+
+@operation("saves.restore_backup", params=RestoreParams, result=SavesJob, kind="command", writes=True)
+def restore_backup(call: Call, p: RestoreParams) -> SavesJob:
+    """A job; its result is {"file", "save", "backup", "undo"}."""
+    return SavesJob(job_id=_saves(call.session).restore_backup(p.backup, p.target, p.expect))
+
+
+@operation("saves.check_repair", params=RepairRef, result=RepairCheck)
+def check_repair(call: Call, p: RepairRef) -> RepairCheck:
+    return RepairCheck(**_facts(_saves(call.session).check_repair(p.path, p.keys)))
+
+
+@operation("saves.repair", params=RepairParams, result=SavesJob, kind="command", writes=True)
+def repair(call: Call, p: RepairParams) -> SavesJob:
+    """A job; its result is {"file", "save", "backup", "undo"}."""
+    return SavesJob(job_id=_saves(call.session).repair(p.path, p.keys, p.expect))

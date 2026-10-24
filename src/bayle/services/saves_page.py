@@ -1,6 +1,6 @@
 """What the Saves page reads and the writes it runs, without Qt: the page's facts (live saves, Library, Backups), the
 Library's upkeep, and each write as one logged job that backs up first and returns how to take it back. The session's
-saves operations call this; nothing here knows a window.
+saves operations and the Qt page call this; nothing here knows a window.
 
 A write is logged_write(): it names the job (start_log), runs the body, records the undo (a save-restore record built
 by restore_record, the one place that builds it) and returns Written, which carries that record."""
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -32,13 +32,23 @@ from bayle.work.runner import run_job_result, run_logged
 
 @dataclass(frozen=True)
 class Written:
-    """What a save write did: the words for the toast, and how to take it back (save and the backup taken first, and
-    the undo record the jobs index holds for it)."""
+    """What a save write did: a line for the job's log, the facts the client words (character, slot, file...), and how
+    to take it back (save and the backup taken first, and the undo record the jobs index holds for it)."""
 
     text: str
+    facts: dict = field(default_factory=dict)
     save: Path | None = None
     backup: Path | None = None
     undo: dict | None = None
+
+    def result(self) -> dict:
+        """The job's result: the facts and the Undo record's parts, as plain data."""
+        return {
+            **self.facts,
+            "save": None if self.save is None else str(self.save),
+            "backup": None if self.backup is None else str(self.backup),
+            "undo": self.undo,
+        }
 
 
 @dataclass(frozen=True)
@@ -74,8 +84,13 @@ def logged_write(log_title: str, progress: str, loc: Locations, body: Callable[[
     Raises OperationError when it failed (the message is the reason), Cancelled when it was stopped."""
 
     def job(_launch: Any, loc: Locations) -> Written:
-        with run_logged(f"launcher: {log_title}", loc.game.key):
-            out = body(loc)
+        try:
+            with run_logged(f"launcher: {log_title}", loc.game.key):
+                out = body(loc)
+        except OperationError:
+            raise
+        except Exception as e:  # a code, not an unexpected failure: the file the write stopped on is left as it was
+            raise _coded(e) from e
         if out.backup is not None and out.save is not None:
             run_logging.set_undo(restore_record(out.save, out.backup))
         run_logging.log(f"done: {out.text}")
@@ -282,7 +297,10 @@ def copy_character(source: Path, src_slot: int, target: Path, dst_slot: int, *, 
         out = save_transfer.copy_character(src, src_slot, dst, dst_slot)
         who = (out["character"] or {}).get("name", "?")
         return Written(
-            tr("{who} is in slot {n} of {file}").format(who=who, n=dst_slot, file=dst.name), dst, out["backup"]
+            f"{who} is in slot {dst_slot} of {dst.name}",
+            {"character": who, "slot": dst_slot, "file": dst.name},
+            dst,
+            out["backup"],
         )
 
     return logged_write(
@@ -298,7 +316,7 @@ def _replace(target: Path, label: str, loc: Locations, run: Callable[[], dict]) 
         saves_service.assert_writable(target, loc=loc)
         out = run()
         return Written(
-            tr("{target} now holds {source}").format(target=target.name, source=label), target, out["backup"]
+            f"{target.name} now holds {label}", {"file": target.name, "source": label}, target, out["backup"]
         )
 
     return logged_write(
@@ -323,9 +341,29 @@ def restore_from_backup(backup: Path, target: Path, *, loc: Locations) -> Writte
 
     def body(loc: Locations) -> Written:
         safety = saves_service.restore_backup(bak, tgt, loc=loc)
-        return Written(tr("{name} is back as it was in the backup").format(name=tgt.name), tgt, safety)
+        return Written(f"{tgt.name} is back as it was in the backup", {"file": tgt.name}, tgt, safety)
 
     return logged_write(f"restore backup {bak.name}", tr("Restoring {name}...").format(name=tgt.name), loc, body)
+
+
+def repair_calls(keys: Sequence[Sequence[Any]]) -> dict:
+    """The ticked Check & repair boxes as the calls the writers take: {loading: {slot: [issue]}, vanilla: {slot:
+    {items, orphans}}, checksums, regulation}."""
+    loading: dict[int, list] = {}
+    vanilla: dict[int, dict] = {}
+    out = {"loading": loading, "vanilla": vanilla, "checksums": False, "regulation": False}
+    for k in keys:
+        if k[0] == "loading":
+            loading.setdefault(k[1], []).append(k[2])
+        elif k[0] == "item":
+            vanilla.setdefault(k[1], {"items": set(), "orphans": False})["items"].add(k[2])
+        elif k[0] == "orphans":
+            vanilla.setdefault(k[1], {"items": set(), "orphans": False})["orphans"] = True
+        elif k[0] == "checksum":
+            out["checksums"] = True
+        elif k[0] == "regulation":
+            out["regulation"] = True
+    return out
 
 
 def apply_repairs(path: Path, calls: dict, *, loc: Locations) -> Path | None:
@@ -347,7 +385,7 @@ def repair(path: Path, calls: dict, count: int, *, loc: Locations) -> Written:
     save = Path(path)
 
     def body(loc: Locations) -> Written:
-        return Written(tr("Repaired {name}").format(name=save.name), save, apply_repairs(save, calls, loc=loc))
+        return Written(f"repaired {save.name}", {"file": save.name}, save, apply_repairs(save, calls, loc=loc))
 
     return logged_write(
         f"repair {count} item(s) in {save.name}", tr("Repairing {name}...").format(name=save.name), loc, body
@@ -357,23 +395,75 @@ def repair(path: Path, calls: dict, count: int, *, loc: Locations) -> Written:
 def post_session_repair(*, loc: Locations) -> Written:
     def body(loc: Locations) -> Written:
         save_repair.repair_all(loc)
-        return Written(tr("Post-session repair finished"))
+        return Written("post-session repair finished")
 
     return logged_write("post-session repair", tr("Repairing saves..."), loc, body)
 
 
-def undo_change(save: Path, backup: Path, *, loc: Locations) -> str:
-    """The toast's Undo: put the backup taken before a save write back. Returns what was done, in words."""
+def undo_change(save: Path, backup: Path, *, loc: Locations) -> dict:
+    """The toast's Undo: put the backup taken before a save write back. Returns {"file"}."""
     progress = tr("Undoing the change to {name}...").format(name=Path(save).name)
     # no job id: nothing in the jobs index to mark undone, so no activity log is needed
-    return activity_service.run_undo(restore_record(save, backup), "", Path(save).name, loc, progress, None)
+    activity_service.run_undo(restore_record(save, backup), "", Path(save).name, loc, progress, None)
+    return {"file": Path(save).name}
+
+
+def stamp_of(path: Path) -> tuple[int, int] | None:
+    """A cheap read of a file for a write's staleness: (mtime_ns, size), None when it cannot be read."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return st.st_mtime_ns, st.st_size
+
+
+@dataclass(frozen=True)
+class CopyCheck:
+    """What copying a character would do, and the stamp of both files as they were read (what the client confirms)."""
+
+    plan: dict
+    source: Path
+    target: Path
+    same_file: bool
+    stamp: tuple
+
+
+@dataclass(frozen=True)
+class ReplaceCheck:
+    """What Replace / Restore shows before it writes. from_library: the source is a Library copy (a Restore)."""
+
+    source: Path
+    target: Path
+    label: str
+    from_library: bool
+    changed_outside: bool
+    rows: list[dict]
+    signed: bool
+    holders: int
+    stamp: tuple
+
+
+@dataclass(frozen=True)
+class RestoreCheck:
+    backup: dict
+    target: Path
+    stamp: tuple
+
+
+@dataclass(frozen=True)
+class RepairCheck:
+    info: dict
+    keys: list[tuple]
+    stamp: tuple
 
 
 class SavesService:
     """The Saves page for one engine: jobs is its JobManager, locations the current game's Locations (None: no game
     selected). The reads, the upkeep of Bayle's own copies and backups, and the jobs that only read a live save
     (Back up, Save a copy, Import). Returns data and OperationError codes, never wording: the Qt page words them.
-    The writes to live saves still go through the session's operations.
+    The writes to live saves are a check (the facts the client words, and the stamp of the files read) and a start
+    (refused as stale when a file's stamp changed since): each a writing job that backs up first and returns the
+    Undo record with its facts.
 
     The upkeep is not gated on the game or a running job (it never touches a live save; the Library's and the
     backups' own locks keep it apart from a job writing them). It acts only on what the page lists: a Library of one
@@ -579,3 +669,176 @@ class SavesService:
             saves_service.delete_backup(got.path)
         except Exception as e:
             raise OperationError("failed", str(e)) from e
+
+    # ---- the writes to live saves: each a check (facts and stamp) and a start (refused as stale), then a writing job
+    def _source(self, path: str | Path) -> Path:
+        """path, when it is a live save or the file of a listed Library copy (a character may come from either).
+        Raises not_found."""
+        try:
+            return self._live(path)
+        except OperationError:
+            pass
+        want = os.path.normcase(str(Path(path)))
+        for d in {p.parent for p in self._loc().save_files()}:
+            try:
+                entries = save_library.load(d).get("entries", [])
+                files = [save_library.entry_path(d, e) for e in entries]
+            except Exception:
+                continue
+            for f in files:
+                if os.path.normcase(str(f)) == want:
+                    return f
+        raise OperationError("not_found", "That save is not listed.", {"path": str(path)})
+
+    @staticmethod
+    def _picked(path: str | Path) -> Path:
+        """A save file the player picked (anywhere on disk; it is only read), when it is a file a save could be.
+        Raises not_found, not_a_save (far too big, as Import says)."""
+        src = Path(path)
+        if not src.is_file():
+            raise OperationError("not_found", "That file is not there.", {"path": str(src)})
+        if src.stat().st_size > save_library.MAX_SAVE_BYTES:
+            raise OperationError("not_a_save", f"{src.name} is far too big to be a save.", {"path": str(src)})
+        return src
+
+    @staticmethod
+    def _stale(files: Sequence[Path], expect: Sequence[Sequence[int] | None]) -> None:
+        """Raises stale unless every file still has the stamp the client confirmed (None: it was not there)."""
+        now = [stamp_of(f) for f in files]
+        then = [None if e is None else (int(e[0]), int(e[1])) for e in expect]
+        if now != then:
+            raise OperationError("stale", "A file changed since you were asked. Ask again.")
+
+    def _replace_check(
+        self, source: Path, target: Path, label: str, *, from_library: bool, changed_outside: bool = False
+    ) -> ReplaceCheck:
+        try:
+            facts = replace_facts(source, target, loc=self._loc())
+        except Exception as e:
+            raise OperationError("not_possible", str(e)) from e
+        return ReplaceCheck(
+            source, target, label, from_library, changed_outside, **facts, stamp=(stamp_of(source), stamp_of(target))
+        )
+
+    def _write(self, work: Callable[[], Written], title: str) -> str:
+        return self._jobs.start(lambda _ctx: work().result(), title=title, quiet=True)
+
+    def check_copy_character(self, source: str | Path, src_slot: int, target: str | Path, dst_slot: int) -> CopyCheck:
+        """What copying one character would do (it reads both saves). source: a live save or a Library copy's file;
+        target: a live save. Raises not_found, not_possible (the reason is the message)."""
+        src, dst = self._source(source), self._live(target)
+        try:
+            plan = plan_character_copy(src, src_slot, dst, dst_slot)
+        except Exception as e:
+            raise OperationError("not_possible", str(e)) from e
+        return CopyCheck(plan, src, dst, src.resolve() == dst.resolve(), (stamp_of(src), stamp_of(dst)))
+
+    def copy_character(
+        self,
+        source: str | Path,
+        src_slot: int,
+        target: str | Path,
+        dst_slot: int,
+        expect: Sequence[Sequence[int] | None],
+        title: str = "",
+    ) -> str:
+        """Copy a character into a live slot as a writing job; returns its id. expect: the stamp check_copy_character
+        gave. Raises not_found, stale, busy (the game runs, or another write)."""
+        src, dst = self._source(source), self._live(target)
+        self._stale([src, dst], expect)
+        loc = self._loc()
+        return self._write(
+            lambda: copy_character(src, src_slot, dst, dst_slot, loc=loc), title or "Copying a character..."
+        )
+
+    def check_replace_from_library(self, folder: str | Path, entry_id: str, target: str | Path) -> ReplaceCheck:
+        """What putting a Library copy over a live save would do. Raises not_found, copy_unusable, not_possible."""
+        d, tgt = self._folder(folder), self._live(target)
+        self._entry(d, entry_id)
+        e = library_entry(d, entry_id)
+        return self._replace_check(e["path"], tgt, e["name"], from_library=True, changed_outside=e["changed_outside"])
+
+    def replace_from_library(
+        self,
+        folder: str | Path,
+        entry_id: str,
+        target: str | Path,
+        expect: Sequence[Sequence[int] | None],
+        title: str = "",
+    ) -> str:
+        """Put a Library copy over a live save as a writing job (the live one goes into the Library, a backup is
+        taken first); returns its id. Raises not_found, copy_unusable, stale, busy."""
+        d, tgt = self._folder(folder), self._live(target)
+        self._entry(d, entry_id)
+        e = library_entry(d, entry_id)
+        self._stale([e["path"], tgt], expect)
+        loc = self._loc()
+        return self._write(
+            lambda: replace_with_copy(d, entry_id, tgt, e["name"], loc=loc), title or "Replacing a save..."
+        )
+
+    def check_replace_from_file(self, source: str | Path, target: str | Path) -> ReplaceCheck:
+        """What putting a picked save file over a live save would do. Raises not_found, not_a_save, not_possible."""
+        src, tgt = self._picked(source), self._live(target)
+        return self._replace_check(src, tgt, src.name, from_library=False)
+
+    def replace_from_file(
+        self, source: str | Path, target: str | Path, expect: Sequence[Sequence[int] | None], title: str = ""
+    ) -> str:
+        """Put a picked save file over a live save as a writing job; returns its id. Raises not_found, not_a_save,
+        stale, busy."""
+        src, tgt = self._picked(source), self._live(target)
+        self._stale([src, tgt], expect)
+        loc = self._loc()
+        return self._write(lambda: replace_with_file(src, tgt, loc=loc), title or "Replacing a save...")
+
+    def check_restore_backup(self, backup: str | Path, target: str | Path) -> RestoreCheck:
+        """The backup (its row of list_backups) a restore would put back. Raises not_found."""
+        row, tgt = self._backup(backup), self._live(target)
+        return RestoreCheck(row, tgt, (stamp_of(row["path"]), stamp_of(tgt)))
+
+    def restore_backup(
+        self, backup: str | Path, target: str | Path, expect: Sequence[Sequence[int] | None], title: str = ""
+    ) -> str:
+        """Put a listed backup back over a live save as a writing job (the save as it is now is backed up first);
+        returns its id. Raises not_found, stale, busy."""
+        row, tgt = self._backup(backup), self._live(target)
+        self._stale([row["path"], tgt], expect)
+        loc = self._loc()
+        return self._write(lambda: restore_from_backup(row["path"], tgt, loc=loc), title or "Restoring a save...")
+
+    @staticmethod
+    def _keys(keys: Sequence[Sequence[Any]]) -> list[tuple]:
+        if not keys:
+            raise OperationError("invalid_params", "Tick at least one item to repair.")
+        return [tuple(k) for k in keys]
+
+    def check_repair(self, path: str | Path, keys: Sequence[Sequence[Any]]) -> RepairCheck:
+        """The save's facts for the repairs ticked (keys as the Check & repair page names them). Raises invalid_params,
+        not_found."""
+        save, ticked = self._live(path), self._keys(keys)
+        return RepairCheck(saves_service.save_info(save, loc=self._loc()), ticked, (stamp_of(save),))
+
+    def repair(
+        self, path: str | Path, keys: Sequence[Sequence[Any]], expect: Sequence[Sequence[int] | None], title: str = ""
+    ) -> str:
+        """Repair what keys name as a writing job (a backup is taken first); returns its id. Raises invalid_params,
+        not_found, stale, busy."""
+        save, ticked = self._live(path), self._keys(keys)
+        self._stale([save], expect)
+        loc, calls = self._loc(), repair_calls(ticked)
+        return self._write(lambda: repair(save, calls, len(ticked), loc=loc), title or "Repairing a save...")
+
+    def post_session_repair(self, title: str = "") -> str:
+        """Repair the saves a session may have left unsettled, as a writing job; returns its id. Raises busy."""
+        loc = self._loc()
+        return self._write(lambda: post_session_repair(loc=loc), title or "Repairing saves...")
+
+    def undo_change(self, save: str | Path, backup: str | Path, title: str = "") -> str:
+        """Put the backup a write took back over its live save, as a writing job; returns its id. Only a live save and
+        a listed backup. Raises not_found, busy."""
+        sv, bak = self._live(save), self._backup(backup)["path"]
+        loc = self._loc()
+        return self._jobs.start(
+            lambda _ctx: undo_change(sv, bak, loc=loc), title=title or "Undoing a change...", quiet=True
+        )

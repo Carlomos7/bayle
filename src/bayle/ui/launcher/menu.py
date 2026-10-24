@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from bayle.game import catalog as games
 from bayle.platform.text import tr
-from bayle.views import topbar
+from bayle.ui.launcher import topbar
 
 SHELL = "shell"  # the target of an entry the shell itself runs
 

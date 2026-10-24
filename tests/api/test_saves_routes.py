@@ -15,11 +15,8 @@ from bayle.saves import regulation as save_regulation
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 TOKEN = "t" * 32
 OLD, OTHER = b"old save " * 40, b"other save " * 40
@@ -33,7 +30,7 @@ class Env:
         self.save = self.folder / "ER0000.sl2"
 
     def post(self, name, body=None):
-        return self.client.post(f"/v1/ops/{name}", json=body or {})
+        return self.client.post(f"/v1/{name.replace('.', '/')}", json=body or {})
 
     def backup(self):
         return saves_service.back_up_now(self.save, loc=self.loc)
@@ -68,10 +65,10 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(saves_service, "save_info", lambda path, game=None, kind=None, *, loc: dict(info))
     monkeypatch.setattr(saves_service.save_analyze, "format_health_report", lambda i: f"report of {i['name']}")
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
-    session = Session(
-        jobs, plans=PlanStore(), locations=lambda: loc, services={"saves": SavesService(jobs, lambda: loc)}
-    )
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"saves": SavesService(jobs, lambda: loc)}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         e = Env(tmp_path, c)
         e.loc = loc
@@ -82,7 +79,7 @@ def env(tmp_path, monkeypatch):
 def test_the_page_lists_saves_library_and_backups(env):
     env.backup()
     env.copy()
-    page = env.client.get("/v1/pages/saves")
+    page = env.client.get("/v1/saves")
     assert page.status_code == 200
     body = page.json()
     assert [i["name"] for i in body["infos"]] == ["ER0000.sl2"]
@@ -118,16 +115,16 @@ def test_adopt_legacy_over_http(env):
     (legacy / "ER0000.sl2.20260101-000000.bak").write_bytes(OLD)
     assert env.post("saves.adopt_legacy").json() == {"folders": [str(env.folder)]}
     assert not legacy.exists() or not any(legacy.iterdir())
-    [row] = env.client.get("/v1/pages/saves").json()["backups"]
+    [row] = env.client.get("/v1/saves").json()["backups"]
     assert row["action"] == "Before a save fix"
 
 
 def test_keep_keep_as_and_rename(env):
     bak = env.backup()
     assert env.post("saves.keep_backup", {"backup": str(bak)}).json() == {"text": ""}
-    assert env.client.get("/v1/pages/saves").json()["backups"][0]["keep"] is True
+    assert env.client.get("/v1/saves").json()["backups"][0]["keep"] is True
     env.post("saves.keep_backup", {"backup": str(bak), "keep": False})
-    assert env.client.get("/v1/pages/saves").json()["backups"][0]["keep"] is False
+    assert env.client.get("/v1/saves").json()["backups"][0]["keep"] is False
     assert env.post("saves.keep_as", {"backup": str(bak), "name": "Kept"}).json() == {"text": "Kept"}
     assert bak.exists()
     [entry] = env.entries()

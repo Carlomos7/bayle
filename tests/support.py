@@ -126,7 +126,6 @@ class FakeShellContext:
     def __init__(self, data_dir: Path, spawn=None):
         from bayle.config.settings import LauncherSettings
         from bayle.services.settings import load_settings, save_settings
-        from bayle.work.prompts import PlanStore
 
         self._load = load_settings
 
@@ -140,7 +139,6 @@ class FakeShellContext:
         self.game = catalog.ELDEN_RING
         self.locations = Locations.from_settings(self.settings, self.game)
         self.jobs = JobManager(EventBus(), spawn=spawn)  # spawn: how jobs get a thread (inline in most tests)
-        self.plans = PlanStore()
         self.activity = None
 
     def startup(self, profile):
@@ -181,15 +179,89 @@ class InlineBackground:
         return None
 
 
+class Routes:
+    """Feature routers' routes called as functions on real services, without HTTP: `run("saves.back_up", {...})`
+    finds the POST route ending in /back_up among the given routers, validates the params as its body would (a failed
+    validation is the invalid_params OperationError) and returns its result; `snapshot("saves", **scope)` is the GET
+    of the router whose prefix is /saves. For tests of the engine behaviour behind the routes. jobs is the
+    JobManager the services start their jobs on."""
+
+    def __init__(self, jobs: JobManager, routers: dict):
+        """routers: router module -> the service its routes are handed."""
+        self.jobs, self._routers = jobs, routers
+
+    @property
+    def services(self) -> dict:
+        """By feature name (the router's prefix), as create_app(services=...) takes them."""
+        return {m.router.prefix.lstrip("/"): svc for m, svc in self._routers.items()}
+
+    @property
+    def service(self):  # the one service, when there is one router (the single-feature tests read it)
+        (only,) = self._routers.values()
+        return only
+
+    def _call(self, fn, service, raw, label: str):
+        import inspect
+        import typing
+
+        from pydantic import ValidationError
+
+        from bayle.errors import OperationError
+
+        hints = typing.get_type_hints(fn)
+        params = list(inspect.signature(fn).parameters)[1:]
+        if not params:
+            return fn(service)
+        try:
+            return fn(service, hints[params[0]].model_validate(raw))
+        except ValidationError as e:
+            errors = [{"loc": [str(p) for p in x["loc"]], "msg": x["msg"], "type": x["type"]} for x in e.errors()]
+            raise OperationError(
+                "invalid_params", f"The request for {label} is not valid.", {"errors": errors}
+            ) from None
+
+    def run(self, name: str, params=None):
+        op = name.split(".", 1)[1]
+        raw = params.model_dump() if hasattr(params, "model_dump") else (params or {})
+        found = [
+            (r.endpoint, svc)
+            for m, svc in self._routers.items()
+            for r in m.router.routes
+            if r.path == f"{m.router.prefix}/{op}"
+        ]
+        assert len(found) == 1, f"{name}: {len(found)} routes"
+        return self._call(*found[0], raw, name)
+
+    def snapshot(self, name: str, **scope):
+        found = [
+            (r.endpoint, svc)
+            for m, svc in self._routers.items()
+            for r in m.router.routes
+            if r.path == m.router.prefix == f"/{name}"
+        ]
+        assert len(found) == 1, f"{name}: {len(found)} pages"
+        return self._call(*found[0], scope, name)
+
+
+def Direct(router_module, feature: str, service, jobs: JobManager) -> Routes:  # noqa: N802  a constructor
+    """One feature router's routes on its service (feature: the router's name, kept for the callers' readability)."""
+    return Routes(jobs, {router_module: service})
+
+
+def ServiceCalls(jobs: JobManager, **services) -> Routes:  # noqa: N802  a constructor
+    """The Mods routers (mods, mod_install, mod_library) on the services given by name."""
+    from bayle.api.routers import mod_install, mod_library, mods
+
+    modules = {"mods": mods, "mod_install": mod_install, "mod_library": mod_library}
+    return Routes(jobs, {modules[k]: s for k, s in services.items()})
+
+
 def mods_session(locations=er, **jobs_kw):
-    """A Session over inline jobs whose Mods service is the real one (what the Mods operations are run through)."""
+    """Inline jobs over the real ModsService (what the Mods routes are called on)."""
     from bayle.services.mods_page import ModsService
-    from bayle.session import Session
-    from bayle.session import ops as _ops  # noqa: F401  registers the operations
-    from bayle.work.prompts import PlanStore
 
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs_kw)
-    return Session(jobs, plans=PlanStore(), locations=locations, services={"mods": ModsService(jobs, locations)})
+    return ServiceCalls(jobs, mods=ModsService(jobs, locations))
 
 
 def refused(session, name, params):

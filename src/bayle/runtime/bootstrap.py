@@ -35,8 +35,7 @@ from bayle.mods import rebuild as mod_rebuild
 from bayle.platform import cpu, data_folder, instance, paths
 from bayle.platform import logging as run_logging
 from bayle.services import startup_recovery
-from bayle.session.operations import StartupStep
-from bayle.session.startup import recovery_steps
+from bayle.session.startup import StartupStep, recovery_steps
 from bayle.storage import datamigrations, mirror
 from bayle.storage import db as storage_db
 from bayle.storage.activity import ActivityLog
@@ -46,7 +45,6 @@ from bayle.storage.mirror import Mirror
 from bayle.storage.rebuild_runs import RebuildRuns
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 # What the runtime binds: name -> (module, its private slot). Their readers sit deep in mods/ and saves/; Phase 5
 # hands them over as ports instead.
@@ -90,7 +88,6 @@ class Engine:
     rebuild_runs: RebuildRuns | None = field(default=None, repr=False)
     activity: ActivityLog | None = field(default=None, repr=False)
     bus: EventBus = field(default_factory=EventBus, repr=False)
-    plans: PlanStore = field(default_factory=PlanStore, repr=False)
     jobs: JobManager = field(init=False, repr=False)
     recovered: frozenset[str] = frozenset()  # the profiles (normcased) the start's journal recovery looked at
     _unbind: list[Callable[[], None]] = field(default_factory=list, repr=False)
@@ -123,7 +120,7 @@ class Engine:
         return self._located(self.locations.with_profile_save_names(names))
 
     def startup(self, profile: Callable[[], Path | None] = lambda: None) -> list[StartupStep]:
-        """The steps that run once the client is up, in order, off its UI thread (Session.startup): unreported game
+        """The steps that run once the client is up, in order, off its UI thread (session.startup.run_steps): unreported game
         runs, the profile in use when the journal recovery did not cover it (profile: asked when the step runs), older
         save folders."""
         return recovery_steps(lambda: self.locations, profile, self.recovered)

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from bayle.api.routers import saves as saves_router
 from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
@@ -14,13 +15,11 @@ from bayle.saves import regulation as save_regulation
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import CopyCheck, RepairCheck, ReplaceCheck, RestoreCheck, SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.saves.adapter import SavesAdapter
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
+from support import Direct
 
 OLD, NEW = b"old save " * 40, b"new save " * 40
 
@@ -33,7 +32,7 @@ class Host:
         self.locations = loc
         jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
         self.saves_service = SavesService(jobs, lambda: loc)
-        self.session = Session(jobs, plans=PlanStore(), locations=lambda: loc, services={"saves": self.saves_service})
+        self.session = Direct(saves_router, "saves", self.saves_service, jobs)  # the routes, to set up and read
 
     def run_in_background(self, work, on_result):
         on_result(work())

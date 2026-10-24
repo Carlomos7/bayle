@@ -1,4 +1,4 @@
-"""The Mods page's operations on the profile as a whole through Session.run: no Qt, no window. A plan is a check and a
+"""The Mods page's operations on the profile as a whole through the route functions: no Qt, no window. A plan is a check and a
 start with the stamp the check gave; a refused write changes nothing."""
 
 from pathlib import Path

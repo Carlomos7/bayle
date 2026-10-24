@@ -2,9 +2,25 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 CONTRACT_VERSION = "1"  # major of the /v1 contract; additive changes only within it
+
+
+class Params(BaseModel):
+    """Base of a route's request body: unknown fields are refused (422), values are not changed after validation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class NoParams(Params):
+    """A route that takes nothing; as a query model it still refuses unknown query parameters."""
+
+
+class Result(BaseModel):
+    """Base of a route's result (JSON-clean fields only)."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 class Health(BaseModel):
@@ -176,25 +192,6 @@ class Job(BaseModel):
 # ---- the generic routes (api/ops.py): what an operation of each kind answers with
 class JobStarted(BaseModel):
     job_id: str  # follow it on /v1/events or GET /v1/jobs/{job_id}
-
-
-class PlanOffer(BaseModel):
-    """A plan operation's answer: a question to show (prompt: kind confirm | pick | choose, plus its words) and the
-    plan_id to answer on POST /v1/plans/{plan_id}; or, with plan_id null, a refusal (kind refusal: title and body)."""
-
-    plan_id: str | None = None
-    prompt: dict[str, Any]
-
-
-class PlanAnswer(BaseModel):
-    ok: bool = True  # false = cancelled: nothing runs
-    option: bool = False
-    choice: str = ""
-    ticked: list[int] = []
-
-
-class PlanExecuted(BaseModel):
-    job_id: str | None = None  # the job the plan started (null when cancelled)
 
 
 class PromptAnswer(BaseModel):

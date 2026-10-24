@@ -18,13 +18,10 @@ from bayle.services import features
 from bayle.services.mods import profile_entries
 from bayle.services.saves_page import SavesService
 from bayle.services.settings import SettingsService
-from bayle.session import Session
-from bayle.session import ops as _registered_operations  # noqa: F401
 from bayle.ui.host import Host as HostContract
 from bayle.ui.pages.registry import page as registered
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 from support import FakeActivityFacts, er
 
 # known stall: a whole shell or the Mods rows (every delegate built in one model reset, see perf/ui-thread.md) is built in one turn
@@ -60,17 +57,15 @@ class Host:
             external_busy=lambda: self.busy,
         )
         self.features = features.build(jobs, None, lambda: self.locations)
-        self.session = Session(  # the session runs its jobs at once, over the same disk the test sets up
-            jobs, plans=PlanStore(), locations=lambda: self.locations, services=self.features.services()
-        )
-        self.activity = FakeActivityFacts(manager=self.session.jobs)
-        self.settings_service = SettingsService(self.session.jobs, lambda: self.locations)
-        self.saves_service = SavesService(self.session.jobs, lambda: self.locations)
+        self.job_manager = jobs  # runs its jobs at once, over the same disk the test sets up
+        self.activity = FakeActivityFacts(manager=self.job_manager)
+        self.settings_service = SettingsService(self.job_manager, lambda: self.locations)
+        self.saves_service = SavesService(self.job_manager, lambda: self.locations)
 
     @property
     def jobs(self) -> list[str]:
         """The titles of the jobs started, in order: the session's (they run at once) and the host's own."""
-        mine = (self.session.jobs.get(f"j{i}") for i in range(1, 30))
+        mine = (self.job_manager.get(f"j{i}") for i in range(1, 30))
         return [*[s.title for s in mine if s], *self.legacy_jobs]
 
     def run_job(self, job, status, on_done=None):
@@ -78,7 +73,7 @@ class Host:
         self.ran = (job, on_done)
 
     def follow_job(self, job_id, done):
-        done(self.session.jobs.get(job_id))  # the session ran it at once
+        done(self.job_manager.get(job_id))  # the session ran it at once
 
     def mark_seen(self):
         pass

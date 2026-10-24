@@ -17,7 +17,6 @@ from bayle.mods import profile_import
 from bayle.platform.text import tr
 from bayle.services.features import Features
 from bayle.services.profile_transfer import Listing, Opened, PreviewFacts, ProfileTransferService
-from bayle.session import Session
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.profile_transfer.presenter import PageInputs, ProfileTransferPresenter
 from bayle.ui.refresh import Refresher
@@ -37,7 +36,7 @@ class ProfileTransferHost(Protocol):
     @property
     def profile(self) -> Path | None: ...
     @property
-    def session(self) -> Session: ...
+    def job_manager(self) -> Any: ...
     @property
     def features(self) -> Features: ...
     def run_in_background(self, work, on_result) -> None: ...
@@ -113,7 +112,7 @@ class ProfileTransferAdapter(QObject):
         self._early: list[Any] = []
         self._started = 0.0
         self._refresher = Refresher(host, self._snapshot, self._build, self._apply_items)
-        self._events = host.session.jobs.bus.subscribe(notify=self._events_ready.emit)  # progress only
+        self._events = host.job_manager.bus.subscribe(notify=self._events_ready.emit)  # progress only
         self._events_ready.connect(self._drain)
 
     # ---- what QML reads
@@ -450,7 +449,7 @@ class ProfileTransferAdapter(QObject):
     @Slot()
     def cancelExport(self) -> None:
         if self._run.get("phase") == "running" and self._job_id:
-            self.host.session.jobs.cancel(self._job_id)
+            self.host.job_manager.cancel(self._job_id)
             self._run["cancelling"] = True
             self._emit()
 

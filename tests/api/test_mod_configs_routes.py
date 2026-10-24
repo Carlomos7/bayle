@@ -8,11 +8,8 @@ from test_overhaul_install import PROFILE, World, mixed_mod
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
 from bayle.services.mod_configs import ModConfigsService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 TOKEN = "t" * 32
 
@@ -25,7 +22,7 @@ class Env:
         self.ini.write_text("[PASSWORD]\ncooppassword = room\n[GAMEPLAY]\nallow_invaders = 1\n", encoding="utf-8")
 
     def post(self, name, body=None):
-        return self.client.post(f"/v1/ops/{name}", json=body)
+        return self.client.post(f"/v1/{name.replace('.', '/')}", json=body)
 
     def job(self, got) -> dict:
         assert got.status_code == 200, got.text
@@ -37,20 +34,22 @@ def env(tmp_path, monkeypatch):
     world = World(tmp_path, monkeypatch)
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
     service = ModConfigsService(jobs, lambda: world.loc)
-    session = Session(jobs, plans=PlanStore(), locations=lambda: world.loc, services={"mod_configs": service})
-    with TestClient(create_app(ApiSettings(token=TOKEN), session), base_url="http://127.0.0.1") as c:
+    services = {"mod_configs": service}
+    with TestClient(
+        create_app(ApiSettings(token=TOKEN), jobs=jobs, services=services), base_url="http://127.0.0.1"
+    ) as c:
         c.headers.update({"Authorization": f"Bearer {TOKEN}"})
         yield Env(world, c)
 
 
 def test_the_page_lists_the_mods_with_settings_files(env):
-    page = env.client.get("/v1/pages/mod_configs", params={"profile": env.profile})
+    page = env.client.get("/v1/mod_configs", params={"profile": env.profile})
     assert page.status_code == 200
     body = page.json()
     assert body["profile"] == env.profile and body["nodes"][0]["kind"] == "seamless"
     assert body["nodes"][0]["files"][0]["path"] == str(env.ini)
-    assert env.client.get("/v1/pages/mod_configs").json()["nodes"] == []  # no profile
-    assert env.client.get("/v1/pages/mod_configs", params={"nope": 1}).status_code == 422
+    assert env.client.get("/v1/mod_configs").json()["nodes"] == []  # no profile
+    assert env.client.get("/v1/mod_configs", params={"nope": 1}).status_code == 422
 
 
 def test_open_stamp_and_a_stale_save_over_http(env):
@@ -93,7 +92,7 @@ def test_a_file_outside_the_tree_is_not_found_and_a_malformed_body_is_422(env, t
     ):
         got = env.post(name, body)
         assert got.status_code == 422 and got.json()["code"] == "invalid_params", name
-    assert env.client.post("/v1/ops/mod_configs.open", content=b"{not json").status_code == 422
+    assert env.client.post("/v1/mod_configs/open", content=b"{not json").status_code == 422
 
 
 def test_sharing_and_pasting_over_http(env, tmp_path):

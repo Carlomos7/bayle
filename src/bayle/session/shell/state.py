@@ -14,9 +14,8 @@ from bayle.platform.logging import JobStore
 from bayle.services import play as core
 from bayle.services.mods import migrate_profile_folders
 from bayle.services.settings import load_settings, save_settings
-from bayle.session.operations import StartupStep
+from bayle.session.startup import StartupStep
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
 
 
 class Context(Protocol):
@@ -29,7 +28,6 @@ class Context(Protocol):
     locations: Any
     data_dir: Path
     jobs: JobManager
-    plans: PlanStore
 
     @property
     def activity(self) -> JobStore | None: ...

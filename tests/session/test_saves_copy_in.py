@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from bayle.api.routers import saves as saves_router
 from bayle.errors import Busy, OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
@@ -20,11 +21,9 @@ from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
+from support import Direct
 
 SAVE = b"SAVE first save " * 40
 SAVE2 = b"SAVE second save " * 40
@@ -46,7 +45,7 @@ class World:
         self.loc = Locations(catalog.ELDEN_RING, Overrides(saves_dir=str(self.root)))
         self.queue = queue
 
-    def session(self, **jobs) -> Session:
+    def session(self, **jobs) -> Direct:
         if self.queue is None:
 
             def spawn(run, name=None):
@@ -57,12 +56,7 @@ class World:
                 self.queue.append(run)
 
         jobs_ = JobManager(EventBus(), spawn=spawn, **jobs)
-        return Session(
-            jobs_,
-            plans=PlanStore(),
-            locations=lambda: self.loc,
-            services={"saves": SavesService(jobs_, lambda: self.loc)},
-        )
+        return Direct(saves_router, "saves", SavesService(jobs_, lambda: self.loc), jobs_)
 
     def outside(self, name="picked.sl2", data=SAVE):
         p = self.tmp / name

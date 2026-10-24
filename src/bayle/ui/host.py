@@ -40,8 +40,8 @@ class Host(Protocol):
     def game(self) -> Any: ...
 
     @property
-    def session(self) -> Any:
-        """The session (bayle.session.Session): snapshots, operations, plans and the job event bus."""
+    def job_manager(self) -> Any:
+        """The engine's JobManager: job snapshots, cancelling, the event bus."""
         ...
 
     @property

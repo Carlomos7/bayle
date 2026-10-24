@@ -3,14 +3,45 @@ installs, adopt older save folders, report unreported game runs. Existing servic
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable, Collection
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from bayle.game.locate import Locations
 from bayle.services import mods as mod_service
 from bayle.services import run_health, saves_page
-from bayle.session.operations import StartupStep
+
+
+@dataclass(frozen=True)
+class StartupStep:
+    """One start-up action: name, and fn() -> what it did (a list of lines, or None)."""
+
+    name: str
+    fn: Callable[[], Any]
+
+
+@dataclass(frozen=True)
+class StepReport:
+    name: str
+    ok: bool
+    done: Any = None
+    error: str = ""
+
+
+def run_steps(steps: list[StartupStep]) -> list[StepReport]:
+    """Run the start-up steps in order, once the process is set up and before clients read. A failing step is
+    reported and logged, never stops the next."""
+    reports = []
+    for step in steps:
+        try:
+            reports.append(StepReport(step.name, True, step.fn()))
+        except Exception as e:
+            logging.getLogger("bayle.session").exception("startup step %s failed", step.name)
+            reports.append(StepReport(step.name, False, error=str(e)))
+    return reports
 
 
 def recover_profile(profile: Path | None) -> list[str]:

@@ -1,7 +1,7 @@
 """The Qt Notifier is an adapter over the views.common schema: the dialogs get the schema's words, nothing else."""
 
 from bayle.ui.notifications import Notifier
-from bayle.views.common import Choice, Choose, Confirm
+from bayle.work.prompts import Choice, Choose, Confirm
 
 
 def test_confirm_shows_the_schema_words_and_answers_once(qt_app):

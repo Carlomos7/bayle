@@ -16,13 +16,14 @@ from bayle.errors import OperationError
 from bayle.platform import desktop
 from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
+from bayle.services.play import TITLE, VERSION
 from bayle.services.settings import KEEP_RANGE, Changed, SettingsService
+from bayle.services.updates import RELEASES_URL
 from bayle.ui.models import RowsModel
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.settings import presenter as view
 from bayle.ui.pages.settings.presenter import CHOICE_LABELS, LAYOUT_LABELS, LOCATION_WORDS, SettingsState
 from bayle.ui.refresh import Refresher
-from bayle.views import settings as launcher
 
 LAYOUT = tuple(LAYOUT_LABELS)  # the draft fields
 
@@ -33,8 +34,8 @@ class SettingsHost(Protocol):
     @property
     def busy(self) -> bool: ...
     @property
-    def session(self) -> Any:
-        """Only for its job manager: the running move of the profiles folder is followed and cancelled there."""
+    def job_manager(self) -> Any:
+        """The engine's JobManager: the running move of the profiles folder is followed and cancelled there."""
 
     @property
     def settings_service(self) -> SettingsService: ...
@@ -236,7 +237,7 @@ class SettingsAdapter(QObject):
     steamTarget = Property(str, lambda self: self._values["steam_target"], notify=changed)
     steamOptions = Property(str, lambda self: self._values["steam_options"], notify=changed)
     dataFolder = Property(str, lambda self: self._values["data_folder"], notify=changed)
-    versionText = Property(str, lambda self: f"{launcher.TITLE} {launcher.VERSION}", constant=True)
+    versionText = Property(str, lambda self: f"{TITLE} {VERSION}", constant=True)
     launcherLine = Property(
         str, lambda self: self._update.get("line") or self._values["launcher_line"], notify=updatesChanged
     )
@@ -348,7 +349,7 @@ class SettingsAdapter(QObject):
         self.updatesChanged.emit()
 
     def _move_running(self) -> bool:
-        job = self.host.session.jobs.get(self._move_job) if self._move_job else None
+        job = self.host.job_manager.get(self._move_job) if self._move_job else None
         return job is not None and job.state == "running"
 
     def _on_update_state(self) -> None:
@@ -533,7 +534,7 @@ class SettingsAdapter(QObject):
     @Slot()
     def cancelMove(self) -> None:
         if self._move_job:
-            self.host.session.jobs.cancel(self._move_job)
+            self.host.job_manager.cancel(self._move_job)
 
     @Slot()
     def moveAll(self) -> None:
@@ -590,7 +591,7 @@ class SettingsAdapter(QObject):
 
     @Slot()
     def openReleases(self) -> None:
-        desktop.open_path(launcher.RELEASES_URL)
+        desktop.open_path(RELEASES_URL)
 
     @Slot()
     def saveLogs(self) -> None:

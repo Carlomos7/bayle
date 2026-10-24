@@ -1,5 +1,5 @@
 """The Library operations of the Mods page (share, separate, use in other profiles, list, remove unused) through
-Session.run on the real ModLibraryService, over a real Library in temporary folders: no Qt, no window."""
+the route functions on the real ModLibraryService, over a real Library in temporary folders: no Qt, no window."""
 
 import shutil
 from pathlib import Path
@@ -13,11 +13,9 @@ from bayle.mods import shared_mods
 from bayle.platform import trash
 from bayle.services.mods import profile_entries
 from bayle.services.shared_mods import ModLibraryService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
+from support import ServiceCalls
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -45,9 +43,7 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(trash, "send", lambda p: shutil.rmtree(p) or {})
     monkeypatch.setattr(trash, "exists", lambda r: False)
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run())
-    session = Session(
-        jobs, plans=PlanStore(), locations=lambda: loc, services={"mod_library": ModLibraryService(jobs, lambda: loc)}
-    )
+    session = ServiceCalls(jobs, mod_library=ModLibraryService(jobs, lambda: loc))
     return session, loc, a, b
 
 

@@ -11,7 +11,6 @@ from bayle.config.settings import load_settings, save_settings
 from bayle.errors import Cancelled
 from bayle.services import layout as layout_service
 from bayle.services.settings import SettingsService
-from bayle.session import Session
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.settings.adapter import SettingsAdapter
 from bayle.work.events import EventBus
@@ -30,7 +29,7 @@ class Host(QObject):
         super().__init__()
         self.hold, self.held, self.game_running = False, [], False
         self.jobs = JobManager(EventBus(), spawn=self._spawn, game_running=lambda: self.game_running)
-        self.session = Session(self.jobs)
+        self.job_manager = self.jobs
         self.settings_service = SettingsService(self.jobs, er)
         self.picked: Path | None = None
 

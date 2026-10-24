@@ -29,17 +29,15 @@ from bayle.services import features
 from bayle.services import play as core
 from bayle.services.mods import me3_facts
 from bayle.services.settings import load_settings, save_game_settings
-from bayle.session.operations import Session, StepReport
+from bayle.session.shell import facts as topbar
 from bayle.session.shell import launch
 from bayle.session.shell.background import Background, ThreadBackground
 from bayle.session.shell.ports import EventPorts
 from bayle.session.shell.state import Context, LauncherState
-from bayle.session.shell.updates import UpdateFlow
+from bayle.session.shell.updates import Say, UpdateFlow
 from bayle.session.shell.watch import GameWatch
-from bayle.session.startup import recover_profile
+from bayle.session.startup import StepReport, recover_profile, run_steps
 from bayle.updates import inno as migration
-from bayle.views import topbar
-from bayle.views.shell import ShellState, shell_state
 from bayle.work.jobs import JobManager
 
 # A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.
@@ -72,7 +70,7 @@ class Shell:
         rules decide)."""
         self.state = LauncherState(ctx)
         self.background: Background = background or ThreadBackground()
-        self.step = ""  # the Launch flow's step before its job runs ("Backing up saves...")
+        self.step = ""  # the Launch flow's step code before its job runs (launch.BACKING_UP...)
         self.job_detail = ""  # the newest line of the running job that says how it is going
         self.steam_bad = False
         self.dead_shells = 0
@@ -96,18 +94,12 @@ class Shell:
         self.bus = self.jobs.bus
         self.features = features.build(self.jobs, ctx.activity, lambda: self.state.locations)
         self.activity, self.settings, self.saves = self.features.activity, self.features.settings, self.features.saves
-        self.session = Session(
-            self.jobs,
-            plans=ctx.plans,
-            locations=lambda: self.state.locations,
-            startup_steps=ctx.startup(self.state.profile_path),
-            services={"shell": self, **self.features.services()},
-        )
+        self._startup_steps = ctx.startup(self.state.profile_path)
         self.flow = launch.LaunchFlow(self.state, EventPorts(self))
         self.updates = UpdateFlow(
             self.background,
             lambda: self.state.settings,
-            lambda title, body, kind: self.notice(f"{title}: {body}" if body else title, error=kind == "error"),
+            lambda said, kind: self.say(said.code, said.facts, error=kind == "error"),
             self.cannot_update,
             restart or (lambda _prepared: None),
             open_url,
@@ -125,6 +117,10 @@ class Shell:
     def notice(self, text: str, error: bool = False, details: bool = False) -> None:
         """Say something to the player. details: the job log has more (the window offers a Details button)."""
         self.bus.publish("notice", {"text": text, "error": error, "details": details})
+
+    def say(self, code: str, facts: dict | None = None, error: bool = False) -> None:
+        """Say something as a code and facts: the window words it (the event carries no text)."""
+        self.bus.publish("notice", {"text": "", "code": code, "facts": facts or {}, "error": error, "details": False})
 
     def navigate(self, page: str) -> None:
         self.bus.publish("navigate", {"page": page})
@@ -325,7 +321,8 @@ class Shell:
             warnings=warnings,
             checking=self.checks_late and not busy,
             busy=busy,
-            job_label=(self.job_detail or st.job_label) if st.busy else self.step,
+            job_label=(self.job_detail or st.job_label) if st.busy else "",
+            step=self.step,
             job_kind=st.job_kind if st.busy else ("launch" if self.flow.active else ""),
             game_running=st.game_running,
             steam_bad=self.steam_bad,
@@ -335,18 +332,6 @@ class Shell:
             me3_update=self.me3_note,
             failed_job=self.failed_job,
             mode=self.mode(),
-        )
-
-    def snapshot(self) -> ShellState:
-        """The top bar as one view. Reads the disk checks again (a client that asks wants them now)."""
-        self.store_checks(self.checks_key(), self.read_checks(self.state.launch_profile))
-        return shell_state(
-            self.facts(),
-            labels=topbar.profile_labels(self.state.launch_profiles),
-            index=self.state.index,
-            installed=self.installed_games(),
-            unseen=self.unseen,
-            updates=self.updates.state(),
         )
 
     def checks_key(self) -> tuple:
@@ -402,16 +387,16 @@ class Shell:
         self.invalidate("shell")
 
     # ---------------------------------------------------------------- updates
-    def cannot_update(self) -> str:
+    def cannot_update(self) -> Say | None:
         return self.updates.cannot_update(self.state.game_running, self.state.game.name, self.busy)
 
     # ---------------------------------------------------------------- start-up
     def startup(self) -> None:
-        """The start-up sequence, once: the Engine's start-up steps (Session.startup), the game watch, me3 and update
+        """The start-up sequence, once: the Engine's start-up steps (session.startup.run_steps), the game watch, me3 and update
         checks. The steps run off the calling thread; what they put right is told as notices."""
 
         def work(_progress) -> list[StepReport]:
-            return self.session.startup()
+            return run_steps(self._startup_steps)
 
         def done(reports: list[StepReport]) -> None:
             for r in reports:

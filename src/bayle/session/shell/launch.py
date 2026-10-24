@@ -14,19 +14,19 @@ without its backup, with unrefreshed merged mods, or online with changed game da
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.mods import rebuild as mod_merge
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr
+from bayle.platform.text import tr  # job titles only: they are job records (Activity shows them)
 from bayle.services import game_checks, profile_mods
 from bayle.services import play as core
+from bayle.session.shell import facts as topbar
 from bayle.session.shell.state import LauncherState
-from bayle.views import topbar
-from bayle.views.common import Choice, Choose
 from bayle.work import jobs
+from bayle.work.prompts import Option, Question
 
 UPDATE_LABEL = "Updating merged mods..."  # the job that rebuilds before Launch (the status text shows it)
 
@@ -44,16 +44,27 @@ RETRY, WITHOUT_BACKUP, REBUILD, PLAY_ANYWAY, OFFLINE_INSTEAD, ONLINE_ANYWAY, DET
 )
 
 
-Ask = Choose  # the flow's name for a fork; the schema lives in views.common
+Ask = Question  # the flow's name for a fork; it carries a code and facts, the window words it
+
+# The steps before the launch job runs (Ports.progress); the window words them
+CHECKING, STARTING, BACKING_UP, CHECKING_MODS, CHECKING_ONLINE = (
+    "checking",
+    "starting",
+    "backing_up",
+    "checking_mods",
+    "checking_online",
+)
 
 
 class Ports(Protocol):
     """What the flow needs from the shell; the host implements them, tests fake them."""
 
     def ask(self, ask: Ask, on_answer: Callable[[str], None]) -> None: ...
-    def toast(self, text: str, error: bool = False) -> None: ...
-    def progress(self, label: str) -> None:
-        """A step before the launch job is running ("Backing up saves..."); "" when the flow is over."""
+    def toast(self, code: str, facts: dict | None = None, error: bool = False) -> None:
+        """Say something: a code the window words (blocked, launch_cancelled, text: facts["text"] as it is)."""
+
+    def progress(self, step: str) -> None:
+        """A step before the launch job is running (BACKING_UP...); "" when the flow is over."""
 
     def background(self, work: Callable[[], Any], on_result: Callable[[Any], None]) -> None: ...
     def run_job(self, job, label: str, kind: str, on_done: Callable[[bool], None] | None = None) -> None: ...
@@ -79,13 +90,13 @@ class Services:
     job_play_vanilla: Callable[..., None] = core.job_play_vanilla
 
 
-def gate(state: LauncherState, mode: str, problems: tuple[core.Problem, ...] | None = None) -> str:
-    """Why Launch cannot start now, or "" when it can: a job or the game running, an unsupported or missing game,
+def gate(state: LauncherState, mode: str, problems: tuple[core.Problem, ...] | None = None) -> topbar.Block | None:
+    """Why Launch cannot start now, or None when it can: a job or the game running, an unsupported or missing game,
     no profile, a profile with problems (an incomplete managed setup, me3 missing). The pill shows the same reasons."""
     if state.busy:
-        return tr("Wait for the current job to finish.")
+        return topbar.Block("busy")
     if state.game_running:
-        return tr("{game} is already running. Close it first.").format(game=state.game.name)
+        return topbar.Block("running", state.game.name)
     launch_profile = state.launch_profile
     facts = topbar.Facts(
         game=state.game,
@@ -93,8 +104,7 @@ def gate(state: LauncherState, mode: str, problems: tuple[core.Problem, ...] | N
         profile_count=1 if launch_profile else 0,
         problems=tuple(launch_profile.problems()) if launch_profile and problems is None else (problems or ()),
     )
-    why = topbar.blocked(facts, mode)
-    return why[0] if why else ""
+    return topbar.blocked(facts, mode)
 
 
 @dataclass
@@ -127,12 +137,12 @@ class LaunchFlow:
         mode = mode if mode in topbar.MODES else topbar.PROFILE
         why = gate(self.state, mode, ())  # the quick reasons first, with no disk reads
         if why:
-            self.ports.toast(why, error=True)
+            self.ports.toast("blocked", asdict(why), error=True)
             return False
         self.active = True
         launch_profile = self.state.launch_profile
         run = self._run = _Run(mode, allow_without_backup=allow_without_backup)
-        self.ports.progress(tr("Checking..."))
+        self.ports.progress(CHECKING)
 
         def check():  # the profile's disk checks, read fresh now (never a cached answer), off the UI thread
             return tuple(launch_profile.problems()) if launch_profile and mode != topbar.VANILLA else ()
@@ -145,12 +155,12 @@ class LaunchFlow:
         why = gate(self.state, mode, problems)
         if why:
             run.refused = True
-            self.ports.toast(why, error=True)
+            self.ports.toast("blocked", asdict(why), error=True)
             self._end()
             return
         launch_profile = self.state.launch_profile
         run.profile = Path(launch_profile.profile) if launch_profile and mode != topbar.VANILLA else None
-        self.ports.progress(tr("Starting..."))
+        self.ports.progress(STARTING)
         self._pending_edits(run)
 
     def stop_after_rebuild(self) -> None:
@@ -160,7 +170,7 @@ class LaunchFlow:
         if run is None or run.cancelled:
             return
         run.cancelled = True
-        self.ports.toast(tr("Launch cancelled: the rebuild finishes first, then the game does not start."))
+        self.ports.toast("launch_cancelled_rebuild")
 
     def _end(self) -> None:
         self.active = False
@@ -179,7 +189,7 @@ class LaunchFlow:
         if run.mode == topbar.PROFILE:
             error = self.ports.save_pending()
             if error:
-                self.ports.toast(error, error=True)
+                self.ports.toast("text", {"text": error}, error=True)
                 self._end()
                 return
         self._backup(run)
@@ -195,7 +205,7 @@ class LaunchFlow:
             self._stale(run)
             return
         loc = self._locations()
-        self.ports.progress(tr("Backing up saves..."))
+        self.ports.progress(BACKING_UP)
 
         def work():
             try:
@@ -213,18 +223,9 @@ class LaunchFlow:
             self._stale(run)
             return
         ask = Ask(
-            tr("Backing up your saves failed"),
-            tuple(f"{p.name}: {why}" for p, why in failed.failed),
-            (
-                Choice(RETRY, tr("Retry"), "primary"),
-                Choice(WITHOUT_BACKUP, tr("Launch without backup")),
-                Choice(CANCEL, tr("Cancel")),
-            ),
-            warning=tr("The game has not started: 'Back up saves before launch' is on."),
-            safety=tr(
-                "Retry tries the backup again. Launch without backup starts the game without a fresh copy of the "
-                "saves listed above."
-            ),
+            "backup_failed",
+            {"failed": [f"{p.name}: {why}" for p, why in failed.failed]},
+            (Option(RETRY, "primary"), Option(WITHOUT_BACKUP), Option(CANCEL)),
         )
 
         def answered(key: str) -> None:
@@ -245,7 +246,7 @@ class LaunchFlow:
             self._online(run)
             return
         loc = self._locations()
-        self.ports.progress(tr("Checking the merged mods..."))
+        self.ports.progress(CHECKING_MODS)
 
         def work():
             try:
@@ -264,22 +265,22 @@ class LaunchFlow:
             self._online(run)
             return
         if "error" in h:
-            self._ask_stale(run, tr("The merged mods could not be checked"), h["error"])
+            self._ask_stale(run, "check_error", "", h["error"])
             return
-        reason = (h.get("reasons") or [h.get("text") or tr("The merged mods are out of date")])[0]
+        reason = (h.get("reasons") or [h.get("text") or ""])[0]  # "": the window's generic "out of date"
         if h.get("blocked"):
-            self._ask_stale(run, reason, tr("They cannot be rebuilt now: {why}").format(why=h["blocked"]))
+            self._ask_stale(run, "blocked", reason, h["blocked"])
             return
         key = tuple(h.get("reasons") or ())
         if self._rebuild_failed.get(str(prof)) == key:
-            self._ask_stale(run, reason, tr("The last rebuild with these mods failed; its log is on Activity."))
+            self._ask_stale(run, "last_failed", reason)
             return
         state = self.services.tool_state(prof, loc=self._locations())
         if state.tool is not None and (state.problem or not state.allowed):
-            why = state.problem or tr("{tool} has not been allowed to run yet; allow it on the Mods page.").format(
-                tool=state.tool.label
-            )
-            self._ask_stale(run, reason, why)
+            if state.problem:
+                self._ask_stale(run, "tool_problem", reason, state.problem)
+            else:
+                self._ask_stale(run, "tool_not_allowed", reason, tool=state.tool.label)
             return
         if not self.services.play_options(self.state.settings)["play_update_merge"] and not run.rebuild_chosen:
             self._ask_rebuild(run, reason)
@@ -289,14 +290,7 @@ class LaunchFlow:
     def _ask_rebuild(self, run: _Run, reason: str) -> None:
         """Automatic rebuilds are off: Rebuild now / Launch anyway this once / Cancel."""
         ask = Ask(
-            tr("Your merged mods are out of date"),
-            (reason,),
-            (
-                Choice(REBUILD, tr("Rebuild now"), "primary"),
-                Choice(PLAY_ANYWAY, tr("Launch anyway this once")),
-                Choice(CANCEL, tr("Cancel")),
-            ),
-            warning=tr("Launching anyway uses the previous result. A removed or changed mod may still be in it."),
+            "stale_rebuild", {"reason": reason}, (Option(REBUILD, "primary"), Option(PLAY_ANYWAY), Option(CANCEL))
         )
 
         def answered(key: str) -> None:
@@ -311,22 +305,11 @@ class LaunchFlow:
 
         self.ports.ask(ask, answered)
 
-    def _ask_stale(self, run: _Run, reason: str, why: str) -> None:
+    def _ask_stale(self, run: _Run, cause: str, reason: str, detail: str = "", tool: str = "") -> None:
         """The merged mods are out of date and cannot be rebuilt now: say so before the game starts. There is no
-        setting that skips this."""
-        ask = Ask(
-            tr("Your merged mods are out of date"),
-            (reason, why),
-            (
-                Choice(PLAY_ANYWAY, tr("Launch anyway this once"), "primary"),
-                Choice(DETAILS, tr("View details")),
-                Choice(CANCEL, tr("Cancel")),
-            ),
-            warning=tr(
-                "Launching anyway uses the previous result. A removed or changed mod may still be in it. "
-                "Rebuild on the Mods page brings it up to date."
-            ),
-        )
+        setting that skips this. cause: check_error | blocked | last_failed | tool_problem | tool_not_allowed."""
+        facts = {"cause": cause, "reason": reason, "detail": detail, "tool": tool}
+        ask = Ask("stale_blocked", facts, (Option(PLAY_ANYWAY, "primary"), Option(DETAILS), Option(CANCEL)))
 
         def answered(key: str) -> None:
             if key == PLAY_ANYWAY:
@@ -369,17 +352,9 @@ class LaunchFlow:
         self._rebuild_failed[str(prof)] = key
         failed = self.services.last_run(prof) or {}
         ask = Ask(
-            tr("The merged mods could not be updated"),
-            (failed.get("message") or tr("The rebuild stopped; its log is on Activity."),),
-            (
-                Choice(PLAY_ANYWAY, tr("Launch anyway this once"), "primary"),
-                Choice(DETAILS, tr("View details")),
-                Choice(CANCEL, tr("Cancel")),
-            ),
-            safety=tr(
-                "Nothing was replaced: the previous result is still in place, so the game starts with it (without "
-                "the latest changes)."
-            ),
+            "rebuild_failed",
+            {"message": failed.get("message") or ""},
+            (Option(PLAY_ANYWAY, "primary"), Option(DETAILS), Option(CANCEL)),
         )
 
         def answered(choice: str) -> None:
@@ -402,7 +377,7 @@ class LaunchFlow:
             self._launch(run)
             return
         loc = self._locations()
-        self.ports.progress(tr("Checking online play..."))
+        self.ports.progress(CHECKING_ONLINE)
 
         def work():
             try:
@@ -417,20 +392,7 @@ class LaunchFlow:
             self._launch(run)
             return
         ask = Ask(
-            tr("Launch online with changed game data?"),
-            (
-                tr(
-                    "When you play online, the game sends a fingerprint of its game data to FromSoftware's servers. "
-                    "Changed data can be detected. Roundtable starts modded profiles with online play off."
-                ),
-                tr("This profile has online play on."),
-            ),
-            (
-                Choice(OFFLINE_INSTEAD, tr("Launch Offline instead"), "primary"),
-                Choice(ONLINE_ANYWAY, tr("Launch online anyway"), "danger"),
-                Choice(CANCEL, tr("Cancel")),
-            ),
-            safety=tr("Launch Offline uses a temporary copy of the profile; your real profile is not changed."),
+            "online_risk", {}, (Option(OFFLINE_INSTEAD, "primary"), Option(ONLINE_ANYWAY, "danger"), Option(CANCEL))
         )
 
         def answered(key: str) -> None:
@@ -448,17 +410,11 @@ class LaunchFlow:
     def _launch(self, run: _Run) -> None:
         settings = self.state.settings
         if run.mode == topbar.OFFLINE and not settings.offline_skip_confirm and not run.confirmed:
-            bits = [tr("Seamless stays off, so the game uses the standard save")]
-            if settings.offline_strip_overhaul:
-                bits.append(tr("The overhaul stays off too"))
-            if settings.offline_start_steam:
-                bits.append(tr("Steam is started if it is not running"))
-            ask = Ask(
-                tr("Launch Offline"),
-                tuple(bits),
-                (Choice(GO, tr("Launch Offline"), "primary"), Choice(CANCEL, tr("Cancel"))),
-                safety=tr("A temporary .offline.me3 copy is used; your real profile is not changed."),
-            )
+            facts = {
+                "strip_overhaul": bool(settings.offline_strip_overhaul),
+                "start_steam": bool(settings.offline_start_steam),
+            }
+            ask = Ask("offline_confirm", facts, (Option(GO, "primary"), Option(CANCEL)))
 
             def answered(key: str) -> None:
                 if key != GO:

@@ -7,15 +7,13 @@ from pathlib import Path
 
 import pytest
 
+from bayle.api.routers import profile_transfer as profile_transfer_router
 from bayle.errors import OperationError
 from bayle.services.profile_transfer import ProfileTransferService
 from bayle.services.transfer_resources import TransferResources
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
-from support import er
+from support import Direct, er
 
 PROFILE = (
     'profileVersion = "v1"\nsavefile = "ER0000.sl2"\n\n[[supports]]\ngame = "eldenring"\n\n'
@@ -48,10 +46,10 @@ def inline(run, name=None):
 def session(resources=None):
     jobs = JobManager(EventBus(), spawn=inline)
     service = ProfileTransferService(jobs, er, resources)
-    return Session(jobs, plans=PlanStore(), locations=er, services={"profile_transfer": service})
+    return Direct(profile_transfer_router, "profile_transfer", service, jobs)
 
 
-def job_of(s: Session, name: str, params: dict):
+def job_of(s: Direct, name: str, params: dict):
     """Start a job operation and return its (finished) snapshot."""
     return s.jobs.get(s.run(name, params).job_id)
 
@@ -60,7 +58,7 @@ def tree(root: Path) -> dict:
     return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for p in [root, *root.rglob("*")]}
 
 
-def events(s: Session, job_id: str) -> list:
+def events(s: Direct, job_id: str) -> list:
     sub = s.jobs.bus.subscribe(since=0)
     out = []
     while (e := sub.get(0)) is not None:
@@ -69,7 +67,7 @@ def events(s: Session, job_id: str) -> list:
     return out
 
 
-def keys_of(s: Session, prof: Path) -> list[str]:
+def keys_of(s: Direct, prof: Path) -> list[str]:
     return [m.key for m in s.snapshot("profile_transfer", profile=str(prof)).mods]
 
 
@@ -174,7 +172,7 @@ def test_open_preview_and_import_a_full_export_then_the_resource_is_gone(tmp_pat
     ).result["path"]
     opened = s.run("profile_transfer.open_file", {"path": out})
     assert opened.kind == "zip" and opened.new_profile and opened.name == "Pack"
-    res = s.service("profile_transfer", None)._resources
+    res = s.service._resources
     unpacked = res.get(opened.resource).incoming.unpacked
     assert unpacked.exists()
     before = tree(dst.parent)
@@ -294,10 +292,3 @@ def test_an_untouched_resource_is_deleted_after_its_ttl(tmp_path):
     assert not folder.exists()
     with pytest.raises(OperationError):
         res.get(one.id)
-
-
-def test_a_session_without_the_service_says_so():
-    bare = Session(JobManager(EventBus(), spawn=inline), plans=PlanStore(), locations=er)
-    with pytest.raises(OperationError) as e:
-        bare.run("profile_transfer.discard", dict(resource="t1"))
-    assert e.value.code == "no_profile_transfer_service"

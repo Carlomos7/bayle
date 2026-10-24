@@ -7,7 +7,7 @@ from bayle.errors import OperationError
 from bayle.services import settings as engine
 from bayle.services.settings import Changed, NameCheck, RelocateFacts
 from bayle.ui.pages.settings import presenter as view
-from bayle.views.common import Confirm
+from bayle.work.prompts import Confirm
 
 
 def test_the_switch_table_is_the_engines_list_in_the_same_order():

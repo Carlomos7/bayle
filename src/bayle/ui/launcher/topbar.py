@@ -1,22 +1,21 @@
-"""The top bar's words and rules, without Qt (technical specification §8.10, Shell): the Launch pill (its three modes
-and four states, each with its reason and the link that fixes it), the status text (the one place launcher state
-shows), and the contents of the game and profile drop-downs. The shell's adapter turns these into properties; nothing
-here knows a window exists, so the rules are checked without one.
+"""The top bar's words (technical specification §8.10, Shell): the Launch pill (its three modes and four states, each
+with its reason and the link that fixes it), the status text (the one place launcher state shows), and the contents of
+the game and profile drop-downs. The shell's adapter turns these into properties; nothing here makes a window, so the
+words are checked without one.
 
-The inputs are one frozen `Facts` snapshot; every output is a pure function of it."""
+The inputs are the engine's `Facts` snapshot (session.shell.facts) and its `Block` codes; every output is a pure
+function of them."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path, PureWindowsPath
+from pathlib import PureWindowsPath
 
-from bayle.config.settings import LauncherSettings, game_setting
 from bayle.game import catalog as games
 from bayle.platform.text import tr
-from bayle.services.play import Problem
+from bayle.session.shell.facts import MODES, OFFLINE, PROFILE, VANILLA, Block, Facts, profile_labels
+from bayle.session.shell.facts import blocked as block_of
 
-PROFILE, OFFLINE, VANILLA = "profile", "offline", "vanilla"
-MODES = (PROFILE, OFFLINE, VANILLA)
 MODE_WORDS = {PROFILE: "Profile", OFFLINE: "Offline", VANILLA: "Vanilla"}  # shown through tr()
 
 ENABLED, BUSY, RUNNING, BLOCKED = "enabled", "busy", "running", "blocked"
@@ -41,29 +40,6 @@ class Link:
 
 
 @dataclass(frozen=True)
-class Facts:
-    """Everything the top bar depends on, read once by the host."""
-
-    game: games.Game
-    installed: bool = True  # the game's folder or exe is known
-    profile_count: int = 0
-    problems: tuple[Problem, ...] = ()  # the current profile's, from LaunchProfile.problems()
-    checking: bool = False  # the disk checks are taking a while
-    warnings: tuple[Problem, ...] = ()  # LaunchProfile.warnings(): Launch still works, a mod is left out
-    busy: bool = False
-    job_label: str = ""
-    job_kind: str = ""  # "" | "launch" | "update" | "other"
-    game_running: bool = False
-    steam_bad: bool = False  # Steam runs but is not signed in (for long enough to say so)
-    dead_shells: int = 0
-    warn_dead_shells: bool = True
-    coop_unsaved: bool = False  # Seamless settings edited and not saved: they apply on launch
-    me3_update: str = ""  # the newer me3 version, or "" (said once a session)
-    failed_job: str = ""  # a job that failed and was not looked at yet
-    mode: str = PROFILE
-
-
-@dataclass(frozen=True)
 class Pill:
     mode: str
     mode_text: str  # "Profile"
@@ -85,12 +61,6 @@ class Status:
 
 
 # ------------------------------------------------------------------------------------------------ mode memory
-def mode_of(settings: LauncherSettings, game: games.Game) -> str:
-    """The Launch mode remembered for the game; Profile when none (or an unknown word)."""
-    value = game_setting(settings, game.key, "launch_mode")
-    return value if value in MODES else PROFILE
-
-
 def mode_menu(current: str) -> list[dict]:
     """The pill's mode menu: one entry per mode, the current one checked."""
     return [
@@ -99,11 +69,11 @@ def mode_menu(current: str) -> list[dict]:
 
 
 # ------------------------------------------------------------------------------------------------ blocked
-def _short(problem: Problem) -> str:
+def _short(block: Block) -> str:
     """The reason in plain words, without a long path (so the line is not this PC's folder tree)."""
     # PureWindowsPath splits on both / and \, so a Windows path gives its file name on Linux too
-    name = PureWindowsPath(problem.path).name if problem.path else ""
-    code = problem.code
+    name = PureWindowsPath(block.path).name if block.path else ""
+    code = block.problem
     if code in ("game_exe_missing", "game_exe_setting_missing"):
         return tr("Game program not found: {name}").format(name=name) if name else tr("Game program not found")
     if code == "me3_missing":
@@ -114,32 +84,51 @@ def _short(problem: Problem) -> str:
         return tr("The profile file is missing")
     if code == "wrong_game":
         return tr("This profile is for another game")
-    return str(problem)
+    return block.text
 
 
-def _problem_link(problem: Problem) -> Link:
-    if problem.code in ("me3_missing", "me3_not_installed", "game_exe_missing", "game_exe_setting_missing"):
+def _problem_link(block: Block) -> Link:
+    if block.problem in ("me3_missing", "me3_not_installed", "game_exe_missing", "game_exe_setting_missing"):
         return Link(tr("Fix in Settings > Locations"), LOCATIONS)
-    if problem.code in ("wrong_game", "profile_missing"):
+    if block.problem in ("wrong_game", "profile_missing"):
         return Link(tr("Pick another profile"), PICK_PROFILE)
     return Link(tr("Mods"), MODS)
+
+
+def block_words(block: Block) -> tuple[str, Link | None]:
+    """A Block (why a launch cannot start) in words, with the link to the fix."""
+    if block.code == "busy":
+        return tr("Wait for the current job to finish."), None
+    if block.code == "running":
+        return tr("{game} is already running. Close it first.").format(game=block.game), None
+    if block.code == "not_ready":
+        return tr("Not supported yet"), None
+    if block.code == "not_installed":
+        return tr("{game} is not installed").format(game=block.game), Link(tr("Settings > Locations"), LOCATIONS)
+    if block.code == "no_profile":
+        return tr("No profile"), Link(tr("Create a profile"), NEW_PROFILE)
+    return tr("Blocked: {why}").format(why=_short(block)), _problem_link(block)
 
 
 def blocked(facts: Facts, mode: str) -> tuple[str, Link | None] | None:
     """Why `mode` cannot launch now, with the link to the fix; None when it can (the job and the running game are
     states of their own, not blocks)."""
-    g = facts.game
-    if not g.ready:
-        return tr("Not supported yet"), None
-    if not facts.installed:
-        return tr("{game} is not installed").format(game=g.name), Link(tr("Settings > Locations"), LOCATIONS)
-    if mode == VANILLA:
-        return None
-    if facts.profile_count == 0:
-        return tr("No profile"), Link(tr("Create a profile"), NEW_PROFILE)
-    if facts.problems:
-        return tr("Blocked: {why}").format(why=_short(facts.problems[0])), _problem_link(facts.problems[0])
-    return None
+    block = block_of(facts, mode)
+    return None if block is None else block_words(block)
+
+
+STEP_WORDS = {
+    "checking": "Checking...",
+    "starting": "Starting...",
+    "backing_up": "Backing up saves...",
+    "checking_mods": "Checking the merged mods...",
+    "checking_online": "Checking online play...",
+}  # shown through tr()
+
+
+def job_words(facts: Facts) -> str:
+    """The status text of a job: its newest line, or the Launch flow's step before the job runs."""
+    return facts.job_label or (tr(STEP_WORDS[facts.step]) if facts.step in STEP_WORDS else "")
 
 
 def pill(facts: Facts) -> Pill:
@@ -151,7 +140,7 @@ def pill(facts: Facts) -> Pill:
         return Pill(mode, words, RUNNING, tr("Running"), tr("{game} is running").format(game=facts.game.name))
     if facts.busy:
         text = {"launch": tr("Launching..."), "update": tr("Updating...")}.get(facts.job_kind, tr("Working..."))
-        return Pill(mode, words, BUSY, text, facts.job_label)
+        return Pill(mode, words, BUSY, text, job_words(facts))
     if facts.checking and mode != VANILLA:
         return Pill(mode, words, BUSY, tr("Checking..."), tr("Checking the profile..."))
     why = blocked(facts, mode)
@@ -180,7 +169,7 @@ def status(facts: Facts) -> Status:
         return Status(tr("Not supported yet"))
     if facts.busy:
         link = Link(tr("Stop after the rebuild"), STOP_REBUILD) if facts.job_kind == "update" else None
-        return Status(facts.job_label or tr("Working..."), "accent", link, busy=True)
+        return Status(job_words(facts) or tr("Working..."), "accent", link, busy=True)
     if facts.game_running:
         return Status(tr("{game} running  ·  leave this window open").format(game=g.name))
     if facts.failed_job:
@@ -247,15 +236,6 @@ class ProfileMenu:
     new_text: str  # "New profile..." (always last)
     enabled: bool  # off while a job runs
     managed_tag: str
-
-
-def profile_labels(launch_profiles) -> list[str]:
-    """One label per setup, as the profile list names them (a file name; the folder too when two share a name)."""
-    labels = [s.label for s in launch_profiles]
-    return [
-        f"{label}  ·  {Path(s.source).parent.name}" if labels.count(label) > 1 else label
-        for s, label in zip(launch_profiles, labels)
-    ]
 
 
 def _bare(launch, label: str) -> str:

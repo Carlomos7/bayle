@@ -10,7 +10,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from bayle.resources import DATA_DIR
 
 SCRIPTS = DATA_DIR  # where the package keeps the watchdog scripts

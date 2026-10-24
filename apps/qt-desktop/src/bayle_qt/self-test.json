@@ -1,0 +1,90 @@
+{
+  "$comment": "The Qt half of the --self-test requirements (the engine's half is bayle/data/self-test.json). qml_modules is what pyside6-qmlimportscanner finds in bayle_qt/qml (tests/unit/test_self_test.py keeps them in step). files are relative to the package; min is the least number of matches a glob must have.",
+  "python_modules": [
+    "bayle_qt.qml_env",
+    "bayle_qt.launcher.window",
+    "PySide6.QtQml",
+    "PySide6.QtQuick",
+    "PySide6.QtQuickControls2",
+    "PySide6.QtSvg",
+    "bayle_qt.updater.apply",
+    "velopack"
+  ],
+  "qml_modules": [
+    "App",
+    "Components",
+    "QtQml.Models",
+    "QtQuick",
+    "QtQuick.Controls.Basic",
+    "QtQuick.Controls.impl",
+    "QtQuick.Dialogs",
+    "QtQuick.Effects",
+    "QtQuick.Layouts",
+    "QtQuick.Window",
+    "Roundtable.Code",
+    "Shell",
+    "Theme"
+  ],
+  "files": [
+    {
+      "path": "qml/Main.qml"
+    },
+    {
+      "path": "qml/MessageWindow.qml"
+    },
+    {
+      "path": "qml/Shell/qmldir"
+    },
+    {
+      "glob": "qml/Shell/*.qml",
+      "min": 5
+    },
+    {
+      "path": "qml/Theme/Theme.qml"
+    },
+    {
+      "path": "qml/Theme/qmldir"
+    },
+    {
+      "path": "qml/App/qmldir"
+    },
+    {
+      "path": "qml/Components/qmldir"
+    },
+    {
+      "glob": "qml/Pages/*.qml",
+      "min": 1
+    },
+    {
+      "glob": "assets/fonts/*.ttf",
+      "min": 9
+    },
+    {
+      "glob": "assets/fonts/*-LICENSE.txt",
+      "min": 3
+    },
+    {
+      "glob": "assets/icons/*.svg",
+      "min": 52
+    },
+    {
+      "path": "assets/icons/LICENSE.txt"
+    },
+    {
+      "glob": "assets/atmosphere/*.png",
+      "min": 7
+    },
+    {
+      "path": "assets/icon.ico"
+    },
+    {
+      "path": "updater/data/release-signing.pub"
+    },
+    {
+      "path": "updater/data/update-watchdog.ps1"
+    },
+    {
+      "path": "updater/data/update-watchdog.sh"
+    }
+  ]
+}

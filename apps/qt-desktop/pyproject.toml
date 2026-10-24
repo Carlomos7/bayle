@@ -1,0 +1,105 @@
+[project]
+name = "bayle-qt"
+version = "4.6.0-rc.3"
+description = "Bayle Modding Suite, the desktop program: the Qt Quick window, its controller and the updater, on the Bayle engine."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "Carlos Ray Segarra" }]
+requires-python = ">=3.14"
+dependencies = [
+    "bayle-engine",
+    "PySide6>=6.11.2",
+    "velopack==1.2.161",  # must match the vpk CLI the release workflow packs with
+]
+
+[project.scripts]
+bayle = "bayle_qt.entry:main"
+roundtable-souls = "bayle_qt.entry:main"
+
+[tool.uv.sources]
+bayle-engine = { path = "../engine", editable = true }
+
+[dependency-groups]
+dev = [
+    "bayle-engine[api]",  # some adapter tests drive the engine's routers
+    "pytest>=9.0.2",
+    "httpx>=0.28.1",
+    "coverage>=7.13.0",
+    "ruff>=0.16.9",
+    "pyinstaller>=6.22.3",
+    "pillow>=12.3.0",
+    "pyright>=1.1.414",
+    "import-linter>=2.15",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "bayle_qt"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+# importlib mode puts no test folder on sys.path, so the shared helpers (support, fakegame...) come from here
+pythonpath = ["tests", "tests/unit", "tests/ui/views", "tests/views"]
+markers = [
+    "ui_stall_ok: this test may block the UI thread past the stall threshold",
+    "real_recycle_bin: sends to the real Windows Recycle Bin; runs last, after every Qt window of the run",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/bayle_qt"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "E731", "E741", "B008", "B905"]
+
+[tool.pyright]
+include = ["src", "scripts", "tests"]
+extraPaths = ["tests", "tests/unit", "tests/ui/views", "tests/views"]  # what pytest's pythonpath puts on sys.path
+pythonVersion = "3.14"
+typeCheckingMode = "standard"
+# Qt trips these without pointing at bugs; they stay visible as warnings.
+reportAttributeAccessIssue = "warning"
+reportArgumentType = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalSubscript = "warning"
+reportOptionalIterable = "error"
+reportGeneralTypeIssues = "warning"
+reportIndexIssue = "error"
+reportCallIssue = "warning"
+reportOperatorIssue = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "src"
+reportAttributeAccessIssue = "error"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+
+# Run: uv run lint-imports --no-cache
+[tool.importlinter]
+root_package = "bayle_qt"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The controller and the updater have no Qt"
+type = "forbidden"
+source_modules = ["bayle_qt.shell", "bayle_qt.updater"]
+forbidden_modules = ["PySide6", "shiboken6"]

@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "python",
+  "release-type": "simple",
   "packages": {
     ".": {
       "package-name": "bayle",
@@ -11,12 +11,12 @@
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": false,
       "extra-files": [
-        "src/bayle/__init__.py",
-        {
-          "type": "toml",
-          "path": "uv.lock",
-          "jsonpath": "$.package[?(@.source.editable)].version"
-        }
+        { "type": "toml", "path": "apps/engine/pyproject.toml", "jsonpath": "$.project.version" },
+        { "type": "toml", "path": "apps/qt-desktop/pyproject.toml", "jsonpath": "$.project.version" },
+        "apps/engine/src/bayle/__init__.py",
+        { "type": "toml", "path": "apps/engine/uv.lock", "jsonpath": "$.package[?(@.name=='bayle-engine')].version" },
+        { "type": "toml", "path": "apps/qt-desktop/uv.lock", "jsonpath": "$.package[?(@.name=='bayle-engine')].version" },
+        { "type": "toml", "path": "apps/qt-desktop/uv.lock", "jsonpath": "$.package[?(@.name=='bayle-qt')].version" }
       ],
       "changelog-sections": [
         { "type": "feat", "section": "Added" },

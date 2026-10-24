@@ -12,8 +12,7 @@ import pytest
 
 from bayle.game import catalog
 from bayle.game.locate import Locations
-from bayle.mods import shared_mods
-from bayle.platform import cpu
+from bayle.platform import cpu, tree_hash
 from bayle.runtime import bootstrap
 from bayle.saves import analyze, caches, item_names
 from bayle.services import saves
@@ -73,8 +72,8 @@ def test_tree_hash_is_the_hash_of_the_files_through_a_task_and_inline(tmp_path):
     h = hashlib.sha256()
     for rel, data in (("a/b/y.bin", b"two!"), ("a/x.bin", b"one")):
         h.update(f"{rel}\0{len(data)}\0{hashlib.sha256(data).hexdigest()}\n".encode())
-    assert shared_mods.tree_hash(tmp_path) == (h.hexdigest()[: shared_mods.ID_LENGTH], 7)
-    assert shared_mods.tree_hash_job(str(tmp_path)) == list(shared_mods.tree_hash(tmp_path))
+    assert tree_hash.tree_hash(tmp_path) == (h.hexdigest()[: tree_hash.ID_LENGTH], 7)
+    assert tree_hash.tree_hash_job(str(tmp_path)) == list(tree_hash.tree_hash(tmp_path))
 
 
 def test_save_info_is_the_same_through_a_task_as_the_direct_call(tmp_path):

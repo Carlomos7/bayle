@@ -17,7 +17,7 @@ from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B
 from bayle.mods import library, operations, profile_rename, shared_mods, undo
 from bayle.mods import models as mod_models
-from bayle.platform import trash
+from bayle.platform import trash, tree_hash
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -113,7 +113,7 @@ def test_share_makes_a_read_only_version_and_links_it_relatively(world):
     out = shared_mods.share(a, [index_of(a, "grass")], loc=loc)
     assert out["shared"] == ["grass"] and out["reused"] == []
     path = link(a, "grass")
-    assert path.startswith("../.shared/grass/") and len(path.split("/")[-1]) == shared_mods.ID_LENGTH
+    assert path.startswith("../.shared/grass/") and len(path.split("/")[-1]) == tree_hash.ID_LENGTH
     version = version_of(a, "grass")
     assert (version / "sub" / "g2.dcx").read_bytes() == b"grass2"
     assert not (root / "a" / "packages" / "grass").exists()  # the Separate copy went (to the bin)
@@ -406,7 +406,7 @@ def test_a_crash_before_the_commit_leaves_only_a_stage_that_the_next_start_clear
     with monkeypatch.context() as m:  # the process dies: nothing after the crash runs, not even the clean-up
         m.setattr(B.Operation, "commit", lambda self, *args, **kw: (_ for _ in ()).throw(Crash()))
         m.setattr(B.Operation, "discard", lambda self: None)
-        m.setattr(shared_mods, "_delete", lambda p: None)
+        m.setattr(shared_mods, "delete_tree", lambda p: None)
         m.setattr(shared_mods, "prune", lambda p: None)
         with pytest.raises(Crash):
             shared_mods.share(a, [index_of(a, "grass")], loc=loc)
@@ -514,7 +514,7 @@ def test_duplicate_can_share_with_the_original_and_an_export_names_shared_mods_b
     assert version_of(a, "grass") == version_of(copy, "grass") and not (copy.parent / "packages" / "grass").exists()
     assert (copy.parent / "packages").exists() is False or not list((copy.parent / "packages").glob("grass"))
     names = {it.folder for it in profile_transfer.items(copy, full=True)}
-    assert {"grass", "sky"} <= names and not any(len(n) == shared_mods.ID_LENGTH for n in names)
+    assert {"grass", "sky"} <= names and not any(len(n) == tree_hash.ID_LENGTH for n in names)
 
 
 def recorded(monkeypatch) -> dict:

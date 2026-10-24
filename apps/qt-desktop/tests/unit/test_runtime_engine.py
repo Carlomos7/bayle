@@ -4,7 +4,7 @@ bus, close() unbinds what the engine bound, and a second engine after it binds a
 from pathlib import Path
 
 from bayle.mods import rebuild
-from bayle.platform import cpu
+from bayle.platform import cpu, hashing
 from bayle.runtime.bootstrap import create_engine
 from bayle.services import mods as mod_service
 from bayle.services import startup_recovery
@@ -69,15 +69,15 @@ def test_close_unbinds_and_a_second_engine_binds_afresh():
         raise AssertionError("not called")
 
     first = create_engine()
-    assert first.storage is not None and rebuild._HASH_STORE is first.hash_cache
+    assert first.storage is not None and hashing._HASH_STORE is first.hash_cache
     first.use_cpu(backend, backend, 1)
     assert cpu._backend is backend and cpu._ui_thread == 1
     first.close()
-    assert rebuild._HASH_STORE is None and rebuild._RUN_STORE is None and mirror._CURRENT is None
+    assert hashing._HASH_STORE is None and rebuild._RUN_STORE is None and mirror._CURRENT is None
     assert cpu._backend is None and cpu._ui_thread is None
     second = create_engine()
     try:
-        assert second.storage is not None and rebuild._HASH_STORE is second.hash_cache
+        assert second.storage is not None and hashing._HASH_STORE is second.hash_cache
         assert second.jobs.store is second.activity and mirror._CURRENT is not None
     finally:
         second.close()

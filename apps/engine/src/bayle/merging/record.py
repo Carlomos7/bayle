@@ -14,7 +14,7 @@ overhaul build (mods.engine) both take their facts from here.
 The me3 version is recorded but does not make a build out of date: the ordering model is what decides, and it is the
 same for every me3 version the launcher supports (mods.order.supported).
 
-File hashes are remembered by path, size and modification time (mods.merge.sha256): a file whose size or
+File hashes are remembered by path, size and modification time (platform.hashing.sha256): a file whose size or
 modification time changes is hashed again; one rewritten with the same size and time is not noticed.
 """
 
@@ -68,7 +68,7 @@ def facts(
 
 def game_files(game_dir: Path | None, regulation: str, sha256: Callable[[Path], str | None], *, version=False) -> dict:
     """The game's own files a build merges against: the archive indexes' fingerprint and the regulation's sha256
-    (sha256: the hasher, remembered by size and time in mods.rebuild), with the version the regulation names when
+    (sha256: the hasher, remembered by size and time in platform.hashing), with the version the regulation names when
     asked (it is decrypted for that, so only when a build is made)."""
     reg = Path(game_dir) / regulation if game_dir else None
     out: dict = {

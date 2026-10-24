@@ -31,7 +31,6 @@ import hashlib
 import json
 import os
 import shutil
-import stat
 import time
 from collections.abc import Callable, Iterable
 from contextlib import ExitStack
@@ -45,7 +44,7 @@ from bayle.mods import kinds, library, migrate, operations
 from bayle.mods import profile_settings as ps
 from bayle.mods.models import ModError, UndoError
 from bayle.mods.profile_writer import ProfileWriter
-from bayle.platform import cpu
+from bayle.platform.tree_hash import chmod_tree, delete_tree, files, tree_hash
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -53,7 +52,6 @@ if TYPE_CHECKING:
 LIBRARY = "library"
 RECORD = "mod.json"
 KEPT = ".previous"  # in the library: what an operation replaced, until it is let go of
-ID_LENGTH = 16
 GAME_OPEN = "Close the game first: it has these files open."
 KINDS = {
     "library-share": "Undo share",
@@ -68,63 +66,9 @@ class LibraryError(ModError):
     pass
 
 
-# ----------------------------------------------------------------------------- hashing and copying
-def _digest(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(1 << 20):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _files(folder: Path) -> list[tuple[str, Path]]:
-    out = []
-    for dirpath, _dirs, names in os.walk(folder):
-        for n in names:
-            p = Path(dirpath) / n
-            out.append((p.relative_to(folder).as_posix(), p))
-    return sorted(out)
-
-
-def tree_hash(folder: Path) -> tuple[str, int]:
-    """(version id, size in bytes) of a folder's files: the same files give the same id wherever they are. Hashed in
-    a worker process when the window has them (the hashing of a big mod would hold the window's GIL)."""
-    version, total = cpu.run_cpu(f"{__name__}:tree_hash_job", {"folder": str(folder)}).result()
-    return version, total
-
-
-def tree_hash_job(folder: str) -> list:
-    """The task behind tree_hash (runs in a worker process): [version id, size in bytes]."""
-    h, total = hashlib.sha256(), 0
-    for rel, p in _files(Path(folder)):
-        size = p.stat().st_size
-        total += size
-        h.update(f"{rel}\0{size}\0{_digest(p)}\n".encode())
-    return [h.hexdigest()[:ID_LENGTH], total]
-
-
+# ----------------------------------------------------------------------------- copying
 def _manifest(folder: Path) -> list[tuple[str, int, int]]:
-    return [(rel, (st := p.stat()).st_size, st.st_mtime_ns) for rel, p in _files(folder)]
-
-
-def _chmod(folder: Path, *, write: bool) -> None:
-    for _rel, p in _files(folder):
-        try:
-            mode = p.stat().st_mode
-            p.chmod(
-                mode | stat.S_IWRITE
-                if write
-                else (mode | stat.S_IREAD) & ~(stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH)
-            )
-        except OSError:
-            pass
-
-
-def _delete(folder: Path) -> None:
-    """A folder gone, read-only files included."""
-    if folder.exists():
-        _chmod(folder, write=True)
-        shutil.rmtree(folder, ignore_errors=True)
+    return [(rel, (st := p.stat()).st_size, st.st_mtime_ns) for rel, p in files(folder)]
 
 
 def _copy_verified(src: Path, dst: Path, digest: str) -> None:
@@ -134,7 +78,7 @@ def _copy_verified(src: Path, dst: Path, digest: str) -> None:
         if tree_hash(dst)[0] != digest:
             raise LibraryError(f"The copy of {src.name} does not match the original, so nothing was changed.")
     except BaseException:
-        _delete(dst)
+        delete_tree(dst)
         raise
 
 
@@ -330,7 +274,7 @@ class _Job:
             if op is not None and op.state == build.PREPARED and op.dir.exists():  # given up before the commit
                 op.discard()
                 for c in self.created:
-                    _delete(Path(c["stage"]))
+                    delete_tree(Path(c["stage"]))
                 prune(self.root)
         finally:
             self.stack.close()
@@ -397,7 +341,7 @@ class _Job:
         stage = self.root / mod_id / f".stage-{op.id}-{digest}"
         stage.parent.mkdir(parents=True, exist_ok=True)
         _copy_verified(source, stage, digest)
-        _chmod(stage, write=False)
+        chmod_tree(stage, write=False)
         op.replace_folder(live, stage)
         self.created.append({"mod": mod_id, "version": digest, "path": str(live), "stage": str(stage)})
         record = self.root / mod_id / RECORD
@@ -454,14 +398,14 @@ class _Job:
         except BaseException:
             op.discard()
             for c in self.created:
-                _delete(Path(c["stage"]))
+                delete_tree(Path(c["stage"]))
             prune(self.root)
             raise
         try:
             op.commit(refuse=self.changed, then=self._to_bin(container, bin_required, delete_without_bin))
         except build.BuildError as e:
             for c in self.created:
-                _delete(Path(c["stage"]))
+                delete_tree(Path(c["stage"]))
             prune(self.root)
             raise LibraryError(str(e)) from e
         prune(self.root)  # the .previous folder when its content went to the bin
@@ -476,7 +420,7 @@ class _Job:
         def run() -> None:
             if not self.asides:
                 return
-            _chmod(container, write=True)
+            chmod_tree(container, write=True)
             if trash.available():
                 op.gone_when(container)
                 try:
@@ -488,7 +432,7 @@ class _Job:
                         raise LibraryError("The Recycle Bin did not take them, so nothing was changed.") from e
             elif delete_without_bin:
                 op.gone_when(container)
-                _delete(container)
+                delete_tree(container)
 
         return run
 
@@ -497,7 +441,7 @@ def clean_stages(root: Path) -> None:
     """What an interrupted operation staged in the library (copies only, never a version). Only under the lock."""
     if Path(root).is_dir():
         for stage in Path(root).glob("*/.stage-*"):
-            _delete(stage)
+            delete_tree(stage)
         prune(root)
 
 
@@ -592,7 +536,7 @@ def separate(profile: Path, indexes: list[int], *, loc: Locations) -> dict:
             stage = packages / f".{name}.separate-{job.op.id}"
             packages.mkdir(parents=True, exist_ok=True)
             _copy_verified(version_path(job.root, mod_id, version), stage, version)
-            _chmod(stage, write=True)
+            chmod_tree(stage, write=True)
             job.op.replace_folder(dest, stage)
             job.created.append({"mod": "", "version": "", "path": str(dest), "stage": str(stage)})
             job.writer(profile).set_path(i, job.relative(profile, dest))
@@ -724,9 +668,9 @@ def undo(op_dir: Path, log: Callable[[str], None] = lambda s: None) -> str:
         back.release()
         op.release()
     for c in info.get("created") or []:
-        _delete(Path(c["stage"]))  # the version (or copy) the operation made is back in its stage folder
+        delete_tree(Path(c["stage"]))  # the version (or copy) the operation made is back in its stage folder
     if container is not None:
-        _delete(container)
+        delete_tree(container)
     prune(root)
     log(f"took back: {op.what}")
     return f"took back {op.what}"
@@ -777,7 +721,7 @@ def _bring_back_asides(op: build.Operation, container: Path | None, root: Path) 
         if not dst.exists():  # in the bin no more, but it was a library version: a verified copy of it
             dst.parent.mkdir(parents=True, exist_ok=True)
             _copy_verified(version_path(root, a["mod"], a["version"]), dst, a["version"])
-            _chmod(dst, write=True)
+            chmod_tree(dst, write=True)
 
 
 # ----------------------------------------------------------------------------- listings (nothing is written)

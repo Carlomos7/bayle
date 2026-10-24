@@ -24,7 +24,7 @@ from bayle.merging import record as merge_record
 from bayle.merging.build import Build, BuildError
 from bayle.mods import rebuild as merge
 from bayle.mods.backends import BackendError
-from bayle.platform import cpu
+from bayle.platform import cpu, hashing
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -36,7 +36,7 @@ REGULATION = games.ELDEN_RING.regulation
 
 def _sha(p: Path) -> str:
 
-    return merge.sha256(p) or ""
+    return hashing.sha256(p) or ""
 
 
 def _me3_version(loc: Locations) -> str | None:

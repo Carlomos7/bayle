@@ -52,10 +52,11 @@ from bayle.game import catalog as games
 from bayle.game import config as game_config
 from bayle.game import knowledge
 from bayle.game import oodle as game_oodle
-from bayle.mods import checks, operations, rebuild
+from bayle.mods import checks, operations
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods.models import EngineError
 from bayle.overhauls import hks_check, hooks, lua_check
+from bayle.platform import hashing
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -633,7 +634,7 @@ def inputs_now(recipe: dict, game_dir: Path | None, loc: Locations, *, version: 
     from bayle.merging import record as merge_record
 
     files = (
-        merge_record.game_files(game_dir, loc.game.regulation, rebuild.sha256, version=version) if game_dir else None
+        merge_record.game_files(game_dir, loc.game.regulation, hashing.sha256, version=version) if game_dir else None
     )
     return merge_record.facts(loc.game.key, game_files=files, config_sha256=overhauls.recipe_sha256(recipe))
 

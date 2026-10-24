@@ -27,6 +27,7 @@ from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods import rebuild as merge
 from bayle.mods.backends import builtin, local_path
+from bayle.platform import hashing
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -80,7 +81,7 @@ def classify(profile: Path, scan: dict, *, loc: Locations) -> dict:
         want = sources.get(_key(copy))
         if want is None:
             return "stale"
-        return "combined" if merge.sha256(copy) == want else "stale"
+        return "combined" if hashing.sha256(copy) == want else "stale"
 
     out, counts = [], dict.fromkeys(OUTCOMES, 0)
     per: dict[str, dict] = {pid: {**dict.fromkeys(OUTCOMES, 0), "wins": 0} for pid in folders}

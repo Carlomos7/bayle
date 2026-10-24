@@ -1,23 +1,33 @@
 """The Mods page's presenter (technical specification §8.10, Mods): the header strip, the two groups and their rows
 with the closed tag vocabulary, the not-loaded and loads-nothing lines, the Parameters card, the InfoBars, and the
 words of every confirmation and refusal the page shows. Plain Python, every string through tr(); it turns the
-facts services/profile_mods.py reads (PageFacts, a Load order scan, the rebuild tool's state) into what the page
-shows. The adapter hands it to QML; the Widgets Mods page uses its confirmation words too."""
+facts the engine reads (services.mods_page.ModsPageState: PageFacts, a Load order scan, the rebuild tool's state)
+and the facts its checks and "needs confirmation" errors carry into what the page shows. The adapter hands it to
+QML."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
 
+from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.mods import shared_mods
+from bayle.mods import undo as mod_undo
 from bayle.platform.text import plural, tr
-from bayle.services import profile_mods
+from bayle.services import mods_page, profile_mods
+from bayle.services.mods_page import ModsPageState, ToolInfo, TrimPlan
 from bayle.services.profile_mods import PageFacts, Removal
+from bayle.services.shared_mods import LibraryMod
 from bayle.ui.pages.mods import load_order
 from bayle.views.common import Confirm, Pick, Refusal
 
 BUSY = profile_mods.DELETE_BUSY  # rename_block's code for "a job is running"
+REBUILD_CODES = {  # the engine's refusal codes for a rebuild -> profile_mods' REBUILD_* codes the words are kept by
+    "rebuild_game_running": profile_mods.REBUILD_GAME_RUNNING,
+    "rebuild_blocked": profile_mods.REBUILD_BLOCKED,
+    "nothing_to_rebuild": profile_mods.REBUILD_NOTHING,
+}
 MAX_TAGS = 2  # tags shown on a row; the rest are in its tooltip
 MAX_DEPS = 3  # dependencies named in the status line before "N others"
 
@@ -126,6 +136,61 @@ class OverhaulMenu:
     can_clean: bool
     take_over: str = ""
     can_take_over: bool = False
+
+
+@dataclass(frozen=True)
+class RebuildUndo:
+    id: str  # the job whose undo this is (Undo rebuild goes through the Activity interface)
+    label: str
+
+
+@dataclass(frozen=True)
+class OverhaulInfo:
+    label: str
+    short_label: str
+    legacy: bool  # its own installer set up
+    takeover: bool
+    removable: bool
+
+
+@dataclass(frozen=True)
+class ModsView:
+    """The Mods page for one profile as the adapter keeps it: what the page shows, the Load order panel (every clash;
+    the adapter cuts the list), the entries (for the options and rename dialogs) and what the header menu needs."""
+
+    profile: str  # the profile read ("" when none)
+    has_profile: bool
+    state: ModsState
+    load_order: load_order.LoadOrderPanel
+    entries: tuple[dict, ...]
+    configs: dict[int, tuple[str, ...]]
+    rebuild_undo: RebuildUndo | None
+    overhaul: OverhaulMenu
+    overhaul_info: OverhaulInfo | None
+    outside: bool  # not in Bayle's folder: it can be moved in
+    folders: dict[int, str]  # entry -> its folder's name (the Rename dialog starts from it)
+    rename_code: str = ""  # profile_mods.DELETE_* : why it can't be renamed, copied or moved whatever is running
+    tool_label: str = ""  # the rebuild tool waiting for the player's permission ("" when none)
+    folder_kind: str = ""  # "misnamed" or "crowded" when the profile's folder can be fixed
+
+
+@dataclass(frozen=True)
+class RemovalAsk:
+    """The facts a removal that needs a confirmation carries (ModsService.remove, reason "removal")."""
+
+    name: str
+    folder: str  # "" when the entry has no folder
+    merged: tuple[str, ...]
+    can_recycle: bool
+
+    @classmethod
+    def of(cls, details: dict) -> RemovalAsk:
+        return cls(
+            str(details.get("name") or ""),
+            str(details.get("folder") or ""),
+            tuple(details.get("merged") or ()),
+            bool(details.get("can_recycle")),
+        )
 
 
 # ----------------------------------------------------------------------------- the presenter
@@ -302,7 +367,7 @@ class ModsPresenter:
         closed: frozenset[tuple[str, str]] = frozenset(),
     ) -> ModsState:
         """The page for one profile's facts. scan: the Load order scan for this profile (None until it lands);
-        tool_to_allow: a rebuild tool to ask about (services.profile_mods.tool_to_offer); recovered: interrupted
+        tool_to_allow: the rebuild tool to ask about (ModsPageState.tool); recovered: interrupted
         changes put right as the page opened (one line each); closed: the (profile, notice key) pairs the player closed
         this session (the session keeps them);
         no_profiles: this game has no profile at all, so the page says how to start."""
@@ -358,6 +423,64 @@ class ModsPresenter:
                 facts.outside,
                 closed,
             ),
+        )
+
+    def view(self, page: ModsPageState) -> ModsView:
+        """The page the engine read, as the adapter keeps it."""
+        facts = page.facts
+        if facts is None:
+            return ModsView(
+                profile="",
+                has_profile=False,
+                state=self.page(None, game_running=page.running, no_profiles=page.no_profiles),
+                load_order=load_order.panel(None, True),
+                entries=(),
+                configs={},
+                rebuild_undo=None,
+                overhaul=self.overhaul_menu(False, None, False),
+                overhaul_info=None,
+                outside=False,
+                folders={},
+            )
+        state = self.page(
+            facts,
+            page.scan,
+            game_running=page.running,
+            tool_to_allow=page.tool,
+            seamless=page.seamless,
+            no_profiles=page.no_profiles,
+            closed=frozenset(page.closed),
+        )
+        rec = page.rebuild_undo
+        undo = RebuildUndo(str(rec.get("id") or ""), tr(mod_undo.label(rec.get("undo")))) if rec else None
+        scan = page.scan if load_order.same_profile(page.scan, facts.profile) else None
+        has = page.overhaul
+        info = (
+            OverhaulInfo(
+                label=str(has["label"]),
+                short_label=str(has.get("short_label") or has["label"]),
+                legacy=bool(has.get("legacy")),
+                takeover=bool(has.get("takeover")),
+                removable=bool(has.get("removable", True)),
+            )
+            if has
+            else None
+        )
+        return ModsView(
+            profile=str(facts.profile),
+            has_profile=not facts.error,
+            state=state,
+            load_order=load_order.panel(scan, True),
+            entries=facts.entries,
+            configs=facts.configs,
+            rebuild_undo=undo,
+            overhaul=self.overhaul_menu(page.overhaul_on, has, page.leftovers),
+            overhaul_info=info,
+            outside=facts.outside,
+            folders=page.folders or {},
+            rename_code=page.rename_code,
+            tool_label=page.tool.label if page.tool is not None else "",
+            folder_kind=facts.folder.kind,
         )
 
     # ---- header
@@ -674,7 +797,7 @@ class ModsPresenter:
                     "allow-tool",
                     "warning",
                     tr("Allow {tool} to run? {mod} uses it to rebuild merged mods.").format(
-                        tool=tool_to_allow.label, mod=tool_to_allow.package.get("name", "")
+                        tool=tool_to_allow.label, mod=tool_to_allow.package
                     ),
                     tr("Allow..."),
                     False,
@@ -740,27 +863,25 @@ class ModsPresenter:
             return f"{n / 1073741824:.1f} GB"
         return f"{n / 1048576:.1f} MB" if n >= 1048576 else f"{max(1, n // 1024)} KB"
 
-    def library(self, info) -> list[dict]:
-        """The Library dialog's rows (services.shared_mods.listing): each mod with its versions, "Installed <date>" and
-        the label when there is one, the size, and who uses it. The version's id is never shown."""
+    def library(self, mods: list[LibraryMod]) -> list[dict]:
+        """The Library dialog's rows (ModLibraryService.mods): each mod with its versions, "Installed <date>" and the
+        label when there is one, the size, and who uses it. The version's id is never shown."""
         out = []
-        for m in info:
+        for m in mods:
             versions = []
             for v in m.versions:
-                when = tr("Installed {date}").format(date=v.version.installed) if v.version.installed else ""
+                when = tr("Installed {date}").format(date=v.installed) if v.installed else ""
                 versions.append(
                     {
-                        "title": f"{when}  ·  {v.version.label}"
-                        if v.version.label and when
-                        else when or v.version.label,
-                        "size": self.size_text(v.version.size),
+                        "title": f"{when}  ·  {v.label}" if v.label and when else when or v.label,
+                        "size": self.size_text(v.size),
                         "usedBy": tr("Used by {names}").format(names=", ".join(v.used_by))
                         if v.used_by
                         else tr("Not used"),
                         "unused": v.unused,
                     }
                 )
-            out.append({"name": m.mod.name, "size": self.size_text(m.size), "versions": versions})
+            out.append({"name": m.name, "size": self.size_text(m.size), "versions": versions})
         return out
 
     @staticmethod
@@ -872,7 +993,7 @@ class ModsPresenter:
             safety=tr("Undo in Activity."),
         )
 
-    def removal(self, profile, plan: Removal) -> Confirm:
+    def removal(self, profile, plan: Removal | RemovalAsk) -> Confirm:
         prof = Path(profile)
         changes = [
             tr("{name} is taken out of the profile {profile}, with its own comments").format(
@@ -898,8 +1019,8 @@ class ModsPresenter:
                 "The game stops loading it at the next launch. A mod set to load after it is left waiting for it."
             ),
             safety=tr("Undo in Activity puts it back, including a folder moved to the Recycle Bin."),
-            option=tr("Also move the folder {folder} to the Recycle Bin").format(folder=plan.folder.name)
-            if plan.folder is not None and plan.can_recycle
+            option=tr("Also move the folder {folder} to the Recycle Bin").format(folder=Path(plan.folder).name)
+            if plan.folder and plan.can_recycle
             else "",
         )
 
@@ -920,32 +1041,28 @@ class ModsPresenter:
             safety=tr("A backup copy of the profile is kept."),
         )
 
-    def trim(self, extra: list[dict]) -> Confirm:
-        size = sum(b["size"] for b in extra)
-        keep = profile_mods.KEEP_TOOL_BACKUPS
+    def trim(self, plan: TrimPlan) -> Confirm:
         return Confirm(
             title=plural(
                 "Move {n} older rebuild backup to the Recycle Bin",
                 "Move {n} older rebuild backups to the Recycle Bin",
-                len(extra),
-            ).format(n=len(extra)),
-            changes=tuple(f"{b['folder'].name}  ·  {b['size'] / 1048576:,.0f} MB" for b in extra),
+                plan.count,
+            ).format(n=plan.count),
+            changes=(),
             apply=tr("Move to the Recycle Bin"),
             safety=tr(
                 "Frees {mb} MB once the Recycle Bin is emptied. The newest {keep} stay, so the latest rebuilds can "
                 "still be undone."
-            ).format(mb=f"{size / 1048576:,.0f}", keep=keep),
+            ).format(mb=f"{plan.size / 1048576:,.0f}", keep=plan.keep),
         )
 
-    def tool(self, tool) -> Confirm:
+    def tool(self, tool: ToolInfo) -> Confirm:
         """Before a mod's rebuild tool runs for the first time (and after it changes): what it runs (owner, D2)."""
         return Confirm(
             title=tr("Run {tool}?").format(tool=tool.label),
             changes=(),
             apply=tr("Allow and run"),
-            detail=tr("It comes with {mod} and runs:\n\n{what}").format(
-                mod=tool.package.get("name", ""), what=tool.describe()
-            ),
+            detail=tr("It comes with {mod} and runs:\n\n{what}").format(mod=tool.package, what=tool.what),
             warning=tr(
                 "It is a program from a mod: allow it only for mods you trust. You are asked again when the tool changes."
             ),
@@ -1059,6 +1176,42 @@ class ModsPresenter:
 
         return tr("{setting} changed: it applies at the next launch").format(setting=tr(SETTING_TEXT[key][0]))
 
+    def error(self, e: OperationError) -> str:
+        """An engine refusal in the page's words (the code says what; an unknown one keeps the engine's sentence)."""
+        code, details = e.code, e.details or {}
+        if code == "busy":
+            if details.get("reason") == "game_running":
+                return tr("Close the game first. It has these files open.")
+            return tr("Wait for the current job to finish.")
+        if code == "not_found":
+            return tr("That profile is not there.") if "profile" in details else tr("The profile changed; look again.")
+        if code == "stale":
+            return tr("The profile changed; look again.")
+        if code == "no_game":
+            return tr("No game is selected.")
+        if code == "profile_blocked":
+            reason = details.get("reason")
+            if reason == mods_page.GAME_RUNNING:
+                return tr("Close the game first. It has these files open.")
+            return self.rename_block(reason, "", False)
+        if code in REBUILD_CODES:
+            return self.rebuild_refusal(REBUILD_CODES[code], str(details.get("detail") or ""))
+        if code == "tool_cannot_run":
+            return tr("{tool} cannot run: {why}").format(tool=details.get("tool", ""), why=details.get("why", ""))
+        if code == "invalid_wait":
+            return tr("The wait is a number of milliseconds.")
+        if code == "not_shared":
+            return tr("This mod is not shared.")
+        if code == "no_other_profiles":
+            return tr("There are no other profiles.")
+        if code == "nothing_chosen":
+            return tr("Nothing was chosen.")
+        if code == "nothing_unused":
+            return tr("Every shared version is in use.")
+        if code == "invalid_name":
+            return tr("Type a new name.") if details.get("code") == "empty" else str(details.get("reason") or e.message)
+        return e.message
+
     def move_refused(self, problem: str) -> Refusal:
         return Refusal(tr("Load order not changed"), problem)
 
@@ -1127,7 +1280,7 @@ class ModsPresenter:
         option, unticked (owner, 3.22-A)."""
         if not preview.ok:
             return self.overhaul_remove_failed(label, " ".join(preview.refusals))
-        asked = ", ".join(str(e.entry) for e in preview.asked)
+        asked = ", ".join(preview.asked)
         return Confirm(
             title=tr("Remove {label} from {profile}").format(label=label, profile=Path(profile).name),
             changes=tuple(preview.lines),
@@ -1166,7 +1319,7 @@ class ModsPresenter:
     def leftover_backups(self, leftover) -> Confirm:
         """Asked one at a time, last: the only copy of the profile from before the overhaul."""
         return Confirm(
-            title=tr("Also remove {name}?").format(name=leftover.path.name),
+            title=tr("Also remove {name}?").format(name=Path(leftover.path).name),
             changes=(tr("{what} goes to the Recycle Bin").format(what=leftover.label),),
             apply=tr("Move to the Recycle Bin"),
             warning=tr(
@@ -1177,36 +1330,3 @@ class ModsPresenter:
 
     def leftovers_moving(self) -> str:
         return tr("Moving leftovers to the Recycle Bin...")
-
-    # ---- Take over: an overhaul its own installer set up becomes the launcher's to manage
-    @staticmethod
-    def takeover_pick(label: str) -> Pick:
-        return Pick(
-            title=tr("Take over {label}: what to put back?").format(label=label),
-            body=tr(
-                "Its installer changed these in your profile (compared with its oldest backup of it), and kept backups of "
-                "your profile. Tick what to put back or move to the Recycle Bin; the rest stays as it is now."
-            ),
-            apply=tr("Continue"),
-            none=tr("Leave them"),
-        )
-
-    @staticmethod
-    def takeover_failed(label: str, why: str) -> Refusal:
-        return Refusal(tr("Can't take over {label}").format(label=label), why)
-
-    def takeover_confirm(self, profile, label: str, preview) -> Confirm | Refusal:
-        if not preview.ok:
-            return self.takeover_failed(label, " ".join(preview.refusals))
-        asked = ", ".join(str(e.entry) for e in preview.asked)
-        return Confirm(
-            title=tr("Take over {label} in {profile}").format(label=label, profile=Path(profile).name),
-            changes=tuple(preview.lines),
-            apply=tr("Take over"),
-            safety=tr(
-                "Your other mods' files are not touched. Undo in Activity puts it all back. Folders go to the Recycle Bin."
-            ),
-            option=tr("Also switch {names} back off, as it was before the install").format(names=asked)
-            if asked
-            else "",
-        )

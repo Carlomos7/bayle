@@ -10,9 +10,10 @@ import time
 from pathlib import Path
 
 import pytest
-from bayle.resources import DATA_DIR
 
-SCRIPTS = DATA_DIR  # where the package keeps the watchdog scripts
+from bayle_qt.resources import UPDATER_DATA
+
+SCRIPTS = UPDATER_DATA  # where the desktop package keeps the watchdog scripts
 windows_only = pytest.mark.skipif(sys.platform != "win32", reason="PowerShell watchdog")
 linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="sh watchdog")
 

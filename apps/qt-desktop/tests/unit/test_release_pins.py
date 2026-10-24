@@ -5,7 +5,7 @@ import re
 
 from support import repo_root
 
-ROOT = repo_root()
+ROOT = repo_root()  # apps/qt-desktop; the workflows are at the repository root, two levels up
 
 
 def _one(pattern: str, text: str, where: str) -> str:
@@ -18,7 +18,7 @@ def test_the_three_velopack_pins_agree():
     package = _one(r'^\s*"velopack==([0-9.]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), "pyproject")
     workflow = _one(
         r'^\s*VPK_VERSION:\s*"([0-9.]+)"',
-        (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"),
+        (ROOT.parent.parent / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"),
         "release.yml",
     )
     build = _one(r'^VPK_VERSION = "([0-9.]+)"', (ROOT / "scripts" / "build.py").read_text(encoding="utf-8"), "build.py")

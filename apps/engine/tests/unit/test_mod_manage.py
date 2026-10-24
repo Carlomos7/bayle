@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.mods import checks, extract, install, remove
+from bayle.mods import checks, extract, install, me3_text, remove
 from bayle.mods import models as mod_models
 from bayle.services import play as g
 from support import er
@@ -316,7 +316,7 @@ def test_uninstall_rules(tmp_path):
     (tmp_path / "natives" / "SeamlessCoop" / "second.dll").write_bytes(b"s")
     text = _read(p)
     p.write_text(
-        M.append_entry(text, "native", {"path": "natives/SeamlessCoop/second.dll"}), encoding="utf-8", newline=""
+        me3_text.append_entry(text, "native", {"path": "natives/SeamlessCoop/second.dll"}), encoding="utf-8", newline=""
     )
     out = remove.uninstall(p, 1, delete_folder=True, loc=er())  # ersc.dll: folder still used by second.dll
     assert out["removed_folder"] is False and (tmp_path / "natives" / "SeamlessCoop").is_dir()
@@ -339,7 +339,8 @@ def test_uninstall_rules(tmp_path):
     outside.mkdir()
     (outside / "parts").mkdir()
     p2.write_text(
-        M.append_entry('profileVersion = "v1"\n', "package", {"id": "ext", "path": str(outside)}), encoding="utf-8"
+        me3_text.append_entry('profileVersion = "v1"\n', "package", {"id": "ext", "path": str(outside)}),
+        encoding="utf-8",
     )
     out = remove.uninstall(p2, 0, delete_folder=True, loc=er())
     assert out["removed_folder"] is False and outside.is_dir()
@@ -662,10 +663,10 @@ def test_regulation_order_follows_load_order_and_skips_disabled(tmp_path):
 def test_insert_entry_goes_above_the_note_but_not_above_commented_out_entries():
     text = EXAMPLE_LAST
     blk = next(b for b in M.blocks(text) if "example-overhaul" in text.splitlines()[b["start"] + 1])
-    out = M.insert_entry(text, "package", {"id": "new", "path": "mod/new"}, blk["index"])
+    out = me3_text.insert_entry(text, "package", {"id": "new", "path": "mod/new"}, blk["index"])
     assert out.index('id = "new"') < out.index("# Example: must stay last") and tomllib.loads(out)
     commented = text.replace("# (its regulation.bin)", '# [[packages]]\n# id = "old"')
-    out = M.insert_entry(commented, "package", {"id": "new", "path": "mod/new"}, blk["index"])
+    out = me3_text.insert_entry(commented, "package", {"id": "new", "path": "mod/new"}, blk["index"])
     assert out.index('# id = "old"') < out.index('id = "new"') < out.index('id = "example-overhaul"')
 
 

@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from bayle.mods import history, remove
+from bayle.mods import history, me3_text, remove
 from bayle.mods import profile_edit as M
 from bayle.services import mods as service
 from support import er
@@ -30,7 +30,7 @@ path = 'mod/hud-overlay'
 
 # ----------------------------------------------------------------------------- an entry's own span
 def test_removing_an_entry_keeps_the_next_entrys_comments_and_takes_its_own():
-    new, chunk, _where = M.remove_entry(SF_VOICE, 0)
+    new, chunk, _where = me3_text.remove_entry(SF_VOICE, 0)
     assert "4. INTERFACE" in new and "# HUD overlay" in new  # the next entry's notes stay
     assert "voice pack" not in new and chunk.startswith("# voice pack")  # its own go with it
     assert [M.block_options(new, b["index"])["id"] for b in M.blocks(new)] == ["hud-overlay"]
@@ -40,13 +40,13 @@ def test_a_note_that_mentions_a_setting_is_still_a_note():
     text = (
         "# Widens the camera view. max_distance = 0 in camera.ini.\n[[natives]]\npath = 'natives/Camera/camera.dll'\n"
     )
-    _new, chunk, _ = M.remove_entry(text, 0)
+    _new, chunk, _ = me3_text.remove_entry(text, 0)
     assert chunk.startswith("# Widens the camera view")
 
 
 def test_commented_out_entries_above_are_not_taken():
     text = '# [[packages]]\n# id = "old"\n# Notes for the live one\n[[packages]]\nid = "live"\npath = \'mod/live\'\n'
-    new, chunk, _ = M.remove_entry(text, 0)
+    new, chunk, _ = me3_text.remove_entry(text, 0)
     assert new.startswith('# [[packages]]\n# id = "old"\n') and chunk.startswith("# Notes for the live one")
 
 
@@ -54,44 +54,44 @@ def test_comments_inside_an_entry_go_with_it_and_trailing_ones_stay():
     text = (
         "[[packages]]\nid = \"a\"\n# keep this\npath = 'mod/a'\n# about b\n[[packages]]\nid = \"b\"\npath = 'mod/b'\n"
     )
-    new, chunk, _ = M.remove_entry(text, 0)
+    new, chunk, _ = me3_text.remove_entry(text, 0)
     assert "# keep this" in chunk and "# about b" in new and "# about b" not in chunk
 
 
 @pytest.mark.parametrize("index", [0, 1, 2])
 def test_first_middle_and_last_round_trip_exactly(index):
     text = SF_VOICE + "\n[[natives]]\npath = 'natives/x.dll'\n"
-    new, chunk, where = M.remove_entry(text, index)
-    assert M.restore_entry(new, chunk, where) == text
+    new, chunk, where = me3_text.remove_entry(text, index)
+    assert me3_text.restore_entry(new, chunk, where) == text
 
 
 def test_windows_line_endings_round_trip():
     text = SF_VOICE.replace("\n", "\r\n")
-    new, chunk, where = M.remove_entry(text, 0)
+    new, chunk, where = me3_text.remove_entry(text, 0)
     assert "\r\n" in new and "\n" not in new.replace("\r\n", "")
-    assert M.restore_entry(new, chunk, where) == text
+    assert me3_text.restore_entry(new, chunk, where) == text
 
 
 def test_restore_finds_its_place_when_lines_around_repeat_and_neighbours_changed():
     text = "".join(f"[[packages]]\nid = \"{n}\"\npath = 'mod/{n}'\nenabled = false\n\n" for n in ("a", "b", "c", "d"))
-    new, chunk, where = M.remove_entry(text, 2)  # c, between b and d, among identical-looking lines
-    new = M.set_block_options(new, 0, {"enabled": True})  # an unrelated change meanwhile
-    back = M.restore_entry(new, chunk, where)
+    new, chunk, where = me3_text.remove_entry(text, 2)  # c, between b and d, among identical-looking lines
+    new = me3_text.set_block_options(new, 0, {"enabled": True})  # an unrelated change meanwhile
+    back = me3_text.restore_entry(new, chunk, where)
     assert [M.block_options(back, b["index"])["id"] for b in M.blocks(back)] == ["a", "b", "c", "d"]
 
 
 def test_restore_falls_back_to_the_next_entry_then_the_end():
     text = SF_VOICE
-    new, chunk, where = M.remove_entry(text, 0)
+    new, chunk, where = me3_text.remove_entry(text, 0)
     rewritten = new.replace("# =====\n#  4. INTERFACE\n# =====\n\n", "")  # its surroundings edited away
-    back = M.restore_entry(rewritten, chunk, where)
+    back = me3_text.restore_entry(rewritten, chunk, where)
     ids = [M.block_options(back, b["index"])["id"] for b in M.blocks(back)]
     assert ids == ["voice-pack", "hud-overlay"]
-    gone = M.remove_block(new, 0)  # the next entry was removed too: the lines around still place it
-    back = M.restore_entry(gone, chunk, where)
+    gone = me3_text.remove_block(new, 0)  # the next entry was removed too: the lines around still place it
+    back = me3_text.restore_entry(gone, chunk, where)
     assert back.index("voice-pack") < back.index("4. INTERFACE")
     elsewhere = "profileVersion = \"v2\"\n\n[[natives]]\npath = 'natives/x.dll'\n"  # nothing around it is left
-    back = M.restore_entry(elsewhere, chunk, where)
+    back = me3_text.restore_entry(elsewhere, chunk, where)
     assert back.index("x.dll") < back.index("voice-pack") and back.endswith("path = 'mod/voice-pack'\n")
 
 
@@ -101,7 +101,7 @@ def test_uninstall_returns_what_restore_needs(tmp_path):
     p.write_text(SF_VOICE, encoding="utf-8")
     out = remove.uninstall(p, 0, delete_folder=False, loc=er())
     assert out["name"] == "voice-pack" and out["entry_text"].startswith("# voice pack")
-    assert M.restore_entry(p.read_text(encoding="utf-8"), out["entry_text"], out["where"]) == SF_VOICE
+    assert me3_text.restore_entry(p.read_text(encoding="utf-8"), out["entry_text"], out["where"]) == SF_VOICE
 
 
 # ----------------------------------------------------------------------------- history

@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from bayle.game import catalog as games
-from bayle.mods import backends, checks, history, kinds, library, overhaul_manifest, tools
+from bayle.mods import backends, checks, history, kinds, library, me3_text, overhaul_manifest, tools
 from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods import profile_settings as ps
@@ -831,7 +831,7 @@ def keep_profile_text(profile: Path, original: str, backend) -> str:
         o = mod_manage.block_options(text, b["index"])
         where = str(checks._canon(mod_manage.resolve(profile, o["path"]))) if o["path"] else ""
         if where in lists:
-            text = mod_manage.set_block_options(text, b["index"], lists[where])
+            text = me3_text.set_block_options(text, b["index"], lists[where])
     writer.replace_text(text)
     writer.write("before putting the profile's text back after the rebuild tool")
     return "your profile's text and comments were kept; only the rebuild tool's own load order lists were updated"

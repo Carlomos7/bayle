@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from bayle.mods import checks, profile_settings
+from bayle.mods import checks, me3_text, profile_settings
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods.models import Dependent, dependents
 from bayle.mods.profile_settings import Unreadable  # noqa: F401  (keep_after raises it)
@@ -453,7 +453,7 @@ def reconcile(
         ]
         want = _wanted(owner, others, skip, renamed)
         if not _same_list(want, owner.get("load_after") or []):
-            out = mod_manage.set_block_options(out, owner["index"], {"load_after": want})
+            out = me3_text.set_block_options(out, owner["index"], {"load_after": want})
     if out == base:
         return text, None
     new_loops = _loops(profile, out) - _loops(profile, base)
@@ -618,7 +618,7 @@ def _move_block(text: str, index: int, wanted: list[int], to: int) -> str:
     """The text with block `index` taken out (with its comments) and put back before its new next neighbour, or after
     its new previous one when it goes last."""
     nl = "\r\n" if "\r\n" in text else "\n"
-    rest, chunk, _where = mod_manage.remove_entry(text, index)
+    rest, chunk, _where = me3_text.remove_entry(text, index)
     if not chunk.endswith(("\n", "\r\n")):
         chunk += nl
 
@@ -627,10 +627,10 @@ def _move_block(text: str, index: int, wanted: list[int], to: int) -> str:
 
     lines = rest.splitlines(keepends=True)
     if to + 1 < len(wanted):
-        start, _end = mod_manage.entry_span(rest, shifted(wanted[to + 1]))
+        start, _end = me3_text.entry_span(rest, shifted(wanted[to + 1]))
         lines[start:start] = [chunk, nl]
     else:
-        _start, end = mod_manage.entry_span(rest, shifted(wanted[to - 1]))
+        _start, end = me3_text.entry_span(rest, shifted(wanted[to - 1]))
         if end and not lines[end - 1].endswith(("\n", "\r\n")):
             lines[end - 1] += nl
         lines[end:end] = [nl, chunk]

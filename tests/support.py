@@ -199,3 +199,41 @@ def refused(session, name, params):
     with pytest.raises(OperationError) as e:
         session.run(name, params)
     return e.value
+
+
+class Direct:
+    """A feature router's routes called without HTTP, on a real service: `run("saves.back_up", {...})` validates the
+    params as the route's body would and returns the route's result (a failed validation is the invalid_params
+    OperationError), `snapshot("saves", **scope)` is its GET. For tests of the engine behaviour behind the routes."""
+
+    def __init__(self, router_module, feature: str, service, jobs: JobManager):
+        self.feature, self.service, self.jobs = feature, service, jobs
+        self._routes = {r.name: r.endpoint for r in router_module.router.routes}
+
+    def _call(self, name: str, raw):
+        import typing
+
+        from pydantic import ValidationError
+
+        from bayle.errors import OperationError
+
+        fn = self._routes[name]
+        hints = typing.get_type_hints(fn)
+        hints.pop("return", None)
+        rest = [t for k, t in hints.items() if k != next(iter(hints))]
+        if not rest:
+            return fn(self.service)
+        try:
+            return fn(self.service, rest[0].model_validate(raw))
+        except ValidationError as e:
+            errors = [{"loc": [str(p) for p in x["loc"]], "msg": x["msg"], "type": x["type"]} for x in e.errors()]
+            raise OperationError(
+                "invalid_params", f"The request for {name} is not valid.", {"errors": errors}
+            ) from None
+
+    def run(self, name: str, params=None):
+        raw = params.model_dump() if hasattr(params, "model_dump") else (params or {})
+        return self._call(name.replace(".", "_", 1), raw)
+
+    def snapshot(self, name: str, **scope):
+        return self._call(name, scope)

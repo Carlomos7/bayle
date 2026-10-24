@@ -1,227 +1,117 @@
-"""The Mods page's operations on overhauls the launcher installs (a preview feature): install from an unpacked
-download, remove (and what its installer changed to put back), take over a setup its own installer made, and clean up
-what the installers left. A tick list travels as a Pick whose rows are in the prompt; the answer is the ticked
-indexes, and the server derives the same list again from the profile (so the indexes mean the same rows).
-See ops/mods.py for the conventions."""
+"""The Mods page's operations on overhauls the launcher installs (a preview feature) for the HTTP layer, each handed
+straight to the session's ModInstallService (services.mod_install): install from an unpacked download, remove (and
+what its installer changed to put back), take over a setup its own installer made, and clean up what the installers
+left. A change is a check (what it would do, with a stamp) and a start (with the stamp the client confirmed; a job
+whose id is returned). The tick lists are rows of the choices call; a check or start names the ticked rows, and the
+server derives the same rows again from the profile. No wording here; the client words what it gets. Temporary: the
+Qt page calls the service itself."""
 
 from __future__ import annotations
 
-import dataclasses
-from pathlib import Path
-from typing import Any
-
-from bayle.errors import OperationError
-from bayle.platform.text import tr
-from bayle.services import mods as mod_service
+from bayle.services.mod_install import LeftoverFolder
 from bayle.session.operations import Call, Result, operation
-from bayle.session.ops.mods import Done, ProfileRef, run_logged_job, stamp, start_logged
-from bayle.views.common import Pick, Refusal, prompt_dict
-from bayle.views.mods import ModsPresenter
-from bayle.work.prompts import Answer, Proposal
+from bayle.session.ops.mods_install import ProfileParams, Started, svc
 
 
-class PickOffer(Result):
-    """A tick list to show: its words and rows (kind "pick"), or None when there is nothing to choose."""
-
-    label: str = ""
-    prompt: dict[str, Any] | None = None
-
-
-def _pick(words: Pick, rows: list[str], ticked: tuple[int, ...] = ()) -> dict[str, Any]:
-    return prompt_dict(dataclasses.replace(words, rows=tuple(rows), ticked=ticked))
-
-
-def _overhaul(call: Call, profile: str) -> dict:
-    has = mod_service.profile_overhaul(profile, loc=call.session.locations())
-    if has is None:
-        raise OperationError("no_overhaul", tr("This profile has no overhaul the launcher knows."))
-    return has
+class OverhaulPlan(Result):
+    label: str
+    lines: list[str]
+    notes: list[str]
+    refusals: list[str]  # why it cannot go ahead (a start would be refused)
+    asked: list[str]  # the shared dependencies the revert option switches back off
+    update: bool
+    stamp: tuple[int, int] | None
 
 
-# ----------------------------------------------------------------------------- install
-class InstallFolder(ProfileRef):
+class InstallFolder(ProfileParams):
     folder: str  # the folder the download was unpacked into
 
 
-@operation("mods.overhaul_install", params=InstallFolder, result=Done, kind="plan", writes=True)
-def overhaul_install(call: Call, p: InstallFolder) -> Proposal | Refusal:
-    """Preview installing an overhaul from the folder it was unpacked into; answering starts the install."""
-    session, pres, loc = call.session, ModsPresenter(), call.session.locations()
-    try:
-        preview = mod_service.preview_overhaul_install(p.profile, p.folder, loc=loc)
-    except Exception as e:  # not a download the launcher installs: said, nothing written
-        return pres.overhaul_unreadable(p.folder, str(e))
-    words = pres.overhaul_install(p.profile, preview)
-    if isinstance(words, Refusal):
-        return words
-
-    def work(jloc: Any) -> dict:
-        mod_service.install_overhaul(preview, loc=jloc)
-        return Done(note=f"installed {preview.label}").model_dump()
-
-    def run(_answer: Answer) -> str:
-        verb = "update" if preview.update else "install"
-        return start_logged(
-            session, pres.overhaul_installing(preview), f"launcher: {verb} overhaul {preview.label}", work
-        )
-
-    return Proposal(words, run, stale=lambda: stamp(p.profile))
+class InstallStart(InstallFolder):
+    expect: tuple[int, int] | None  # the stamp the check gave
 
 
-# ----------------------------------------------------------------------------- remove
-@operation("mods.overhaul_remove_choices", params=ProfileRef, result=PickOffer)
-def overhaul_remove_choices(call: Call, p: ProfileRef) -> PickOffer:
-    """For an overhaul its own installer set up: the changes it made that can be put back, offered unticked."""
-    has = _overhaul(call, p.profile)
-    label = has["label"]
-    choices = mod_service.legacy_overhaul_choices(p.profile, loc=call.session.locations()) if has["legacy"] else []
-    prompt = _pick(ModsPresenter().overhaul_put_back(label), [text for text, _ in choices]) if choices else None
-    return PickOffer(label=label, prompt=prompt)
+@operation("mods.check_overhaul_install", params=InstallFolder, result=OverhaulPlan)
+def check_overhaul_install(call: Call, p: InstallFolder) -> OverhaulPlan:
+    """What installing an overhaul from the folder would do. Errors: not_found, unreadable."""
+    return OverhaulPlan(**vars(svc(call.session).check_overhaul_install(p.profile, p.folder)))
 
 
-class RemoveChosen(ProfileRef):
-    chosen: list[int] = []  # the ticked rows of overhaul_remove_choices
+@operation("mods.overhaul_install", params=InstallStart, result=Started, kind="command", writes=True)
+def overhaul_install(call: Call, p: InstallStart) -> Started:
+    """A job with one Undo in Activity. Errors: not_found, unreadable, stale, cannot_install (details: refusals), busy."""
+    return Started(job_id=svc(call.session).install_overhaul(p.profile, p.folder, p.expect))
 
 
-@operation("mods.overhaul_remove", params=RemoveChosen, result=Done, kind="plan", writes=True)
-def overhaul_remove(call: Call, p: RemoveChosen) -> Proposal | Refusal:
-    """Preview removing the profile's overhaul; the confirm's check box switches a shared dependency back off."""
-    session, pres, loc = call.session, ModsPresenter(), call.session.locations()
-    has = _overhaul(call, p.profile)
-    label = has["label"]
-    choices = mod_service.legacy_overhaul_choices(p.profile, loc=loc) if has["legacy"] else []
-    picked = [choices[i][1] for i in p.chosen if 0 <= i < len(choices)]
-    try:
-        preview = mod_service.preview_overhaul_removal(p.profile, loc=loc, legacy_choices=picked)
-    except Exception as e:
-        return pres.overhaul_remove_failed(label, str(e))
-    words = pres.overhaul_remove(p.profile, label, preview)
-    if isinstance(words, Refusal):
-        return words
-
-    def run(answer: Answer) -> str:
-        final = preview
-        if answer.option:  # switch the shared dependency back off: previewed again with it
-            final = mod_service.preview_overhaul_removal(p.profile, loc=loc, revert_asked=True, legacy_choices=picked)
-            if not final.ok:
-                raise OperationError(
-                    "overhaul_not_removed", pres.overhaul_remove_failed(label, " ".join(final.refusals)).body
-                )
-
-        def work(_jloc: Any) -> dict:
-            mod_service.remove_overhaul(final)
-            return Done(note=f"removed {label}").model_dump()
-
-        return start_logged(session, pres.overhaul_removing(label), f"launcher: remove overhaul {label}", work)
-
-    return Proposal(words, run, stale=lambda: stamp(p.profile))
+class OverhaulChoices(Result):
+    label: str
+    rows: list[str]  # the changes that can be chosen (none: nothing to offer)
+    ticked: list[int] = []  # the rows to offer ticked
 
 
-# ----------------------------------------------------------------------------- take over
-@operation("mods.takeover_choices", params=ProfileRef, result=PickOffer)
-def takeover_choices(call: Call, p: ProfileRef) -> PickOffer:
-    """For Take over: what the player may also choose (a change to put back, or the installer's backups), the entries
-    the installer copied already ticked."""
-    has = _overhaul(call, p.profile)
-    if not has.get("takeover"):
-        raise OperationError("no_takeover", tr("The launcher made this setup, so there is nothing to take over."))
-    label = has["label"]
-    choices = mod_service.take_over_choices(p.profile, loc=call.session.locations())
-    if not choices:
-        return PickOffer(label=label)
-    ticked = tuple(i for i, c in enumerate(choices) if getattr(c, "copied", False))
-    rows = [mod_service.choice_text(c) for c in choices]
-    return PickOffer(label=label, prompt=_pick(ModsPresenter.takeover_pick(label), rows, ticked))
+@operation("mods.overhaul_remove_choices", params=ProfileParams, result=OverhaulChoices)
+def overhaul_remove_choices(call: Call, p: ProfileParams) -> OverhaulChoices:
+    """For an overhaul its own installer set up: the changes it made that can be put back. Errors: not_found,
+    no_overhaul."""
+    return OverhaulChoices(**vars(svc(call.session).remove_choices(p.profile)))
 
 
-@operation("mods.takeover", params=RemoveChosen, result=Done, kind="plan", writes=True)
-def takeover(call: Call, p: RemoveChosen) -> Proposal | Refusal:
-    """Preview taking over a setup its own installer made (one logged job with Undo)."""
-    session, pres, loc = call.session, ModsPresenter(), call.session.locations()
-    has = _overhaul(call, p.profile)
-    label = has["label"]
-    choices = mod_service.take_over_choices(p.profile, loc=loc)
-    picked = [choices[i] for i in p.chosen if 0 <= i < len(choices)]
-    try:
-        preview = mod_service.preview_take_over(p.profile, loc=loc, chosen=picked)
-    except Exception as e:
-        return pres.takeover_failed(label, str(e))
-    words = pres.takeover_confirm(p.profile, label, preview)
-    if isinstance(words, Refusal):
-        return words
-
-    def run(answer: Answer) -> str:
-        final = preview
-        if answer.option:
-            final = mod_service.preview_take_over(p.profile, loc=loc, chosen=picked, revert_asked=True)
-            if not final.ok:
-                raise OperationError("takeover_refused", pres.takeover_failed(label, " ".join(final.refusals)).body)
-
-        def work(_jloc: Any) -> dict:
-            mod_service.remove_overhaul(final)
-            return Done(note=f"took over {label}").model_dump()
-
-        return start_logged(
-            session, tr("Taking over {label}...").format(label=label), f"launcher: take over overhaul {label}", work
-        )
-
-    return Proposal(words, run, stale=lambda: stamp(p.profile))
+class RemoveChosen(ProfileParams):
+    chosen: list[int] = []  # the ticked rows of the choices call
 
 
-# ----------------------------------------------------------------------------- installer leftovers
+class RemoveStart(RemoveChosen):
+    revert: bool = False  # also switch the plan's asked dependencies back off
+    expect: tuple[int, int] | None
+
+
+@operation("mods.check_overhaul_remove", params=RemoveChosen, result=OverhaulPlan)
+def check_overhaul_remove(call: Call, p: RemoveChosen) -> OverhaulPlan:
+    """What removing the profile's overhaul would do. Errors: not_found, no_overhaul, cannot_remove."""
+    return OverhaulPlan(**vars(svc(call.session).check_overhaul_remove(p.profile, p.chosen)))
+
+
+@operation("mods.overhaul_remove", params=RemoveStart, result=Started, kind="command", writes=True)
+def overhaul_remove(call: Call, p: RemoveStart) -> Started:
+    """A job with one Undo in Activity. Errors: not_found, no_overhaul, stale, cannot_remove (details: refusals), busy."""
+    return Started(job_id=svc(call.session).remove_overhaul(p.profile, p.chosen, p.revert, p.expect))
+
+
+@operation("mods.takeover_choices", params=ProfileParams, result=OverhaulChoices)
+def takeover_choices(call: Call, p: ProfileParams) -> OverhaulChoices:
+    """For Take over: what the player may also choose, the entries the installer copied ticked. Errors: not_found,
+    no_overhaul, no_takeover."""
+    return OverhaulChoices(**vars(svc(call.session).take_over_choices(p.profile)))
+
+
+@operation("mods.check_takeover", params=RemoveChosen, result=OverhaulPlan)
+def check_takeover(call: Call, p: RemoveChosen) -> OverhaulPlan:
+    """What taking over a setup its own installer made would do. Errors: not_found, no_overhaul, cannot_take_over."""
+    return OverhaulPlan(**vars(svc(call.session).check_take_over(p.profile, p.chosen)))
+
+
+@operation("mods.takeover", params=RemoveStart, result=Started, kind="command", writes=True)
+def takeover(call: Call, p: RemoveStart) -> Started:
+    """A job with one Undo in Activity. Errors: not_found, no_overhaul, stale, cannot_take_over (details: refusals), busy."""
+    return Started(job_id=svc(call.session).take_over(p.profile, p.chosen, p.revert, p.expect))
+
+
 class Leftovers(Result):
-    folders: dict[str, Any] | None  # a Pick: folders no profile uses any more (None when there are none)
-    backups: list[dict[str, Any]]  # a Confirm each, asked one at a time and last: the installers' profile backups
+    folders: list[LeftoverFolder]
+    backups: list[LeftoverFolder]  # asked one at a time and last: the installers' profile backups
 
 
-def _leftovers(call: Call, profile: str) -> tuple[list, list]:
-    left = mod_service.overhaul_leftovers(profile, loc=call.session.locations())
-    return [x for x in left if not x.backups], [x for x in left if x.backups]
-
-
-@operation("mods.leftovers", params=ProfileRef, result=Leftovers)
-def leftovers(call: Call, p: ProfileRef) -> Leftovers:
+@operation("mods.leftovers", params=ProfileParams, result=Leftovers)
+def leftovers(call: Call, p: ProfileParams) -> Leftovers:
     """What overhauls' own installers left beside the profile that no profile uses any more."""
-    pres = ModsPresenter()
-    folders, backups = _leftovers(call, p.profile)
-    return Leftovers(
-        folders=_pick(pres.leftovers(bool(backups)), [x.label for x in folders]) if folders else None,
-        backups=[prompt_dict(pres.leftover_backups(x)) for x in backups],
-    )
+    return Leftovers(**vars(svc(call.session).leftovers(p.profile)))
 
 
-class CleanParams(ProfileRef):
-    folders: list[int] = []  # the ticked rows of Leftovers.folders
-    backups: list[int] = []  # the backups confirmed, by their order in Leftovers.backups
+class CleanParams(ProfileParams):
+    paths: list[str]  # leftovers' own folders or backups
 
 
-def _check_clean(call: Call, p: CleanParams) -> None:
-    if not (p.folders or p.backups):
-        raise OperationError("nothing_chosen", tr("Nothing was chosen."))
-
-
-@operation(
-    "mods.leftovers_clean",
-    params=CleanParams,
-    result=Done,
-    kind="job",
-    writes=True,
-    title=lambda _p: ModsPresenter().leftovers_moving(),
-    check=_check_clean,
-)
-def leftovers_clean(call: Call, p: CleanParams) -> Done:
-    """Send the chosen leftovers to the Recycle Bin (one logged job)."""
-    folders, backups = _leftovers(call, p.profile)
-    paths = [Path(folders[i].path) for i in p.folders if 0 <= i < len(folders)]
-    paths += [Path(backups[i].path) for i in p.backups if 0 <= i < len(backups)]
-
-    def work(_loc: Any) -> None:
-        mod_service.remove_overhaul_leftovers(paths)
-
-    run_logged_job(
-        call.session.locations(),
-        ModsPresenter().leftovers_moving(),
-        "launcher: clean up overhaul installer leftovers",
-        work,
-    )
-    return Done(note=f"{len(paths)} moved to the Recycle Bin")
+@operation("mods.leftovers_clean", params=CleanParams, result=Started, kind="command", writes=True)
+def leftovers_clean(call: Call, p: CleanParams) -> Started:
+    """A job: the chosen leftovers go to the Recycle Bin. Errors: not_found, nothing_chosen, busy."""
+    return Started(job_id=svc(call.session).clean_leftovers(p.profile, p.paths))

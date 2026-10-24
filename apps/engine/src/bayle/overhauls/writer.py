@@ -16,7 +16,8 @@ import shutil
 import tomllib
 from pathlib import Path
 
-from bayle.overhauls.config import SHIPPED_DIR, OverhaulConfig, local_dir, read
+from bayle.overhauls.config import OverhaulConfig
+from bayle.overhauls.recipes import SHIPPED_DIR, local_dir, read
 
 HEADER = (
     "# Made with Bayle's Overhaul setup: your config, not verified.\n"

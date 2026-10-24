@@ -20,6 +20,7 @@ from bayle.mods import backends, engine
 from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
 from bayle.mods.backends import launcher_build
+from bayle.overhauls import recipes
 from bayle.platform import paths as common
 from support import er
 
@@ -446,7 +447,7 @@ patch = "payload/toy.bin"
 def test_a_second_recipe_needs_no_code(world, tmp_path):
     """Nothing about Example is in the engine: a made-up mod with other names builds from its config alone, a file in
     the local overhauls folder."""
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     local.mkdir(parents=True)
     (local / "toy.toml").write_text(TOY_CONFIG, encoding="utf-8")
@@ -568,7 +569,7 @@ markers = ["SecondOriginalUpdate"]
 
 
 def hooks_setup(world, tmp_path):
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     local.mkdir(parents=True, exist_ok=True)
     (local / "hooks.toml").write_text(HOOKS_CONFIG, encoding="utf-8")
@@ -605,7 +606,7 @@ def test_a_hook_already_in_a_package_before_it_is_refused(world, tmp_path):
 def test_licence_and_notice_files_travel_with_the_dlls_when_present(world, tmp_path):
     """The made-up mod's licences: beside its DLL in the download and at the download's top. Nothing else of the
     download is taken, and a download without any builds as before."""
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     local.mkdir(parents=True)
     (local / "toy.toml").write_text(TOY_CONFIG, encoding="utf-8")
@@ -700,10 +701,10 @@ def test_a_changed_archive_index_makes_the_build_out_of_date(world):
 
 def test_a_changed_config_makes_the_build_out_of_date(world):
     _built(world)
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     local.mkdir(parents=True, exist_ok=True)
-    shipped = (overhauls.config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
+    shipped = (recipes.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
     comment_only = shipped.replace("overhaul = 1", "# a comment\noverhaul = 1")
     (local / "example-overhaul.toml").write_text(comment_only, encoding="utf-8")
     assert merge.health(world.profile, loc=er())["state"] == "current"  # a comment changes nothing it does

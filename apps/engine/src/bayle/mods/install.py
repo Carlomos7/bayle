@@ -424,16 +424,16 @@ def folder_problem(dest: Path, inside: int | None = None) -> str | None:
 def _overhaul_of(folder: Path, loc: Locations) -> dict | None:
     """The overhaul config that describes the download, if one does: {id, label, version, verified}, or {refusal}
     when one fits it but not this version or edition (no opt-in: the way out is named); None when none fits."""
-    from bayle import overhauls
+    from bayle.overhauls import recipes
 
     try:
-        found = overhaul_install.find_download(folder, loc.game.key, overhauls.load(loc.game.key))
+        found = overhaul_install.find_download(folder, loc.game.key, recipes.load(loc.game.key))
     except overhaul_install.NotAnOverhaul:
         return None
     except overhaul_install.OverhaulError as e:
         return {"refusal": str(e)}
     cfg = found.config
-    return {"id": cfg.id, "label": cfg.label, "version": found.version, "verified": overhauls.verified(cfg.id)}
+    return {"id": cfg.id, "label": cfg.label, "version": found.version, "verified": recipes.verified(cfg.id)}
 
 
 def regulation_order(profile: Path, skip: Path | None = None) -> dict:

@@ -146,7 +146,7 @@ def plan(
     """The changes that install one edition of the overhaul (build; its own folder `own`) into the profile at
     `profile` whose text is profile_text, and the problems. provided: a copy of a required mod to use when the profile
     has none switched on, by the requirement's name (else its candidates are tried). others: the other overhauls'
-    configs (overhauls.load); a profile that has one of them is refused (one overhaul per profile for now). The
+    configs (recipes.load); a profile that has one of them is refused (one overhaul per profile for now). The
     entries this edition owns (Install.owned_package_ids, owned_dlls) are removed first: plan.update says the
     profile had them."""
     if build.install is None:

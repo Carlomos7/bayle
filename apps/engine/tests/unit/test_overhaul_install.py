@@ -21,6 +21,7 @@ from bayle.mods import library, operations, overhaul_install, records, undo
 from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
 from bayle.mods.overhaul_install import OverhaulError
+from bayle.overhauls import recipes
 from bayle.platform import paths as common
 from bayle.platform import trash as real_trash
 
@@ -315,7 +316,7 @@ owned_package_ids = ["toy"]
     )
     with world.profile.open("a", encoding="utf-8") as f:
         f.write("\n[[packages]]\nid = \"toy\"\npath = 'mod/body'\n")
-    configs = [*overhauls.load("eldenring"), toy]
+    configs = [*recipes.load("eldenring"), toy]
     p = world.preview(configs=configs)
     assert not p.ok
     assert "This profile already has Toy Overhaul. A profile can have one overhaul for now" in p.refusals[0]
@@ -642,10 +643,10 @@ def set_up(world) -> tuple[Path, Path, dict]:
     p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
     assert p.ok, p.refusals
     out = overhaul_install.install_setup(p, loc=world.loc)
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     toml = local / "mixed-mod.toml"
-    assert overhauls.read(toml) == config
+    assert recipes.read(toml) == config
     return folder, toml, out
 
 
@@ -690,12 +691,12 @@ def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
 # ----------------------------------------------------------------------------- the generic setup needs no shipped config
 def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(world, monkeypatch, tmp_path):
     from bayle.config import settings
-    from bayle.overhauls import config as overhaul_config
+    from bayle.overhauls import recipes as overhaul_recipes
     from bayle.services import mods as service
 
     empty = tmp_path / "no-shipped"
     empty.mkdir()
-    monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", empty)
+    monkeypatch.setattr(overhaul_recipes, "SHIPPED_DIR", empty)
     assert service.installable_overhauls("eldenring") == []
     assert not service.overhaul_preview_on(world.loc)  # switch off: hidden
     settings.save_settings(overhaul_install=True)
@@ -706,15 +707,14 @@ def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(wor
 
 
 def test_a_local_config_the_player_made_is_listed(world, monkeypatch, tmp_path):
-    from bayle import overhauls
-    from bayle.overhauls import config as overhaul_config
+    from bayle.overhauls import recipes
     from bayle.services import mods as service
 
-    shipped = overhaul_config.SHIPPED_DIR / "example-overhaul.toml"
+    shipped = recipes.SHIPPED_DIR / "example-overhaul.toml"
     empty = tmp_path / "no-shipped"
     empty.mkdir()
-    monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", empty)
-    folder = overhauls.local_dir()
+    monkeypatch.setattr(recipes, "SHIPPED_DIR", empty)
+    folder = recipes.local_dir()
     assert folder is not None
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "mine.toml").write_text(shipped.read_text(encoding="utf-8"), encoding="utf-8")

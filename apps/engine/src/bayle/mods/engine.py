@@ -56,6 +56,7 @@ from bayle.mods import checks, operations, rebuild
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods.models import EngineError
 from bayle.overhauls import hks_check, hooks, lua_check
+from bayle.overhauls import recipes as overhaul_recipes
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -88,9 +89,9 @@ def validate(recipe: dict) -> list[str]:
 
 
 def recipes() -> list[dict]:
-    """Every usable recipe: each build of each overhaul config (overhauls.load), shipped or local."""
+    """Every usable recipe: each build of each overhaul config (overhaul_recipes.load), shipped or local."""
     out = []
-    for o in overhauls.load():
+    for o in overhaul_recipes.load():
         for b in o.builds:
             r = o.recipe(b)
             if not validate(r):

@@ -15,12 +15,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from bayle import overhauls
 from bayle.formats import me3_profile
 from bayle.mods import installer_leftovers, overhaul_install, records
 from bayle.mods.checks import same_folder
 from bayle.mods.overhaul_install import Leftover, OverhaulError, RemovePreview, size_of, size_text
 from bayle.mods.profile_writer import ProfileWriter
+from bayle.overhauls import recipes
 from bayle.overhauls.config import OverhaulConfig, Recognise
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ def _installer_folders(
 ) -> list[Leftover]:
     """The installer's setup copy and backups beside the profile (named by the config and the manifest), that no
     profile uses."""
-    configs = list(configs) if configs is not None else overhauls.load(loc.game.key)
+    configs = list(configs) if configs is not None else recipes.load(loc.game.key)
     hit = overhaul_install.overhaul_in(profile, configs)
     if hit is None:
         return []
@@ -285,7 +285,7 @@ def _setup_preview(
 
 
 def _hit(profile: Path, loc: Locations):
-    return overhaul_install.overhaul_in(profile, overhauls.load(loc.game.key))
+    return overhaul_install.overhaul_in(profile, recipes.load(loc.game.key))
 
 
 def choices(profile: Path, *, loc: Locations) -> list:

@@ -32,6 +32,7 @@ from bayle.mods import order as mod_order
 from bayle.mods.models import ModError, UndoError
 from bayle.mods.profile_writer import Plan as WriterPlan
 from bayle.mods.profile_writer import ProfileWriter
+from bayle.overhauls import recipes
 from bayle.platform import filelock
 
 if TYPE_CHECKING:
@@ -222,7 +223,7 @@ def preview(profile: Path, index: int, new_name: str, *, loc: Locations) -> Rena
     tgt = writer.target
     if tgt is not None and any(_overlap(folder, Path(p)) for p in (tgt["folder"], *tgt["own"])):
         refuse(f"{old_name} is the mod that must stay last, and its rebuild tool names its folder.")
-    if overhauls.requirements.owner(overhauls.load(loc.game.key), kind, entry) is not None:
+    if overhauls.requirements.owner(recipes.load(loc.game.key), kind, entry) is not None:
         refuse(f"{old_name} belongs to an overhaul, whose recipe and rebuild tool name it.")
     if out.refusals or out.new_folder is None:
         return out

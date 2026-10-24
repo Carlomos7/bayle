@@ -126,11 +126,11 @@ def isolated_settings(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def example_overhaul_shipped(monkeypatch):
     """The launcher ships no overhaul config; the tests ship an invented one (tests/data/overhauls)."""
-    from bayle.overhauls import config as overhaul_config
+    from bayle.overhauls import recipes as overhaul_recipes
     from bayle.overhauls import writer as overhaul_writer
 
     here = Path(__file__).parent / "data" / "overhauls"
-    monkeypatch.setattr(overhaul_config, "SHIPPED_DIR", here)
+    monkeypatch.setattr(overhaul_recipes, "SHIPPED_DIR", here)
     monkeypatch.setattr(overhaul_writer, "SHIPPED_DIR", here)
 
 

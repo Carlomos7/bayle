@@ -9,11 +9,12 @@ import tomllib
 from pathlib import Path
 
 import fakegame
-from bayle import formats, overhauls
+from bayle import formats
 from bayle.game import catalog, locate
 from bayle.game import config as game_config
 from bayle.game.locate import Locations, Overrides
 from bayle.mods import library, overhaul_install
+from bayle.overhauls import recipes
 from bayle.platform import paths as common
 from bayle.platform import trash as real_trash
 from fakegame import bnd, dcx, fmg
@@ -308,10 +309,10 @@ def set_up(world) -> tuple[Path, Path, dict]:
     p = overhaul_install.preview_setup(world.profile, folder, config, loc=world.loc)
     assert p.ok, p.refusals
     out = overhaul_install.install_setup(p, loc=world.loc)
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     toml = local / "mixed-mod.toml"
-    assert overhauls.read(toml) == config
+    assert recipes.read(toml) == config
     return folder, toml, out
 
 

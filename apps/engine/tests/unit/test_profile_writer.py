@@ -306,9 +306,9 @@ def test_the_overhaul_configs_requirements_are_the_default_source(profile):
     """An entry an overhaul owns needs what its author's config declares (here a made-up overhaul's local config):
     switching that off is refused while the overhaul is on; the player's own entries need nothing, and an overhaul
     that declares nothing (Example) needs nothing."""
-    from bayle import overhauls
+    from bayle.overhauls import recipes
 
-    local = overhauls.local_dir()
+    local = recipes.local_dir()
     assert local is not None
     local.mkdir(parents=True, exist_ok=True)
     (local / "grove.toml").write_text(GROVE, encoding="utf-8")

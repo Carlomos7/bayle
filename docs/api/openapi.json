@@ -87,6 +87,36 @@
         "title": "Adopted",
         "type": "object"
       },
+      "AllowParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "title": "Expect",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "AllowParams",
+        "type": "object"
+      },
+      "Allowed": {
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "Allowed",
+        "type": "object"
+      },
       "ApplyParams": {
         "additionalProperties": false,
         "properties": {
@@ -299,6 +329,60 @@
             "title": "Dst Slot",
             "type": "integer"
           },
+          "expect": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Expect",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "src_slot": {
+            "title": "Src Slot",
+            "type": "integer"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "src_slot",
+          "target",
+          "dst_slot",
+          "expect"
+        ],
+        "title": "CharacterParams",
+        "type": "object"
+      },
+      "CharacterRef": {
+        "additionalProperties": false,
+        "properties": {
+          "dst_slot": {
+            "title": "Dst Slot",
+            "type": "integer"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -318,7 +402,7 @@
           "target",
           "dst_slot"
         ],
-        "title": "CharacterParams",
+        "title": "CharacterRef",
         "type": "object"
       },
       "CheckExportParams": {
@@ -348,51 +432,88 @@
         "title": "CheckExportParams",
         "type": "object"
       },
-      "ClashFile": {
+      "Choices": {
+        "additionalProperties": false,
+        "description": "What the player set in the dialog (services.mod_install.InstallChoices).",
         "properties": {
-          "losers": {
-            "title": "Losers",
-            "type": "string"
-          },
-          "lost": {
-            "title": "Lost",
+          "after_last": {
+            "default": false,
+            "title": "After Last",
             "type": "boolean"
           },
-          "path": {
-            "title": "Path",
+          "exclude": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Exclude",
+            "type": "array"
+          },
+          "id": {
+            "default": "",
+            "title": "Id",
             "type": "string"
           },
-          "winner": {
-            "title": "Winner",
+          "library_choice": {
+            "default": "",
+            "title": "Library Choice",
             "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "overhaul": {
+            "default": false,
+            "title": "Overhaul",
+            "type": "boolean"
+          },
+          "place_last": {
+            "default": false,
+            "title": "Place Last",
+            "type": "boolean"
+          },
+          "rebuild": {
+            "default": true,
+            "title": "Rebuild",
+            "type": "boolean"
+          },
+          "setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupForm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
           }
         },
         "required": [
-          "path",
-          "winner",
-          "losers",
-          "lost"
+          "name"
         ],
-        "title": "ClashFile",
+        "title": "Choices",
         "type": "object"
       },
       "CleanParams": {
         "additionalProperties": false,
         "properties": {
-          "backups": {
-            "default": [],
+          "paths": {
             "items": {
-              "type": "integer"
+              "type": "string"
             },
-            "title": "Backups",
-            "type": "array"
-          },
-          "folders": {
-            "default": [],
-            "items": {
-              "type": "integer"
-            },
-            "title": "Folders",
+            "title": "Paths",
             "type": "array"
           },
           "profile": {
@@ -401,7 +522,8 @@
           }
         },
         "required": [
-          "profile"
+          "profile",
+          "paths"
         ],
         "title": "CleanParams",
         "type": "object"
@@ -433,6 +555,60 @@
           "kind"
         ],
         "title": "ConfigFile",
+        "type": "object"
+      },
+      "CopyCheck": {
+        "properties": {
+          "plan": {
+            "additionalProperties": true,
+            "title": "Plan",
+            "type": "object"
+          },
+          "same_file": {
+            "title": "Same File",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "stamp": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Stamp",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "source",
+          "target",
+          "same_file",
+          "stamp"
+        ],
+        "title": "CopyCheck",
         "type": "object"
       },
       "CopyEntry": {
@@ -506,8 +682,66 @@
         "title": "DeleteBackupParams",
         "type": "object"
       },
-      "Dependency": {
+      "DeletePlan": {
+        "properties": {
+          "keeps": {
+            "title": "Keeps",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "name",
+          "keeps",
+          "stamp"
+        ],
+        "title": "DeletePlan",
+        "type": "object"
+      },
+      "Dependency-Input": {
         "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "optional": {
+            "default": false,
+            "title": "Optional",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "Dependency",
+        "type": "object"
+      },
+      "Dependency-Output": {
         "properties": {
           "id": {
             "title": "Id",
@@ -538,18 +772,15 @@
         "title": "Discarded",
         "type": "object"
       },
-      "DraftRef": {
-        "additionalProperties": false,
+      "Done": {
         "properties": {
-          "draft_id": {
-            "title": "Draft Id",
-            "type": "string"
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
           }
         },
-        "required": [
-          "draft_id"
-        ],
-        "title": "DraftRef",
+        "title": "Done",
         "type": "object"
       },
       "DragTable": {
@@ -576,11 +807,6 @@
       "DuplicateParams": {
         "additionalProperties": false,
         "properties": {
-          "confirmed": {
-            "default": false,
-            "title": "Confirmed",
-            "type": "boolean"
-          },
           "kind": {
             "default": "me3",
             "title": "Kind",
@@ -644,6 +870,17 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "expect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
           "index": {
             "title": "Index",
             "type": "integer"
@@ -659,6 +896,25 @@
           "enabled"
         ],
         "title": "EnabledParams",
+        "type": "object"
+      },
+      "EntryParams": {
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "index"
+        ],
+        "title": "EntryParams",
         "type": "object"
       },
       "EntryRef": {
@@ -920,18 +1176,39 @@
       "FinishParams": {
         "additionalProperties": false,
         "properties": {
-          "draft_id": {
-            "title": "Draft Id",
-            "type": "string"
+          "choices": {
+            "$ref": "#/components/schemas/Choices"
           },
-          "name": {
-            "default": "",
-            "title": "Name",
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "install_id": {
+            "title": "Install Id",
             "type": "string"
           }
         },
         "required": [
-          "draft_id"
+          "install_id",
+          "choices",
+          "expect"
         ],
         "title": "FinishParams",
         "type": "object"
@@ -1011,6 +1288,31 @@
         "title": "Folder",
         "type": "object"
       },
+      "FolderCheck": {
+        "properties": {
+          "folder": {
+            "default": "",
+            "title": "Folder",
+            "type": "string"
+          },
+          "kind": {
+            "default": "outside",
+            "title": "Kind",
+            "type": "string"
+          },
+          "profiles": {
+            "default": [],
+            "items": {
+              "format": "path",
+              "type": "string"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "title": "FolderCheck",
+        "type": "object"
+      },
       "FolderParam": {
         "additionalProperties": false,
         "properties": {
@@ -1043,6 +1345,65 @@
           "path"
         ],
         "title": "FolderPath",
+        "type": "object"
+      },
+      "FolderPlan": {
+        "description": "A change to the profile's folder: the counts say how much changes, refusals why a start would be refused.",
+        "properties": {
+          "copies": {
+            "title": "Copies",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "moves": {
+            "title": "Moves",
+            "type": "integer"
+          },
+          "profiles": {
+            "default": 0,
+            "title": "Profiles",
+            "type": "integer"
+          },
+          "refusals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refusals",
+            "type": "array"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "refusals",
+          "moves",
+          "copies",
+          "files",
+          "stamp"
+        ],
+        "title": "FolderPlan",
         "type": "object"
       },
       "FormParams": {
@@ -1206,55 +1567,6 @@
         "title": "GameStateEvent",
         "type": "object"
       },
-      "Group": {
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "string"
-          },
-          "empty": {
-            "title": "Empty",
-            "type": "string"
-          },
-          "icon": {
-            "title": "Icon",
-            "type": "string"
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
-          "lines": {
-            "items": {
-              "$ref": "#/components/schemas/Line"
-            },
-            "title": "Lines",
-            "type": "array"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/Row"
-            },
-            "title": "Rows",
-            "type": "array"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "title",
-          "icon",
-          "count",
-          "empty",
-          "lines",
-          "rows"
-        ],
-        "title": "Group",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1324,6 +1636,49 @@
         "title": "Health",
         "type": "object"
       },
+      "HolderPlan": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs",
+            "type": "array"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "name",
+          "needs",
+          "stamp"
+        ],
+        "title": "HolderPlan",
+        "type": "object"
+      },
       "IndexParams": {
         "additionalProperties": false,
         "properties": {
@@ -1357,60 +1712,6 @@
         "title": "IniParams",
         "type": "object"
       },
-      "InstallEdit": {
-        "additionalProperties": false,
-        "description": "One edit. field: name | id | variant | overhaul | tick | place_last | rebuild | after_last | library | native |\ntable | file. key: the file or tick; text: the new text or choice; on: the check; kind: early | after | init.",
-        "properties": {
-          "draft_id": {
-            "title": "Draft Id",
-            "type": "string"
-          },
-          "field": {
-            "enum": [
-              "name",
-              "id",
-              "variant",
-              "overhaul",
-              "tick",
-              "place_last",
-              "rebuild",
-              "after_last",
-              "library",
-              "native",
-              "table",
-              "file"
-            ],
-            "title": "Field",
-            "type": "string"
-          },
-          "key": {
-            "default": "",
-            "title": "Key",
-            "type": "string"
-          },
-          "kind": {
-            "default": "",
-            "title": "Kind",
-            "type": "string"
-          },
-          "on": {
-            "default": false,
-            "title": "On",
-            "type": "boolean"
-          },
-          "text": {
-            "default": "",
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "draft_id",
-          "field"
-        ],
-        "title": "InstallEdit",
-        "type": "object"
-      },
       "InstallFolder": {
         "additionalProperties": false,
         "properties": {
@@ -1428,6 +1729,20 @@
           "folder"
         ],
         "title": "InstallFolder",
+        "type": "object"
+      },
+      "InstallRef": {
+        "additionalProperties": false,
+        "properties": {
+          "install_id": {
+            "title": "Install Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id"
+        ],
+        "title": "InstallRef",
         "type": "object"
       },
       "InstallSetupParams": {
@@ -1463,28 +1778,45 @@
         "title": "InstallSetupParams",
         "type": "object"
       },
-      "InstallView": {
+      "InstallStart": {
+        "additionalProperties": false,
         "properties": {
-          "draft_id": {
-            "title": "Draft Id",
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "folder": {
+            "title": "Folder",
             "type": "string"
           },
-          "pending": {
-            "default": false,
-            "title": "Pending",
-            "type": "boolean"
-          },
-          "view": {
-            "additionalProperties": true,
-            "title": "View",
-            "type": "object"
+          "profile": {
+            "title": "Profile",
+            "type": "string"
           }
         },
         "required": [
-          "draft_id",
-          "view"
+          "profile",
+          "folder",
+          "expect"
         ],
-        "title": "InstallView",
+        "title": "InstallStart",
         "type": "object"
       },
       "InvalidatedData": {
@@ -1599,19 +1931,6 @@
           "state"
         ],
         "title": "Job",
-        "type": "object"
-      },
-      "JobStarted": {
-        "properties": {
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id"
-        ],
-        "title": "JobStarted",
         "type": "object"
       },
       "KeepAsParams": {
@@ -1758,27 +2077,44 @@
         "title": "LayoutCheck",
         "type": "object"
       },
+      "LeftoverFolder": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "size"
+        ],
+        "title": "LeftoverFolder",
+        "type": "object"
+      },
       "Leftovers": {
         "properties": {
           "backups": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/LeftoverFolder"
             },
             "title": "Backups",
             "type": "array"
           },
           "folders": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Folders"
+            "items": {
+              "$ref": "#/components/schemas/LeftoverFolder"
+            },
+            "title": "Folders",
+            "type": "array"
           }
         },
         "required": [
@@ -1790,19 +2126,17 @@
       },
       "LibraryHint": {
         "properties": {
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "enough": {
+            "title": "Enough",
+            "type": "boolean"
+          },
           "mods": {
             "title": "Mods",
             "type": "integer"
-          },
-          "notice": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Notice"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "size": {
             "title": "Size",
@@ -1812,50 +2146,98 @@
         "required": [
           "mods",
           "size",
-          "notice"
+          "enough",
+          "closed"
         ],
         "title": "LibraryHint",
         "type": "object"
       },
-      "LibraryRows": {
+      "LibraryMod": {
         "properties": {
-          "rows": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "versions": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/LibraryVersion"
             },
-            "title": "Rows",
+            "title": "Versions",
             "type": "array"
           }
         },
         "required": [
-          "rows"
+          "id",
+          "name",
+          "size",
+          "versions"
+        ],
+        "title": "LibraryMod",
+        "type": "object"
+      },
+      "LibraryRows": {
+        "properties": {
+          "mods": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryMod"
+            },
+            "title": "Mods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mods"
         ],
         "title": "LibraryRows",
         "type": "object"
       },
-      "Line": {
-        "description": "A muted line under a group header: \"2 folders ... are not loaded \u00b7 Add...\" or \"<entry> loads nothing\".",
+      "LibraryVersion": {
         "properties": {
-          "action": {
-            "title": "Action",
+          "id": {
+            "title": "Id",
             "type": "string"
           },
-          "index": {
-            "default": -1,
-            "title": "Index",
+          "installed": {
+            "title": "Installed",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
             "type": "integer"
           },
-          "text": {
-            "title": "Text",
-            "type": "string"
+          "unused": {
+            "title": "Unused",
+            "type": "boolean"
+          },
+          "used_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Used By",
+            "type": "array"
           }
         },
         "required": [
-          "text",
-          "action"
+          "id",
+          "installed",
+          "label",
+          "size",
+          "used_by",
+          "unused"
         ],
-        "title": "Line",
+        "title": "LibraryVersion",
         "type": "object"
       },
       "Link": {
@@ -1874,61 +2256,6 @@
           "action"
         ],
         "title": "Link",
-        "type": "object"
-      },
-      "LoadOrderPanel": {
-        "properties": {
-          "clash_note": {
-            "title": "Clash Note",
-            "type": "string"
-          },
-          "clash_total": {
-            "title": "Clash Total",
-            "type": "integer"
-          },
-          "clashes": {
-            "items": {
-              "$ref": "#/components/schemas/ClashFile"
-            },
-            "title": "Clashes",
-            "type": "array"
-          },
-          "error": {
-            "default": "",
-            "title": "Error",
-            "type": "string"
-          },
-          "refused": {
-            "items": {
-              "$ref": "#/components/schemas/Refused"
-            },
-            "title": "Refused",
-            "type": "array"
-          },
-          "stays_last": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/StaysLast"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "title",
-          "stays_last",
-          "clashes",
-          "clash_total",
-          "clash_note",
-          "refused"
-        ],
-        "title": "LoadOrderPanel",
         "type": "object"
       },
       "LogData": {
@@ -2071,24 +2398,6 @@
           "facts"
         ],
         "title": "Me3",
-        "type": "object"
-      },
-      "MergeHealth": {
-        "properties": {
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text",
-          "level"
-        ],
-        "title": "MergeHealth",
         "type": "object"
       },
       "ModConfigsJob": {
@@ -2253,116 +2562,93 @@
         "title": "ModeSet",
         "type": "object"
       },
-      "ModsState": {
+      "ModsJob": {
         "properties": {
-          "counts": {
-            "title": "Counts",
+          "job_id": {
+            "title": "Job Id",
             "type": "string"
-          },
-          "empty": {
-            "default": "",
-            "title": "Empty",
-            "type": "string"
-          },
-          "groups": {
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "ModsJob",
+        "type": "object"
+      },
+      "ModsPageState": {
+        "description": "The Mods page for one profile. profile is \"\" (facts None) when none is picked, the file is not there or there\nis no game. rebuild_undo: the newest rebuild's job record that can still be taken back; seamless: \"\" | \"move\" |\n\"cleanup\" (Seamless Co-op also in the game folder); rename_code: why the profile can't be renamed or copied\nwhatever is running (a profile_mods.DELETE_* code), or \"\"; folders: entry -> its folder's name (where the Rename\ndialog starts); closed: the (profile, key) InfoBars the player closed this session.",
+        "properties": {
+          "closed": {
+            "default": [],
             "items": {
-              "$ref": "#/components/schemas/Group"
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
             },
-            "title": "Groups",
+            "title": "Closed",
             "type": "array"
           },
-          "health": {
+          "facts": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/MergeHealth"
+                "$ref": "#/components/schemas/PageFacts"
               },
               {
                 "type": "null"
               }
             ]
           },
-          "notices": {
-            "items": {
-              "$ref": "#/components/schemas/Notice"
-            },
-            "title": "Notices",
-            "type": "array"
-          },
-          "parameters": {
-            "$ref": "#/components/schemas/Parameters"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "title",
-          "counts",
-          "health",
-          "groups",
-          "parameters",
-          "notices"
-        ],
-        "title": "ModsState",
-        "type": "object"
-      },
-      "ModsView": {
-        "description": "The Mods page for one profile: what the presenter shows, the Load order panel (every clash; a client cuts the\nlist), the entries (for the options and rename dialogs) and what the header menu needs.",
-        "properties": {
-          "configs": {
-            "additionalProperties": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "title": "Configs",
-            "type": "object"
-          },
-          "entries": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Entries",
-            "type": "array"
-          },
-          "folder_kind": {
-            "default": "",
-            "title": "Folder Kind",
-            "type": "string"
-          },
           "folders": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Folders",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folders"
           },
           "has_profile": {
             "title": "Has Profile",
             "type": "boolean"
           },
-          "load_order": {
-            "$ref": "#/components/schemas/LoadOrderPanel"
+          "leftovers": {
+            "default": false,
+            "title": "Leftovers",
+            "type": "boolean"
           },
-          "outside": {
-            "title": "Outside",
+          "no_profiles": {
+            "title": "No Profiles",
             "type": "boolean"
           },
           "overhaul": {
-            "$ref": "#/components/schemas/OverhaulMenu"
-          },
-          "overhaul_info": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/OverhaulInfo"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Overhaul"
+          },
+          "overhaul_on": {
+            "default": false,
+            "title": "Overhaul On",
+            "type": "boolean"
           },
           "profile": {
             "title": "Profile",
@@ -2371,41 +2657,59 @@
           "rebuild_undo": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RebuildUndo"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Rebuild Undo"
           },
           "rename_code": {
             "default": "",
             "title": "Rename Code",
             "type": "string"
           },
-          "state": {
-            "$ref": "#/components/schemas/ModsState"
+          "running": {
+            "title": "Running",
+            "type": "boolean"
           },
-          "tool_label": {
+          "scan": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan"
+          },
+          "seamless": {
             "default": "",
-            "title": "Tool Label",
+            "title": "Seamless",
             "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/bayle__services__mods_page__ToolInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "profile",
           "has_profile",
-          "state",
-          "load_order",
-          "entries",
-          "configs",
-          "rebuild_undo",
-          "overhaul",
-          "overhaul_info",
-          "outside",
-          "folders"
+          "running",
+          "no_profiles"
         ],
-        "title": "ModsView",
+        "title": "ModsPageState",
         "type": "object"
       },
       "MoveAllParams": {
@@ -2428,6 +2732,17 @@
       "MoveParams": {
         "additionalProperties": false,
         "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
           "index": {
             "title": "Index",
             "type": "integer"
@@ -2479,13 +2794,18 @@
       },
       "NameCheck": {
         "properties": {
-          "problem": {
-            "title": "Problem",
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
             "type": "string"
           }
         },
         "required": [
-          "problem"
+          "code"
         ],
         "title": "NameCheck",
         "type": "object"
@@ -2633,40 +2953,6 @@
           }
         },
         "title": "NewProfileParams",
-        "type": "object"
-      },
-      "Notice": {
-        "description": "One InfoBar: key says what it is (online, stale, allow-tool, recovered), so the adapter knows what its action\ndoes.",
-        "properties": {
-          "action": {
-            "title": "Action",
-            "type": "string"
-          },
-          "closable": {
-            "title": "Closable",
-            "type": "boolean"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "severity": {
-            "title": "Severity",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "severity",
-          "text",
-          "action",
-          "closable"
-        ],
-        "title": "Notice",
         "type": "object"
       },
       "NoticeAction": {
@@ -2853,67 +3139,6 @@
         "title": "OpenFile",
         "type": "object"
       },
-      "Opened": {
-        "properties": {
-          "author": {
-            "default": "",
-            "title": "Author",
-            "type": "string"
-          },
-          "folder": {
-            "default": "",
-            "title": "Folder",
-            "type": "string"
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
-          "name": {
-            "default": "",
-            "title": "Name",
-            "type": "string"
-          },
-          "names": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Names",
-            "type": "array"
-          },
-          "new_name": {
-            "default": "",
-            "title": "New Name",
-            "type": "string"
-          },
-          "new_profile": {
-            "default": true,
-            "title": "New Profile",
-            "type": "boolean"
-          },
-          "readme": {
-            "default": "",
-            "title": "Readme",
-            "type": "string"
-          },
-          "resource": {
-            "title": "Resource",
-            "type": "string"
-          },
-          "version": {
-            "default": "",
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "resource",
-          "kind"
-        ],
-        "title": "Opened",
-        "type": "object"
-      },
       "OptionsInput": {
         "additionalProperties": false,
         "properties": {
@@ -2921,6 +3146,17 @@
             "default": true,
             "title": "Enabled",
             "type": "boolean"
+          },
+          "expect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
           },
           "finalizer": {
             "default": "",
@@ -2949,7 +3185,7 @@
           "load_after": {
             "default": [],
             "items": {
-              "$ref": "#/components/schemas/Dependency"
+              "$ref": "#/components/schemas/Dependency-Input"
             },
             "title": "Load After",
             "type": "array"
@@ -2957,7 +3193,7 @@
           "load_before": {
             "default": [],
             "items": {
-              "$ref": "#/components/schemas/Dependency"
+              "$ref": "#/components/schemas/Dependency-Input"
             },
             "title": "Load Before",
             "type": "array"
@@ -2973,9 +3209,15 @@
             "type": "boolean"
           },
           "overlay": {
-            "default": -1,
-            "title": "Overlay",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlay"
           },
           "profile": {
             "title": "Profile",
@@ -2995,7 +3237,7 @@
         "type": "object"
       },
       "OptionsView": {
-        "description": "What the Mod options dialog shows for one entry. init_kind: 0 none, 1 call a function, 2 wait (ms); overlay: -1\nwhen it does not apply, else 0/1 (the parameter overlay set by hand).",
+        "description": "What the Mod options dialog shows for one entry. init_kind: 0 none, 1 call a function, 2 wait (ms); overlay:\nnull when it does not apply, else whether the parameter overlay is set by hand.",
         "properties": {
           "enabled": {
             "title": "Enabled",
@@ -3027,14 +3269,14 @@
           },
           "load_after": {
             "items": {
-              "$ref": "#/components/schemas/Dependency"
+              "$ref": "#/components/schemas/Dependency-Output"
             },
             "title": "Load After",
             "type": "array"
           },
           "load_before": {
             "items": {
-              "$ref": "#/components/schemas/Dependency"
+              "$ref": "#/components/schemas/Dependency-Output"
             },
             "title": "Load Before",
             "type": "array"
@@ -3059,8 +3301,15 @@
             "type": "array"
           },
           "overlay": {
-            "title": "Overlay",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlay"
           },
           "rebuild_file": {
             "title": "Rebuild File",
@@ -3085,6 +3334,35 @@
           "rebuild_file"
         ],
         "title": "OptionsView",
+        "type": "object"
+      },
+      "OverhaulChoices": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "ticked": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Ticked",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "rows"
+        ],
+        "title": "OverhaulChoices",
         "type": "object"
       },
       "OverhaulForm": {
@@ -3118,147 +3396,308 @@
         "title": "OverhaulForm",
         "type": "object"
       },
-      "OverhaulInfo": {
+      "OverhaulPlan": {
         "properties": {
+          "asked": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Asked",
+            "type": "array"
+          },
           "label": {
             "title": "Label",
             "type": "string"
           },
-          "legacy": {
-            "title": "Legacy",
-            "type": "boolean"
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
           },
-          "removable": {
-            "title": "Removable",
-            "type": "boolean"
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
           },
-          "short_label": {
-            "title": "Short Label",
-            "type": "string"
+          "refusals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refusals",
+            "type": "array"
           },
-          "takeover": {
-            "title": "Takeover",
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          },
+          "update": {
+            "title": "Update",
             "type": "boolean"
           }
         },
         "required": [
           "label",
-          "short_label",
-          "legacy",
-          "takeover",
-          "removable"
+          "lines",
+          "notes",
+          "refusals",
+          "asked",
+          "update",
+          "stamp"
         ],
-        "title": "OverhaulInfo",
+        "title": "OverhaulPlan",
         "type": "object"
       },
-      "OverhaulMenu": {
-        "description": "The header overflow's overhaul entries (an overhaul installed with the launcher, a preview): shown while the\nswitch is on and the game has an overhaul the launcher can install (owner, D4 A).",
+      "OverhaulPreview": {
         "properties": {
-          "can_clean": {
-            "title": "Can Clean",
+          "editable": {
+            "title": "Editable",
             "type": "boolean"
           },
-          "can_remove": {
-            "title": "Can Remove",
-            "type": "boolean"
+          "files": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Files",
+            "type": "array"
           },
-          "can_take_over": {
-            "default": false,
-            "title": "Can Take Over",
-            "type": "boolean"
-          },
-          "clean": {
-            "title": "Clean",
-            "type": "string"
-          },
-          "install": {
-            "title": "Install",
-            "type": "string"
-          },
-          "remove": {
-            "title": "Remove",
-            "type": "string"
-          },
-          "take_over": {
-            "default": "",
-            "title": "Take Over",
-            "type": "string"
-          },
-          "visible": {
-            "title": "Visible",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "visible",
-          "install",
-          "remove",
-          "can_remove",
-          "clean",
-          "can_clean"
-        ],
-        "title": "OverhaulMenu",
-        "type": "object"
-      },
-      "Parameters": {
-        "properties": {
-          "action": {
-            "title": "Action",
-            "type": "string"
-          },
-          "blocked": {
-            "title": "Blocked",
-            "type": "string"
-          },
-          "fingerprint": {
-            "default": "",
-            "title": "Fingerprint",
-            "type": "string"
-          },
-          "fingerprint_note": {
-            "default": "",
-            "title": "Fingerprint Note",
-            "type": "string"
-          },
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "packs": {
-            "title": "Packs",
-            "type": "string"
-          },
-          "pill": {
-            "title": "Pill",
-            "type": "string"
-          },
-          "reasons": {
+          "lines": {
             "items": {
               "type": "string"
             },
-            "title": "Reasons",
+            "title": "Lines",
             "type": "array"
           },
-          "state": {
-            "title": "State",
+          "mode": {
+            "title": "Mode",
             "type": "string"
           },
-          "visible": {
-            "title": "Visible",
-            "type": "boolean"
+          "natives": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Natives",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "refusals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refusals",
+            "type": "array"
+          },
+          "texts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Texts",
+            "type": "array"
           }
         },
         "required": [
-          "visible",
-          "state",
-          "pill",
-          "level",
-          "reasons",
-          "packs",
-          "action",
-          "blocked"
+          "mode",
+          "lines",
+          "notes",
+          "refusals",
+          "natives",
+          "files",
+          "texts",
+          "editable"
         ],
-        "title": "Parameters",
+        "title": "OverhaulPreview",
+        "type": "object"
+      },
+      "PageFacts": {
+        "description": "Everything the Mods page shows about one profile, read from disk at once (run it off the UI thread); the\npresenter turns it into rows and words. Indexes are the profile's block indexes.",
+        "properties": {
+          "can_share": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Can Share",
+            "type": "array"
+          },
+          "configs": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Configs",
+            "type": "object"
+          },
+          "display": {
+            "additionalProperties": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Display",
+            "type": "object"
+          },
+          "empty": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Empty",
+            "type": "object"
+          },
+          "entries": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fingerprint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folder": {
+            "$ref": "#/components/schemas/FolderCheck",
+            "default": {
+              "folder": "",
+              "kind": "outside",
+              "profiles": []
+            }
+          },
+          "library_used": {
+            "default": false,
+            "title": "Library Used",
+            "type": "boolean"
+          },
+          "loads_nothing": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Loads Nothing",
+            "type": "array"
+          },
+          "loose_dlls": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Loose Dlls",
+            "type": "array"
+          },
+          "missing": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "not_loaded": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Not Loaded",
+            "type": "object"
+          },
+          "online_with": {
+            "default": "",
+            "title": "Online With",
+            "type": "string"
+          },
+          "outside": {
+            "default": false,
+            "title": "Outside",
+            "type": "boolean"
+          },
+          "problems": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Problems",
+            "type": "object"
+          },
+          "profile": {
+            "format": "path",
+            "title": "Profile",
+            "type": "string"
+          },
+          "regulation": {
+            "default": "regulation.bin",
+            "title": "Regulation",
+            "type": "string"
+          },
+          "shared": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Shared",
+            "type": "object"
+          },
+          "stays_last": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Stays Last",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile",
+          "entries",
+          "display",
+          "problems",
+          "loads_nothing",
+          "stays_last",
+          "missing",
+          "empty",
+          "configs",
+          "not_loaded"
+        ],
+        "title": "PageFacts",
         "type": "object"
       },
       "PasteParams": {
@@ -3414,30 +3853,6 @@
         "title": "PathParams",
         "type": "object"
       },
-      "PickOffer": {
-        "description": "A tick list to show: its words and rows (kind \"pick\"), or None when there is nothing to choose.",
-        "properties": {
-          "label": {
-            "default": "",
-            "title": "Label",
-            "type": "string"
-          },
-          "prompt": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Prompt"
-          }
-        },
-        "title": "PickOffer",
-        "type": "object"
-      },
       "Picked": {
         "properties": {
           "changed": {
@@ -3509,6 +3924,20 @@
         "title": "Pill",
         "type": "object"
       },
+      "Plan": {
+        "properties": {
+          "plan": {
+            "additionalProperties": true,
+            "title": "Plan",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "Plan",
+        "type": "object"
+      },
       "PlanAnswer": {
         "properties": {
           "choice": {
@@ -3553,74 +3982,6 @@
           }
         },
         "title": "PlanExecuted",
-        "type": "object"
-      },
-      "PlanOffer": {
-        "description": "A plan operation's answer: a question to show (prompt: kind confirm | pick | choose, plus its words) and the\nplan_id to answer on POST /v1/plans/{plan_id}; or, with plan_id null, a refusal (kind refusal: title and body).",
-        "properties": {
-          "plan_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Plan Id"
-          },
-          "prompt": {
-            "additionalProperties": true,
-            "title": "Prompt",
-            "type": "object"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "title": "PlanOffer",
-        "type": "object"
-      },
-      "PreviewParams": {
-        "additionalProperties": false,
-        "properties": {
-          "choices": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "default": {},
-            "title": "Choices",
-            "type": "object"
-          },
-          "new_name": {
-            "default": "",
-            "title": "New Name",
-            "type": "string"
-          },
-          "new_profile": {
-            "default": true,
-            "title": "New Profile",
-            "type": "boolean"
-          },
-          "profile": {
-            "title": "Profile",
-            "type": "string"
-          },
-          "resource": {
-            "title": "Resource",
-            "type": "string"
-          },
-          "which": {
-            "default": 0,
-            "title": "Which",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "resource",
-          "profile"
-        ],
-        "title": "PreviewParams",
         "type": "object"
       },
       "PreviewView": {
@@ -3904,11 +4265,6 @@
             ],
             "title": "Combine"
           },
-          "confirmed": {
-            "default": false,
-            "title": "Confirmed",
-            "type": "boolean"
-          },
           "profile": {
             "title": "Profile",
             "type": "string"
@@ -3918,42 +4274,6 @@
           "profile"
         ],
         "title": "RebuildParams",
-        "type": "object"
-      },
-      "RebuildUndo": {
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "label"
-        ],
-        "title": "RebuildUndo",
-        "type": "object"
-      },
-      "Refused": {
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "why": {
-            "title": "Why",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "why"
-        ],
-        "title": "Refused",
         "type": "object"
       },
       "RelocateFacts": {
@@ -4056,6 +4376,47 @@
         "title": "RemoveCopyParams",
         "type": "object"
       },
+      "RemoveHolderParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "index",
+          "expect"
+        ],
+        "title": "RemoveHolderParams",
+        "type": "object"
+      },
       "RemoveParams": {
         "additionalProperties": false,
         "properties": {
@@ -4094,6 +4455,72 @@
           "name"
         ],
         "title": "RemoveParams",
+        "type": "object"
+      },
+      "RemoveStart": {
+        "additionalProperties": false,
+        "properties": {
+          "chosen": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Chosen",
+            "type": "array"
+          },
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "revert": {
+            "default": false,
+            "title": "Revert",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "RemoveStart",
+        "type": "object"
+      },
+      "RemoveUnusedParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expect",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expect"
+        ],
+        "title": "RemoveUnusedParams",
         "type": "object"
       },
       "RenameChanges": {
@@ -4164,7 +4591,121 @@
         "title": "RenameStart",
         "type": "object"
       },
+      "RepairCheck": {
+        "properties": {
+          "info": {
+            "additionalProperties": true,
+            "title": "Info",
+            "type": "object"
+          },
+          "keys": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "stamp": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Stamp",
+            "type": "array"
+          }
+        },
+        "required": [
+          "info",
+          "keys",
+          "stamp"
+        ],
+        "title": "RepairCheck",
+        "type": "object"
+      },
       "RepairParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Expect",
+            "type": "array"
+          },
+          "keys": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "keys",
+          "expect"
+        ],
+        "title": "RepairParams",
+        "type": "object"
+      },
+      "RepairRef": {
         "additionalProperties": false,
         "properties": {
           "keys": {
@@ -4193,10 +4734,136 @@
           "path",
           "keys"
         ],
-        "title": "RepairParams",
+        "title": "RepairRef",
+        "type": "object"
+      },
+      "ReplaceCheck": {
+        "properties": {
+          "changed_outside": {
+            "title": "Changed Outside",
+            "type": "boolean"
+          },
+          "from_library": {
+            "title": "From Library",
+            "type": "boolean"
+          },
+          "holders": {
+            "title": "Holders",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "signed": {
+            "title": "Signed",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "stamp": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Stamp",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "label",
+          "from_library",
+          "changed_outside",
+          "rows",
+          "signed",
+          "holders",
+          "stamp"
+        ],
+        "title": "ReplaceCheck",
         "type": "object"
       },
       "ReplaceCopyParams": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "expect": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Expect",
+            "type": "array"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder",
+          "entry_id",
+          "target",
+          "expect"
+        ],
+        "title": "ReplaceCopyParams",
+        "type": "object"
+      },
+      "ReplaceCopyRef": {
         "additionalProperties": false,
         "properties": {
           "entry_id": {
@@ -4217,10 +4884,54 @@
           "entry_id",
           "target"
         ],
-        "title": "ReplaceCopyParams",
+        "title": "ReplaceCopyRef",
         "type": "object"
       },
       "ReplaceFileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Expect",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "expect"
+        ],
+        "title": "ReplaceFileParams",
+        "type": "object"
+      },
+      "ReplaceFileRef": {
         "additionalProperties": false,
         "properties": {
           "source": {
@@ -4236,7 +4947,42 @@
           "source",
           "target"
         ],
-        "title": "ReplaceFileParams",
+        "title": "ReplaceFileRef",
+        "type": "object"
+      },
+      "ReplanParams": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "default": "",
+            "title": "Id",
+            "type": "string"
+          },
+          "install_id": {
+            "title": "Install Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          }
+        },
+        "required": [
+          "install_id",
+          "name"
+        ],
+        "title": "ReplanParams",
         "type": "object"
       },
       "ResourceRef": {
@@ -4251,6 +4997,69 @@
           "resource"
         ],
         "title": "ResourceRef",
+        "type": "object"
+      },
+      "RestoreCheck": {
+        "properties": {
+          "backup": {
+            "additionalProperties": true,
+            "title": "Backup",
+            "type": "object"
+          },
+          "stamp": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Stamp",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backup",
+          "target",
+          "stamp"
+        ],
+        "title": "RestoreCheck",
+        "type": "object"
+      },
+      "RestoreRef": {
+        "additionalProperties": false,
+        "properties": {
+          "backup": {
+            "title": "Backup",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backup",
+          "target"
+        ],
+        "title": "RestoreRef",
         "type": "object"
       },
       "Restored": {
@@ -4328,92 +5137,6 @@
           "data"
         ],
         "title": "ResyncEvent",
-        "type": "object"
-      },
-      "Row": {
-        "properties": {
-          "can_share": {
-            "default": false,
-            "title": "Can Share",
-            "type": "boolean"
-          },
-          "configs_tip": {
-            "title": "Configs Tip",
-            "type": "string"
-          },
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "has_configs": {
-            "title": "Has Configs",
-            "type": "boolean"
-          },
-          "index": {
-            "title": "Index",
-            "type": "integer"
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
-          "locked": {
-            "title": "Locked",
-            "type": "boolean"
-          },
-          "more": {
-            "title": "More",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "path": {
-            "title": "Path",
-            "type": "string"
-          },
-          "position": {
-            "title": "Position",
-            "type": "integer"
-          },
-          "shared": {
-            "default": 0,
-            "title": "Shared",
-            "type": "integer"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "status_error": {
-            "title": "Status Error",
-            "type": "boolean"
-          },
-          "tags": {
-            "items": {
-              "$ref": "#/components/schemas/Tag"
-            },
-            "title": "Tags",
-            "type": "array"
-          }
-        },
-        "required": [
-          "index",
-          "kind",
-          "position",
-          "name",
-          "enabled",
-          "locked",
-          "tags",
-          "more",
-          "status",
-          "status_error",
-          "has_configs",
-          "configs_tip",
-          "path"
-        ],
-        "title": "Row",
         "type": "object"
       },
       "Said": {
@@ -4617,7 +5340,7 @@
         "type": "object"
       },
       "SavesState": {
-        "description": "The page's facts. The presenter (views.saves) words them; which save the profile plays on is the host's.",
+        "description": "The page's facts. The Qt page's presenter words them; which save the profile plays on is the host's.",
         "properties": {
           "backups": {
             "items": {
@@ -4763,6 +5486,73 @@
         "title": "Seamless",
         "type": "object"
       },
+      "SeamlessParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Expect",
+            "type": "array"
+          },
+          "kind": {
+            "default": "me3",
+            "title": "Kind",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "SeamlessParams",
+        "type": "object"
+      },
+      "SeamlessPlan": {
+        "properties": {
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "launcher": {
+            "title": "Launcher",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "folder",
+          "files",
+          "launcher"
+        ],
+        "title": "SeamlessPlan",
+        "type": "object"
+      },
       "Seen": {
         "properties": {
           "at": {
@@ -4851,11 +5641,6 @@
           },
           "key": {
             "title": "Key",
-            "type": "string"
-          },
-          "note": {
-            "default": "",
-            "title": "Note",
             "type": "string"
           }
         },
@@ -5208,6 +5993,46 @@
         "title": "SetupSaved",
         "type": "object"
       },
+      "SharePlan": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "name",
+          "size",
+          "stamp"
+        ],
+        "title": "SharePlan",
+        "type": "object"
+      },
       "ShareText": {
         "properties": {
           "text": {
@@ -5475,6 +6300,52 @@
         "title": "StartInstallParams",
         "type": "object"
       },
+      "StartLaunchParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "kind": {
+            "default": "me3",
+            "title": "Kind",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "StartLaunchParams",
+        "type": "object"
+      },
       "StartTurnOffParams": {
         "additionalProperties": false,
         "properties": {
@@ -5614,34 +6485,6 @@
         "title": "Status",
         "type": "object"
       },
-      "StaysLast": {
-        "properties": {
-          "can_fix": {
-            "title": "Can Fix",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "problem": {
-            "title": "Problem",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "text",
-          "can_fix",
-          "problem"
-        ],
-        "title": "StaysLast",
-        "type": "object"
-      },
       "StrandedParams": {
         "additionalProperties": false,
         "properties": {
@@ -5664,34 +6507,6 @@
           "restore"
         ],
         "title": "StrandedParams",
-        "type": "object"
-      },
-      "Tag": {
-        "properties": {
-          "icon": {
-            "default": "",
-            "title": "Icon",
-            "type": "string"
-          },
-          "level": {
-            "title": "Level",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          },
-          "tip": {
-            "default": "",
-            "title": "Tip",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text",
-          "level"
-        ],
-        "title": "Tag",
         "type": "object"
       },
       "TakeBack": {
@@ -5782,14 +6597,66 @@
         "title": "TransferJob",
         "type": "object"
       },
+      "TrimParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "title": "Expect",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "TrimParams",
+        "type": "object"
+      },
+      "TrimPlan": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "keep": {
+            "title": "Keep",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "size",
+          "keep"
+        ],
+        "title": "TrimPlan",
+        "type": "object"
+      },
+      "Undone": {
+        "properties": {
+          "restored": {
+            "title": "Restored",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "restored"
+        ],
+        "title": "Undone",
+        "type": "object"
+      },
       "Unlisted": {
         "properties": {
           "folders": {
             "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+              "$ref": "#/components/schemas/UnlistedFolder"
             },
             "title": "Folders",
             "type": "array"
@@ -5799,6 +6666,24 @@
           "folders"
         ],
         "title": "Unlisted",
+        "type": "object"
+      },
+      "UnlistedFolder": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "path"
+        ],
+        "title": "UnlistedFolder",
         "type": "object"
       },
       "Unseen": {
@@ -5812,6 +6697,68 @@
           "count"
         ],
         "title": "Unseen",
+        "type": "object"
+      },
+      "UnusedPlan": {
+        "properties": {
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "token": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Token",
+            "type": "array"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/UnusedVersion"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions",
+          "size",
+          "token"
+        ],
+        "title": "UnusedPlan",
+        "type": "object"
+      },
+      "UnusedVersion": {
+        "properties": {
+          "installed": {
+            "title": "Installed",
+            "type": "string"
+          },
+          "mod_id": {
+            "title": "Mod Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mod_id",
+          "version",
+          "name",
+          "installed",
+          "size"
+        ],
+        "title": "UnusedVersion",
         "type": "object"
       },
       "UpdateNotice": {
@@ -5884,6 +6831,37 @@
         "title": "UpdatesState",
         "type": "object"
       },
+      "UseChoices": {
+        "properties": {
+          "mod_id": {
+            "title": "Mod Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/UseProfile"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "mod_id",
+          "version",
+          "profiles"
+        ],
+        "title": "UseChoices",
+        "type": "object"
+      },
       "UseParams": {
         "additionalProperties": false,
         "properties": {
@@ -5891,18 +6869,13 @@
             "title": "Index",
             "type": "integer"
           },
-          "name": {
-            "default": "",
-            "title": "Name",
-            "type": "string"
-          },
           "profile": {
             "title": "Profile",
             "type": "string"
           },
           "targets": {
             "items": {
-              "type": "integer"
+              "type": "string"
             },
             "title": "Targets",
             "type": "array"
@@ -5914,6 +6887,34 @@
           "targets"
         ],
         "title": "UseParams",
+        "type": "object"
+      },
+      "UseProfile": {
+        "properties": {
+          "has_copy": {
+            "title": "Has Copy",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "uses": {
+            "title": "Uses",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profile",
+          "name",
+          "has_copy",
+          "uses"
+        ],
+        "title": "UseProfile",
         "type": "object"
       },
       "ValidationError": {
@@ -6006,15 +7007,33 @@
         "title": "Warned",
         "type": "object"
       },
-      "bayle__session__ops__mod_configs__Done": {
+      "bayle__services__mods_page__ToolInfo": {
+        "description": "A mod's rebuild tool: what the player is asked to allow. key tells that it is another version of the tool.",
         "properties": {
-          "ok": {
-            "default": true,
-            "title": "Ok",
-            "type": "boolean"
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "what": {
+            "title": "What",
+            "type": "string"
           }
         },
-        "title": "Done",
+        "required": [
+          "label",
+          "package",
+          "what",
+          "key"
+        ],
+        "title": "ToolInfo",
         "type": "object"
       },
       "bayle__session__ops__mod_configs__ExportParams": {
@@ -6072,15 +7091,8 @@
             "default": "",
             "title": "Name",
             "type": "string"
-          },
-          "note": {
-            "title": "Note",
-            "type": "string"
           }
         },
-        "required": [
-          "note"
-        ],
         "title": "Changed",
         "type": "object"
       },
@@ -6095,17 +7107,6 @@
           "key"
         ],
         "title": "Closed",
-        "type": "object"
-      },
-      "bayle__session__ops__mods__Done": {
-        "properties": {
-          "note": {
-            "default": "",
-            "title": "Note",
-            "type": "string"
-          }
-        },
-        "title": "Done",
         "type": "object"
       },
       "bayle__session__ops__mods_entries__CheckParams": {
@@ -6125,6 +7126,17 @@
       "bayle__session__ops__mods_entries__RenameParams": {
         "additionalProperties": false,
         "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
           "index": {
             "title": "Index",
             "type": "integer"
@@ -6182,13 +7194,13 @@
       },
       "bayle__session__ops__mods_install__Closed": {
         "properties": {
-          "draft_id": {
-            "title": "Draft Id",
+          "install_id": {
+            "title": "Install Id",
             "type": "string"
           }
         },
         "required": [
-          "draft_id"
+          "install_id"
         ],
         "title": "Closed",
         "type": "object"
@@ -6210,6 +7222,186 @@
           "source"
         ],
         "title": "OpenParams",
+        "type": "object"
+      },
+      "bayle__session__ops__mods_install__Opened": {
+        "properties": {
+          "install_id": {
+            "title": "Install Id",
+            "type": "string"
+          },
+          "overhaul_on": {
+            "title": "Overhaul On",
+            "type": "boolean"
+          },
+          "plan": {
+            "additionalProperties": true,
+            "title": "Plan",
+            "type": "object"
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          }
+        },
+        "required": [
+          "install_id",
+          "plan",
+          "overhaul_on",
+          "stamp"
+        ],
+        "title": "Opened",
+        "type": "object"
+      },
+      "bayle__session__ops__mods_install__PreviewParams": {
+        "additionalProperties": false,
+        "properties": {
+          "install_id": {
+            "title": "Install Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupForm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "install_id",
+          "name"
+        ],
+        "title": "PreviewParams",
+        "type": "object"
+      },
+      "bayle__session__ops__mods_library__StartParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "index",
+          "expect"
+        ],
+        "title": "StartParams",
+        "type": "object"
+      },
+      "bayle__session__ops__mods_profile__StartParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expect": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expect"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "expect"
+        ],
+        "title": "StartParams",
+        "type": "object"
+      },
+      "bayle__session__ops__mods_profile__ToolInfo": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "what": {
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "package",
+          "what",
+          "key"
+        ],
+        "title": "ToolInfo",
         "type": "object"
       },
       "bayle__session__ops__profile_transfer__ExportParams": {
@@ -6328,6 +7520,109 @@
         "title": "ImportParams",
         "type": "object"
       },
+      "bayle__session__ops__profile_transfer__Opened": {
+        "properties": {
+          "author": {
+            "default": "",
+            "title": "Author",
+            "type": "string"
+          },
+          "folder": {
+            "default": "",
+            "title": "Folder",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "names": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "array"
+          },
+          "new_name": {
+            "default": "",
+            "title": "New Name",
+            "type": "string"
+          },
+          "new_profile": {
+            "default": true,
+            "title": "New Profile",
+            "type": "boolean"
+          },
+          "readme": {
+            "default": "",
+            "title": "Readme",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "version": {
+            "default": "",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource",
+          "kind"
+        ],
+        "title": "Opened",
+        "type": "object"
+      },
+      "bayle__session__ops__profile_transfer__PreviewParams": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Choices",
+            "type": "object"
+          },
+          "new_name": {
+            "default": "",
+            "title": "New Name",
+            "type": "string"
+          },
+          "new_profile": {
+            "default": true,
+            "title": "New Profile",
+            "type": "boolean"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "which": {
+            "default": 0,
+            "title": "Which",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resource",
+          "profile"
+        ],
+        "title": "PreviewParams",
+        "type": "object"
+      },
       "bayle__session__ops__saves__FolderParams": {
         "additionalProperties": false,
         "properties": {
@@ -6406,6 +7701,30 @@
             "title": "Backup",
             "type": "string"
           },
+          "expect": {
+            "items": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Expect",
+            "type": "array"
+          },
           "target": {
             "title": "Target",
             "type": "string"
@@ -6413,7 +7732,8 @@
         },
         "required": [
           "backup",
-          "target"
+          "target",
+          "expect"
         ],
         "title": "RestoreParams",
         "type": "object"
@@ -6575,17 +7895,6 @@
           }
         },
         "title": "CheckParams",
-        "type": "object"
-      },
-      "bayle__session__ops__shell__Done": {
-        "properties": {
-          "ok": {
-            "default": true,
-            "title": "Ok",
-            "type": "boolean"
-          }
-        },
-        "title": "Done",
         "type": "object"
       },
       "bayle__session__ops__shell__FolderParams": {
@@ -7111,7 +8420,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__mod_configs__Done"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             },
@@ -7295,7 +8604,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__mod_configs__Done"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             },
@@ -7882,7 +9191,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/AllowParams"
               }
             }
           },
@@ -7893,7 +9202,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Allowed"
                 }
               }
             },
@@ -7915,7 +9224,585 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.allow_tool (plan, writes)",
+        "summary": "mods.allow_tool (command, writes)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_allow_tool": {
+      "post": {
+        "operationId": "op_mods_check_allow_tool",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bayle__session__ops__mods_profile__ToolInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_allow_tool (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_delete_profile": {
+      "post": {
+        "operationId": "op_mods_check_delete_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletePlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_delete_profile (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_dll_folders": {
+      "post": {
+        "operationId": "op_mods_check_dll_folders",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_dll_folders (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_move_in": {
+      "post": {
+        "operationId": "op_mods_check_move_in",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_move_in (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_overhaul_install": {
+      "post": {
+        "operationId": "op_mods_check_overhaul_install",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallFolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverhaulPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_overhaul_install (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_overhaul_remove": {
+      "post": {
+        "operationId": "op_mods_check_overhaul_remove",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveChosen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverhaulPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_overhaul_remove (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_remove_holder": {
+      "post": {
+        "operationId": "op_mods_check_remove_holder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_remove_holder (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_remove_unused": {
+      "post": {
+        "operationId": "op_mods_check_remove_unused",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnusedPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_remove_unused (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_seamless": {
+      "post": {
+        "operationId": "op_mods_check_seamless",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeamlessPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_seamless (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_separate": {
+      "post": {
+        "operationId": "op_mods_check_separate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_separate (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_share": {
+      "post": {
+        "operationId": "op_mods_check_share",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_share (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_split_folder": {
+      "post": {
+        "operationId": "op_mods_check_split_folder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_split_folder (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_takeover": {
+      "post": {
+        "operationId": "op_mods_check_takeover",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveChosen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverhaulPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_takeover (read)",
         "tags": [
           "mods"
         ]
@@ -7962,6 +9849,52 @@
           }
         ],
         "summary": "mods.check_text (read)",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/ops/mods.check_trim_backups": {
+      "post": {
+        "operationId": "op_mods_check_trim_backups",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrimPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "mods.check_trim_backups (read)",
         "tags": [
           "mods"
         ]
@@ -8020,7 +9953,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LaunchRef"
+                "$ref": "#/components/schemas/StartLaunchParams"
               }
             }
           },
@@ -8031,7 +9964,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -8053,7 +9986,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.delete_profile (plan, writes)",
+        "summary": "mods.delete_profile (command, writes)",
         "tags": [
           "mods"
         ]
@@ -8066,7 +9999,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/bayle__session__ops__mods_profile__StartParams"
               }
             }
           },
@@ -8077,7 +10010,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -8099,7 +10032,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.dll_folders (plan, writes)",
+        "summary": "mods.dll_folders (command, writes)",
         "tags": [
           "mods"
         ]
@@ -8165,11 +10098,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -8191,7 +10124,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.duplicate_profile (job, writes)",
+        "summary": "mods.duplicate_profile (command, writes)",
         "tags": [
           "mods"
         ]
@@ -8250,7 +10183,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DraftRef"
+                "$ref": "#/components/schemas/InstallRef"
               }
             }
           },
@@ -8289,52 +10222,6 @@
         ]
       }
     },
-    "/v1/ops/mods.install_edit": {
-      "post": {
-        "operationId": "op_mods_install_edit",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InstallEdit"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InstallView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "mods.install_edit (command, writes)",
-        "tags": [
-          "mods"
-        ]
-      }
-    },
     "/v1/ops/mods.install_finish": {
       "post": {
         "operationId": "op_mods_install_finish",
@@ -8349,11 +10236,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -8375,7 +10262,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.install_finish (job, writes)",
+        "summary": "mods.install_finish (command, writes)",
         "tags": [
           "mods"
         ]
@@ -8388,7 +10275,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DraftRef"
+                "$ref": "#/components/schemas/InstallRef"
               }
             }
           },
@@ -8445,7 +10332,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InstallView"
+                  "$ref": "#/components/schemas/bayle__session__ops__mods_install__Opened"
                 }
               }
             },
@@ -8480,7 +10367,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DraftRef"
+                "$ref": "#/components/schemas/bayle__session__ops__mods_install__PreviewParams"
               }
             }
           },
@@ -8491,7 +10378,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InstallView"
+                  "$ref": "#/components/schemas/OverhaulPreview"
                 }
               }
             },
@@ -8526,7 +10413,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DraftRef"
+                "$ref": "#/components/schemas/ReplanParams"
               }
             }
           },
@@ -8537,7 +10424,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InstallView"
+                  "$ref": "#/components/schemas/Plan"
                 }
               }
             },
@@ -8618,7 +10505,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/ProfileParams"
               }
             }
           },
@@ -8671,11 +10558,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -8697,7 +10584,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.leftovers_clean (job, writes)",
+        "summary": "mods.leftovers_clean (command, writes)",
         "tags": [
           "mods"
         ]
@@ -8710,7 +10597,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/ProfileParams"
               }
             }
           },
@@ -8809,11 +10696,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -8835,7 +10722,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.library_use (job, writes)",
+        "summary": "mods.library_use (command, writes)",
         "tags": [
           "mods"
         ]
@@ -8848,7 +10735,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EntryRef"
+                "$ref": "#/components/schemas/EntryParams"
               }
             }
           },
@@ -8859,7 +10746,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PickOffer"
+                  "$ref": "#/components/schemas/UseChoices"
                 }
               }
             },
@@ -8940,7 +10827,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LaunchRef"
+                "$ref": "#/components/schemas/StartLaunchParams"
               }
             }
           },
@@ -8951,7 +10838,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -8973,7 +10860,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.move_in (plan, writes)",
+        "summary": "mods.move_in (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9032,7 +10919,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InstallFolder"
+                "$ref": "#/components/schemas/InstallStart"
               }
             }
           },
@@ -9043,7 +10930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -9065,7 +10952,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.overhaul_install (plan, writes)",
+        "summary": "mods.overhaul_install (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9078,7 +10965,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RemoveChosen"
+                "$ref": "#/components/schemas/RemoveStart"
               }
             }
           },
@@ -9089,7 +10976,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -9111,7 +10998,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.overhaul_remove (plan, writes)",
+        "summary": "mods.overhaul_remove (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9124,7 +11011,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/ProfileParams"
               }
             }
           },
@@ -9135,7 +11022,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PickOffer"
+                  "$ref": "#/components/schemas/OverhaulChoices"
                 }
               }
             },
@@ -9269,11 +11156,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9295,7 +11182,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.rebuild (job, writes)",
+        "summary": "mods.rebuild (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9315,11 +11202,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9341,7 +11228,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.remove (job, writes)",
+        "summary": "mods.remove (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9354,7 +11241,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EntryRef"
+                "$ref": "#/components/schemas/RemoveHolderParams"
               }
             }
           },
@@ -9365,7 +11252,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9387,7 +11274,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.remove_holder (plan, writes)",
+        "summary": "mods.remove_holder (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9400,7 +11287,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/RemoveUnusedParams"
               }
             }
           },
@@ -9411,7 +11298,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -9433,7 +11320,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.remove_unused (plan, writes)",
+        "summary": "mods.remove_unused (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9453,11 +11340,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9479,7 +11366,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.rename (job, writes)",
+        "summary": "mods.rename (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9499,11 +11386,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9525,7 +11412,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.rename_folder (job, writes)",
+        "summary": "mods.rename_folder (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9591,11 +11478,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9617,7 +11504,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.rename_profile (job, writes)",
+        "summary": "mods.rename_profile (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9814,7 +11701,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LaunchRef"
+                "$ref": "#/components/schemas/SeamlessParams"
               }
             }
           },
@@ -9825,7 +11712,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -9847,7 +11734,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.seamless (plan, writes)",
+        "summary": "mods.seamless (command, writes)",
         "tags": [
           "mods"
         ]
@@ -9860,7 +11747,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EntryRef"
+                "$ref": "#/components/schemas/bayle__session__ops__mods_library__StartParams"
               }
             }
           },
@@ -9871,7 +11758,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -9893,7 +11780,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.separate (plan, writes)",
+        "summary": "mods.separate (command, writes)",
         "tags": [
           "mods"
         ]
@@ -10044,7 +11931,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EntryRef"
+                "$ref": "#/components/schemas/bayle__session__ops__mods_library__StartParams"
               }
             }
           },
@@ -10055,7 +11942,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -10077,7 +11964,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.share (plan, writes)",
+        "summary": "mods.share (command, writes)",
         "tags": [
           "mods"
         ]
@@ -10090,7 +11977,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/bayle__session__ops__mods_profile__StartParams"
               }
             }
           },
@@ -10101,7 +11988,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -10123,7 +12010,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.split_folder (plan, writes)",
+        "summary": "mods.split_folder (command, writes)",
         "tags": [
           "mods"
         ]
@@ -10136,7 +12023,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RemoveChosen"
+                "$ref": "#/components/schemas/RemoveStart"
               }
             }
           },
@@ -10147,7 +12034,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/Started"
                 }
               }
             },
@@ -10169,7 +12056,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.takeover (plan, writes)",
+        "summary": "mods.takeover (command, writes)",
         "tags": [
           "mods"
         ]
@@ -10182,7 +12069,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/ProfileParams"
               }
             }
           },
@@ -10193,7 +12080,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PickOffer"
+                  "$ref": "#/components/schemas/OverhaulChoices"
                 }
               }
             },
@@ -10274,7 +12161,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileRef"
+                "$ref": "#/components/schemas/TrimParams"
               }
             }
           },
@@ -10285,7 +12172,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/ModsJob"
                 }
               }
             },
@@ -10307,7 +12194,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "mods.trim_backups (plan, writes)",
+        "summary": "mods.trim_backups (command, writes)",
         "tags": [
           "mods"
         ]
@@ -10331,7 +12218,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__mods__Done"
+                  "$ref": "#/components/schemas/Undone"
                 }
               }
             },
@@ -10699,7 +12586,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Opened"
+                  "$ref": "#/components/schemas/bayle__session__ops__profile_transfer__Opened"
                 }
               }
             },
@@ -10745,7 +12632,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Opened"
+                  "$ref": "#/components/schemas/bayle__session__ops__profile_transfer__Opened"
                 }
               }
             },
@@ -10780,7 +12667,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PreviewParams"
+                "$ref": "#/components/schemas/bayle__session__ops__profile_transfer__PreviewParams"
               }
             }
           },
@@ -10891,6 +12778,52 @@
         ]
       }
     },
+    "/v1/ops/saves.check_copy_character": {
+      "post": {
+        "operationId": "op_saves_check_copy_character",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.check_copy_character (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
     "/v1/ops/saves.check_delete_backup": {
       "post": {
         "operationId": "op_saves_check_delete_backup",
@@ -10983,14 +12916,14 @@
         ]
       }
     },
-    "/v1/ops/saves.copy_character": {
+    "/v1/ops/saves.check_repair": {
       "post": {
-        "operationId": "op_saves_copy_character",
+        "operationId": "op_saves_check_repair",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CharacterParams"
+                "$ref": "#/components/schemas/RepairRef"
               }
             }
           },
@@ -11001,7 +12934,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/RepairCheck"
                 }
               }
             },
@@ -11023,7 +12956,191 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.copy_character (plan, writes)",
+        "summary": "saves.check_repair (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.check_replace_from_file": {
+      "post": {
+        "operationId": "op_saves_check_replace_from_file",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceFileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplaceCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.check_replace_from_file (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.check_replace_from_library": {
+      "post": {
+        "operationId": "op_saves_check_replace_from_library",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceCopyRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplaceCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.check_replace_from_library (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.check_restore_backup": {
+      "post": {
+        "operationId": "op_saves_check_restore_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.check_restore_backup (read)",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/ops/saves.copy_character": {
+      "post": {
+        "operationId": "op_saves_copy_character",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavesJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "saves.copy_character (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11447,11 +13564,11 @@
       "post": {
         "operationId": "op_saves_post_session_repair",
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11463,7 +13580,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.post_session_repair (job, writes)",
+        "summary": "saves.post_session_repair (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11579,7 +13696,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11601,7 +13718,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.repair (plan, writes)",
+        "summary": "saves.repair (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11625,7 +13742,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11647,7 +13764,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.replace_from_file (plan, writes)",
+        "summary": "saves.replace_from_file (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11671,7 +13788,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11693,7 +13810,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.replace_from_library (plan, writes)",
+        "summary": "saves.replace_from_library (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11717,7 +13834,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOffer"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11739,7 +13856,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.restore_backup (plan, writes)",
+        "summary": "saves.restore_backup (command, writes)",
         "tags": [
           "saves"
         ]
@@ -11851,11 +13968,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStarted"
+                  "$ref": "#/components/schemas/SavesJob"
                 }
               }
             },
@@ -11877,7 +13994,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "saves.undo_change (job, writes)",
+        "summary": "saves.undo_change (command, writes)",
         "tags": [
           "saves"
         ]
@@ -12367,7 +14484,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__shell__Done"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             },
@@ -12439,7 +14556,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__shell__Done"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             },
@@ -12813,7 +14930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/bayle__session__ops__shell__Done"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             },
@@ -12965,7 +15082,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModsView"
+                  "$ref": "#/components/schemas/ModsPageState"
                 }
               }
             },

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from bayle.platform.text import tr
-from bayle.views.file_actions import file_action_text, shown_path
+from bayle.ui.pages.mods.file_actions import file_action_text, shown_path
 
 
 def _size(n: int) -> str:

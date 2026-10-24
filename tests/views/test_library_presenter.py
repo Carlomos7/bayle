@@ -6,7 +6,7 @@ from pathlib import Path
 from test_mods_presenter import facts
 
 from bayle.mods import shared_mods
-from bayle.views.mod_install import InstallDraft
+from bayle.ui.pages.mods.install_presenter import InstallDraft
 from bayle.views.mods import ModsPresenter
 
 P = ModsPresenter()

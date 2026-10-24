@@ -4,7 +4,7 @@ entries me3 would refuse. Uses the small regulation files and profiles of the co
 from test_mod_merge import TALK, World
 from test_param_merge import pack, set_word, vanilla
 
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.mods import conflicts as overview
 from bayle.mods import rebuild as merge
 from bayle.platform import paths as common
@@ -62,7 +62,7 @@ def test_the_combines_overlapping_rows_are_listed(tmp_path, monkeypatch):
     game = tmp_path / "Game"
     game.mkdir()
     (game / "regulation.bin").write_bytes(vanilla())
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: game)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: game)
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
     base = tmp_path / "p"
     text = ""
@@ -86,7 +86,7 @@ def test_a_pack_after_the_combined_one_replaces_it(tmp_path, monkeypatch):
     game = tmp_path / "Game"
     game.mkdir()
     (game / "regulation.bin").write_bytes(vanilla())
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: game)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: game)
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
     base = tmp_path / "p"
     for name in ("a", "b"):

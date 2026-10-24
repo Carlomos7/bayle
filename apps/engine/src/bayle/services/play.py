@@ -30,7 +30,8 @@ from bayle.coop.scaling import (
     scaling_spec,
 )
 from bayle.game import catalog as games
-from bayle.game.locate import Locations, installed_dir
+from bayle.game.discovery import installed_dir
+from bayle.game.locate import Locations
 from bayle.mods import operations as mod_operations
 from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage

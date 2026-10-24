@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.mods import backends, install, remove
 from bayle.mods import profile_edit as M
 from bayle.mods import rebuild as merge
@@ -38,7 +38,7 @@ class World:
         self.game.mkdir(parents=True)
         (self.game / "regulation.bin").write_bytes(b"GAME")
         (self.game / "eldenring.exe").write_bytes(b"x")
-        monkeypatch.setattr(locate, "installed_dir", lambda _game: self.game)
+        monkeypatch.setattr(discovery, "installed_dir", lambda _game: self.game)
         monkeypatch.setattr(common, "exe_running", lambda _exe: False)
         (self.base / "mod" / "parts" / "parts").mkdir(parents=True)
         self.winner = self.base / "Merger" / "mod"
@@ -393,7 +393,7 @@ def _declared(tmp_path, monkeypatch):
 
     base = tmp_path / "prof"
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: tmp_path / "Game")
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: tmp_path / "Game")
     for name in ("params", "overhaul"):
         (base / "mod" / name).mkdir(parents=True)
         (base / "mod" / name / "regulation.bin").write_bytes(name.encode())

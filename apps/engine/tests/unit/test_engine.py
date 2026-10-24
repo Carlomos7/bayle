@@ -15,7 +15,7 @@ from test_param_merge import pack, rows_of, set_word, vanilla
 from bayle import overhauls
 from bayle.formats.esd import write_esd
 from bayle.game import config as game_config
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.mods import backends, engine
 from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
@@ -83,7 +83,7 @@ class Example:
         (self.game / "regulation.bin").write_bytes(vanilla())
         (self.game / "eldenring.exe").write_bytes(b"x")
         fakegame.game(monkeypatch, game_files())
-        monkeypatch.setattr(locate, "installed_dir", lambda _game: self.game)
+        monkeypatch.setattr(discovery, "installed_dir", lambda _game: self.game)
         monkeypatch.setattr(common, "exe_running", lambda _exe: False)
         self.setup = self.base / ".example-overhaul-setup"
         for f in PAYLOAD:

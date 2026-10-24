@@ -9,7 +9,7 @@ import time
 from test_mod_merge import World
 from test_param_merge import pack, set_word, vanilla
 
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.mods import rebuild as merge
 from bayle.mods import undo
 from bayle.mods.backends import builtin
@@ -85,7 +85,7 @@ def test_the_combine_keeps_its_earlier_outputs_and_undo_puts_one_back(tmp_path, 
     game = tmp_path / "Game"
     game.mkdir()
     (game / "regulation.bin").write_bytes(vanilla())
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: game)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: game)
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
     monkeypatch.setattr(builtin, "HISTORY_KEEP", 2)
     base = tmp_path / "p"

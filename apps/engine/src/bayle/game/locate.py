@@ -14,8 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from bayle.config.settings import LauncherSettings, game_setting
-from bayle.game import catalog
-from bayle.platform import me3_paths, paths, steam_paths
+from bayle.game import catalog, discovery
 
 PATH_SETTINGS = ("me3_path", "game_exe", "me3_profile_dir", "saves_dir")  # Settings > Locations; blank = detect
 
@@ -87,16 +86,14 @@ class Locations:
         return Path(self.overrides.game_exe).name if self.overrides.game_exe else self.game.exe
 
     def game_running(self) -> bool:
-        return paths.exe_running(self.game_exe_name())
+        return discovery.game_running(self.game_exe_name())
 
     def dead_game_shells(self) -> list[int]:
         """Leftover zero-memory copies of the game. A Windows problem; Proton cleans up after itself."""
-        return paths.dead_exe_shells(self.game_exe_name())
+        return discovery.dead_game_shells(self.game_exe_name())
 
     def game_dir(self) -> Path | None:
-        if self.overrides.game_exe and Path(self.overrides.game_exe).is_file():
-            return Path(self.overrides.game_exe).parent
-        return installed_dir(self.game)
+        return discovery.game_dir(self.game, self.overrides.game_exe)
 
     def regulation_bin(self) -> Path | None:
         game = self.game_dir()
@@ -111,7 +108,7 @@ class Locations:
         game = game or self.game
         if self.overrides.saves_dir and game is self.game:  # the override is for this Locations' game
             return [Path(self.overrides.saves_dir)]
-        return paths.save_roots_for(game.save_dir, game.app_id)
+        return discovery.save_roots(game)
 
     def save_names(self) -> list[str]:
         """The default names (ER0000.sl2, ER0000.co2) and any the profile in use configures, without repeats."""
@@ -133,22 +130,13 @@ class Locations:
 
     # ------------------------------------------------------------------ me3
     def me3_exe(self) -> Path | None:
-        return me3_paths.me3_exe(self.overrides.me3_exe)
+        return discovery.me3_exe(self.overrides.me3_exe)
 
     def me3_profiles_dir(self) -> Path | None:
-        return me3_paths.me3_profiles_dir(self.overrides.profiles_dir)
+        return discovery.me3_profiles_dir(self.overrides.profiles_dir)
 
     def me3_profiles(self, game: catalog.Game | None = None) -> list[Path]:
         """User-made .me3 profiles for the game (the *-default.me3 ones me3 generates are skipped). A profile that
         names no game in [[supports]] counts for Elden Ring, the only game older profiles were written for."""
-        from bayle.config import layout
-
         game = game or self.game
-        home = self.me3_profiles_dir()
-        also = [layout.game_root(home, game.key)] if home is not None else []
-        return me3_paths.find_profiles(home, game.key, catalog.ELDEN_RING.key, also)
-
-
-def installed_dir(game: catalog.Game) -> Path | None:
-    """The folder with this game's exe in any Steam library, or None (cached per game for the session)."""
-    return steam_paths.find_installed(game.key, game.install_dir, game.exe)
+        return discovery.me3_profiles(self.me3_profiles_dir(), game)

@@ -3,7 +3,7 @@ DLC.bdt next to the game. Runs on COPIES of a real co-op save (skipped without o
 
 import pytest
 
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.saves import layout as save_layout_check
 from bayle.saves import vanilla as save_vanilla
 from bayle.services import play as g
@@ -42,11 +42,11 @@ def test_without_the_flag_unlisted_gear_is_foreign(tmp_path):
 def test_dlc_is_read_from_the_game_folder(tmp_path, monkeypatch):
     game = tmp_path / "Game"
     game.mkdir()
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: game)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: game)
     assert saves_service.dlc_owned(loc=er()) is False
     (game / "DLC.bdt").write_bytes(b"x")
     assert saves_service.dlc_owned(loc=er()) is True
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: None)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: None)
     assert saves_service.dlc_owned(loc=er()) is None  # unknown game folder: treated as installed
 
 

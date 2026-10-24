@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from bayle.game.locate import installed_dir
+from bayle.game.discovery import installed_dir
 from bayle.platform.text import plural, tr
 from PySide6.QtCore import Property, QObject, Signal, Slot
 

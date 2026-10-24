@@ -8,7 +8,8 @@ import pytest
 from bayle.config import settings, settings_file
 from bayle.config.settings import LauncherSettings
 from bayle.game import catalog as games
-from bayle.game.locate import Locations, Overrides, installed_dir
+from bayle.game.discovery import installed_dir
+from bayle.game.locate import Locations, Overrides
 from bayle.platform import paths as common
 from bayle.platform import steam
 from bayle.saves import container

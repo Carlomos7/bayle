@@ -14,7 +14,7 @@ from test_engine import ARCHIVES, GAME_CLIPS, PAYLOAD, game_files
 from test_param_merge import pack, set_word, vanilla
 
 from bayle import overhauls
-from bayle.game import catalog, locate
+from bayle.game import catalog, discovery
 from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B
 from bayle.mods import library, operations, overhaul_install, records, undo
@@ -84,7 +84,7 @@ class World:
         (self.game / "regulation.bin").write_bytes(vanilla())
         (self.game / "eldenring.exe").write_bytes(b"x")
         fakegame.game(monkeypatch, game_files())
-        monkeypatch.setattr(locate, "installed_dir", lambda _game: self.game)
+        monkeypatch.setattr(discovery, "installed_dir", lambda _game: self.game)
         monkeypatch.setattr(common, "exe_running", lambda _exe: False)
         self.loc = Locations(catalog.ELDEN_RING, Overrides(profiles_dir=str(self.profiles)))
         self.download = self.make_download(tmp_path / "Downloads" / "ExampleOverhaul-LITE-0.1.33-rc3")

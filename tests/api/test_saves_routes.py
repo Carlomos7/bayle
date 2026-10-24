@@ -9,8 +9,10 @@ from bayle.api.settings import ApiSettings
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.saves import backups as save_backups
+from bayle.saves import fix as save_fix
 from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
+from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
 from bayle.session import Session
@@ -329,3 +331,142 @@ def test_bad_params_for_back_up_save_copy_and_import_are_422_not_500(env, name, 
     got = env.post(name, body)
     assert got.status_code == 422 and got.json()["code"] == "invalid_params"
     assert env.entries() == []
+
+
+# ------------------------------------------------------------------------------------------------ group E: the writes
+NEW = b"new save " * 40
+
+
+def start(env, name, body):
+    """A write's start over HTTP: 200 with a job id; the finished job's result."""
+    return job_result(env, env.post(name, body))["result"]
+
+
+def test_restore_is_a_check_then_a_start_and_undo_takes_it_back(env):
+    bak = env.backup()
+    env.save.write_bytes(NEW)
+    ref = {"backup": str(bak), "target": str(env.save)}
+    checked = env.post("saves.check_restore_backup", ref).json()
+    assert checked["backup"]["save_name"] == "ER0000.sl2" and checked["target"] == str(env.save)
+    assert len(checked["stamp"]) == 2 and env.save.read_bytes() == NEW  # a check changes nothing
+    result = start(env, "saves.restore_backup", {**ref, "expect": checked["stamp"]})
+    assert env.save.read_bytes() == OLD and result["file"] == "ER0000.sl2" and result["save"] == str(env.save)
+    assert result["undo"] == {
+        "type": "save-restore",
+        "save": str(env.save),
+        "backup": result["backup"],
+        "name": "ER0000.sl2",
+    }
+    undone = start(env, "saves.undo_change", {"save": result["save"], "backup": result["backup"]})
+    assert undone == {"file": "ER0000.sl2"} and env.save.read_bytes() == NEW
+
+
+def test_replace_from_file_and_from_library_are_a_check_then_a_start(env):
+    picked = env.tmp / "picked.co2"
+    picked.write_bytes(OTHER)
+    ref = {"source": str(picked), "target": str(env.save)}
+    checked = env.post("saves.check_replace_from_file", ref).json()
+    assert checked["label"] == "picked.co2" and checked["from_library"] is False and checked["signed"] is False
+    got = start(env, "saves.replace_from_file", {**ref, "expect": checked["stamp"]})
+    assert env.save.read_bytes() == OTHER and got["source"] == "picked.co2" and got["backup"]
+    entry = env.copy("Older")
+    env.save.write_bytes(OLD)
+    ref = {"folder": str(env.folder), "entry_id": entry["id"], "target": str(env.save)}
+    checked = env.post("saves.check_replace_from_library", ref).json()
+    assert checked["label"] == "Older" and checked["from_library"] is True and checked["changed_outside"] is False
+    got = start(env, "saves.replace_from_library", {**ref, "expect": checked["stamp"]})
+    assert env.save.read_bytes() == OTHER and got["source"] == "Older"
+
+
+def test_repair_copy_character_and_post_session_repair_over_http(env, monkeypatch):
+    def fix(path, *, loc):
+        bak = save_fix.backup(path, {"action": "Before fixing checksums"})
+        path.write_bytes(NEW)
+        return {"backup": bak}
+
+    monkeypatch.setattr(saves_service, "fix_checksums", fix)
+    ref = {"path": str(env.save), "keys": [["checksum", 1]]}
+    checked = env.post("saves.check_repair", ref).json()
+    assert (
+        checked["info"]["name"] == "ER0000.sl2" and checked["keys"] == [["checksum", 1]] and len(checked["stamp"]) == 1
+    )
+    got = start(env, "saves.repair", {**ref, "expect": checked["stamp"]})
+    assert env.save.read_bytes() == NEW and got["file"] == "ER0000.sl2" and got["backup"] and got["undo"]
+
+    plan = {"character": {"name": "Ann", "level": 10}, "replaces": None, "steam_id_changes": False}
+    monkeypatch.setattr(save_transfer, "plan_character_copy", lambda *a: plan)
+    monkeypatch.setattr(
+        save_transfer,
+        "copy_character",
+        lambda src, ss, dst, ds: {**plan, "backup": save_fix.backup(dst, {"action": "Before copying a character in"})},
+    )
+    ref = {"source": str(env.save), "src_slot": 1, "target": str(env.save), "dst_slot": 2}
+    checked = env.post("saves.check_copy_character", ref).json()
+    assert checked["plan"]["character"]["name"] == "Ann" and checked["same_file"] is True
+    got = start(env, "saves.copy_character", {**ref, "expect": checked["stamp"]})
+    assert (got["character"], got["slot"], got["file"]) == ("Ann", 2, "ER0000.sl2") and got["undo"]
+
+    ran = []
+    monkeypatch.setattr("bayle.saves.repair.repair_all", lambda loc: ran.append(loc))
+    assert start(env, "saves.post_session_repair", {}) == {"save": None, "backup": None, "undo": None} and ran == [
+        env.loc
+    ]
+
+
+def test_a_write_over_a_changed_file_is_stale_409_and_writes_nothing(env):
+    bak = env.backup()
+    ref = {"backup": str(bak), "target": str(env.save)}
+    stamp = env.post("saves.check_restore_backup", ref).json()["stamp"]
+    env.save.write_bytes(NEW)
+    stale = env.post("saves.restore_backup", {**ref, "expect": stamp})
+    assert stale.status_code == 409 and stale.json()["code"] == "stale"
+    assert env.save.read_bytes() == NEW
+
+
+def test_writes_to_things_the_page_does_not_list_are_404(env):
+    stray = env.tmp / "stray.sl2"
+    stray.write_bytes(OTHER)
+    bak = env.backup()
+    cases = (
+        ("saves.check_restore_backup", {"backup": str(stray), "target": str(env.save)}),
+        ("saves.check_replace_from_file", {"source": str(stray), "target": str(stray)}),
+        ("saves.check_replace_from_library", {"folder": str(env.folder), "entry_id": "nope", "target": str(env.save)}),
+        ("saves.check_repair", {"path": str(stray), "keys": [["checksum", 1]]}),
+        ("saves.check_copy_character", {"source": str(stray), "src_slot": 1, "target": str(env.save), "dst_slot": 2}),
+        ("saves.undo_change", {"save": str(stray), "backup": str(bak)}),
+    )
+    for name, body in cases:
+        got = env.post(name, body)
+        assert got.status_code == 404 and got.json()["code"] == "not_found", name
+    assert env.save.read_bytes() == OLD and stray.read_bytes() == OTHER
+
+
+@pytest.mark.parametrize(
+    ("name", "body"),
+    [
+        ("saves.check_restore_backup", {"backup": "b"}),
+        ("saves.restore_backup", {"backup": "b", "target": "t"}),
+        ("saves.restore_backup", {"backup": "b", "target": "t", "expect": "stamp"}),
+        ("saves.restore_backup", {"backup": "b", "target": "t", "expect": [[1]]}),
+        ("saves.replace_from_file", {"source": "s", "target": "t"}),
+        ("saves.replace_from_library", {"folder": "f", "entry_id": "i", "target": "t"}),
+        ("saves.check_repair", {"path": "p", "keys": "checksum"}),
+        ("saves.repair", {"path": "p", "keys": [["checksum", 1]]}),
+        ("saves.copy_character", {"source": "s", "src_slot": 1, "target": "t", "dst_slot": 2}),
+        ("saves.check_copy_character", {"source": "s", "src_slot": "one", "target": "t", "dst_slot": 2}),
+        ("saves.undo_change", {"save": "s"}),
+    ],
+)
+def test_bad_params_for_the_writes_are_422_not_500(env, name, body):
+    got = env.post(name, body)
+    assert got.status_code == 422 and got.json()["code"] == "invalid_params"
+
+
+def test_a_write_while_the_game_runs_is_busy_409_and_writes_nothing(env):
+    bak = env.backup()
+    ref = {"backup": str(bak), "target": str(env.save)}
+    stamp = env.post("saves.check_restore_backup", ref).json()["stamp"]
+    env.client.app.state.jobs._game_running = lambda: True
+    got = env.post("saves.restore_backup", {**ref, "expect": stamp})
+    assert got.status_code == 409 and got.json()["details"]["reason"] == "game_running"
+    assert env.save.read_bytes() == OLD

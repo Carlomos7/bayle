@@ -1,7 +1,7 @@
 """The Saves page's presenter (technical specification §8.10, Saves): the header line, the two live save cards, the
 saved copies (the Library and the Backups), what each of the five operations says before it writes, Check & repair
-and the read-only character sheet. Plain Python, every string through tr(); it turns services/saves.py's facts into
-what the page shows, and the page's choices back into the calls the services take.
+and the read-only character sheet. Plain Python, every string through tr(); it turns the services' facts into what the
+page shows, and the page's choices back into the calls the services take.
 
 The five operations: copy a character into a live slot (or duplicate it in the same file), replace a live save with a
 file, save a copy (Library), back up now (Backups), import a file (Library). Every write is confirmed in words from
@@ -15,6 +15,7 @@ from typing import Any
 
 from bayle.platform.text import plural, tr
 from bayle.services import saves as saves_service
+from bayle.services.saves_page import ReplaceCheck, repair_calls
 from bayle.views.common import Confirm, Refusal
 
 ATTRIBUTES = (
@@ -352,6 +353,24 @@ class SavesPresenter:
             return tr("{message} Backed up before it stopped: {names}").format(message=message, names=names)
         return None
 
+    # ---- what a write ends with: the job result's facts in, the toast's words out
+    def copy_done(self, result: dict) -> str:
+        return tr("{who} is in slot {n} of {file}").format(
+            who=result["character"], n=result["slot"], file=result["file"]
+        )
+
+    def replace_done(self, result: dict) -> str:
+        return tr("{target} now holds {source}").format(target=result["file"], source=result["source"])
+
+    def restore_done(self, result: dict) -> str:
+        return tr("{name} is back as it was in the backup").format(name=result["file"])
+
+    def repair_done(self, result: dict) -> str:
+        return tr("Repaired {name}").format(name=result["file"])
+
+    def post_session_repair_done(self, result: dict) -> str:
+        return tr("Post-session repair finished")
+
     def character_copy(self, plan: dict, source: str, target: str, target_slot: int, same_file: bool) -> Confirm:
         who = plan["character"] or {"name": "?", "level": 0}
         old = plan["replaces"]
@@ -433,6 +452,23 @@ class SavesPresenter:
             safety=tr("{target} is kept in the Library first, and backed up. Undo appears afterwards.").format(
                 target=target
             ),
+        )
+
+    def replace_check(self, c: ReplaceCheck) -> Confirm:
+        """Replace (a picked file) or Restore (a Library copy), from the service's check."""
+        source, target = Path(c.source), Path(c.target)
+        kinds = None
+        if source.suffix.lower() != target.suffix.lower():
+            kinds = (self.kind_of(source), self.kind_of(target))
+        return self.replace(
+            c.label,
+            target.name,
+            c.rows,
+            c.signed,
+            c.holders,
+            target.suffix.lower() == ".sl2",
+            restore=c.from_library,
+            kinds=kinds,
         )
 
     def restore(self, bak: dict, target: str) -> Confirm:
@@ -668,28 +704,8 @@ class SavesPresenter:
     def repair_button(self, n: int) -> str:
         return plural("Repair {n} item", "Repair {n} items", n).format(n=n) if n else tr("Repair")
 
-    @staticmethod
-    def calls(keys: list[tuple]) -> dict:
-        """The ticked boxes as the calls the services take: {loading: {slot: [issue]}, vanilla: {slot: {items,
-        orphans}}, checksums, regulation} (the mapping the Check & repair page uses)."""
-        loading: dict[int, list] = {}
-        vanilla: dict[int, dict] = {}
-        out = {"loading": loading, "vanilla": vanilla, "checksums": False, "regulation": False}
-        for k in keys:
-            if k[0] == "loading":
-                loading.setdefault(k[1], []).append(k[2])
-            elif k[0] == "item":
-                vanilla.setdefault(k[1], {"items": set(), "orphans": False})["items"].add(k[2])
-            elif k[0] == "orphans":
-                vanilla.setdefault(k[1], {"items": set(), "orphans": False})["orphans"] = True
-            elif k[0] == "checksum":
-                out["checksums"] = True
-            elif k[0] == "regulation":
-                out["regulation"] = True
-        return out
-
     def repair_confirm(self, info: dict, keys: list[tuple]) -> Confirm:
-        calls = self.calls(keys)
+        calls = repair_calls(keys)
         names = {c["slot"] - 1: c["name"] or tr("Slot {n}").format(n=c["slot"]) for c in info.get("characters") or []}
         lines = []
         for sl, issues in calls["loading"].items():

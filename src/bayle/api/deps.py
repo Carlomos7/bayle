@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hmac
-from typing import Annotated
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from bayle.api.settings import ApiSettings
+from bayle.errors import OperationError
 from bayle.session import Session
 from bayle.work.jobs import JobManager
 
@@ -33,6 +35,19 @@ def get_jobs(request: Request) -> JobManager:
 
 
 JobsDep = Annotated[JobManager, Depends(get_jobs)]
+
+
+def service(name: str) -> Callable[[Request], Any]:
+    """A dependency handing a route the engine's feature interface `name` (services.features): one per feature
+    router. Raises not_available when the app was built without it."""
+
+    def get(request: Request) -> Any:
+        found = request.app.state.services.get(name)
+        if found is None:
+            raise OperationError("not_available", f"This server has no {name} feature.", {"feature": name})
+        return found
+
+    return get
 
 
 def get_session(request: Request) -> Session:

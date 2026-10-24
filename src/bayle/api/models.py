@@ -2,9 +2,25 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 CONTRACT_VERSION = "1"  # major of the /v1 contract; additive changes only within it
+
+
+class Params(BaseModel):
+    """Base of a route's request body: unknown fields are refused (422), values are not changed after validation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class NoParams(Params):
+    """A route that takes nothing; as a query model it still refuses unknown query parameters."""
+
+
+class Result(BaseModel):
+    """Base of a route's result (JSON-clean fields only)."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 class Health(BaseModel):

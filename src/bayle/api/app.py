@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -11,7 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from bayle import __version__
-from bayle.api import ops, routes
+from bayle.api import ops, routers, routes
 from bayle.api.deps import require_token
 from bayle.api.models import CONTRACT_VERSION, Health, Problem
 from bayle.api.settings import ApiSettings
@@ -60,18 +62,29 @@ def _unique_id(route) -> str:
     return route.name
 
 
-def create_app(settings: ApiSettings | None = None, session: Session | None = None) -> FastAPI:
+def create_app(
+    settings: ApiSettings | None = None,
+    session: Session | None = None,
+    *,
+    jobs: JobManager | None = None,
+    services: Mapping[str, Any] | None = None,
+) -> FastAPI:
+    """jobs: the engine's JobManager; services: its feature interfaces by name (services.features.build(...)
+    .services()), which the feature routers hand their routes. session: transitional, until the last session
+    operation has its router; its jobs and services are used when the others are not given."""
     settings = settings or ApiSettings()  # type: ignore[call-arg]  # fails fast when the token is missing
 
     # shortcut: no game_running gate yet (needs a selected game's Locations); wire it with the first writing endpoint
-    session = session or Session(JobManager(), plans=PlanStore())
+    session = session or Session(jobs or JobManager(), plans=PlanStore(), services=services)
     jobs = session.jobs
+    services = dict(services if services is not None else session.services)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.settings = settings
         app.state.jobs = jobs
         app.state.session = session
+        app.state.services = services
         yield
 
     # The generated /docs and /openapi.json routes sit outside app-level dependencies: off; the spec is exported offline.
@@ -104,10 +117,13 @@ def create_app(settings: ApiSettings | None = None, session: Session | None = No
         return Health(app_version=__version__, contract_version=CONTRACT_VERSION)
 
     v1.include_router(routes.router)
+    for router in routers.ALL:
+        v1.include_router(router)
     v1.include_router(ops.session_router(session))
     app.include_router(v1)
     # state is also set here so tests and the offline export work without running the lifespan
     app.state.settings = settings
     app.state.jobs = jobs
     app.state.session = session
+    app.state.services = services
     return app

@@ -7925,6 +7925,223 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/activity": {
+      "get": {
+        "operationId": "activity",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityJobs"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/activity/log": {
+      "post": {
+        "operationId": "activity_log",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity Log",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/activity/log_file": {
+      "post": {
+        "operationId": "activity_log_file",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogFile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity Log File",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/activity/mark_seen": {
+      "post": {
+        "operationId": "activity_mark_seen",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Seen"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity Mark Seen",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/activity/undo": {
+      "post": {
+        "description": "Start taking a job back (its result: {\"said\": ...}); refusals are OperationError codes (services.activity).",
+        "operationId": "activity_undo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeBack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Started"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity Undo",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/v1/activity/unseen": {
+      "post": {
+        "operationId": "activity_unseen",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unseen"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity Unseen",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
     "/v1/events": {
       "get": {
         "description": "Ordered job events. `id` is the seq, `event` the type. Reconnect with Last-Event-ID to continue.",
@@ -8164,196 +8381,6 @@
           }
         ],
         "summary": "Cancel Job"
-      }
-    },
-    "/v1/ops/activity.log": {
-      "post": {
-        "operationId": "op_activity_log",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LogParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LogView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "activity.log (read)",
-        "tags": [
-          "activity"
-        ]
-      }
-    },
-    "/v1/ops/activity.log_file": {
-      "post": {
-        "operationId": "op_activity_log_file",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LogParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LogFile"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "activity.log_file (read)",
-        "tags": [
-          "activity"
-        ]
-      }
-    },
-    "/v1/ops/activity.mark_seen": {
-      "post": {
-        "operationId": "op_activity_mark_seen",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Seen"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "activity.mark_seen (command, writes)",
-        "tags": [
-          "activity"
-        ]
-      }
-    },
-    "/v1/ops/activity.undo": {
-      "post": {
-        "operationId": "op_activity_undo",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TakeBack"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Started"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "activity.undo (command, writes)",
-        "tags": [
-          "activity"
-        ]
-      }
-    },
-    "/v1/ops/activity.unseen": {
-      "post": {
-        "operationId": "op_activity_unseen",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Unseen"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "activity.unseen (read)",
-        "tags": [
-          "activity"
-        ]
       }
     },
     "/v1/ops/mod_configs.apply_setup": {
@@ -14955,32 +14982,6 @@
         "summary": "shell.update_action (command, writes)",
         "tags": [
           "shell"
-        ]
-      }
-    },
-    "/v1/pages/activity": {
-      "get": {
-        "operationId": "page_activity",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActivityJobs"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Page Activity",
-        "tags": [
-          "pages"
         ]
       }
     },

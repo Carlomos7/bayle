@@ -200,6 +200,10 @@ class Session:
         self._locations = locations
         self._services = dict(services or {})
 
+    @property
+    def services(self) -> dict[str, Any]:
+        return self._services
+
     def service(self, name: str, default: Callable[[], Any]) -> Any:
         """The collaborator registered as name, else a default one (made once)."""
         if name not in self._services:

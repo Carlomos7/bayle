@@ -2,7 +2,6 @@
 registers them all (the API and the window session do)."""
 
 from bayle.session.ops import (
-    activity,
     mod_configs,
     mods,
     mods_entries,
@@ -17,7 +16,6 @@ from bayle.session.ops import (
 )
 
 __all__ = [
-    "activity",
     "mod_configs",
     "mods",
     "mods_entries",

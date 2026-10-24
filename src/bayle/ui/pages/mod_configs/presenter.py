@@ -14,8 +14,8 @@ from typing import Any
 from bayle.formats import config_model
 from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
+from bayle.ui.pages.mods.file_actions import file_action_text, shown_path
 from bayle.views.common import Confirm, Pick, Refusal
-from bayle.views.file_actions import file_action_text, shown_path
 
 # ----------------------------------------------------------------------------- Seamless Co-op's words
 SETTING_COPY = {

@@ -558,7 +558,7 @@ def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
 
 def test_a_saved_setup_with_flat_paths_carries_over_to_a_download_with_a_package_root(tmp_path):
     from bayle.overhauls.config import Basic, BasicNative
-    from bayle.views.file_actions import shown_path
+    from bayle.ui.pages.mods.file_actions import shown_path
 
     folder = make_folder(tmp_path, ["A.dll", "B.dll", "mod/regulation.bin", "mod/chr/c0000.anibnd.dcx", "cfg/a.ini"])
     saved = Basic(

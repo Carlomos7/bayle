@@ -1,6 +1,8 @@
 """The Settings page's words: rows from the engine's facts, the sentences for a saved setting, the three confirms with
 their path cautions, and one refusal text per engine error code."""
 
+from pathlib import Path
+
 import pytest
 from bayle.errors import OperationError
 from bayle.services import settings as engine
@@ -34,9 +36,9 @@ def test_name_problems_are_worded_per_field():
 
 
 def test_saving_a_setting_says_what_changed():
-    assert view.said(Changed("game_exe", r"D:\g\eldenring.exe", "game_exe", "settings", "location")) == (
-        "Location updated eldenring.exe"
-    )
+    # the platform's own separator: the words name the file, and on Linux a backslash is not a separator
+    exe = str(Path("D:/g") / "eldenring.exe")
+    assert view.said(Changed("game_exe", exe, "game_exe", "settings", "location")) == ("Location updated eldenring.exe")
     assert view.said(Changed("saves_dir", "", "saves_dir", "settings", "location")) == (
         "Location updated Detecting again."
     )

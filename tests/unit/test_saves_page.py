@@ -7,10 +7,10 @@ from bayle.game.locate import Locations
 from bayle.saves import fix as F
 from bayle.saves import layout as L
 from bayle.services import saves as service
-from bayle.services.saves_page import apply_repairs
+from bayle.services.saves_page import apply_repairs, repair_calls
 from bayle.ui.notifications import Notifier
 from bayle.ui.pages.saves.adapter import SavesAdapter
-from bayle.views.saves import SavesPresenter
+from bayle.ui.pages.saves.presenter import SavesPresenter
 from support import copy_live_save, er
 
 
@@ -79,7 +79,7 @@ def test_check_and_repair_signs_a_stale_slot_and_the_first_backup_is_the_file_be
     groups = presenter.repair_groups(service.save_info(save, loc=er()))
     ticked = [i["tuple"] for g in groups for i in g["items"] if i["checked"]]
     assert ("checksum", active[0]) in ticked
-    first = apply_repairs(save, presenter.calls(ticked), loc=er())
+    first = apply_repairs(save, repair_calls(ticked), loc=er())
     after = L.parse(str(save))
     assert all(after["slot_md5_ok"][i] for i in active) and after["ud10_md5_ok"]
     assert first is not None and first.read_bytes() == before

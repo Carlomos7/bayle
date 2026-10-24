@@ -21,7 +21,7 @@ from bayle.session.operations import Call, NoParams, Params, Result, Session, op
 # ----------------------------------------------------------------------------- models
 @dataclass(frozen=True)
 class SavesState:
-    """The page's facts. The presenter (views.saves) words them; which save the profile plays on is the host's."""
+    """The page's facts. The Qt page's presenter words them; which save the profile plays on is the host's."""
 
     infos: list[dict[str, Any]]
     libraries: dict[str, dict[str, Any]]

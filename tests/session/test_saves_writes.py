@@ -4,28 +4,25 @@ writers run, so the bytes, the backup and the Undo record are the writers' own. 
 
 import hashlib
 import struct
-import sys
 from pathlib import Path
 
 import pytest
+from synthetic_save import build, disk_full_on_tmp, put, stale_slot, strays
 
-sys.path.insert(0, str(Path(__file__).parents[1] / "unit"))
-from synthetic_save import build, disk_full_on_tmp, put, stale_slot, strays  # noqa: E402
-
-from bayle.errors import Busy, OperationError  # noqa: E402
-from bayle.game import catalog  # noqa: E402
-from bayle.game.locate import Locations, Overrides  # noqa: E402
-from bayle.platform import logging as run_logging  # noqa: E402
-from bayle.saves import fix as save_fix  # noqa: E402
-from bayle.saves import layout as L  # noqa: E402
-from bayle.saves import library as save_library  # noqa: E402
-from bayle.saves import transfer as save_transfer  # noqa: E402
-from bayle.services import saves as saves_service  # noqa: E402
-from bayle.services.saves_page import SavesService  # noqa: E402
-from bayle.session import Session  # noqa: E402
-from bayle.session import ops as _ops  # noqa: E402,F401  registers the operations
-from bayle.work.events import EventBus  # noqa: E402
-from bayle.work.jobs import JobManager  # noqa: E402
+from bayle.errors import Busy, OperationError
+from bayle.game import catalog
+from bayle.game.locate import Locations, Overrides
+from bayle.platform import logging as run_logging
+from bayle.saves import fix as save_fix
+from bayle.saves import layout as L
+from bayle.saves import library as save_library
+from bayle.saves import transfer as save_transfer
+from bayle.services import saves as saves_service
+from bayle.services.saves_page import SavesService
+from bayle.session import Session
+from bayle.session import ops as _ops  # noqa: F401  registers the operations
+from bayle.work.events import EventBus
+from bayle.work.jobs import JobManager
 
 ACCOUNT = 76561198000000001  # the folder's name: a save that carries it is not re-signed when it is put over another
 

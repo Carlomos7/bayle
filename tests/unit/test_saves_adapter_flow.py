@@ -8,9 +8,12 @@ import pytest
 from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
+from bayle.saves import fix as save_fix
+from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
+from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
-from bayle.services.saves_page import SavesService
+from bayle.services.saves_page import CopyCheck, RepairCheck, ReplaceCheck, RestoreCheck, SavesService
 from bayle.session import Session
 from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.ui.notifications import Notifier
@@ -330,3 +333,225 @@ def test_an_unknown_failure_code_falls_back_to_the_message(flow):
     adapter.host.follow_job = lambda j, done: done(JobSnapshot("j", "t", "failed", error=ErrorInfo("odd", "It broke.")))
     adapter.backUpAll()
     assert said["toasts"] == [("It broke.", True)]
+
+
+# ---- the seven writes to live saves: a check asked in the presenter's words, then a start with the check's stamp
+WRITES = ("copy_character", "replace_from_library", "replace_from_file", "restore_backup", "repair")
+WRITE_OPS = {f"saves.{n}" for n in (*WRITES, "post_session_repair", "undo_change")}
+
+
+def _no_write_runs(adapter):
+    """The page never goes through the session for a write: it calls the engine's SavesService."""
+    real = adapter.host.session.run
+
+    def run(name, params=None):
+        assert name not in WRITE_OPS | {f"saves.check_{n}" for n in WRITES}, name
+        return real(name, params)
+
+    adapter.host.session.run = run
+
+
+@pytest.fixture
+def loose(flow, monkeypatch):
+    """An invented file is not a whole save: the checks that read a save's layout accept it, its signing is left alone."""
+    monkeypatch.setattr(save_library, "check_whole", lambda data, game: None)
+    monkeypatch.setattr(save_library, "signed_for_account", lambda data, target, game: (data, False))
+    monkeypatch.setattr(save_library, "characters", lambda path, game=None: [])
+    adapter, notifier, said, save = flow
+    _no_write_runs(adapter)
+    picked = save.parent / "picked.sl2"
+    picked.write_bytes(b"picked save " * 30)
+    adapter.host.pick_file = lambda title, filters: picked
+    return adapter, notifier, said, save, picked
+
+
+def _answer(notifier, said, n: int, ok: bool = True):
+    notifier.answerWith(said["asked"][n][0], ok, False)
+
+
+def test_replace_from_file_is_asked_replaces_and_undo_takes_it_back(loose):
+    adapter, notifier, said, save, picked = loose
+    adapter.replaceFromFile(str(save))
+    ((_t, words),) = said["asked"]
+    assert words["title"] == "Replace ER0000.sl2" and save.read_bytes() == OLD
+    _answer(notifier, said, 0)
+    assert save.read_bytes() == picked.read_bytes()
+    ((text, action),) = said["actions"]
+    assert text == "ER0000.sl2 now holds picked.sl2"
+    notifier.toastAction(action)
+    assert save.read_bytes() == OLD
+
+
+def test_replace_from_a_changed_outside_copy_asks_that_first_and_stops_on_no(loose):
+    adapter, notifier, said, save, picked = loose
+    adapter.host.saves_service.save_copy(str(save), "Mine")
+    ((folder, lib),) = adapter.host.saves_service.page().libraries.items()
+    entry = lib["entries"][0]
+    save_library.entry_path(Path(folder), entry).write_bytes(NEW)  # edited outside the launcher
+    adapter.replaceFromLibrary(folder, entry["id"], str(save))
+    assert said["asked"][0][1]["title"] == "'Mine' changed outside the launcher" and len(said["asked"]) == 1
+    _answer(notifier, said, 0, ok=False)
+    assert len(said["asked"]) == 1 and save.read_bytes() == OLD
+    adapter.replaceFromLibrary(folder, entry["id"], str(save))
+    _answer(notifier, said, 1)
+    assert said["asked"][2][1]["title"] == "Restore ER0000.sl2" and save.read_bytes() == OLD
+    _answer(notifier, said, 2)
+    assert save.read_bytes() == NEW and said["actions"][-1][0] == "ER0000.sl2 now holds Mine"
+
+
+def test_copy_a_character_asks_in_words_then_writes_with_undo(loose, monkeypatch):
+    adapter, notifier, said, save, _picked = loose
+    plan = {"character": {"name": "Ann", "level": 10}, "replaces": None, "steam_id_changes": False}
+    monkeypatch.setattr(save_transfer, "plan_character_copy", lambda *a: plan)
+
+    def copy(src, ss, dst, ds):
+        bak = save_fix.backup(dst, {"action": "Before copying a character in", "changes": []})
+        dst.write_bytes(NEW)
+        return {**plan, "backup": bak}
+
+    monkeypatch.setattr(save_transfer, "copy_character", copy)
+    adapter.copyCharacter(str(save), 1, str(save), 2)
+    assert said["asked"][0][1]["title"] == "Duplicate Ann" and save.read_bytes() == OLD
+    _answer(notifier, said, 0)
+    assert save.read_bytes() == NEW and said["actions"][0][0] == "Ann is in slot 2 of ER0000.sl2"
+    notifier.toastAction(said["actions"][0][1])
+    assert save.read_bytes() == OLD
+
+
+def test_repair_and_post_session_repair_are_told(loose, monkeypatch):
+    adapter, notifier, said, save, _picked = loose
+
+    def fix(path, *, loc):
+        bak = save_fix.backup(path, {"action": "Before fixing checksums"})
+        path.write_bytes(NEW)
+        return {"backup": bak}
+
+    monkeypatch.setattr(saves_service, "fix_checksums", fix)
+    adapter._infos, adapter._repair_path = [{"path": save, "name": save.name, "characters": []}], str(save)
+    adapter._ticked = lambda: [("checksum", 1)]
+    adapter.applyRepair()
+    assert said["asked"][0][1]["title"] == "Repair 1 item in ER0000.sl2"
+    _answer(notifier, said, 0)
+    assert save.read_bytes() == NEW and said["actions"][0][0] == "Repaired ER0000.sl2"
+    ran = []
+    monkeypatch.setattr("bayle.saves.repair.repair_all", lambda loc: ran.append(loc))
+    adapter.postSessionRepair()
+    assert len(ran) == 1 and said["toasts"][-1] == ("Post-session repair finished", False)
+
+
+def test_a_write_over_a_file_that_changed_asks_again_once(loose):
+    adapter, notifier, said, save, _picked = loose
+    adapter.host.session.run("saves.back_up", {"everything": True})
+    backup = str(adapter.host.saves_service.page().backups[0]["path"])
+    adapter.restoreBackup(backup, str(save))
+    save.write_bytes(NEW)  # the game wrote it after the question was shown
+    _answer(notifier, said, 0)
+    assert len(said["asked"]) == 2 and save.read_bytes() == NEW
+    save.write_bytes(NEW + b"!")  # and again before the second answer: not asked a third time, told
+    _answer(notifier, said, 1)
+    assert len(said["asked"]) == 2 and save.read_bytes() == NEW + b"!" and said["toasts"][-1][1] is True
+    adapter.restoreBackup(backup, str(save))
+    _answer(notifier, said, 2)
+    assert save.read_bytes() == OLD
+
+
+def test_unlisted_things_are_an_error_toast_and_nothing_is_asked(loose):
+    adapter, _notifier, said, save, _picked = loose
+    stray = save.parent.parent / "stray.sl2"
+    stray.write_bytes(b"x")
+    adapter.restoreBackup(str(stray), str(save))
+    adapter.replaceFromFile(str(stray))
+    adapter.replaceFromLibrary(str(save.parent), "nope", str(save))
+    adapter.copyCharacter(str(stray), 1, str(save), 2)
+    assert said["asked"] == [] and [t[1] for t in said["toasts"]] == [True] * 4 and save.read_bytes() == OLD
+
+
+@pytest.mark.parametrize("reason,title", [("game_running", "Close Elden Ring first"), ("job", "A job is running")])
+def test_a_write_the_manager_refuses_is_toasted_like_the_gate(loose, reason, title):
+    from bayle.errors import Busy
+
+    adapter, notifier, said, save, _picked = loose
+
+    def refuse(*a, **k):
+        raise Busy("no", {"reason": reason})
+
+    adapter.host.saves_service.replace_from_file = refuse
+    adapter.replaceFromFile(str(save))
+    _answer(notifier, said, 0)
+    assert said["toasts"][-1][0].startswith(f"{title}.") and save.read_bytes() == OLD
+
+
+class _FakeWrites:
+    """Stands in for the service's writes: each check hands out facts with a stamp, each start records what it got."""
+
+    STAMP = ((1, 2), (3, 4))
+
+    def __init__(self):
+        self.calls = []
+
+    def _check(self, name, facts, *a):
+        self.calls.append((name, a))
+        return facts
+
+    def check_copy_character(self, *a):
+        plan = {"character": {"name": "Ann", "level": 1}, "replaces": None, "steam_id_changes": False}
+        return self._check("check_copy_character", CopyCheck(plan, Path("a.sl2"), Path("b.sl2"), False, self.STAMP), *a)
+
+    def check_replace_from_library(self, *a):
+        facts = ReplaceCheck(Path("c.sl2"), Path("b.sl2"), "Mine", True, False, [], False, 0, self.STAMP)
+        return self._check("check_replace_from_library", facts, *a)
+
+    def check_replace_from_file(self, *a):
+        facts = ReplaceCheck(Path("c.sl2"), Path("b.sl2"), "c.sl2", False, False, [], False, 0, self.STAMP)
+        return self._check("check_replace_from_file", facts, *a)
+
+    def check_restore_backup(self, *a):
+        row = {"when": "2026-01-01 10:00:00", "action": "Manual backup", "changes": []}
+        return self._check("check_restore_backup", RestoreCheck(row, Path("b.sl2"), self.STAMP), *a)
+
+    def check_repair(self, *a):
+        return self._check("check_repair", RepairCheck({"name": "b.sl2"}, [("checksum", 1)], self.STAMP), *a)
+
+    def __getattr__(self, name):
+        def start(*a, **k):
+            self.calls.append((name, a))
+            return "job-1"
+
+        return start
+
+
+SLOTS = [
+    ("copyCharacter", ("a.sl2", 1, "b.sl2", 2), "copy_character", ("a.sl2", 1, "b.sl2", 2)),
+    ("replaceFromLibrary", ("f", "i", "b.sl2"), "replace_from_library", ("f", "i", "b.sl2")),
+    ("replaceFromFile", ("b.sl2",), "replace_from_file", (Path("c.sl2"), "b.sl2")),
+    ("restoreBackup", ("a.bak", "b.sl2"), "restore_backup", ("a.bak", "b.sl2")),
+    ("applyRepair", (), "repair", ("a.sl2", [("checksum", 1)])),
+]
+
+
+@pytest.mark.parametrize(("slot", "args", "op", "params"), SLOTS)
+def test_each_write_slot_checks_asks_and_starts_with_the_check_stamp_and_follows_the_job(flow, slot, args, op, params):
+    adapter, notifier, said, save = flow
+    fake, followed = _FakeWrites(), []
+    adapter.host.saves_service = fake
+    adapter.host.follow_job = lambda job_id, done: followed.append(job_id)
+    adapter.host.pick_file = lambda title, filters: Path("c.sl2")
+    adapter._infos, adapter._repair_path = [{"path": "a.sl2", "name": "a.sl2"}], "a.sl2"
+    adapter._ticked = lambda: [("checksum", 1)]
+    getattr(adapter, slot)(*args)
+    assert [c[0] for c in fake.calls] == [f"check_{op}"] and len(said["asked"]) == 1
+    _answer(notifier, said, 0)
+    (_, got), (start_name, start_args) = fake.calls[0], fake.calls[1]
+    assert start_name == op and got == params
+    assert start_args == (*params, fake.STAMP) and followed == ["job-1"]
+
+
+def test_post_session_repair_and_undo_call_the_service_and_follow_the_job(flow):
+    adapter, _n, _said, save = flow
+    fake, followed = _FakeWrites(), []
+    adapter.host.saves_service = fake
+    adapter.host.follow_job = lambda job_id, done: followed.append(job_id)
+    adapter.postSessionRepair()
+    adapter._undo(save, Path("a.bak"))
+    assert [c[0] for c in fake.calls] == ["post_session_repair", "undo_change"] and followed == ["job-1"] * 2
+    assert fake.calls[1][1] == (save, Path("a.bak"))

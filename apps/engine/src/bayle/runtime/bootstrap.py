@@ -44,6 +44,7 @@ from bayle.storage.cache import HashCache
 from bayle.storage.imports import run_imports
 from bayle.storage.mirror import Mirror
 from bayle.storage.rebuild_runs import RebuildRuns
+from bayle.work import runner
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 
@@ -56,10 +57,17 @@ _SLOTS: dict[str, tuple[Any, str]] = {
     "hash_file_in_use": (mod_rebuild, "_HASH_FILE_IN_USE"),
     "run_store": (mod_rebuild, "_RUN_STORE"),
     "mirror": (save_ports, "_CURRENT"),
+    "after_job": (runner, "_AFTER_JOB"),
     "cpu_backend": (cpu, "_backend"),
     "cpu_broadcast": (cpu, "_broadcast"),
     "ui_thread": (cpu, "_ui_thread"),
 }
+
+
+def _after_job() -> None:
+    cpu.invalidate("item_names")  # installs, removals and rebuilds change which mods give items names
+
+
 UNBOUND: dict[str, Any] = {name: None for name in _SLOTS} | {"hash_file_in_use": True}
 
 
@@ -182,7 +190,13 @@ def create_engine(start_game: catalog.Game | None = None, *, storage: bool = Tru
     """The engine for one run: the game is start_game (--game), else the tab the window last showed. storage=False
     opens no database (the files alone work, as before it existed)."""
     data = data_dir()
-    unbind = [bind(data_root=data, instance_scope=instance.scope_name(identity.get().instance_prefix, data))]
+    unbind = [
+        bind(
+            data_root=data,
+            instance_scope=instance.scope_name(identity.get().instance_prefix, data),
+            after_job=_after_job,
+        )
+    ]
     covered: set[str] = set()
     problem = ""
     try:

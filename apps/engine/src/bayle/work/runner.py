@@ -13,15 +13,29 @@ import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from bayle.errors import Cancelled, ErrorInfo, OperationError
-from bayle.game.locate import Locations
-from bayle.platform import cpu
 from bayle.platform import logging as run_logging
 
 PROGRESS = "progress"
 RESULT = "result"
+
+
+class _Keyed(Protocol):
+    @property
+    def key(self) -> str: ...
+
+
+class Located(Protocol):
+    """What the work reads of a job's locations: the game it is for (the feature layer passes its own Locations)."""
+
+    @property
+    def game(self) -> _Keyed: ...
+
+
+# Set by bayle.runtime.bootstrap only: runs after every logged job, whatever way it ended, in the job's thread.
+_AFTER_JOB: Callable[[], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -97,7 +111,7 @@ class Runner:
         self._spawn(run, name)
         return task
 
-    def start_job(self, job: Callable[[Any, Locations], None], launch, loc: Locations, title: str = "Job") -> int:
+    def start_job[L: Located](self, job: Callable[[Any, L], None], launch, loc: L, title: str = "Job") -> int:
         """A logged job (run_job) on a thread of its own; its result is the job's Outcome."""
 
         def logged(_progress: Progress) -> Outcome:
@@ -120,7 +134,7 @@ def run_logged(title: str, game: str) -> Iterator[None]:
         raise OperationError("failed", str(e)) from e
 
 
-def run_job_result(job: Callable[[Any, Locations], Any], launch, loc: Locations, title: str = "Job") -> JobResult:
+def run_job_result[L: Located](job: Callable[[Any, L], Any], launch, loc: L, title: str = "Job") -> JobResult:
     """Run job(setup, loc) on this (worker) thread as a logged job of its own: its lines go to its log file and the
     window, and the jobs index records how it ended. The job stops early with Cancelled / OperationError or, for old
     jobs, SystemExit (130: the user stopped it; anything else but 0: failed). Its return value is the result."""
@@ -132,7 +146,8 @@ def run_job_result(job: Callable[[Any, Locations], Any], launch, loc: Locations,
         try:
             value = job(launch, loc)
         finally:
-            cpu.invalidate("item_names")  # installs, removals and rebuilds change which mods give items names
+            if _AFTER_JOB is not None:
+                _AFTER_JOB()
     except SystemExit as e:
         if e.code not in (0, None):
             state = "cancelled" if e.code == 130 else "failed"
@@ -147,7 +162,7 @@ def run_job_result(job: Callable[[Any, Locations], Any], launch, loc: Locations,
     return JobResult(state, value, error, getattr(record, "undo", None) if state == "done" else None, unexpected)
 
 
-def run_job_value(job: Callable[[Any, Locations], Any], loc: Locations, title: str = "Job") -> Any:
+def run_job_value[L: Located](job: Callable[[Any, L], Any], loc: L, title: str = "Job") -> Any:
     """run_job_result for work that already runs as a session job: the job's value, or the OperationError / Cancelled
     it ended with."""
     done = run_job_result(job, None, loc, title)
@@ -158,6 +173,6 @@ def run_job_value(job: Callable[[Any, Locations], Any], loc: Locations, title: s
     raise OperationError.from_info(done.error)
 
 
-def run_job(job: Callable[[Any, Locations], Any], launch, loc: Locations, title: str = "Job") -> Outcome:
+def run_job[L: Located](job: Callable[[Any, L], Any], launch, loc: L, title: str = "Job") -> Outcome:
     """run_job_result for callers that want the window's status line (an Outcome)."""
     return run_job_result(job, launch, loc, title).outcome

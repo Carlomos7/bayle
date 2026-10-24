@@ -16,13 +16,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from bayle.errors import Busy, Cancelled, ErrorInfo, OperationError
-from bayle.game.locate import Locations
 from bayle.platform import logging as run_logging
 from bayle.work import runner as service_jobs
 from bayle.work.events import EventBus
 from bayle.work.prompts import Choose, PromptBroker
 from bayle.work.runner import Event as RunnerEvent
-from bayle.work.runner import JobResult
+from bayle.work.runner import JobResult, Located
 
 PROGRESS_INTERVAL = 0.1  # seconds: at most 10 progress events a second per job
 
@@ -234,11 +233,11 @@ class JobManager:
             raise
         return job_id
 
-    def start_logged(
+    def start_logged[L: Located](
         self,
-        job: Callable[[Any, Locations], Any],
+        job: Callable[[Any, L], Any],
         launch: Any,
-        loc: Locations,
+        loc: L,
         title: str = "Job",
         writes: bool = True,
         **gates: bool,

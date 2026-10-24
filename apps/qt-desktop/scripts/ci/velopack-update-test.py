@@ -244,9 +244,12 @@ def main() -> None:
         "signing_key": key.public_text(),
         "display_platform": "offscreen",
     }
-    data_dir = INSTALL / "current" / "_internal" / "bayle" / "data"
-    if not data_dir.is_dir():
-        fail(f"{data_dir} is not there: the installed layout changed")
+    # the installed (previous) release reads the override from its own package's data folder: bayle/ since the
+    # package rename, roundtable_souls/ in the releases published before it (4.5.1, 4.6.0-rc.N)
+    internal = INSTALL / "current" / "_internal"
+    data_dir = next((d for d in (internal / p / "data" for p in ("bayle", "roundtable_souls")) if d.is_dir()), None)
+    if data_dir is None:
+        fail(f"no bayle/data or roundtable_souls/data under {internal}: the installed layout changed")
     (data_dir / "build-identity.json").write_text(json.dumps(override, indent=1), encoding="utf-8")
     files = {p.name: p.read_bytes() for p in SHARE.iterdir() if p.is_file() and p.suffix in (".nupkg", ".json")}
     files[sig_name] = key.sign(files[feed_name], f"roundtable-souls {new} win").encode()

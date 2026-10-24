@@ -1,14 +1,17 @@
 """The Install mod dialog's words and state (technical specification §8.2 and "Dialogs kept"). Plain Python, every
-string through tr(): an InstallDraft holds a plan (mods.install.plan_install) and what the player has changed in
-it, and view() turns both into what the QML dialog shows. The wording is the Widgets dialog's
-(ui/dialogs/install.py), moved; the overhaul option is S3g's, in its five states."""
+string through tr(): an InstallDraft holds the plan's facts the engine gave (services.mod_install.plan_facts) and what
+the player has changed in it, view() turns both into what the QML dialog shows, and choices() turns the edits back
+into the InstallChoices the engine installs with. The engine keeps nothing of the edits."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from bayle.overhauls import basic
 from bayle.platform.text import tr
+from bayle.services.mod_configs import SetupValues
+from bayle.services.mod_install import InstallChoices, OverhaulPreview
 from bayle.ui.pages.mods.file_actions import file_action_text, shown_path
 
 
@@ -74,12 +77,15 @@ def words() -> dict[str, str]:
 
 @dataclass
 class InstallDraft:
-    """plan: a plan_mod_install result; profile: the profile it installs into. overhaul_on: the Settings switch
-    "Install overhauls with the launcher (preview)" is on, which is when the overhaul option is offered."""
+    """plan: the engine's plan facts; profile: the profile it installs into. overhaul_on: the Settings switch
+    "Install overhauls with the launcher (preview)" is on, which is when the overhaul option is offered. install_id
+    and stamp: the open install and the profile's stamp the engine gave."""
 
     plan: dict
     profile: Path
     overhaul_on: bool = False
+    install_id: str = ""
+    stamp: tuple[int, int] | None = None
     name_text: str = ""
     id_text: str = ""
     id_follows: bool = True
@@ -90,6 +96,10 @@ class InstallDraft:
     after_last: bool = False
     overhaul: bool = False
     preview: dict | None = None  # {"lines", "notes", "refusals"} of the overhaul install, once worked out
+    planned: tuple = ()  # (name, id, variant) the plan is for
+    previewed: tuple = ()  # (mode, name, variant) the preview is for
+    setup_edited: bool = False  # the player changed the DLL options, Files table or text tables: sent as the setup
+    gen: int = 0  # counts the edits that ask for a new plan: a heavy read answers only for the one it started with
     texts: list[dict] = field(default_factory=list)  # the setup's texts entries: file, table, tables to choose from
     files: list[dict] = field(default_factory=list)  # the setup's Files table (services.mod_configs.file_rows)
     natives: list[dict] = field(default_factory=list)  # the setup's DLLs as set (Basic natives), shown for review
@@ -104,6 +114,7 @@ class InstallDraft:
         self.reset_ticks()
         self.overhaul = self.option == "suggested" or self.option == "matched"
         self.library_choice = "here" if self._library().get("shared") else "separate"
+        self.planned = self.key()
 
     def _library(self) -> dict:
         return self.plan.get("library") or {}
@@ -146,6 +157,14 @@ class InstallDraft:
         return {"shown": True, "text": text, "options": options, "choice": self.library_choice}
 
     # ---- edits
+    def key(self) -> tuple:
+        return (self.name_text.strip(), self.id_text.strip(), self.variant or None)
+
+    def asked(self) -> None:
+        """An edit that needs the engine's replan or preview: Install waits for them."""
+        self.busy = True
+        self.gen += 1
+
     def reset_ticks(self) -> None:
         items = [] if self.plan.get("in_place") else self.plan.get("contents") or []
         self.ticks = {it["name"]: bool(it["on"]) for it in items}
@@ -165,8 +184,73 @@ class InstallDraft:
 
     def new_plan(self, plan: dict, *, variant_changed: bool = False) -> None:
         self.plan = plan
+        self.planned = self.key()
         if variant_changed:
             self.reset_ticks()
+            self.setup_edited, self.natives, self.files, self.texts = False, [], [], []  # another download's rows
+
+    # ---- the setup's form (an overhaul's DLL options, Files table and text tables)
+    def set_native(self, file: str, kind: str, value: str) -> bool:
+        """A DLL option (kind early | after | init); False when no row has that file."""
+        row = next((n for n in self.natives if n["file"] == file), None)
+        if row is None:
+            return False
+        row.update({"early": {"load_early": value == "true"}, "after": {"after_others": value == "true"},
+                    "init": {"initializer": value.strip() or None}}[kind])  # fmt: skip
+        return self._setup_changed()
+
+    def set_table(self, file: str, table: str) -> bool:
+        row = next((t for t in self.texts if t["file"] == file), None)
+        if row is None:
+            return False
+        row["table"] = table
+        return self._setup_changed()
+
+    def set_file(self, file: str, value: str) -> bool:
+        """A choice of the Files table (an action, or place:<game path>)."""
+        row = next((r for r in self.files if r["file"] == file), None)
+        if row is None:
+            return False
+        action, target = basic.decode_action(value)
+        row["action"], row["target"] = action, target or (row["target"] if action == "place" else "")
+        return self._setup_changed()
+
+    def _setup_changed(self) -> bool:
+        self.previewed, self.setup_edited = (), True
+        return True
+
+    def setup_values(self) -> SetupValues | None:
+        """The form as the engine takes it; None while the player has not changed it (the engine uses its own)."""
+        if not self.setup_edited:
+            return None
+        return SetupValues(
+            [dict(n) for n in self.natives],
+            {r["file"]: basic.encode_action(r["action"], r["target"]) for r in self.files},
+            {t["file"]: t["table"] for t in self.texts},
+        )
+
+    # ---- the engine's answers
+    def needs_preview(self) -> bool:
+        mode = self.overhaul_mode
+        return bool(mode) and (mode, self.name_text.strip(), self.variant or None) != self.previewed
+
+    def apply_preview(self, pv: OverhaulPreview, mode: str, key: tuple) -> None:
+        """The engine's overhaul preview for the mode and key (name, id, variant) it was asked for."""
+        refusals = list(pv.refusals)
+        if pv.editable:  # a verified config has no form: the rows stay as they were
+            self.natives, self.files = [dict(n) for n in pv.natives], [dict(r) for r in pv.files]
+            self.texts = [dict(t) for t in pv.texts]
+        if any(not t["table"] for t in self.texts):  # said once per file below, not by the engine too
+            refusals = [r for r in refusals if not r.startswith("Choose the table of ")]
+        for t in self.texts:
+            if not t["table"]:
+                refusals.append(
+                    tr("Choose the table for the texts added to {file} before installing.").format(
+                        file=shown_path(t["file"])
+                    )
+                )
+        self.preview = {"lines": list(pv.lines), "notes": list(pv.notes), "refusals": refusals}
+        self.previewed = (mode, key[0], key[2])
 
     # ---- the overhaul option
     @property
@@ -374,7 +458,7 @@ class InstallDraft:
                 langs = ", ".join(LANGUAGES.get(x.lower(), x) for x in p["languages"])
                 what += "\n" + tr("Text in {langs}; other languages keep the game's own text.").format(langs=langs)
             return what
-        return tr("DLL mod") + f"  ·  {', '.join(d.name for d in p['dlls'])}  ·  {size}"
+        return tr("DLL mod") + f"  ·  {', '.join(Path(d).name for d in p['dlls'])}  ·  {size}"
 
     def _note(self, mode: str) -> tuple[str, str]:
         p = self.plan
@@ -516,13 +600,17 @@ class InstallDraft:
         return {"shown": True, "ready": True, **pv}
 
     # ---- when Install is pressed
-    def finish(self) -> dict:
-        """The plan to install, with 'exclude' (names left out), 'merge', 'insert_before' and 'after_overlay' set."""
-        p = dict(self.plan)
-        p["exclude"] = [n for n, on in self.ticks.items() if not on]
-        p["merge"] = self._rebuild_shown() and self.rebuild
-        placed = self._regulation_on() and not p.get("already_listed")
-        p["insert_before"] = self._insert_before() if placed else None  # a package name
-        p["after_overlay"] = bool(p.get("stay_last")) and self.after_last
-        p["library_choice"] = self.library_choice if not self.overhaul_mode else ""
-        return p
+    def choices(self) -> InstallChoices:
+        """What the player set, for the engine to install with."""
+        return InstallChoices(
+            name=self.name_text,
+            id=self.id_text,
+            variant=self.variant,
+            exclude=tuple(n for n, on in self.ticks.items() if not on),
+            place_last=self.place_last,
+            rebuild=self.rebuild,
+            after_last=self.after_last,
+            library_choice=self.library_choice,
+            overhaul=self.overhaul,
+            setup=self.setup_values() if self.overhaul_mode else None,
+        )

@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query
 
 from bayle.api.deps import service
-from bayle.api.models import NoParams, Params, Result
+from bayle.api.models import JobStarted, NoParams, Params, Result
 from bayle.services.settings import SettingSpec, SettingsService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -98,10 +98,6 @@ class MoveAllParams(Params):
     expect: list[str]  # the profile names the client confirmed
 
 
-class SettingsJob(Result):
-    job_id: str
-
-
 @router.get("", name="settings")
 def page(s: Settings, _q: Annotated[NoParams, Query()]) -> SettingsPage:
     got = s.page()
@@ -144,8 +140,8 @@ def check_rename(s: Settings, p: LayoutNames) -> RenameChanges:
 
 
 @router.post("/rename_layout", name="settings_rename_layout")
-def rename_layout(s: Settings, p: LayoutRenameParams) -> SettingsJob:
-    return SettingsJob(job_id=s.rename(p.given(), p.expect))
+def rename_layout(s: Settings, p: LayoutRenameParams) -> JobStarted:
+    return JobStarted(job_id=s.rename(p.given(), p.expect))
 
 
 @router.post("/check_relocate", name="settings_check_relocate")
@@ -155,8 +151,8 @@ def check_relocate(s: Settings, p: FolderParam) -> RelocateFacts:
 
 
 @router.post("/relocate", name="settings_relocate")
-def relocate(s: Settings, p: RelocateParams) -> SettingsJob:
-    return SettingsJob(job_id=s.relocate(p.folder, p.expect_root))
+def relocate(s: Settings, p: RelocateParams) -> JobStarted:
+    return JobStarted(job_id=s.relocate(p.folder, p.expect_root))
 
 
 @router.post("/check_move_all", name="settings_check_move_all")
@@ -165,10 +161,10 @@ def check_move_all(s: Settings) -> SettingsProfiles:
 
 
 @router.post("/move_all", name="settings_move_all")
-def move_all(s: Settings, p: MoveAllParams) -> SettingsJob:
-    return SettingsJob(job_id=s.move_all(p.expect))
+def move_all(s: Settings, p: MoveAllParams) -> JobStarted:
+    return JobStarted(job_id=s.move_all(p.expect))
 
 
 @router.post("/clear_leftovers", name="settings_clear_leftovers")
-def clear_leftovers(s: Settings) -> SettingsJob:
-    return SettingsJob(job_id=s.clear_leftovers())
+def clear_leftovers(s: Settings) -> JobStarted:
+    return JobStarted(job_id=s.clear_leftovers())

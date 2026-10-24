@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from bayle.api.deps import service
-from bayle.api.models import Params, Result
+from bayle.api.models import JobStarted, Params, Result
 from bayle.services.profile_transfer import ProfileTransferService
 
 router = APIRouter(prefix="/profile_transfer", tags=["profile_transfer"])
@@ -92,10 +92,6 @@ class ImportProfileParams(ResourceRef):
     expect: int | None = None  # the preview serial the client looked at
 
 
-class TransferJob(Result):
-    job_id: str  # the job's result: export {path, size}, import {name}
-
-
 class ExportProfileParams(Params):
     profile: str
     kind: str = "list"  # list | full
@@ -152,8 +148,8 @@ def discard(s: Transfer, p: ResourceRef) -> ResourceDiscarded:
 
 
 @router.post("/import", name="profile_transfer_import")
-def import_(s: Transfer, p: ImportProfileParams) -> TransferJob:
-    return TransferJob(job_id=s.import_(p.resource, p.skip, expect=p.expect))
+def import_(s: Transfer, p: ImportProfileParams) -> JobStarted:
+    return JobStarted(job_id=s.import_(p.resource, p.skip, expect=p.expect))
 
 
 @router.post("/check_export", name="profile_transfer_check_export")
@@ -162,5 +158,5 @@ def check_export(s: Transfer, p: CheckExportParams) -> ExportChecked:
 
 
 @router.post("/export", name="profile_transfer_export")
-def export(s: Transfer, p: ExportProfileParams) -> TransferJob:
-    return TransferJob(job_id=s.export(**p.model_dump()))
+def export(s: Transfer, p: ExportProfileParams) -> JobStarted:
+    return JobStarted(job_id=s.export(**p.model_dump()))

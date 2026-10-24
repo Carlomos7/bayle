@@ -13,7 +13,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Query
 
 from bayle.api.deps import service
-from bayle.api.models import NoParams, Params, Result
+from bayle.api.models import JobStarted, NoParams, Params, Result
 from bayle.services.saves_page import SavesFacts, SavesService
 
 router = APIRouter(prefix="/saves", tags=["saves"])
@@ -22,10 +22,6 @@ Saves = Annotated[SavesService, Depends(service("saves"))]
 
 class SavesSaid(Result):
     text: str
-
-
-class SavesJob(Result):
-    job_id: str
 
 
 class SavesSheet(Result):
@@ -300,32 +296,32 @@ def remove_copy(s: Saves, p: RemoveCopyParams) -> SavesSaid:
 
 # ----------------------------------------------------------------------------- jobs that write or add copies
 @router.post("/back_up", name="saves_back_up")
-def back_up(s: Saves, p: SavesBackUpParams) -> SavesJob:
+def back_up(s: Saves, p: SavesBackUpParams) -> JobStarted:
     """A job; its result is {"saves", "backups"}."""
-    return SavesJob(job_id=s.back_up(p.paths, everything=p.everything))
+    return JobStarted(job_id=s.back_up(p.paths, everything=p.everything))
 
 
 @router.post("/post_session_repair", name="saves_post_session_repair")
-def post_session_repair(s: Saves) -> SavesJob:
-    return SavesJob(job_id=s.post_session_repair())
+def post_session_repair(s: Saves) -> JobStarted:
+    return JobStarted(job_id=s.post_session_repair())
 
 
 @router.post("/save_copy", name="saves_save_copy")
-def save_copy(s: Saves, p: SaveCopyParams) -> SavesJob:
+def save_copy(s: Saves, p: SaveCopyParams) -> JobStarted:
     """A job; its result is {"source", "entry_id", "name"}."""
-    return SavesJob(job_id=s.save_copy(p.path, p.name))
+    return JobStarted(job_id=s.save_copy(p.path, p.name))
 
 
 @router.post("/import_files", name="saves_import_files")
-def import_files(s: Saves, p: SaveImportParams) -> SavesJob:
+def import_files(s: Saves, p: SaveImportParams) -> JobStarted:
     """A job; its result is {"imported": [{"file", "entry_id", "name"}], "failed": [{"file", "code"}]}."""
-    return SavesJob(job_id=s.import_files(p.files, p.name))
+    return JobStarted(job_id=s.import_files(p.files, p.name))
 
 
 @router.post("/undo_change", name="saves_undo_change")
-def undo_change(s: Saves, p: UndoChangeParams) -> SavesJob:
+def undo_change(s: Saves, p: UndoChangeParams) -> JobStarted:
     """The toast's Undo: put the backup taken before a write back over the save. The job's result is {"file"}."""
-    return SavesJob(job_id=s.undo_change(p.save, p.backup))
+    return JobStarted(job_id=s.undo_change(p.save, p.backup))
 
 
 # ----------------------------------------------------------------------------- writes to live saves: check, then start
@@ -336,9 +332,9 @@ def check_copy_character(s: Saves, p: CharacterRef) -> CopyCheck:
 
 
 @router.post("/copy_character", name="saves_copy_character")
-def copy_character(s: Saves, p: CharacterParams) -> SavesJob:
+def copy_character(s: Saves, p: CharacterParams) -> JobStarted:
     """A job; its result is {"character", "slot", "file", "save", "backup", "undo"}."""
-    return SavesJob(job_id=s.copy_character(p.source, p.src_slot, p.target, p.dst_slot, p.expect))
+    return JobStarted(job_id=s.copy_character(p.source, p.src_slot, p.target, p.dst_slot, p.expect))
 
 
 @router.post("/check_replace_from_library", name="saves_check_replace_from_library")
@@ -347,9 +343,9 @@ def check_replace_from_library(s: Saves, p: ReplaceCopyRef) -> ReplaceCheck:
 
 
 @router.post("/replace_from_library", name="saves_replace_from_library")
-def replace_from_library(s: Saves, p: ReplaceCopyParams) -> SavesJob:
+def replace_from_library(s: Saves, p: ReplaceCopyParams) -> JobStarted:
     """A job; its result is {"file", "source", "save", "backup", "undo"}."""
-    return SavesJob(job_id=s.replace_from_library(p.folder, p.entry_id, p.target, p.expect))
+    return JobStarted(job_id=s.replace_from_library(p.folder, p.entry_id, p.target, p.expect))
 
 
 @router.post("/check_replace_from_file", name="saves_check_replace_from_file")
@@ -358,9 +354,9 @@ def check_replace_from_file(s: Saves, p: ReplaceFileRef) -> ReplaceCheck:
 
 
 @router.post("/replace_from_file", name="saves_replace_from_file")
-def replace_from_file(s: Saves, p: ReplaceFileParams) -> SavesJob:
+def replace_from_file(s: Saves, p: ReplaceFileParams) -> JobStarted:
     """A job; its result is {"file", "source", "save", "backup", "undo"}."""
-    return SavesJob(job_id=s.replace_from_file(p.source, p.target, p.expect))
+    return JobStarted(job_id=s.replace_from_file(p.source, p.target, p.expect))
 
 
 @router.post("/check_restore_backup", name="saves_check_restore_backup")
@@ -369,9 +365,9 @@ def check_restore_backup(s: Saves, p: RestoreRef) -> RestoreCheck:
 
 
 @router.post("/restore_backup", name="saves_restore_backup")
-def restore_backup(s: Saves, p: RestoreBackupParams) -> SavesJob:
+def restore_backup(s: Saves, p: RestoreBackupParams) -> JobStarted:
     """A job; its result is {"file", "save", "backup", "undo"}."""
-    return SavesJob(job_id=s.restore_backup(p.backup, p.target, p.expect))
+    return JobStarted(job_id=s.restore_backup(p.backup, p.target, p.expect))
 
 
 @router.post("/check_repair", name="saves_check_repair")
@@ -380,6 +376,6 @@ def check_repair(s: Saves, p: RepairRef) -> RepairCheck:
 
 
 @router.post("/repair", name="saves_repair")
-def repair(s: Saves, p: RepairParams) -> SavesJob:
+def repair(s: Saves, p: RepairParams) -> JobStarted:
     """A job; its result is {"file", "save", "backup", "undo"}."""
-    return SavesJob(job_id=s.repair(p.path, p.keys, p.expect))
+    return JobStarted(job_id=s.repair(p.path, p.keys, p.expect))

@@ -181,41 +181,81 @@ class InlineBackground:
         return None
 
 
-class ServiceCalls:
-    """The mod routers' routes called as functions on a real service, named as the old registry named them
-    ("mods.set_enabled"): no HTTP, no Session. jobs is the JobManager the services start their jobs on."""
+class Routes:
+    """Feature routers' routes called as functions on real services, without HTTP: `run("saves.back_up", {...})`
+    finds the POST route ending in /back_up among the given routers, validates the params as its body would (a failed
+    validation is the invalid_params OperationError) and returns its result; `snapshot("saves", **scope)` is the GET
+    of the router whose prefix is /saves. For tests of the engine behaviour behind the routes. jobs is the
+    JobManager the services start their jobs on."""
 
-    def __init__(self, jobs, **services):
-        self.jobs, self.services = jobs, services
+    def __init__(self, jobs: JobManager, routers: dict):
+        """routers: router module -> the service its routes are handed."""
+        self.jobs, self._routers = jobs, routers
 
-    def _route(self, op):
+    @property
+    def services(self) -> dict:
+        """By feature name (the router's prefix), as create_app(services=...) takes them."""
+        return {m.router.prefix.lstrip("/"): svc for m, svc in self._routers.items()}
+
+    @property
+    def service(self):  # the one service, when there is one router (the single-feature tests read it)
+        (only,) = self._routers.values()
+        return only
+
+    def _call(self, fn, service, raw, label: str):
         import inspect
         import typing
 
-        from bayle.api.routers import mod_install, mod_library, mods
+        from pydantic import ValidationError
 
+        from bayle.errors import OperationError
+
+        hints = typing.get_type_hints(fn)
+        params = list(inspect.signature(fn).parameters)[1:]
+        if not params:
+            return fn(service)
+        try:
+            return fn(service, hints[params[0]].model_validate(raw))
+        except ValidationError as e:
+            errors = [{"loc": [str(p) for p in x["loc"]], "msg": x["msg"], "type": x["type"]} for x in e.errors()]
+            raise OperationError(
+                "invalid_params", f"The request for {label} is not valid.", {"errors": errors}
+            ) from None
+
+    def run(self, name: str, params=None):
+        op = name.split(".", 1)[1]
+        raw = params.model_dump() if hasattr(params, "model_dump") else (params or {})
         found = [
-            (m.router.prefix[1:], r.endpoint)
-            for m in (mods, mod_install, mod_library)
+            (r.endpoint, svc)
+            for m, svc in self._routers.items()
             for r in m.router.routes
             if r.path == f"{m.router.prefix}/{op}"
         ]
-        assert len(found) == 1, op
-        feature, fn = found[0]
-        hints = typing.get_type_hints(fn)
-        names = list(inspect.signature(fn).parameters)
-        return self.services[feature], fn, (hints[names[1]] if len(names) > 1 else None)
+        assert len(found) == 1, f"{name}: {len(found)} routes"
+        return self._call(*found[0], raw, name)
 
-    def run(self, name, params=None):
-        service, fn, model = self._route(name.split(".", 1)[1])
-        return fn(service) if model is None else fn(service, model.model_validate(params or {}))
+    def snapshot(self, name: str, **scope):
+        found = [
+            (r.endpoint, svc)
+            for m, svc in self._routers.items()
+            for r in m.router.routes
+            if r.path == m.router.prefix == f"/{name}"
+        ]
+        assert len(found) == 1, f"{name}: {len(found)} pages"
+        return self._call(*found[0], scope, name)
 
-    def snapshot(self, page, **scope):
-        from bayle.api.routers.mods import ModsScope
-        from bayle.api.routers.mods import page as mods_page
 
-        assert page == "mods"
-        return mods_page(self.services["mods"], ModsScope(**scope))
+def Direct(router_module, feature: str, service, jobs: JobManager) -> Routes:  # noqa: N802  a constructor
+    """One feature router's routes on its service (feature: the router's name, kept for the callers' readability)."""
+    return Routes(jobs, {router_module: service})
+
+
+def ServiceCalls(jobs: JobManager, **services) -> Routes:  # noqa: N802  a constructor
+    """The Mods routers (mods, mod_install, mod_library) on the services given by name."""
+    from bayle.api.routers import mod_install, mod_library, mods
+
+    modules = {"mods": mods, "mod_install": mod_install, "mod_library": mod_library}
+    return Routes(jobs, {modules[k]: s for k, s in services.items()})
 
 
 def mods_session(locations=er, **jobs_kw):
@@ -233,41 +273,3 @@ def refused(session, name, params):
     with pytest.raises(OperationError) as e:
         session.run(name, params)
     return e.value
-
-
-class Direct:
-    """A feature router's routes called without HTTP, on a real service: `run("saves.back_up", {...})` validates the
-    params as the route's body would and returns the route's result (a failed validation is the invalid_params
-    OperationError), `snapshot("saves", **scope)` is its GET. For tests of the engine behaviour behind the routes."""
-
-    def __init__(self, router_module, feature: str, service, jobs: JobManager):
-        self.feature, self.service, self.jobs = feature, service, jobs
-        self._routes = {r.name: r.endpoint for r in router_module.router.routes}
-
-    def _call(self, name: str, raw):
-        import typing
-
-        from pydantic import ValidationError
-
-        from bayle.errors import OperationError
-
-        fn = self._routes[name]
-        hints = typing.get_type_hints(fn)
-        hints.pop("return", None)
-        rest = [t for k, t in hints.items() if k != next(iter(hints))]
-        if not rest:
-            return fn(self.service)
-        try:
-            return fn(self.service, rest[0].model_validate(raw))
-        except ValidationError as e:
-            errors = [{"loc": [str(p) for p in x["loc"]], "msg": x["msg"], "type": x["type"]} for x in e.errors()]
-            raise OperationError(
-                "invalid_params", f"The request for {name} is not valid.", {"errors": errors}
-            ) from None
-
-    def run(self, name: str, params=None):
-        raw = params.model_dump() if hasattr(params, "model_dump") else (params or {})
-        return self._call(name.replace(".", "_", 1), raw)
-
-    def snapshot(self, name: str, **scope):
-        return self._call(name, scope)

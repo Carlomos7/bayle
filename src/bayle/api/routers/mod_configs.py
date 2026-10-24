@@ -13,8 +13,8 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from bayle.api.deps import service
-from bayle.api.models import Params, Result
-from bayle.overhauls.config import BasicNative
+from bayle.api.models import JobStarted, Params, Result
+from bayle.api.routers.mod_install import SetupForm
 from bayle.services import game_checks
 from bayle.services import mod_configs as svc
 from bayle.services.mod_configs import ModConfigsService, ModConfigsState
@@ -109,16 +109,6 @@ class OverhaulForm(Result):
     new: bool
 
 
-class SetupForm(Params):
-    natives: tuple[BasicNative, ...]
-    files: dict[str, str]
-    tables: dict[str, str]
-    health: dict[str, str] | None = None  # None: the log check was not touched
-
-    def values(self) -> svc.SetupValues:
-        return svc.SetupValues([n.model_dump() for n in self.natives], self.files, self.tables, self.health)
-
-
 class SaveSetupParams(ProfileParams):
     path: str
     expect: str
@@ -129,10 +119,6 @@ class SaveSetupParams(ProfileParams):
 class SetupSaved(Result):
     name: str
     overhaul_id: str
-
-
-class ModConfigsJob(Result):
-    job_id: str
 
 
 class ApplyParams(ProfileParams):
@@ -266,9 +252,9 @@ def save_setup(s: Configs, p: SaveSetupParams) -> SetupSaved:
 
 
 @router.post("/apply_setup", name="mod_configs_apply_setup")
-def apply_setup(s: Configs, p: ApplyParams) -> ModConfigsJob:
+def apply_setup(s: Configs, p: ApplyParams) -> JobStarted:
     """A job (one Undo in Activity takes back every profile); its result is {"profiles": [names]}."""
-    return ModConfigsJob(job_id=s.apply_setup(p.profile, p.overhaul_id))
+    return JobStarted(job_id=s.apply_setup(p.profile, p.overhaul_id))
 
 
 @router.post("/check_install_setup", name="mod_configs_check_install_setup")
@@ -279,10 +265,10 @@ def check_install_setup(s: Configs, p: InstallSetupParams) -> SetupPlan:
 
 
 @router.post("/install_setup", name="mod_configs_install_setup")
-def install_setup(s: Configs, p: StartInstallParams) -> ModConfigsJob:
+def install_setup(s: Configs, p: StartInstallParams) -> JobStarted:
     """A job; its result is {"name"}. Errors: stale, cannot_set_up (details: refusals), busy."""
     job = s.install_setup(p.profile, p.folder, p.name, p.form.values(), p.expect, p.overhaul_id)
-    return ModConfigsJob(job_id=job)
+    return JobStarted(job_id=job)
 
 
 @router.post("/check_turn_off", name="mod_configs_check_turn_off")
@@ -292,9 +278,9 @@ def check_turn_off(s: Configs, p: ProfileParams) -> SetupPlan:
 
 
 @router.post("/turn_off", name="mod_configs_turn_off")
-def turn_off(s: Configs, p: StartTurnOffParams) -> ModConfigsJob:
+def turn_off(s: Configs, p: StartTurnOffParams) -> JobStarted:
     """A job (one Undo); its result is {"name"}. Errors: stale, cannot_turn_off, busy."""
-    return ModConfigsJob(job_id=s.turn_off(p.profile, p.expect))
+    return JobStarted(job_id=s.turn_off(p.profile, p.expect))
 
 
 # ----------------------------------------------------------------------------- sharing Seamless Co-op settings
@@ -304,9 +290,9 @@ def share(s: Configs, p: IniParams) -> ShareText:
 
 
 @router.post("/export_share", name="mod_configs_export_share")
-def export_share(s: Configs, p: ExportShareParams) -> ModConfigsJob:
+def export_share(s: Configs, p: ExportShareParams) -> JobStarted:
     """A job; its result is {"path"}. The file is written whole or not at all."""
-    return ModConfigsJob(job_id=s.export_share(p.profile, p.ini, p.to))
+    return JobStarted(job_id=s.export_share(p.profile, p.ini, p.to))
 
 
 @router.post("/check_paste", name="mod_configs_check_paste")

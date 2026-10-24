@@ -7,6 +7,7 @@ import threading
 
 import pytest
 
+from bayle.api.routers import saves as saves_router
 from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
@@ -15,11 +16,9 @@ from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
+from support import Direct
 
 OLD, OTHER = b"old save " * 40, b"other save " * 40
 
@@ -35,14 +34,9 @@ class World:
         self.loc = Locations(catalog.ELDEN_RING, Overrides(saves_dir=str(self.root)))
         self.svc = SavesService(JobManager(EventBus()), lambda: self.loc)
 
-    def session(self, **jobs) -> Session:
+    def session(self, **jobs) -> Direct:
         jobs_ = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs)
-        return Session(
-            jobs_,
-            plans=PlanStore(),
-            locations=lambda: self.loc,
-            services={"saves": SavesService(jobs_, lambda: self.loc)},
-        )
+        return Direct(saves_router, "saves", SavesService(jobs_, lambda: self.loc), jobs_)
 
     def backup(self):
         """One backup of the live save, taken the way the app takes it."""

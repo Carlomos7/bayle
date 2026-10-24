@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from bayle.api.routers.mod_configs import SetupForm
 from bayle.errors import OperationError
 from bayle.services.mod_install import InstallChoices, ModInstallService
 from bayle.session.operations import Call, Params, Result, Session, operation
-from bayle.session.ops.mod_configs import SetupForm
 
 
 def _none() -> ModInstallService:

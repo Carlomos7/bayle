@@ -33,7 +33,7 @@ class Env:
         self.profile.write_text(PROFILE)
 
     def post(self, name, body=None):
-        return self.client.post(f"/v1/ops/{name}", json=body or {})
+        return self.client.post(f"/v1/{name.replace('.', '/')}", json=body or {})
 
     def job(self, started):
         """A started job's id from the response (200), and what GET /v1/jobs/{id} says of it."""
@@ -65,7 +65,7 @@ def env(tmp_path):
 
 
 def test_the_page_lists_the_mods_an_export_holds(env):
-    got = env.client.get("/v1/pages/profile_transfer", params={"profile": str(env.profile)})
+    got = env.client.get("/v1/profile_transfer", params={"profile": str(env.profile)})
     assert got.status_code == 200
     [mod] = got.json()["mods"]
     assert mod["name"] and mod["size"] == 5 and mod["enabled"] is True
@@ -97,7 +97,7 @@ def test_a_failed_export_job_carries_its_code_and_details(env):
 
 def test_the_check_and_the_start_of_a_big_export_over_json(env, monkeypatch):
     monkeypatch.setattr("bayle.services.profile_transfer.LARGE_EXPORT", 1)
-    key = env.client.get("/v1/pages/profile_transfer", params={"profile": str(env.profile)}).json()["mods"][0]["key"]
+    key = env.client.get("/v1/profile_transfer", params={"profile": str(env.profile)}).json()["mods"][0]["key"]
     body = dict(profile=str(env.profile), kind="full", chosen=[key])
     checked = env.post("profile_transfer.check_export", body)
     assert checked.status_code == 200 and checked.json() == {"size": 5, "big": True}

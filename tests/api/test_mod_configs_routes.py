@@ -25,7 +25,7 @@ class Env:
         self.ini.write_text("[PASSWORD]\ncooppassword = room\n[GAMEPLAY]\nallow_invaders = 1\n", encoding="utf-8")
 
     def post(self, name, body=None):
-        return self.client.post(f"/v1/ops/{name}", json=body)
+        return self.client.post(f"/v1/{name.replace('.', '/')}", json=body)
 
     def job(self, got) -> dict:
         assert got.status_code == 200, got.text
@@ -44,13 +44,13 @@ def env(tmp_path, monkeypatch):
 
 
 def test_the_page_lists_the_mods_with_settings_files(env):
-    page = env.client.get("/v1/pages/mod_configs", params={"profile": env.profile})
+    page = env.client.get("/v1/mod_configs", params={"profile": env.profile})
     assert page.status_code == 200
     body = page.json()
     assert body["profile"] == env.profile and body["nodes"][0]["kind"] == "seamless"
     assert body["nodes"][0]["files"][0]["path"] == str(env.ini)
-    assert env.client.get("/v1/pages/mod_configs").json()["nodes"] == []  # no profile
-    assert env.client.get("/v1/pages/mod_configs", params={"nope": 1}).status_code == 422
+    assert env.client.get("/v1/mod_configs").json()["nodes"] == []  # no profile
+    assert env.client.get("/v1/mod_configs", params={"nope": 1}).status_code == 422
 
 
 def test_open_stamp_and_a_stale_save_over_http(env):
@@ -93,7 +93,7 @@ def test_a_file_outside_the_tree_is_not_found_and_a_malformed_body_is_422(env, t
     ):
         got = env.post(name, body)
         assert got.status_code == 422 and got.json()["code"] == "invalid_params", name
-    assert env.client.post("/v1/ops/mod_configs.open", content=b"{not json").status_code == 422
+    assert env.client.post("/v1/mod_configs/open", content=b"{not json").status_code == 422
 
 
 def test_sharing_and_pasting_over_http(env, tmp_path):

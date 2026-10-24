@@ -6,17 +6,16 @@ from pathlib import Path
 import pytest
 from test_overhaul_install import PROFILE, World, mixed_mod, set_up
 
+from bayle.api.routers import mod_configs as mod_configs_router
 from bayle.errors import OperationError
 from bayle.mods import configs, overhaul_install
 from bayle.services import mod_configs
 from bayle.services import mods as mod_service
 from bayle.services.mod_configs import ModConfigsService, SetupValues
 from bayle.services.settings import load_settings
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
+from support import Direct
 
 
 def inline(run, name=None):
@@ -31,7 +30,7 @@ def world(tmp_path, monkeypatch):
 def make(world, **jobs_kw):
     jobs = JobManager(EventBus(), spawn=inline, **jobs_kw)
     service = ModConfigsService(jobs, lambda: world.loc)
-    return Session(jobs, plans=PlanStore(), locations=lambda: world.loc, services={"mod_configs": service})
+    return Direct(mod_configs_router, "mod_configs", service, jobs)
 
 
 def ini_of(world) -> Path:

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from synthetic_save import build, disk_full_on_tmp, put, stale_slot, strays
 
+from bayle.api.routers import saves as saves_router
 from bayle.errors import Busy, OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
@@ -19,10 +20,9 @@ from bayle.saves import library as save_library
 from bayle.saves import transfer as save_transfer
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
+from support import Direct
 
 ACCOUNT = 76561198000000001  # the folder's name: a save that carries it is not re-signed when it is put over another
 
@@ -48,13 +48,9 @@ class World:
         self.picked = put(tmp_path / "picked" / "ER0000.co2", OTHER)
         self.loc = Locations(catalog.ELDEN_RING, Overrides(saves_dir=str(self.root)))
 
-    def session(self, **jobs) -> Session:
+    def session(self, **jobs) -> Direct:
         jobs_ = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs)
-        return Session(
-            jobs_,
-            locations=lambda: self.loc,
-            services={"saves": SavesService(jobs_, lambda: self.loc)},
-        )
+        return Direct(saves_router, "saves", SavesService(jobs_, lambda: self.loc), jobs_)
 
     def backups(self):
         return saves_service.list_backups(loc=self.loc)
@@ -75,13 +71,13 @@ def world(tmp_path):
     return World(tmp_path)
 
 
-def finished(session: Session, job_id: str):
+def finished(session: Direct, job_id: str):
     snap = session.jobs.get(job_id)
     assert snap is not None and snap.state == "done", snap
     return snap
 
 
-def run_write(session: Session, name: str, params: dict):
+def run_write(session: Direct, name: str, params: dict):
     """The check, then the start with its stamp: returns (the check, the finished job)."""
     checked = session.run(f"saves.check_{name}", params)
     job = session.run(f"saves.{name}", {**params, "expect": checked.stamp})
@@ -99,7 +95,7 @@ def assert_took_the_backup(world: World, snap, before: bytes, action: str):
     assert run_logging.read_jobs_from(None)[0]["undo"] == record  # the jobs index holds it too (Activity's Undo)
 
 
-def undo(session: Session, snap):
+def undo(session: Direct, snap):
     return finished(
         session, session.run("saves.undo_change", {"save": snap.result["save"], "backup": snap.result["backup"]}).job_id
     )

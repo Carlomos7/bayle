@@ -3,6 +3,7 @@ test's own folders; the game is never running unless a test says so. The writes 
 
 import pytest
 
+from bayle.api.routers import saves as saves_router
 from bayle.config.settings import data_dir
 from bayle.errors import OperationError
 from bayle.game import catalog
@@ -11,11 +12,9 @@ from bayle.saves import library as save_library
 from bayle.saves import regulation as save_regulation
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import SavesService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
+from support import Direct
 
 OLD, NEW, OTHER = b"old save " * 40, b"new save " * 40, b"other save " * 40
 
@@ -35,14 +34,9 @@ class World:
         self.save.write_bytes(OLD)
         self.loc = Locations(catalog.ELDEN_RING, Overrides(saves_dir=str(self.root)))
 
-    def session(self, **jobs) -> Session:
+    def session(self, **jobs) -> Direct:
         jobs_ = JobManager(EventBus(), spawn=inline, **jobs)
-        return Session(
-            jobs_,
-            plans=PlanStore(),
-            locations=lambda: self.loc,
-            services={"saves": SavesService(jobs_, lambda: self.loc)},
-        )
+        return Direct(saves_router, "saves", SavesService(jobs_, lambda: self.loc), jobs_)
 
     def backups(self):
         return saves_service.list_backups(loc=self.loc)
@@ -58,7 +52,7 @@ def world(tmp_path, monkeypatch):
     return World(tmp_path)
 
 
-def finished(session: Session, job_id: str):
+def finished(session: Direct, job_id: str):
     snap = session.jobs.get(job_id)
     assert snap is not None and snap.state == "done", snap
     return snap

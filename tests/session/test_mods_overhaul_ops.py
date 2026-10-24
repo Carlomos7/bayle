@@ -10,17 +10,14 @@ from bayle.errors import OperationError
 from bayle.mods.overhaul_takeover import EntryChoice
 from bayle.services import mods as mod_service
 from bayle.services.mod_install import ModInstallService
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
-from support import er, mods_profile
+from support import ServiceCalls, er, mods_profile
 
 
-def make(**jobs_kw) -> Session:
+def make(**jobs_kw) -> ServiceCalls:
     jobs = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs_kw)
-    return Session(jobs, plans=PlanStore(), locations=er, services={"mod_install": ModInstallService(jobs, er)})
+    return ServiceCalls(jobs, mod_install=ModInstallService(jobs, er))
 
 
 @pytest.fixture

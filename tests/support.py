@@ -179,3 +179,23 @@ class InlineBackground:
         if on_result is not None:
             on_result(got)
         return None
+
+
+def mods_session(locations=er, **jobs_kw):
+    """A Session over inline jobs whose Mods service is the real one (what the Mods operations are run through)."""
+    from bayle.services.mods_page import ModsService
+    from bayle.session import Session
+    from bayle.session import ops as _ops  # noqa: F401  registers the operations
+    from bayle.work.prompts import PlanStore
+
+    jobs = JobManager(EventBus(), spawn=lambda run, name=None: run(), **jobs_kw)
+    return Session(jobs, plans=PlanStore(), locations=locations, services={"mods": ModsService(jobs, locations)})
+
+
+def refused(session, name, params):
+    """The OperationError an operation raises (the test fails when it does not)."""
+    from bayle.errors import OperationError
+
+    with pytest.raises(OperationError) as e:
+        session.run(name, params)
+    return e.value

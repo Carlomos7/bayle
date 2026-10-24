@@ -1,24 +1,13 @@
-"""The Mods page's snapshot and read operations through Session.snapshot / run: no Qt, no window."""
+"""The Mods page's snapshot and read operations through Session.snapshot / run, on a session whose Mods service is the
+real one: no Qt, no window. Every profile is invented in the test's own folder."""
 
 import pytest
 
 from bayle.config.settings import data_dir
-from bayle.errors import OperationError
 from bayle.services import shared_mods as library_service
-from bayle.session import Session
-from bayle.session import ops as _ops  # noqa: F401  registers the operations
-from bayle.work.events import EventBus
-from bayle.work.jobs import JobManager
-from bayle.work.prompts import PlanStore
-from support import er, mods_profile, tree_state
+from support import er, mods_profile, mods_session, refused, tree_state
 
-
-def inline(run, name=None):
-    run()
-
-
-def make(**jobs_kw) -> Session:
-    return Session(JobManager(EventBus(), spawn=inline, **jobs_kw), plans=PlanStore(), locations=er)
+make = mods_session
 
 
 @pytest.fixture
@@ -26,14 +15,15 @@ def profile(tmp_path):
     return mods_profile(tmp_path / "p")
 
 
-def test_the_snapshot_shows_the_rows_the_load_order_and_the_header(profile):
-    view = make().snapshot("mods", profile=str(profile))
-    assert view.has_profile and view.profile == str(profile) and view.state.title == "main"
-    assert [[r.name for r in g.rows] for g in view.state.groups] == [["flora", "cloud"], ["a.dll"]]
-    assert view.state.counts == "2 packages  ·  1 native"
-    assert [e["name"] for e in view.entries] == ["flora", "cloud", "a.dll"]
-    assert view.load_order.clash_total == 0 and view.rebuild_undo is None
-    assert view.overhaul.visible is False and view.overhaul_info is None
+def test_the_snapshot_gives_the_facts_of_the_profile(profile):
+    state = make().snapshot("mods", profile=str(profile))
+    assert state.has_profile and state.profile == str(profile) and state.running is False
+    facts = state.facts
+    assert [e["name"] for e in facts.entries] == ["flora", "cloud", "a.dll"]
+    assert [facts.entries[i]["name"] for i in facts.display["package"]] == ["flora", "cloud"]
+    assert state.scan is not None and state.tool is None and state.rebuild_undo is None
+    assert state.overhaul is None and state.seamless == "" and state.rename_code == ""
+    assert state.folders == {0: "flora", 1: "cloud", 2: "natives"}
 
 
 def test_reading_the_page_writes_nothing(profile):
@@ -46,39 +36,68 @@ def test_reading_the_page_writes_nothing(profile):
     assert tree_state(profile.parent, data_dir()) == before
 
 
-def test_no_profile_and_an_unreadable_one_say_why():
+def test_no_profile_a_missing_one_or_no_game_gives_an_empty_state(tmp_path):
     s = make()
-    assert s.snapshot("mods").state.empty == "Pick a profile first."
-    assert "no profile yet" in s.snapshot("mods", no_profiles=True).state.empty
-    assert not s.snapshot("mods", profile="C:/nowhere/x.me3").has_profile
+    none = s.snapshot("mods")
+    assert (none.profile, none.has_profile, none.facts, none.no_profiles) == ("", False, None, False)
+    assert s.snapshot("mods", no_profiles=True).no_profiles
+    assert not s.snapshot("mods", profile=str(tmp_path / "x.me3")).has_profile
+    other = tmp_path / "notes.txt"
+    other.write_text("x", encoding="utf-8")
+    assert not s.snapshot("mods", profile=str(other)).has_profile  # only a .me3 is a profile
+    assert not mods_session(lambda: None).snapshot("mods", profile=str(other)).has_profile
 
 
-def test_a_closed_notice_stays_closed_for_the_profile(profile):
+def test_a_session_without_the_service_says_so():
+    from bayle.session import Session
+    from bayle.work.events import EventBus
+    from bayle.work.jobs import JobManager
+
+    s = Session(JobManager(EventBus(), spawn=lambda run, name=None: run()), locations=er)
+    assert refused(s, "mods.drag", {"profile": "x.me3", "index": 0}).code == "no_mods_service"
+
+
+def test_a_closed_notice_stays_closed_for_the_profile_in_the_session(profile):
     s = make()
-    key = lambda: [n.key for n in s.snapshot("mods", profile=str(profile)).state.notices]  # noqa: E731
-    assert "dll-folders" in key()  # the sample profile's DLL sits loose in natives/
+    assert s.snapshot("mods", profile=str(profile)).closed == ()
     s.run("mods.close_notice", {"profile": str(profile), "key": "dll-folders"})
-    assert "dll-folders" not in key()
-    assert "dll-folders" in [n.key for n in make().snapshot("mods", profile=str(profile)).state.notices]  # per session
+    assert s.snapshot("mods", profile=str(profile)).closed == ((str(profile), "dll-folders"),)
+    assert make().snapshot("mods", profile=str(profile)).closed == ()  # per session
 
 
 def test_the_library_hint_waits_for_enough_wasted_space(profile, monkeypatch):
     from bayle.mods import shared_mods
 
-    s = make()
+    s, ref = make(), {"profile": str(profile)}
     monkeypatch.setattr(library_service, "duplicates", lambda loc: (1, 10))
-    assert s.run("mods.library_hint", {"profile": str(profile)}).notice is None
+    assert s.run("mods.library_hint", ref).enough is False
     monkeypatch.setattr(library_service, "duplicates", lambda loc: (3, shared_mods.HINT_BYTES + 1))
-    hint = s.run("mods.library_hint", {"profile": str(profile)})
-    assert (hint.mods, hint.notice.key) == (3, "library-hint")
-    s.run("mods.close_notice", {"profile": str(profile), "key": "library-hint"})
-    assert s.run("mods.library_hint", {"profile": str(profile)}).notice is None
+    hint = s.run("mods.library_hint", ref)
+    assert (hint.mods, hint.enough, hint.closed) == (3, True, False)
+    s.run("mods.close_notice", {**ref, "key": "library-hint"})
+    assert s.run("mods.library_hint", ref).closed is True
 
 
 def test_the_drag_table_ships_a_reason_for_every_drop_spot(profile):
     table = make().run("mods.drag", {"profile": str(profile), "index": 1})
     assert table.kind == "package"
     assert table.reasons == {0: "cloud must load after flora (set in its options)", 1: ""}
-    with pytest.raises(OperationError) as e:
-        make().run("mods.drag", {"profile": str(profile), "index": 99})
-    assert e.value.code == "not_found"
+    assert refused(make(), "mods.drag", {"profile": str(profile), "index": 99}).code == "not_found"
+
+
+def test_a_profile_the_engine_does_not_have_is_not_found_whatever_the_read(tmp_path):
+    s, ghost = make(), str(tmp_path / "ghost.me3")
+    for name, body in (
+        ("mods.drag", {"index": 0}),
+        ("mods.options", {"index": 0}),
+        ("mods.rename_start", {"index": 0}),
+        ("mods.versions", {}),
+        ("mods.text", {}),
+        ("mods.settings", {}),
+        ("mods.unlisted", {"kind": "package"}),
+        ("mods.check_trim_backups", {}),
+    ):
+        assert refused(s, name, {"profile": ghost, **body}).code == "not_found", name
+    notes = tmp_path / "notes.txt"
+    notes.write_text("secret", encoding="utf-8")
+    assert refused(s, "mods.text", {"profile": str(notes)}).code == "not_found"  # not a .me3: never read

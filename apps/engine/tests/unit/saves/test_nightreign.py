@@ -7,6 +7,7 @@ import pytest
 from bayle.adapters.games import paths as common
 from bayle.adapters.saves import container
 from bayle.adapters.saves import nightreign as nr
+from bayle.modules.saves import nightreign_repair
 from bayle.modules.saves import service as saves
 from support import er
 
@@ -67,7 +68,7 @@ def test_stale_checksum_is_restored_without_changing_payload(tmp_path, monkeypat
     )
     p = tmp_path / "NR0000.co2"
     p.write_bytes(dirty)
-    assert nr.repair(p, log=lambda *_: None)
+    assert nightreign_repair.repair(p, log=lambda *_: None)
     assert p.read_bytes() == orig
     assert nr.inspect(p.read_bytes())["healthy"]
 
@@ -81,7 +82,7 @@ def test_garbled_regulation_is_restored_from_sibling(tmp_path, monkeypatch):
     dest = tmp_path / "NR0000.co2"
     dest.write_bytes(garbled)
     (tmp_path / "NR0000.co2.bak").write_bytes(healthy)
-    assert nr.repair(dest, log=lambda *_: None)
+    assert nightreign_repair.repair(dest, log=lambda *_: None)
     out = dest.read_bytes()
     assert nr.inspect(out)["healthy"]
     sec12 = container.sections(out)[12]
@@ -93,7 +94,7 @@ def test_healthy_save_repair_does_not_write(tmp_path, monkeypatch):
     p = tmp_path / "NR0000.sl2"
     p.write_bytes(nr.pack_save(_payloads(), ivs=_ivs()))
     before = p.read_bytes()
-    assert nr.repair(p, log=lambda *_: None) is False
+    assert nightreign_repair.repair(p, log=lambda *_: None) is False
     assert p.read_bytes() == before
     from bayle.modules.saves import backups as save_backups
 

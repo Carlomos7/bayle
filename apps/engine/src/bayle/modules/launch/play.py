@@ -18,13 +18,8 @@ from bayle import __version__
 from bayle.adapters.filesystem.files import (
     atomic_write,
 )
-from bayle.adapters.games.discovery import installed_dir
-from bayle.adapters.integrations.me3 import me3_info, me3_paths
-from bayle.adapters.integrations.me3 import session as me3_session
-from bayle.adapters.integrations.steam import steam
 from bayle.adapters.overhauls import recipes
 from bayle.adapters.persistence.settings_file import load_settings, save_game_settings
-from bayle.adapters.system import desktop
 from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.app_paths import FROZEN, exe_dir, launch_target
 from bayle.modules.coop.ini import (
@@ -39,8 +34,9 @@ from bayle.modules.coop.scaling import (
     scaling_spec,
 )
 from bayle.modules.games import catalog as games
+from bayle.modules.games import ports as game_ports
 from bayle.modules.games.locate import Locations
-from bayle.modules.launch import game_checks, run_health
+from bayle.modules.launch import game_checks, ports, run_health
 from bayle.modules.mods import operations as mod_operations
 from bayle.modules.mods import profile as profile_tools
 from bayle.modules.mods import profile_edit as mod_manage
@@ -140,7 +136,7 @@ class LaunchProfile:
         if not Path(self.profile).is_file():
             out.append(Problem("profile_missing", path=self.profile))
         elif self.kind == "me3":
-            named = me3_paths.profile_games(Path(self.profile))
+            named = ports.profile_games(Path(self.profile))
             if named and self.game.key not in named:
                 other = ", ".join(games.get(k).name if k in games.BY_KEY else k for k in named)
                 out.append(Problem("wrong_game", detail=f"{other}, not {self.game.name}"))
@@ -341,7 +337,7 @@ def launch_extra_args(opts: dict, version: str | None = None) -> list:
         args.append("--show-logos")
     if opts.get("play_diagnostics"):
         args.append("--diagnostics")
-    v = me3_info.version_tuple(version)
+    v = ports.version_tuple(version)
     if args and v and v < FLAGS_SINCE:
         run_logging.log(
             f"me3 {version} is older than {'.'.join(map(str, FLAGS_SINCE))}: launch flags {' '.join(args)} skipped"
@@ -446,7 +442,7 @@ def repair_key(game) -> str:
 def _me3_said() -> None:
     """me3's own log of the launch just ended: what its fast loading failing means for the player (backlog M1)."""
     try:
-        text = me3_session.me3_log_path().read_text(encoding="utf-8", errors="replace")
+        text = ports.me3_log_path().read_text(encoding="utf-8", errors="replace")
     except OSError:
         return
     for said in game_checks.me3_mount_failures(text):
@@ -474,7 +470,7 @@ def _after_play(opts, loc: Locations, watched: run_health.Watch = (), notice: No
     else:
         run_logging.log("repair after quitting is off (Settings > Launch)")
     if opts["play_clear_after"]:
-        me3_session.clear_dead_shells(loc.game_exe_name(), "after exit")
+        ports.clear_dead_shells(loc.game_exe_name(), "after exit")
     else:
         run_logging.log("clearing leftover processes after quitting is off (Settings > Launch)")
 
@@ -491,20 +487,20 @@ def job_play(
     run_logging.start_log("launcher: play", loc.game.key)
     opts = play_options()
     _backup_before_play(opts, loc, backup)
-    me3_session.ensure_steam(120)
+    ports.ensure_steam(120)
     if opts["play_clear_before"]:
-        me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
+        ports.clear_dead_shells(loc.game_exe_name(), "before launch")
     online = game_checks.online_warning(Path(launch.profile), loc)
     if online is not None:
         run_logging.log(f"warning: {online}")
     watched = _before_play(launch, loc, notice)
-    me3_session.launch(
+    ports.launch(
         launch.game.key,
         launch.profile,
         me3=launch.me3_path(),
         exe_name=loc.game_exe_name(),
         exe=launch.launch_exe(),
-        extra_args=launch_extra_args(opts, me3_info.me3_version(launch.me3_path())),
+        extra_args=launch_extra_args(opts, ports.me3_version(launch.me3_path())),
     )
     time.sleep(3)
     _after_play(opts, loc, watched, notice)
@@ -621,11 +617,11 @@ def offline_profile_for(
 def steam_state():
     """(running, signed_in) from the process list and Steam's own registry flag."""
     try:
-        running = steam.steam_running()
+        running = ports.steam_running()
     except Exception:
         running = False
     try:
-        signed = bool(steam.steam_logged_in())
+        signed = bool(ports.steam_logged_in())
     except Exception:
         signed = False
     return running, signed
@@ -644,17 +640,17 @@ def job_play_offline(
     opts = play_options()
     _backup_before_play(opts, loc, backup)
     if start_steam:
-        me3_session.ensure_steam_running(60)
+        ports.ensure_steam_running(60)
     if opts["play_clear_before"]:
-        me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
+        ports.clear_dead_shells(loc.game_exe_name(), "before launch")
     watched = _before_play(launch, loc, notice)
-    me3_session.launch(
+    ports.launch(
         launch.game.key,
         str(offline_profile_for(launch.profile, strip_overhaul=strip_overhaul, coop_dll=launch.game.coop_dll)),
         me3=launch.me3_path(),
         exe_name=loc.game_exe_name(),
         exe=launch.launch_exe(),
-        extra_args=("--skip-steam-init", "true", *launch_extra_args(opts, me3_info.me3_version(launch.me3_path()))),
+        extra_args=("--skip-steam-init", "true", *launch_extra_args(opts, ports.me3_version(launch.me3_path()))),
     )
     time.sleep(3)
     _after_play(opts, loc, watched, notice)
@@ -671,18 +667,18 @@ def job_play_vanilla(
     run_logging.start_log("launcher: play vanilla", loc.game.key)
     opts = play_options()
     _backup_before_play(opts, loc, backup)
-    me3_session.ensure_steam(120)
+    ports.ensure_steam(120)
     if opts["play_clear_before"]:
-        me3_session.clear_dead_shells(loc.game_exe_name(), "before launch")
+        ports.clear_dead_shells(loc.game_exe_name(), "before launch")
     said = run_health.game_update_notice(loc)
     if said:
         notice(said)
     run_logging.log(f"launching {loc.game.name} through Steam, without me3")
-    desktop.open_path(f"steam://rungameid/{loc.game.app_id}")
-    if not me3_session.wait_for_game(loc.game_exe_name(), appear_timeout=90):
+    ports.open_path(f"steam://rungameid/{loc.game.app_id}")
+    if not ports.wait_for_game(loc.game_exe_name(), appear_timeout=90):
         run_logging.log("warning: the game never appeared; Steam's own window says why")
     if opts["play_clear_after"]:
-        me3_session.clear_dead_shells(loc.game_exe_name(), "after exit")
+        ports.clear_dead_shells(loc.game_exe_name(), "after exit")
 
 
 def job_repair(launch, loc: Locations):
@@ -692,7 +688,7 @@ def job_repair(launch, loc: Locations):
 
 def job_clear(launch, loc: Locations):
     run_logging.start_log("launcher: clear dead shells", loc.game.key)
-    me3_session.clear_dead_shells(loc.game_exe_name(), "manual")
+    ports.clear_dead_shells(loc.game_exe_name(), "manual")
 
 
 def play_command(game: games.Game) -> tuple[str, str]:
@@ -828,7 +824,7 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
 
     lines = [f"{TITLE} {VERSION}"]
     game = loc.game
-    installed = [g.name for g in games.GAMES if installed_dir(g)]
+    installed = [g.name for g in games.GAMES if game_ports.installed_dir(g)]
     lines.append(f"game: {game.name}{'' if game.ready else ' (not supported yet)'}")
     lines.append(f"installed games: {', '.join(installed) or 'none found'}")
     remembered = remembered_profile(settings, game)
@@ -851,7 +847,7 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
         if probs:
             lines.append("      PROBLEMS: " + "; ".join(str(x) for x in probs))
     lines.append(f"remembered: {remembered}")
-    lines.append(f"steam: {steam.steam_exe()}")
+    lines.append(f"steam: {ports.steam_exe()}")
     lines.append(f"game folder: {loc.game_dir()}")
     if game is games.ELDEN_RING:
         game_ids = save_analyze.game_item_ids(loc.regulation_bin())

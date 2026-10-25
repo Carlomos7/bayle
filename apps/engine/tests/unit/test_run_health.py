@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from bayle.adapters.games import exe as game_exe
+from bayle.adapters.games import paths as common
 from bayle.adapters.system import logging as run_logging
 from bayle.modules.games import catalog
 from bayle.modules.launch import run_health
@@ -132,7 +133,7 @@ def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatc
         }
     )
     monkeypatch.setattr(recipes, "load", lambda game=None: [cfg])
-    monkeypatch.setattr(run_health.paths, "exe_running", lambda name: False)
+    monkeypatch.setattr(common, "exe_running", lambda name: False)
     folder = tmp_path / "ModDir"
     folder.mkdir()
     (folder / "Mod.log").write_text("old initialization failed\n", encoding="utf-8")

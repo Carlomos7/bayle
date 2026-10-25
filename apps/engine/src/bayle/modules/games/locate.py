@@ -13,8 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from bayle.adapters.games import discovery
-from bayle.modules.games import catalog
+from bayle.modules.games import catalog, ports
 from bayle.modules.settings.models import LauncherSettings, game_setting
 
 PATH_SETTINGS = ("me3_path", "game_exe", "me3_profile_dir", "saves_dir")  # Settings > Locations; blank = detect
@@ -87,14 +86,14 @@ class Locations:
         return Path(self.overrides.game_exe).name if self.overrides.game_exe else self.game.exe
 
     def game_running(self) -> bool:
-        return discovery.game_running(self.game_exe_name())
+        return ports.game_running(self.game_exe_name())
 
     def dead_game_shells(self) -> list[int]:
         """Leftover zero-memory copies of the game. A Windows problem; Proton cleans up after itself."""
-        return discovery.dead_game_shells(self.game_exe_name())
+        return ports.dead_game_shells(self.game_exe_name())
 
     def game_dir(self) -> Path | None:
-        return discovery.game_dir(self.game, self.overrides.game_exe)
+        return ports.game_dir(self.game, self.overrides.game_exe)
 
     def regulation_bin(self) -> Path | None:
         game = self.game_dir()
@@ -109,7 +108,7 @@ class Locations:
         game = game or self.game
         if self.overrides.saves_dir and game is self.game:  # the override is for this Locations' game
             return [Path(self.overrides.saves_dir)]
-        return discovery.save_roots(game)
+        return ports.save_roots(game)
 
     def save_names(self) -> list[str]:
         """The default names (ER0000.sl2, ER0000.co2) and any the profile in use configures, without repeats."""
@@ -131,13 +130,13 @@ class Locations:
 
     # ------------------------------------------------------------------ me3
     def me3_exe(self) -> Path | None:
-        return discovery.me3_exe(self.overrides.me3_exe)
+        return ports.me3_exe(self.overrides.me3_exe)
 
     def me3_profiles_dir(self) -> Path | None:
-        return discovery.me3_profiles_dir(self.overrides.profiles_dir)
+        return ports.me3_profiles_dir(self.overrides.profiles_dir)
 
     def me3_profiles(self, game: catalog.Game | None = None) -> list[Path]:
         """User-made .me3 profiles for the game (the *-default.me3 ones me3 generates are skipped). A profile that
         names no game in [[supports]] counts for Elden Ring, the only game older profiles were written for."""
         game = game or self.game
-        return discovery.me3_profiles(self.me3_profiles_dir(), game)
+        return ports.me3_profiles(self.me3_profiles_dir(), game)

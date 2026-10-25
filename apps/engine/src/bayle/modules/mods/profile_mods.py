@@ -21,14 +21,18 @@ from bayle.adapters.system.threads import assert_not_ui_thread
 from bayle.modules.games import catalog as games
 from bayle.modules.launch import game_checks
 from bayle.modules.mods import checks as mod_checks
+from bayle.modules.mods import configs as mod_configs
 from bayle.modules.mods import conflicts as mod_overview
 from bayle.modules.mods import dll_folders, folder_check, move_in, profile_edit, profile_writer, shared_mods
+from bayle.modules.mods import history as mod_history
+from bayle.modules.mods import install as mod_install
 from bayle.modules.mods import models as mod_models
 from bayle.modules.mods import order as mod_order
 from bayle.modules.mods import rebuild as mod_merge
 from bayle.modules.mods import remove as mod_remove
 from bayle.modules.mods import rename as mod_rename
 from bayle.modules.mods import shared_mods_page as shared_service
+from bayle.modules.mods import undo as mod_undo
 from bayle.modules.mods.overhaul_manifest import launcher_installed
 from bayle.modules.mods.service import (
     install_mod,
@@ -100,7 +104,6 @@ def undo_removal(undo: dict, *, loc: Locations, log: Callable[[str], None] | Non
     """Take back exactly one removal (the record remove_entry returned): the entry where it was, with later edits to
     the profile kept, and the folder from the Recycle Bin. Raises mods.models.UndoError, touching nothing, when the
     profile or the bin no longer allow it."""
-    from bayle.modules.mods import undo as mod_undo
 
     mod_undo.check_removed(undo)
     return mod_undo.run(undo, log or (lambda _s: None), loc=loc)
@@ -442,7 +445,6 @@ class PageFacts:
 def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     """The page's facts for profile. settings: the launcher settings (attached config files); None reads them."""
     assert_not_ui_thread("profile_mods.page_facts")
-    from bayle.modules.mods import configs as mod_configs
 
     prof = Path(profile)
     empty_facts = PageFacts(prof, (), {"package": (), "native": ()}, {}, (), (), (), {}, {}, {})
@@ -589,7 +591,6 @@ def rebuild_job(profile, combine: bool | None = None):
 def last_rebuild_undo(profile, store: run_logging.JobStore | None = None) -> dict | None:
     """The newest finished rebuild of this profile that can still be taken back (its job record), or None."""
     assert_not_ui_thread("profile_mods.last_rebuild_undo")
-    from bayle.modules.mods import undo as mod_undo
 
     prof = Path(profile)
     for rec in run_logging.read_jobs_from(store):
@@ -606,7 +607,6 @@ def last_rebuild_undo(profile, store: run_logging.JobStore | None = None) -> dic
 def undo_last_change(profile) -> Path | None:
     """Put back the copy kept just before the last change to the profile (mods.history); the copy of the profile as
     it was (so this can be undone too), or None when there is no copy."""
-    from bayle.modules.mods import history as mod_history
 
     prof = Path(profile)
     copy = mod_history.latest(prof)
@@ -678,7 +678,6 @@ def unlisted(profile, kind: str) -> list[tuple[str, Path]]:
 
 def add_existing(profile, paths: list[Path], kind: str, *, loc: Locations) -> list[str]:
     """List folders (or DLLs) that already sit in place as entries, last in the load order; the names added."""
-    from bayle.modules.mods import install as mod_install
 
     out = mod_install.add_existing(Path(profile), list(paths), kind=kind, loc=loc)
     return [r.get("id") or Path(r["path"]).name for r in out["entries"]]
@@ -687,13 +686,11 @@ def add_existing(profile, paths: list[Path], kind: str, *, loc: Locations) -> li
 # ----------------------------------------------------------------------------- versions
 def versions(profile) -> list[dict]:
     """The copies kept of the profile, newest first: {path, when, why} (mods.history)."""
-    from bayle.modules.mods import history as mod_history
 
     return mod_history.versions(Path(profile))
 
 
 def restore_version(profile, copy) -> Path | None:
     """Put a copy back as the profile; the copy of the profile as it was (so the restore can be undone)."""
-    from bayle.modules.mods import history as mod_history
 
     return mod_history.restore(Path(profile), Path(copy))

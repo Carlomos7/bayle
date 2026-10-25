@@ -12,10 +12,10 @@ from dataclasses import dataclass
 from pathlib import PureWindowsPath
 
 from bayle.game import catalog as games
-from bayle.platform.text import tr
 
 from bayle_qt.shell.facts import MODES, OFFLINE, PROFILE, VANILLA, Block, Facts, profile_labels
 from bayle_qt.shell.facts import blocked as block_of
+from bayle_qt.text import tr
 
 MODE_WORDS = {PROFILE: "Profile", OFFLINE: "Offline", VANILLA: "Vanilla"}  # shown through tr()
 

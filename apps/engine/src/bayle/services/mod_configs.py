@@ -23,7 +23,6 @@ from bayle.errors import Cancelled, OperationError
 from bayle.formats import config_model
 from bayle.mods import configs, profile_edit
 from bayle.platform.files import atomic_write
-from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services import game_checks
 from bayle.services import mods as mod_service
@@ -954,7 +953,7 @@ class ModConfigsService:
                 raise OperationError("cannot_apply", str(e), {"overhaul_id": overhaul_id}) from e
 
         return self._job(
-            tr("Applying the overhaul setup to the profiles using it..."),
+            "Applying the overhaul setup to the profiles using it...",
             "launcher: apply the saved overhaul setup",
             work,
         )
@@ -1004,7 +1003,7 @@ class ModConfigsService:
                 raise OperationError("cannot_set_up", str(e), {"label": preview.label}) from e
 
         return self._job(
-            tr("Installing {label} as an overhaul...").format(label=preview.label),
+            f"Installing {preview.label} as an overhaul...",
             f"launcher: set up {preview.label} as an overhaul",
             work,
         )
@@ -1042,7 +1041,7 @@ class ModConfigsService:
                 raise OperationError("cannot_turn_off", str(e), {"label": label}) from e
 
         return self._job(
-            tr("Removing the overhaul setup of {label}...").format(label=label),
+            f"Removing the overhaul setup of {label}...",
             f"launcher: turn off overhaul {label}",
             work,
         )
@@ -1075,7 +1074,7 @@ class ModConfigsService:
             return {"path": str(dest)}
 
         # it never touches the game's files, so the game running or another job does not stop it
-        return self._jobs.start(run, title=tr("Saving the settings..."), writes=False, quiet=True)
+        return self._jobs.start(run, title="Saving the settings...", writes=False, quiet=True)
 
     def check_paste(
         self, profile: str | Path, ini: str | Path, text: str, settings: LauncherSettings | None = None

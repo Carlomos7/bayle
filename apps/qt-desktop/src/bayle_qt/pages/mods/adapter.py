@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.errors import OperationError
-from bayle.platform.text import tr
 from bayle.platform.threads import as_worker
 from bayle.services.activity import ActivityService
 from bayle.services.features import Features
@@ -32,6 +31,7 @@ from bayle_qt.pages.mods.install_adapter import InstallAdapter
 from bayle_qt.pages.mods.presenter import BUSY, ModsPresenter, ModsState, ModsView, RemovalAsk
 from bayle_qt.pages.undo import ask_undo
 from bayle_qt.refresh import Refresher, stat_key
+from bayle_qt.text import tr
 
 ROW_KEYS = (  # the presenter's Row, with index and enabled renamed (both are built-in names in a QML delegate)
     "entry",

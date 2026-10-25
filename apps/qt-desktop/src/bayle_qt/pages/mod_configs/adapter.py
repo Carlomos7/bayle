@@ -15,7 +15,6 @@ from typing import Any, Protocol
 from bayle.coop import scaling as coop_scaling
 from bayle.errors import OperationError
 from bayle.formats import config_model
-from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
 from bayle.services.features import Features
 from bayle.work.prompts import Confirm, Pick, Refusal
@@ -26,6 +25,7 @@ from bayle_qt.notifications import Notifier
 from bayle_qt.pages.mod_configs.presenter import ModConfigsPresenter
 from bayle_qt.pages.mods.presenter import ModsPresenter
 from bayle_qt.refresh import Refresher
+from bayle_qt.text import plural, tr
 
 SEAMLESS_OWN = ("PASSWORD", "SCALING", "LANGUAGE")  # sections the Seamless panel shows itself
 

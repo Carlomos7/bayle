@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from bayle.errors import OperationError
-from bayle.platform.text import tr
 from bayle.work.prompts import Confirm, Pick, Refusal, prompt_dict
 
 from bayle_qt.notifications import say_refusal
 from bayle_qt.pages.mods.install_adapter import query
+from bayle_qt.text import tr
 
 if TYPE_CHECKING:
     from bayle.services.mod_install import OverhaulChoices, OverhaulPlan

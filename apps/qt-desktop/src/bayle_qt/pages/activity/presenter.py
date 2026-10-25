@@ -20,9 +20,10 @@ from bayle.game import catalog as games
 from bayle.mods import kinds
 from bayle.mods import undo as mod_undo
 from bayle.platform import logging as run_logging
-from bayle.platform.text import plural, tr
 from bayle.services.activity import JobLog
 from bayle.work.prompts import Confirm, Refusal
+
+from bayle_qt.text import plural, tr
 
 SHOWN = 100  # entries listed at most (retention keeps about this many anyway)
 FAILED = ("failed", "interrupted")

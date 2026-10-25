@@ -9,7 +9,6 @@ import datetime
 from collections.abc import Callable
 from typing import Protocol
 
-from bayle.platform.text import tr
 from bayle.services.activity import ActivityService
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
@@ -19,6 +18,7 @@ from bayle_qt.notifications import Notifier
 from bayle_qt.pages.activity import presenter as view
 from bayle_qt.pages.activity.presenter import ActivityPresenter, ActivityState, LogText
 from bayle_qt.pages.undo import ask_undo
+from bayle_qt.text import tr
 
 
 class ActivityHost(Protocol):

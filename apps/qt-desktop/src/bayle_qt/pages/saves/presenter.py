@@ -13,10 +13,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from bayle.platform.text import plural, tr
 from bayle.services import saves as saves_service
 from bayle.services.saves_page import ReplaceCheck, repair_calls
 from bayle.work.prompts import Confirm, Refusal
+
+from bayle_qt.text import plural, tr
 
 ATTRIBUTES = (
     ("vig", "Vigor"),

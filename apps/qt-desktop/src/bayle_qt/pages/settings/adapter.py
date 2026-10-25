@@ -11,7 +11,6 @@ from typing import Any, Protocol
 
 from bayle.errors import OperationError
 from bayle.platform import desktop
-from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services.play import TITLE, VERSION
 from bayle.services.settings import KEEP_RANGE, Changed, SettingsService
@@ -23,6 +22,7 @@ from bayle_qt.notifications import Notifier
 from bayle_qt.pages.settings import presenter as view
 from bayle_qt.pages.settings.presenter import CHOICE_LABELS, LAYOUT_LABELS, LOCATION_WORDS, SettingsState
 from bayle_qt.refresh import Refresher
+from bayle_qt.text import tr
 from bayle_qt.updater.service import RELEASES_URL
 
 LAYOUT = tuple(LAYOUT_LABELS)  # the draft fields

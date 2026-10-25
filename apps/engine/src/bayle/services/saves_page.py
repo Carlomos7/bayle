@@ -19,7 +19,6 @@ from bayle.game.locate import Locations
 from bayle.platform import filelock
 from bayle.platform import logging as run_logging
 from bayle.platform.files import Unsettled
-from bayle.platform.text import tr
 from bayle.saves import backups as save_backups
 from bayle.saves import library as save_library
 from bayle.saves import repair as save_repair
@@ -155,7 +154,7 @@ def replace_facts(source: Path, target: Path, *, loc: Locations) -> dict:
 def library_folder(loc: Locations) -> Path:
     folders = sorted({p.parent for p in loc.save_files()})
     if not folders:
-        raise OperationError("no_saves", tr("Play once so the game creates its save folder."))
+        raise OperationError("no_saves", "Play once so the game creates its save folder.")
     return folders[0]
 
 
@@ -167,7 +166,7 @@ def library_entry(folder: Path, entry_id: str) -> dict:
     except Exception as e:
         raise OperationError("copy_unusable", str(e)) from e
     if not path.is_file():
-        raise OperationError("copy_unusable", tr("Its file is missing from the Library."))
+        raise OperationError("copy_unusable", "Its file is missing from the Library.")
     return {"name": entry["name"], "path": path, "changed_outside": save_library.changed_outside(folder, entry)}
 
 
@@ -231,9 +230,9 @@ def back_up(saves: list[Path], *, loc: Locations) -> dict:
 
     # the progress words are the jobs index's title, which Activity lists (worded here until records carry facts)
     if len(saves) == 1:
-        logged_write(f"back up {saves[0].name}", tr("Backing up {name}...").format(name=saves[0].name), loc, body)
+        logged_write(f"back up {saves[0].name}", f"Backing up {saves[0].name}...", loc, body)
     else:
-        logged_write("back up now", tr("Backing up saves..."), loc, body)
+        logged_write("back up now", "Backing up saves...", loc, body)
     return {"saves": [str(s) for s in saves], "backups": made}
 
 
@@ -250,7 +249,7 @@ def save_copy(save: Path, name: str, *, loc: Locations) -> dict:
         out.update(entry_id=e["id"], name=e["name"])
         return Written(f"saved a copy of {save.name} as '{e['name']}'")
 
-    logged_write(f"save a copy of {save.name}", tr("Saving a copy of {name}...").format(name=save.name), loc, body)
+    logged_write(f"save a copy of {save.name}", f"Saving a copy of {save.name}...", loc, body)
     return out
 
 
@@ -278,11 +277,9 @@ def import_files(files: list[Path], name: str | None, folder: Path, *, loc: Loca
 
     if len(files) == 1:
         one = files[0].name
-        logged_write(f"import {one} into the Library", tr("Importing {name}...").format(name=one), loc, body)
+        logged_write(f"import {one} into the Library", f"Importing {one}...", loc, body)
     else:
-        logged_write(
-            "import several files into the Library", tr("Importing {n} files...").format(n=len(files)), loc, body
-        )
+        logged_write("import several files into the Library", f"Importing {len(files)} files...", loc, body)
     return {"imported": imported, "failed": failed}
 
 
@@ -307,7 +304,7 @@ def copy_character(source: Path, src_slot: int, target: Path, dst_slot: int, *, 
 
     return logged_write(
         f"copy slot {src_slot} of {src.name} into slot {dst_slot} of {dst.name}",
-        tr("Copying a character into {name}...").format(name=dst.name),
+        f"Copying a character into {dst.name}...",
         loc,
         body,
     )
@@ -321,9 +318,7 @@ def _replace(target: Path, label: str, loc: Locations, run: Callable[[], dict]) 
             f"{target.name} now holds {label}", {"file": target.name, "source": label}, target, out["backup"]
         )
 
-    return logged_write(
-        f"replace {target.name} with {label}", tr("Replacing {name}...").format(name=target.name), loc, body
-    )
+    return logged_write(f"replace {target.name} with {label}", f"Replacing {target.name}...", loc, body)
 
 
 def replace_with_file(source: Path, target: Path, *, loc: Locations) -> Written:
@@ -345,7 +340,7 @@ def restore_from_backup(backup: Path, target: Path, *, loc: Locations) -> Writte
         safety = saves_service.restore_backup(bak, tgt, loc=loc)
         return Written(f"{tgt.name} is back as it was in the backup", {"file": tgt.name}, tgt, safety)
 
-    return logged_write(f"restore backup {bak.name}", tr("Restoring {name}...").format(name=tgt.name), loc, body)
+    return logged_write(f"restore backup {bak.name}", f"Restoring {tgt.name}...", loc, body)
 
 
 def repair_calls(keys: Sequence[Sequence[Any]]) -> dict:
@@ -389,9 +384,7 @@ def repair(path: Path, calls: dict, count: int, *, loc: Locations) -> Written:
     def body(loc: Locations) -> Written:
         return Written(f"repaired {save.name}", {"file": save.name}, save, apply_repairs(save, calls, loc=loc))
 
-    return logged_write(
-        f"repair {count} item(s) in {save.name}", tr("Repairing {name}...").format(name=save.name), loc, body
-    )
+    return logged_write(f"repair {count} item(s) in {save.name}", f"Repairing {save.name}...", loc, body)
 
 
 def post_session_repair(*, loc: Locations) -> Written:
@@ -399,12 +392,12 @@ def post_session_repair(*, loc: Locations) -> Written:
         save_repair.repair_all(loc)
         return Written("post-session repair finished")
 
-    return logged_write("post-session repair", tr("Repairing saves..."), loc, body)
+    return logged_write("post-session repair", "Repairing saves...", loc, body)
 
 
 def undo_change(save: Path, backup: Path, *, loc: Locations) -> dict:
     """The toast's Undo: put the backup taken before a save write back. Returns {"file"}."""
-    progress = tr("Undoing the change to {name}...").format(name=Path(save).name)
+    progress = f"Undoing the change to {Path(save).name}..."
     # no job id: nothing in the jobs index to mark undone, so no activity log is needed
     activity_service.run_undo(restore_record(save, backup), "", Path(save).name, loc, progress, None)
     return {"file": Path(save).name}

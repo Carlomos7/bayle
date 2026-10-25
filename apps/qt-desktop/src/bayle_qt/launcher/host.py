@@ -17,7 +17,6 @@ from bayle.errors import Busy, OperationError
 from bayle.game import catalog as games
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr
 from bayle.services import play as core
 from bayle.services.settings import load_settings
 from bayle.work.events import Event
@@ -32,6 +31,7 @@ from bayle_qt.notifications import Notifier
 from bayle_qt.shell import facts as topbar
 from bayle_qt.shell.service import Shell
 from bayle_qt.shell.state import Context
+from bayle_qt.text import tr
 from bayle_qt.updater import apply as updates
 from bayle_qt.updater import inno as migration
 from bayle_qt.updater import retitle

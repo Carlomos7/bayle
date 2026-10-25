@@ -12,9 +12,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from bayle.game import catalog as games
-from bayle.platform.text import tr
 
 from bayle_qt.launcher import topbar
+from bayle_qt.text import tr
 
 SHELL = "shell"  # the target of an entry the shell itself runs
 

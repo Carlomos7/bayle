@@ -12,7 +12,6 @@ from typing import Any, Protocol
 
 from bayle.errors import OperationError
 from bayle.mods import profile_import
-from bayle.platform.text import tr
 from bayle.services.features import Features
 from bayle.services.profile_transfer import Listing, Opened, PreviewFacts, ProfileTransferService
 from PySide6.QtCore import Property, QObject, Signal, Slot
@@ -20,6 +19,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from bayle_qt.notifications import Notifier
 from bayle_qt.pages.profile_transfer.presenter import PageInputs, ProfileTransferPresenter
 from bayle_qt.refresh import Refresher
+from bayle_qt.text import tr
 
 EXPORT, IMPORT, BUNDLED = "export", "import", "bundled"
 

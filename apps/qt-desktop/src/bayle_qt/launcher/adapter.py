@@ -13,7 +13,6 @@ from typing import Any
 
 from bayle import __version__
 from bayle.platform import desktop
-from bayle.platform.text import tr
 from bayle.services import play as core
 from bayle.services.settings import save_settings
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
@@ -25,6 +24,7 @@ from bayle_qt.notifications import Notifier
 from bayle_qt.pages import registry
 from bayle_qt.qml_env import QML_DIR
 from bayle_qt.resources import ASSETS_DIR
+from bayle_qt.text import tr
 
 # The rail, in order (Ctrl+1..5): registry name, label, icon.
 RAIL = (

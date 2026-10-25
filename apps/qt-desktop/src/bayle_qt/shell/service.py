@@ -24,7 +24,6 @@ from bayle.game import catalog as games
 from bayle.game.discovery import installed_dir
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr
 from bayle.services import features
 from bayle.services import play as core
 from bayle.services.mods import me3_facts
@@ -39,6 +38,7 @@ from bayle_qt.shell.ports import EventPorts
 from bayle_qt.shell.state import Context, LauncherState
 from bayle_qt.shell.updates import Say, UpdateFlow
 from bayle_qt.shell.watch import GameWatch
+from bayle_qt.text import tr
 from bayle_qt.updater import inno as migration
 
 # A job's log lines that say how a launch is going: the status text shows the newest one while the job runs.

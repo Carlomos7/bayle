@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from bayle.game.discovery import installed_dir
-from bayle.platform.text import plural, tr
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle_qt.notifications import Notifier
+from bayle_qt.text import plural, tr
 
 
 class PlaceholderAdapter(QObject):

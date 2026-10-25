@@ -9,7 +9,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from bayle.platform.text import tr
 from bayle.services.play import TITLE, VERSION
 from bayle.work.prompts import Choice, Choose, Question
 
@@ -17,6 +16,7 @@ from bayle_qt.launcher import topbar
 from bayle_qt.shell import launch
 from bayle_qt.shell import updates as flow
 from bayle_qt.shell.facts import Block
+from bayle_qt.text import tr
 from bayle_qt.updater.service import RELEASES_URL
 
 

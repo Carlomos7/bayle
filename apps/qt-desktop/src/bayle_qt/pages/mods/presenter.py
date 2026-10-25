@@ -14,7 +14,6 @@ from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.mods import shared_mods
 from bayle.mods import undo as mod_undo
-from bayle.platform.text import plural, tr
 from bayle.services import mods_page, profile_mods
 from bayle.services.mods_page import ModsPageState, ToolInfo, TrimPlan
 from bayle.services.profile_mods import PageFacts, Removal
@@ -22,6 +21,7 @@ from bayle.services.shared_mods import LibraryMod
 from bayle.work.prompts import Confirm, Pick, Refusal
 
 from bayle_qt.pages.mods import load_order
+from bayle_qt.text import plural, tr
 
 BUSY = profile_mods.DELETE_BUSY  # rename_block's code for "a job is running"
 REBUILD_CODES = {  # the engine's refusal codes for a rebuild -> profile_mods' REBUILD_* codes the words are kept by

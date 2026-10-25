@@ -17,7 +17,6 @@ from bayle.errors import OperationError
 from bayle.game.catalog import ELDEN_RING
 from bayle.game.locate import PATH_SETTINGS, Locations, saves_dir_problem
 from bayle.platform import data_folder
-from bayle.platform.text import tr
 from bayle.services import layout as layout_service
 from bayle.services import mods as mod_service
 from bayle.services import play as play_service
@@ -99,13 +98,13 @@ def location_problem(spec: SettingSpec, value: str, game) -> str:
     if spec.key == "saves_dir":
         return saves_dir_problem(value, game)
     if spec.is_dir:
-        return "" if Path(value).is_dir() else tr("That folder does not exist.")
-    return "" if Path(value).is_file() else tr("That file does not exist.")
+        return "" if Path(value).is_dir() else "That folder does not exist."
+    return "" if Path(value).is_file() else "That file does not exist."
 
 
 def normalise(spec: SettingSpec, value: Any, game) -> bool | int | str:
     """The value as it is saved. Raises OperationError: invalid_value (wrong type), invalid_choice, path_problem."""
-    bad = OperationError("invalid_value", tr("That value does not fit {key}.").format(key=spec.key), {"key": spec.key})
+    bad = OperationError("invalid_value", f"That value does not fit {spec.key}.", {"key": spec.key})
     if spec.kind == "switch":
         if not isinstance(value, bool):
             raise bad
@@ -121,7 +120,7 @@ def normalise(spec: SettingSpec, value: Any, game) -> bool | int | str:
         if value not in spec.choices:
             raise OperationError(
                 "invalid_choice",
-                tr("{value} is not one of the choices.").format(value=value),
+                f"{value} is not one of the choices.",
                 {"key": spec.key, "choices": spec.choices},
             )
         return value
@@ -220,9 +219,7 @@ def folder(kind: str, loc, make: bool = False) -> Path | None:
         elif kind == "settings":
             found = data_dir()
         elif kind not in ("me3", "game", "profiles", "saves"):
-            raise OperationError(
-                "unknown_folder", tr("There is no folder called {kind}.").format(kind=kind), {"kind": kind}
-            )
+            raise OperationError("unknown_folder", f"There is no folder called {kind}.", {"kind": kind})
     except OperationError:
         raise
     except Exception:

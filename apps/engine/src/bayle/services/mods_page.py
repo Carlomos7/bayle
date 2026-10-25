@@ -23,7 +23,6 @@ from bayle.mods import order as mod_order
 from bayle.mods.profile import SETTING_TEXT
 from bayle.mods.shared_mods import HINT_BYTES
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr
 from bayle.services import coop as coop_service
 from bayle.services import mods as mod_service
 from bayle.services import play as play_service
@@ -523,7 +522,7 @@ class ModsService:
                 out = profile_mods.remove_entry(profile, index, plan, delete_folder=delete, loc=jloc)
             return {"name": name, "undo": out["undo"]}
 
-        return self._start(tr("Removing {name}...").format(name=name), f"launcher: remove {name}", work)
+        return self._start(f"Removing {name}...", f"launcher: remove {name}", work)
 
     def undo_removal(self, undo: dict[str, Any]) -> str:
         """Take back exactly one removal (the record remove's job returned); the entry's name. Raises not_found (not a
@@ -555,9 +554,7 @@ class ModsService:
                 profile_mods.remove_holder(profile, index, entry, needs, loc=jloc)
             return {"name": name}
 
-        return self._start(
-            tr("Removing {name}...").format(name=name), f"launcher: remove {name} (a folder of mods)", work
-        )
+        return self._start(f"Removing {name}...", f"launcher: remove {name} (a folder of mods)", work)
 
     # ---- the load order
     def move(self, profile: str | Path, index: int, to: int, expect: str | None = None) -> MoveOutcome:
@@ -605,7 +602,7 @@ class ModsService:
                 profile_mods.rename_mod(profile, index, name, loc=jloc)
             return {"name": old, "to": name}
 
-        return self._start(tr("Renaming {name}...").format(name=old), f"launcher: rename {old} to {name}", work)
+        return self._start(f"Renaming {old}...", f"launcher: rename {old} to {name}", work)
 
     # ---- Mod options
     def options(self, profile: str | Path, index: int) -> ModOptions:
@@ -766,7 +763,7 @@ class ModsService:
                     {"reason": "allow_tool", "tool": vars(_tool_info(state.tool))},
                 )
             profile_mods.allow_tool(state.tool)  # the player confirmed: remembered for this version of the tool
-        title = tr("Combining parameters...") if combine else tr("Rebuilding combined parameters...")
+        title = "Combining parameters..." if combine else "Rebuilding combined parameters..."
         job = profile_mods.rebuild_job(path, combine)
         return self._jobs.start(lambda _ctx: run_job_value(job, loc, title), title=title, quiet=True)
 
@@ -803,7 +800,7 @@ class ModsService:
         if self.check_trim_backups(path).count != expect:
             raise OperationError("stale", "The backups changed since you were asked. Ask again.")
         return self._start(
-            tr("Trimming rebuild backups..."),
+            "Trimming rebuild backups...",
             "launcher: trim rebuild backups",
             lambda _loc: {"moved": len(profile_mods.trim_tool_backups(path))},
         )
@@ -821,7 +818,7 @@ class ModsService:
                 rename_service.rename_folder(path, loc=jloc)
             return {}
 
-        return self._start(tr("Renaming the folder..."), "launcher: fix the profile's folder", work)
+        return self._start("Renaming the folder...", "launcher: fix the profile's folder", work)
 
     def check_split_folder(self, profile: str | Path) -> FolderPlan:
         """What giving every profile of a crowded folder its own folder would do (profiles, and the moves and copies it takes;
@@ -845,7 +842,7 @@ class ModsService:
                 rename_service.split_folder(path, loc=jloc)
             return {}
 
-        return self._start(tr("Splitting the folder..."), "launcher: fix the profile's folder", work)
+        return self._start("Splitting the folder...", "launcher: fix the profile's folder", work)
 
     def check_dll_folders(self, profile: str | Path) -> FolderPlan:
         """What giving each loose DLL mod a folder of its own would do (moves: DLLs, files: files moved, copies: files
@@ -869,7 +866,7 @@ class ModsService:
                 profile_mods.put_dlls_in_folders(path, loc=jloc)
             return {}
 
-        return self._start(tr("Moving the DLLs..."), "launcher: fix the profile's folder", work)
+        return self._start("Moving the DLLs...", "launcher: fix the profile's folder", work)
 
     # ---- Seamless Co-op in the game folder
     def _seamless(self, profile: str | Path, kind: str, source: str):
@@ -909,7 +906,7 @@ class ModsService:
                     coop_service.clean_up_game_folder_seamless(launch, found, run_logging.log)
             return {"kind": found.kind}
 
-        title = tr("Moving Seamless Co-op...") if move else tr("Cleaning up the game folder...")
+        title = "Moving Seamless Co-op..." if move else "Cleaning up the game folder..."
         return self._start(title, "launcher: seamless co-op in the game folder", work)
 
     # ---- me3 settings
@@ -988,7 +985,7 @@ class ModsService:
             return {"profile": str(out["profile"]), "name": str(out["new"])}
 
         return self._start(
-            tr("Renaming {name}...").format(name=path.stem),
+            f"Renaming {path.stem}...",
             f"launcher: rename profile {path.stem} to {name.strip()}",
             work,
         )
@@ -1011,9 +1008,7 @@ class ModsService:
             run_logging.log(f"done: {out['name']} is a copy of {path.stem}")
             return {"profile": str(out["profile"]), "name": str(out["name"])}
 
-        return self._start(
-            tr("Copying {name}...").format(name=path.stem), f"launcher: duplicate profile {path.stem}", work
-        )
+        return self._start(f"Copying {path.stem}...", f"launcher: duplicate profile {path.stem}", work)
 
     def check_move_in(self, profile: str | Path, kind: str = "me3", source: str = "") -> FolderPlan:
         """What moving a profile outside Bayle's folder into it would do (moves: mods that move, copies: mods copied
@@ -1038,7 +1033,7 @@ class ModsService:
                 return {"profile": str(mod_service.move_into_launcher_folder(jloc, path)["profile"])}
 
         return self._start(
-            tr("Moving {name}...").format(name=path.stem),
+            f"Moving {path.stem}...",
             f"launcher: move profile {path.stem} into Bayle's folder",
             work,
         )
@@ -1062,7 +1057,7 @@ class ModsService:
         path = self._profile(profile)
         self._fresh(path, expect)
         return self._start(
-            tr("Deleting profile {name}...").format(name=plan.name),
+            f"Deleting profile {plan.name}...",
             f"launcher: delete profile {plan.name}",
             lambda _loc: {"moved_to": str(mod_service.delete_profile(path))},
         )

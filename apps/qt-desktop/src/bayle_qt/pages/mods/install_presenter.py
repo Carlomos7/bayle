@@ -9,11 +9,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from bayle.overhauls import basic
-from bayle.platform.text import tr
 from bayle.services.mod_configs import SetupValues
 from bayle.services.mod_install import InstallChoices, OverhaulPreview
 
 from bayle_qt.pages.mods.file_actions import file_action_text, shown_path
+from bayle_qt.text import tr
 
 
 def _size(n: int) -> str:

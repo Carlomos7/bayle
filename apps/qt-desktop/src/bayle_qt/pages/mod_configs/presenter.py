@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from bayle.formats import config_model
-from bayle.platform.text import plural, tr
 from bayle.services import mod_configs
 from bayle.work.prompts import Confirm, Pick, Refusal
 
 from bayle_qt.pages.mods.file_actions import file_action_text, shown_path
+from bayle_qt.text import plural, tr
 
 # ----------------------------------------------------------------------------- Seamless Co-op's words
 SETTING_COPY = {

@@ -22,7 +22,6 @@ from bayle.game.locate import Locations
 from bayle.mods import extract as mod_extract
 from bayle.overhauls import basic
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr
 from bayle.platform.threads import assert_not_ui_thread
 from bayle.services import mod_configs, profile_mods
 from bayle.services import mods as mod_service
@@ -455,7 +454,7 @@ class ModInstallService:
             return {"name": final["name"], "overhaul": False, "update": bool(out["update"])}
 
         return self._job(
-            tr("Installing {name}...").format(name=final["name"]), f"launcher: install mod {final['name']}", work
+            "Installing {name}...".format(name=final["name"]), f"launcher: install mod {final['name']}", work
         )
 
     def _start_overhaul(self, install_id: str, state: _Open, preview: Any, mode: str) -> str:
@@ -471,7 +470,7 @@ class ModInstallService:
             return {"name": preview.label, "overhaul": True, "update": bool(out.get("update"))}
 
         return self._job(
-            tr("Installing {name} as an overhaul...").format(name=preview.label),
+            f"Installing {preview.label} as an overhaul...",
             f"launcher: install overhaul {preview.label}",
             work,
         )
@@ -519,7 +518,7 @@ class ModInstallService:
             raise OperationError("cannot_install", " ".join(pv.refusals), {"refusals": list(pv.refusals)})
         self._expect(prof, expect)
         verb = "update" if pv.update else "install"
-        title = (tr("Updating {label}...") if pv.update else tr("Installing {label}...")).format(label=pv.label)
+        title = ("Updating {label}..." if pv.update else "Installing {label}...").format(label=pv.label)
 
         def work(jloc: Locations) -> dict:
             mod_service.install_overhaul(pv, loc=jloc)
@@ -568,7 +567,7 @@ class ModInstallService:
             mod_service.remove_overhaul(pv)
             return {"note": f"removed {label}"}
 
-        return self._job(tr("Removing {label}...").format(label=label), f"launcher: remove overhaul {label}", work)
+        return self._job(f"Removing {label}...", f"launcher: remove overhaul {label}", work)
 
     def take_over_choices(self, profile: str | Path) -> OverhaulChoices:
         """For Take over: what the player may also choose (a change to put back, or the installer's backups), the
@@ -611,9 +610,7 @@ class ModInstallService:
             mod_service.remove_overhaul(pv)
             return {"note": f"took over {label}"}
 
-        return self._job(
-            tr("Taking over {label}...").format(label=label), f"launcher: take over overhaul {label}", work
-        )
+        return self._job(f"Taking over {label}...", f"launcher: take over overhaul {label}", work)
 
     def leftovers(self, profile: str | Path) -> Leftovers:
         """What overhauls' own installers left beside the profile that no profile uses any more."""
@@ -641,5 +638,5 @@ class ModInstallService:
             return {"note": f"{len(chosen)} moved to the Recycle Bin"}
 
         return self._job(
-            tr("Moving leftovers to the Recycle Bin..."), "launcher: clean up overhaul installer leftovers", work
+            "Moving leftovers to the Recycle Bin...", "launcher: clean up overhaul installer leftovers", work
         )

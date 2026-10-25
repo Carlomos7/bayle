@@ -9,11 +9,11 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from bayle.platform import text
 from bayle.services import profile_mods
 from bayle.services.mods_page import ToolInfo, TrimPlan
 from bayle.services.profile_mods import PageFacts, Removal
 
+from bayle_qt import text
 from bayle_qt.pages.mods import load_order
 from bayle_qt.pages.mods.presenter import ModsPresenter
 

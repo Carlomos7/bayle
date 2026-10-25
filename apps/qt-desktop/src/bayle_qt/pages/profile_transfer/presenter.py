@@ -10,9 +10,10 @@ from typing import Any, Protocol
 
 from bayle.errors import OperationError
 from bayle.mods import profile_import
-from bayle.platform.text import plural, tr
 from bayle.services import profile_transfer as pt
 from bayle.work.prompts import Confirm
+
+from bayle_qt.text import plural, tr
 
 
 def size_text(n: int) -> str:

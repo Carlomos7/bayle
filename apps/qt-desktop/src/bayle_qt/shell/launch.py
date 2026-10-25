@@ -20,7 +20,6 @@ from typing import Any, Protocol
 
 from bayle.mods import rebuild as mod_merge
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr  # job titles only: they are job records (Activity shows them)
 from bayle.services import game_checks, profile_mods
 from bayle.services import play as core
 from bayle.work import jobs
@@ -28,6 +27,7 @@ from bayle.work.prompts import Option, Question
 
 from bayle_qt.shell import facts as topbar
 from bayle_qt.shell.state import LauncherState
+from bayle_qt.text import tr  # job titles only: they are job records (Activity shows them)
 
 UPDATE_LABEL = "Updating merged mods..."  # the job that rebuilds before Launch (the status text shows it)
 

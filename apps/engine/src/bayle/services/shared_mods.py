@@ -13,7 +13,6 @@ from bayle.errors import OperationError
 from bayle.game.locate import Locations
 from bayle.mods import shared_mods
 from bayle.platform import logging as run_logging
-from bayle.platform.text import tr
 from bayle.services import mods as mod_service
 from bayle.services.mod_configs import logged, stamp
 from bayle.work.jobs import JobManager
@@ -305,9 +304,7 @@ class ModLibraryService:
         prof = self._profile(profile)
         name = self._entry(prof, index)["name"]
         self._expect(prof, expect)
-        return self._job(
-            tr("Sharing {name}...").format(name=name), f"share {name}", lambda loc: share(prof, [index], loc=loc)
-        )
+        return self._job(f"Sharing {name}...", f"share {name}", lambda loc: share(prof, [index], loc=loc))
 
     def check_separate(self, profile: str | Path, index: int) -> SharePlan:
         """Raises not_found, not_shared."""
@@ -321,7 +318,7 @@ class ModLibraryService:
         _ref, name = self._shared(prof, index)
         self._expect(prof, expect)
         return self._job(
-            tr("Copying {name}...").format(name=name),
+            f"Copying {name}...",
             f"separate copy of {name}",
             lambda loc: separate(prof, [index], loc=loc),
         )
@@ -338,7 +335,7 @@ class ModLibraryService:
             raise OperationError("not_found", "That profile cannot use this mod.", {"profiles": missing})
         chosen = {listed[str(t)]: True for t in targets}
         return self._job(
-            tr("Linking {name}...").format(name=name),
+            f"Linking {name}...",
             f"use {name} in other profiles",
             lambda loc: use_in(ref[0], ref[1], chosen, loc=loc),
         )
@@ -362,7 +359,7 @@ class ModLibraryService:
         if tuple(expect) != self.check_remove_unused().token:
             raise OperationError("stale", "The Library changed since you were asked. Ask again.")
         return self._job(
-            tr("Removing unused versions..."),
+            "Removing unused versions...",
             "remove unused library versions",
             lambda loc: remove_unused(loc=loc),
         )

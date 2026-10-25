@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.errors import OperationError
-from bayle.platform.text import tr
 from bayle.services import play as play_service
 from bayle.services.play import TITLE, VERSION
 from bayle.services.settings import (
@@ -28,6 +27,7 @@ from pydantic import BaseModel
 
 from bayle_qt.launcher.presenter import install_kind
 from bayle_qt.shell import updates as updates_flow
+from bayle_qt.text import tr
 from bayle_qt.updater import apply as updates
 from bayle_qt.updater.service import RELEASES_URL
 

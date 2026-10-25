@@ -10,9 +10,9 @@ import sys
 import pytest
 from bayle.errors import Busy, OperationError
 from bayle.platform import logging as run_logging
-from bayle.platform import text
 from bayle.services.activity import JobLog
 
+from bayle_qt import text
 from bayle_qt.pages.activity import presenter as act
 from support import FakeActivityFacts
 

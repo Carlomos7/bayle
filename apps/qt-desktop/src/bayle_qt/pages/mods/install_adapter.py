@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 from bayle.errors import OperationError
-from bayle.platform.text import tr
 from bayle.platform.threads import as_worker
 from bayle.services.mod_configs import stamp
 from bayle.work.prompts import Confirm
@@ -22,6 +21,7 @@ from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 from bayle_qt.notifications import Notifier
 from bayle_qt.pages.mods.install_presenter import InstallDraft
 from bayle_qt.pages.mods.install_presenter import words as install_words
+from bayle_qt.text import tr
 
 
 def query(

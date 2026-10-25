@@ -8,7 +8,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from bayle.mods import conflicts as mod_overview
-from bayle.platform.text import plural, tr
+
+from bayle_qt.text import plural, tr
 
 SHOWN_CLASHES = 12  # files listed before "Show all"
 LOST = ("replaced", "unreached")  # a loser's copy of the file does not reach the game: a clash

@@ -23,7 +23,7 @@ from bayle.adapters.games import oodle as game_oodle
 from bayle.adapters.merging import record as merge_record
 from bayle.modules.games import catalog as games
 from bayle.modules.games import config as game_config
-from bayle.modules.mods.tools import BackendError
+from bayle.modules.mods.ports import BackendError
 from bayle.work import cpu
 
 if TYPE_CHECKING:

@@ -242,6 +242,9 @@ def no_installed_mod_names(request, monkeypatch):
     monkeypatch.setattr(item_names, "item_names", lambda *a, **k: item_names.ItemNames({}))
 
 
+bootstrap.bind_ports()  # the workflows' ports: bound once, never part of what a test unbinds
+
+
 @pytest.fixture(autouse=True)
 def runtime_unbound():
     """create_engine binds the record stores, the data folder and the instance scope (and the window the CPU pool);

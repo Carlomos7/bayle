@@ -8,7 +8,7 @@ files next to a package, never from a mod's name:
     declared          a rebuild.json the package (or the user, in Options) provides; see docs/Rebuild tools.md
     launcher_build    the launcher's own build of an overhaul it installed (mods.engine); nothing from a download runs
 
-A CommandTool wraps a Recipe as the Tool contract (mods.tools) asks: label, package, own_folders(), merges(), sources(),
+A CommandTool wraps a Recipe as the Tool contract (mods.ports) asks: label, package, own_folders(), merges(), sources(),
 input_reasons(), report_time(), problem(), approval_key(), describe() and run(log).
 """
 
@@ -23,29 +23,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.modules.mods.models import EngineError
-from bayle.modules.mods.tools import BackendError, EngineHost, Recipe, Tool
+from bayle.modules.mods.ports import BackendError, EngineHost, Recipe, Tool, local_path  # noqa: F401
 
 if TYPE_CHECKING:
     from bayle.modules.games.locate import Locations
-
-
-def local_path(path: str | Path, profile: Path, game_dir: Path | None = None) -> Path:
-    """A path a tool wrote down, on this PC. Its list may have been written on another PC or user account, so a
-    path that is not here is looked for below this profile's folder (by the part after the profile folder's name)
-    and below the game folder (by the part after Game). Otherwise it is returned as written."""
-    p = Path(str(path).replace("\\", "/"))
-    if p.exists():
-        return p
-    parts = [x.lower() for x in p.parts]
-    here = Path(profile).parent
-    name = here.name.lower()
-    if name in parts:
-        at = len(parts) - 1 - parts[::-1].index(name)
-        return here.joinpath(*p.parts[at + 1 :])
-    if game_dir is not None and "game" in parts:
-        at = len(parts) - 1 - parts[::-1].index("game")
-        return Path(game_dir).joinpath(*p.parts[at + 1 :])
-    return p
 
 
 def read_sources(file: Path) -> list[dict] | None:

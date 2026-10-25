@@ -42,6 +42,9 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         from bayle.work import cpu
 
         return cpu.worker_main()
+    from bayle.runtime.bootstrap import bind_ports
+
+    bind_ports()  # the workflows' ports, before any path (with or without an engine) runs one
     if "--backend" in argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
         from bayle.adapters.persistence.db import MigrationFailed
         from bayle.adapters.persistence.settings_file import load_settings

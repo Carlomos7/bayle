@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import shutil
 import time
 from pathlib import Path
@@ -57,12 +56,11 @@ from bayle.modules import overhauls
 from bayle.modules.games import catalog as games
 from bayle.modules.games import config as game_config
 from bayle.modules.mods.models import EngineError
-from bayle.modules.mods.tools import EngineHost
+from bayle.modules.mods.ports import NOTICE_FOLDERS, NOTICE_NAMES, WORK, EngineHost  # noqa: F401
 
 if TYPE_CHECKING:
     from bayle.modules.games.locate import Locations
 
-WORK = ".roundtable-build"  # beside the output: the previous build and its restore.json
 STEPS = {"copy_tree", "copy", "config", "merge", "text", "params", "hook", "remove"}
 
 
@@ -380,10 +378,6 @@ def build(
     seconds = time.time() - started
     log(f"engine: {recipe['label']} built in {seconds:.0f}s; the build it replaced is kept for Undo rebuild")
     return {"output": own, "previous": previous, "restore": restore, "sources": sources, "seconds": seconds}
-
-
-NOTICE_NAMES = re.compile(r"(?i)^(licen[cs]e|notice|copying|third[-_ ]?party[-_ ]?notices?)\b")
-NOTICE_FOLDERS = {"licenses", "licences"}
 
 
 def _notices(recipe: dict, setup: Path, stage: Path) -> list[str]:

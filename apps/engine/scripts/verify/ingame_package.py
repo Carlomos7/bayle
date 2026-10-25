@@ -65,6 +65,9 @@ def main() -> int:
     from bayle.adapters.games.oodle import find_oodle
     from bayle.adapters.overhauls.backends import builtin
     from bayle.modules.mods import rebuild as merge
+    from bayle.runtime.bootstrap import bind_ports
+
+    bind_ports()
 
     # A Rebuild refuses while the game runs because it rewrites files the game may have open. Everything here is
     # written inside the output folder, which the game does not use, and the game's own files are only read, so that

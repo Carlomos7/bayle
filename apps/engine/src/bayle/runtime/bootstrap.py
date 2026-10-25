@@ -29,6 +29,8 @@ from typing import Any
 from bayle import __version__
 from bayle.adapters.filesystem import hashing
 from bayle.adapters.games import paths
+from bayle.adapters.overhauls import backends as tool_backends
+from bayle.adapters.overhauls import engine as overhaul_engine
 from bayle.adapters.persistence import datamigrations
 from bayle.adapters.persistence import db as storage_db
 from bayle.adapters.persistence.activity import ActivityLog
@@ -42,6 +44,7 @@ from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.app_paths import data_dir
 from bayle.modules.games import catalog
 from bayle.modules.games.locate import Locations
+from bayle.modules.mods import ports as mod_ports
 from bayle.modules.mods import rebuild as mod_rebuild
 from bayle.modules.saves import ports as save_ports
 from bayle.modules.settings.models import LauncherSettings
@@ -72,6 +75,13 @@ def _after_job() -> None:
 
 
 UNBOUND: dict[str, Any] = {name: None for name in _SLOTS} | {"hash_file_in_use": True}
+
+
+def bind_ports() -> None:
+    """Hand the workflows the concrete parts behind their ports. Plain assignments, so calling it again changes
+    nothing; the engine, the CLI and the tests' setup call it before a workflow runs."""
+    mod_ports._BACKENDS = tool_backends
+    mod_ports._ENGINE = overhaul_engine
 
 
 def bind(**values: Any) -> Callable[[], None]:
@@ -192,6 +202,7 @@ def migrate_data(open_db=None, covered: set[str] | None = None):
 def create_engine(start_game: catalog.Game | None = None, *, storage: bool = True) -> Engine:
     """The engine for one run: the game is start_game (--game), else the tab the window last showed. storage=False
     opens no database (the files alone work, as before it existed)."""
+    bind_ports()
     data = data_dir()
     unbind = [
         bind(

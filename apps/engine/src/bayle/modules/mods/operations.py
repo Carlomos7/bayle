@@ -35,7 +35,7 @@ from bayle.modules.games import catalog as games
 from bayle.modules.mods import kinds, library, rebuild
 from bayle.modules.mods.checks import same_folder
 from bayle.modules.mods.models import UndoError
-from bayle.modules.mods.tools import EngineHost
+from bayle.modules.mods.ports import EngineHost
 
 
 class OperationError(RuntimeError):
@@ -112,7 +112,7 @@ def commit(op: build.Operation, then=None) -> None:
     _release_others(op)
 
 
-ENGINE_HOST = EngineHost(start, commit, same_folder)  # what mods.engine builds under (see mods.tools)
+ENGINE_HOST = EngineHost(start, commit, same_folder)  # what mods.engine builds under (see mods.ports)
 
 
 def _release_others(op: build.Operation) -> None:

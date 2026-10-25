@@ -23,10 +23,9 @@ from bayle.adapters.integrations.me3 import me3_info, me3_paths
 from bayle.adapters.integrations.me3 import session as me3_session
 from bayle.adapters.integrations.steam import steam
 from bayle.adapters.overhauls import recipes
-from bayle.adapters.persistence.settings_file import load_settings, save_game_settings
 from bayle.adapters.system import desktop
 from bayle.adapters.system import logging as run_logging
-from bayle.adapters.system.app_paths import FROZEN, exe_dir, launch_target
+from bayle.modules import ports
 from bayle.modules.coop.ini import (
     coop_ini_for,
     has_password,
@@ -269,17 +268,17 @@ def overhauls_in(launch: LaunchProfile) -> list[str]:
 
 def remembered_profile(settings: LauncherSettings | None, game: games.Game) -> str | None:
     """The setup Play last used for the game."""
-    s = load_settings() if settings is None else settings
+    s = ports.load_settings() if settings is None else settings
     return game_setting(s, game.key, "setup")
 
 
 def remember_profile(source: str, game: games.Game) -> None:
-    save_game_settings(game.key, setup=source)
+    ports.save_game_settings(game.key, setup=source)
 
 
 def forget_profile(game: games.Game) -> None:
     """Drop the setup Play remembered for the game (its profile was deleted, say)."""
-    save_game_settings(game.key, setup=None)
+    ports.save_game_settings(game.key, setup=None)
 
 
 def profile_saves(launch: LaunchProfile | None, game: games.Game | None = None) -> dict:
@@ -351,7 +350,7 @@ def launch_extra_args(opts: dict, version: str | None = None) -> list:
 
 
 def play_options(settings: LauncherSettings | None = None) -> dict:
-    s = load_settings() if settings is None else settings
+    s = ports.load_settings() if settings is None else settings
     return {k: bool(getattr(s, k)) for k in PLAY_DEFAULTS}  # a null in the file is the default (LauncherSettings)
 
 
@@ -698,8 +697,8 @@ def job_clear(launch, loc: Locations):
 def play_command(game: games.Game) -> tuple[str, str]:
     """(target, launch options) for a Steam shortcut that runs Play for one game without the window."""
     opts = f"--game {game.key} --play"
-    if FROZEN:
-        return str(launch_target()), opts  # the stub or AppImage: its path stays the same across updates
+    if ports.frozen():
+        return str(ports.launch_target()), opts  # the stub or AppImage: its path stays the same across updates
     return sys.executable, f"-m bayle {opts}"
 
 
@@ -713,7 +712,7 @@ def game_from_args(argv: list[str], settings: LauncherSettings | None = None) ->
         elif arg.startswith("--game="):
             value = arg.split("=", 1)[1]
     if value is None:
-        s = load_settings() if settings is None else settings
+        s = ports.load_settings() if settings is None else settings
         return games.get(s.game)
     return games.resolve(value)
 
@@ -859,7 +858,7 @@ def check(settings: LauncherSettings, loc: Locations, data: Path):
         names = item_names(loc.game_dir(), loc.me3_profiles_dir(), refresh=True).names
         sources = sorted({source for _name, source in names.values()})
         lines.append(f"mod item names: {len(names)} from {', '.join(sources) or 'no mods'}")
-    lines.append(f"data folder: {data} ({'next to the program' if data == exe_dir() else 'per-user app data'})")
+    lines.append(f"data folder: {data} ({'next to the program' if data == ports.exe_dir() else 'per-user app data'})")
     for p in loc.save_files():
         i = save_info(p, loc=loc)
         lines.append(

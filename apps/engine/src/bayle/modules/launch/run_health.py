@@ -12,8 +12,8 @@ from pathlib import Path
 from bayle.adapters.games import exe as game_exe
 from bayle.adapters.games import paths
 from bayle.adapters.overhauls import recipes
-from bayle.adapters.persistence.settings_file import change_settings, load_settings
 from bayle.adapters.system import logging as run_logging
+from bayle.modules import ports
 from bayle.modules.games.locate import Locations
 from bayle.modules.overhauls.config import Health
 
@@ -28,10 +28,10 @@ def game_update_notice(loc: Locations) -> str | None:
     if stamp is None:
         return None
     key = loc.game.key
-    seen = load_settings().run_state.get(key, {}).get("exe_build")
+    seen = ports.load_settings().run_state.get(key, {}).get("exe_build")
     if seen == stamp:
         return None
-    change_settings(
+    ports.change_settings(
         lambda cur: {"run_state": {**cur.run_state, key: {**cur.run_state.get(key, {}), "exe_build": stamp}}}
     )
     if seen is None:
@@ -109,7 +109,7 @@ def _set_pending(game: str, pending: dict | None) -> None:
         state[game] = {**mine, "pending": pending} if pending else mine
         return {"run_state": state}
 
-    change_settings(change)
+    ports.change_settings(change)
 
 
 def begin(profile: str | Path, game: str, exe_name: str) -> Watch:
@@ -132,7 +132,7 @@ def end(game: str, watched: Watch, notice: Callable[[str], None] = run_logging.n
 
 def recover(game: str) -> list[str]:
     """Report the run noted by begin() that end() never closed (nothing while that game is running)."""
-    pending = load_settings().run_state.get(game, {}).get("pending")
+    pending = ports.load_settings().run_state.get(game, {}).get("pending")
     if not pending or paths.exe_running(pending.get("exe", "")):
         return []
     try:
@@ -150,7 +150,7 @@ def recover(game: str) -> list[str]:
 def recover_all() -> list[str]:
     """At Bayle's start: every game's unreported run."""
     out: list[str] = []
-    for game in list(load_settings().run_state):
+    for game in list(ports.load_settings().run_state):
         out.extend(recover(game))
     return out
 

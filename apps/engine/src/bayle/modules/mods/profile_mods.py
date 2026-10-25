@@ -462,9 +462,9 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     except Exception:
         tgt = None
     if settings is None:
-        from bayle.adapters.persistence.settings_file import load_settings
+        from bayle.modules import ports
 
-        settings = load_settings()
+        settings = ports.load_settings()
     missing, empty, configs = [], {}, {}
     for e in entries:
         where = profile_edit.resolve(prof, e["path"]) if e.get("path") else None

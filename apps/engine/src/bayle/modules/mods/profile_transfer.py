@@ -25,10 +25,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from bayle.adapters.formats import config_model, me3_profile
-from bayle.adapters.system import data_folder
 from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.threads import assert_not_ui_thread
 from bayle.errors import Cancelled, OperationError
+from bayle.modules import ports
 from bayle.modules.mods import (
     configs,
     library,
@@ -410,7 +410,7 @@ def read(path: Path, *, loc: Locations) -> Incoming:
             readme, changelog = text("README.md"), text("CHANGELOG.md")
     except zipfile.BadZipFile as e:
         raise profile_share.ShareError("That file is not a readable zip.") from e
-    unpacked = data_folder.temp(f"profile-import-{uuid.uuid4().hex[:8]}")
+    unpacked = ports.temp(f"profile-import-{uuid.uuid4().hex[:8]}")
     try:
         source = profile_import.ZipSource(path, unpacked)
         source.skeleton(lambda name: name.lower().endswith(".me3") or configs.settings_name(name.rsplit("/", 1)[-1]))

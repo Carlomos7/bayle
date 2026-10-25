@@ -38,6 +38,9 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
     """Console entry point: the window (when `window` is given); or without one --play, --check, --update (the window program's startup
     hook). argv is sys.argv by default (program name first)."""
     argv = sys.argv if argv is None else argv
+    from bayle.runtime.bootstrap import bind_ports
+
+    bind_ports()  # every path below may run a workflow, with or without an engine
     if "--worker" in argv:  # a CPU worker for the window (platform/cpu.py): before anything else starts
         from bayle.work import cpu
 

@@ -32,9 +32,9 @@ from pathlib import Path
 
 from bayle.adapters.filesystem import filelock
 from bayle.adapters.filesystem.files import atomic_write, move_into
-from bayle.adapters.system import data_folder
+from bayle.modules import ports
 from bayle.modules.games import catalog as games
-from bayle.modules.saves import ports
+from bayle.modules.saves import ports as save_ports
 
 BACKUPS = "backups"
 LIBRARY = "library"
@@ -48,10 +48,8 @@ KEEP_DAYS = 7
 def keep_newest() -> int:
     """How many of the newest backups of a save are kept: the backups_keep setting, 5 to 200; anything else
     (missing, text, 0, negative, huge) is the default, never a small number that would delete backups."""
-    from bayle.adapters.persistence.settings_file import load_settings
-
     try:
-        n = load_settings().backups_keep
+        n = ports.load_settings().backups_keep
     except Exception:
         return KEEP_NEWEST
     return n if 5 <= n <= 200 else KEEP_NEWEST
@@ -79,7 +77,7 @@ def game_for_save_dir(save_dir: Path) -> games.Game:
 
 def account_dir(save_dir: Path, game: games.Game | None = None) -> Path:
     game = game or game_for_save_dir(save_dir)
-    return data_folder.data_root() / "saves" / game.key / Path(save_dir).name
+    return ports.data_root() / "saves" / game.key / Path(save_dir).name
 
 
 def backups(save_dir: Path, game: games.Game | None = None) -> Path:
@@ -231,7 +229,7 @@ def protection(bak: Path) -> str:
     keep = note.get("keep", False)
     if not isinstance(keep, bool):
         return UNREADABLE
-    if not keep and ports.keep_doubt(Path(str(bak) + ".json")):
+    if not keep and save_ports.keep_doubt(Path(str(bak) + ".json")):
         return UNREADABLE  # the database says keep but the note was changed behind its back: err toward safety
     return KEPT if keep else NOT_KEPT
 
@@ -245,7 +243,7 @@ def write_note(bak: Path, note: dict) -> None:
     """Write a backup's note atomically, so an interrupted write leaves the previous note whole."""
     note_path = Path(str(bak) + ".json")
     atomic_write(note_path, json.dumps(note, indent=1))  # the file first, then the database's copy
-    ports.record(ports.BACKUP_NOTE, note_path)
+    save_ports.record(save_ports.BACKUP_NOTE, note_path)
 
 
 def note_files(bak: Path) -> list[Path]:
@@ -300,7 +298,7 @@ def _remove(bak: Path) -> bool:
             p.unlink()
         except OSError:
             pass
-    ports.forget(ports.BACKUP_NOTE, Path(str(bak) + ".json"))
+    save_ports.forget(save_ports.BACKUP_NOTE, Path(str(bak) + ".json"))
     return True
 
 
@@ -311,7 +309,7 @@ def delete(bak: Path) -> None:
         bak.unlink(missing_ok=True)
         for p in note_files(bak):
             p.unlink(missing_ok=True)
-        ports.forget(ports.BACKUP_NOTE, Path(str(bak) + ".json"))
+        save_ports.forget(save_ports.BACKUP_NOTE, Path(str(bak) + ".json"))
 
 
 def prune(folder: Path, save_name: str, now: float | None = None) -> list[Path]:

@@ -21,9 +21,9 @@ class Layout:
 
 def layout() -> Layout:
     """The layout settings as they are now."""
-    from bayle.adapters.persistence.settings_file import load_settings
+    from bayle.modules import ports
 
-    s = load_settings()
+    s = ports.load_settings()
     return Layout(s.profiles_root, s.game_folder_pattern, s.packages_folder, s.natives_folder, s.shared_folder)
 
 

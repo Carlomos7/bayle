@@ -215,16 +215,16 @@ def _trash_launcher(found: GameFolderSeamless, log) -> list[Path]:
 
 
 def relocate_dismissed(key: str) -> bool:
-    from bayle.adapters.persistence.settings_file import load_settings
+    from bayle.modules import ports
 
-    return key in (load_settings().coop_relocate_dismissed or [])
+    return key in (ports.load_settings().coop_relocate_dismissed or [])
 
 
 def dismiss_relocate(key: str) -> None:
-    from bayle.adapters.persistence.settings_file import change_settings
+    from bayle.modules import ports
 
     def add(current):
         have = list(current.coop_relocate_dismissed or [])
         return {"coop_relocate_dismissed": [*have, key] if key not in have else have}
 
-    change_settings(add)
+    ports.change_settings(add)

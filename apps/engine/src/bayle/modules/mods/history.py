@@ -14,7 +14,8 @@ import os
 import re
 from pathlib import Path
 
-from bayle.modules.saves import ports
+from bayle.modules import ports
+from bayle.modules.saves import ports as save_ports
 
 KEEP = 30
 INDEX = "versions.json"  # file name -> why, word for word (the file name only carries a short form)
@@ -24,12 +25,10 @@ _NAME = re.compile(r"^(\d{8}-\d{6}-\d{3})_(.*)\.me3$")
 def folder(profile: Path) -> Path:
     """The history folder for one profile: its file name plus a short hash of its full path, so two profiles with
     the same name (one per game, say) never share it."""
-    from bayle.adapters.system import data_folder
-
     profile = Path(profile)
     key = hashlib.sha1(os.path.normcase(os.path.abspath(profile)).encode()).hexdigest()[:8]
     stem = re.sub(r"[^A-Za-z0-9._-]+", "-", profile.stem)[:40] or "profile"
-    return data_folder.data_root() / "profiles" / "history" / f"{stem}-{key}"
+    return ports.data_root() / "profiles" / "history" / f"{stem}-{key}"
 
 
 def _slug(text: str) -> str:
@@ -49,7 +48,7 @@ def _write_index(d: Path, data: dict) -> None:
         tmp = d / (INDEX + ".tmp")
         tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
         tmp.replace(d / INDEX)
-        ports.record(ports.HISTORY, d / INDEX)
+        save_ports.record(save_ports.HISTORY, d / INDEX)
     except OSError:
         pass
 

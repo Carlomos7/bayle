@@ -29,7 +29,7 @@ from typing import Any
 from bayle import __version__
 from bayle.adapters.filesystem import hashing
 from bayle.adapters.games import paths
-from bayle.adapters.persistence import datamigrations
+from bayle.adapters.persistence import datamigrations, settings_file
 from bayle.adapters.persistence import db as storage_db
 from bayle.adapters.persistence.activity import ActivityLog
 from bayle.adapters.persistence.cache import HashCache
@@ -37,9 +37,10 @@ from bayle.adapters.persistence.imports import run_imports
 from bayle.adapters.persistence.mirror import Mirror
 from bayle.adapters.persistence.rebuild_runs import RebuildRuns
 from bayle.adapters.persistence.settings_file import load_settings
-from bayle.adapters.system import data_folder, identity
+from bayle.adapters.system import app_paths, data_folder, identity
 from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.app_paths import data_dir
+from bayle.modules import ports
 from bayle.modules.games import catalog
 from bayle.modules.games.locate import Locations
 from bayle.modules.mods import rebuild as mod_rebuild
@@ -65,6 +66,14 @@ _SLOTS: dict[str, tuple[Any, str]] = {
     "cpu_broadcast": (cpu, "_broadcast"),
     "ui_thread": (cpu, "_ui_thread"),
 }
+
+
+def bind_ports() -> None:
+    """Point the machine ports (modules/ports.py) at their adapters. Stateless forwarders: idempotent, never undone,
+    and not part of _SLOTS."""
+    ports._DATA_FOLDER = data_folder
+    ports._SETTINGS_FILE = settings_file
+    ports._APP_PATHS = app_paths
 
 
 def _after_job() -> None:
@@ -171,6 +180,7 @@ class Engine:
 def use_data_folder() -> Path:
     """Tell the platform layer where the data folder is and scope the instance names to this build and folder. The
     command line calls it before logging starts; create_engine calls it again."""
+    bind_ports()
     data = data_dir()
     bind(data_root=data, instance_scope=instance.scope_name(identity.get().instance_prefix, data))
     return data
@@ -192,6 +202,7 @@ def migrate_data(open_db=None, covered: set[str] | None = None):
 def create_engine(start_game: catalog.Game | None = None, *, storage: bool = True) -> Engine:
     """The engine for one run: the game is start_game (--game), else the tab the window last showed. storage=False
     opens no database (the files alone work, as before it existed)."""
+    bind_ports()
     data = data_dir()
     unbind = [
         bind(

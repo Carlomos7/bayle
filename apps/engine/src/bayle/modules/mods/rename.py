@@ -26,8 +26,7 @@ from typing import TYPE_CHECKING, Any
 from bayle.adapters.filesystem import build, filelock
 from bayle.adapters.formats import me3_profile
 from bayle.adapters.overhauls import recipes
-from bayle.adapters.persistence import settings_file
-from bayle.modules import overhauls
+from bayle.modules import overhauls, ports
 from bayle.modules.mods import checks, kinds, library, naming, operations, profile_edit, profile_settings
 from bayle.modules.mods import order as mod_order
 from bayle.modules.mods.models import ModError, UndoError
@@ -310,7 +309,7 @@ def _files(out: RenamePreview, profile: Path, kind: str, refs: set[str], new_nam
         raw = file.read_bytes() if file.is_file() else b""
         out.files.append((file, (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode(), _sha(raw)))
     # launcher_settings.json: the attached configs of a DLL in the folder, the legacy parameter overlays
-    cur = settings_file.load_settings()
+    cur = ports.load_settings()
     configs = {_remap(k, old, new): [_remap(v, old, new) for v in vs] for k, vs in cur.native_configs.items()}
     overlays = {
         k: ({**v, "package": _remap(v["package"], old, new)} if isinstance(v, dict) and v.get("package") else v)
@@ -320,7 +319,7 @@ def _files(out: RenamePreview, profile: Path, kind: str, refs: set[str], new_nam
         changed = launcher_settings.LauncherSettings.model_validate(
             {**cur.to_file(), "native_configs": configs, "parameter_overlays": overlays}
         )
-        path = settings_file.settings_path()
+        path = ports.settings_path()
         raw = path.read_bytes() if path.is_file() else b""
         out.files.append((path, json.dumps(changed.to_file(), indent=1).encode(), _sha(raw) if raw else "missing"))
 
@@ -348,12 +347,12 @@ def apply(p: RenamePreview, *, loc: Locations, log: Callable[[str], None] = lamb
             return f"{new.name} appeared in {new.parent.name} meanwhile."
         return None
 
-    settings_changed = any(f == settings_file.settings_path() for f, _d, _e in p.files)
+    settings_changed = any(f == ports.settings_path() for f, _d, _e in p.files)
     with operations.lock(p.profile):
         operations.recover(p.profile)
         if (why := operations.problem(p.profile)) is not None:
             raise ModError(f"Another change to this profile is not finished: {why}")
-        with filelock.locked(settings_file.settings_path()) if settings_changed else nullcontext():
+        with filelock.locked(ports.settings_path()) if settings_changed else nullcontext():
             op = operations.start(p.profile, f"rename of {p.old_name} to {p.new_name}")
             try:
                 p.writer.commit(p.change, operation=op)

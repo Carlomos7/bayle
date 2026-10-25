@@ -116,8 +116,8 @@ def test_a_notice_alone_is_only_logged_and_report_tells_the_callable_it_is_given
 
 
 def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatch):
-    from bayle import overhauls
     from bayle.config.settings import load_settings
+    from bayle.overhauls import recipes
     from bayle.overhauls.config import OverhaulConfig
 
     cfg = OverhaulConfig.model_validate(
@@ -131,7 +131,7 @@ def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatc
             "health": [{"log": "Mod.log", "fail": ["initialization failed"]}],
         }
     )
-    monkeypatch.setattr(overhauls, "load", lambda game=None: [cfg])
+    monkeypatch.setattr(recipes, "load", lambda game=None: [cfg])
     monkeypatch.setattr(run_health.paths, "exe_running", lambda name: False)
     folder = tmp_path / "ModDir"
     folder.mkdir()

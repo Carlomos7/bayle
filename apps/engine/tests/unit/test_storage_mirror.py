@@ -10,7 +10,7 @@ import pytest
 
 from bayle.mods import history
 from bayle.runtime import bootstrap
-from bayle.saves import backups
+from bayle.saves import backups, ports
 from bayle.storage import db, mirror
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
@@ -55,18 +55,18 @@ def _rows(m):
 def test_backup_note_round_trip_file_then_row(mir, bak):
     backups.write_note(bak, {"action": "edit", "keep": True})
     assert json.loads(_note(bak).read_text(encoding="utf-8"))["keep"] is True  # the old format, untouched
-    row = mir.row(mirror.BACKUP_NOTE, _note(bak))
+    row = mir.row(ports.BACKUP_NOTE, _note(bak))
     assert row is not None and row.fingerprint == mirror.fingerprint(_note(bak).read_bytes())
     assert backups.protection(bak) == backups.KEPT
     backups.set_keep(bak, False)
     assert backups.protection(bak) == backups.NOT_KEPT
-    assert json.loads(mir.row(mirror.BACKUP_NOTE, _note(bak)).payload)["keep"] is False
+    assert json.loads(mir.row(ports.BACKUP_NOTE, _note(bak)).payload)["keep"] is False
 
 
 def test_deleting_a_backup_removes_its_row(mir, bak):
     backups.write_note(bak, {"keep": False})
     backups.delete(bak)
-    assert mir.row(mirror.BACKUP_NOTE, _note(bak)) is None
+    assert mir.row(ports.BACKUP_NOTE, _note(bak)) is None
 
 
 def test_interrupted_row_write_leaves_the_file_and_the_next_write_heals(mir, bak, monkeypatch):
@@ -75,9 +75,9 @@ def test_interrupted_row_write_leaves_the_file_and_the_next_write_heals(mir, bak
         m.setattr(mir.db, "unit_of_work", lambda: (_ for _ in ()).throw(RuntimeError("database stopped")))
         backups.set_keep(bak, True)  # the file is written; the row is not
     assert backups.protection(bak) == backups.KEPT  # the file says keep
-    assert mir.row(mirror.BACKUP_NOTE, _note(bak)).fingerprint != mirror.fingerprint(_note(bak).read_bytes())
-    mir.sync(mirror.BACKUP_NOTE, _note(bak))
-    assert mir.row(mirror.BACKUP_NOTE, _note(bak)).fingerprint == mirror.fingerprint(_note(bak).read_bytes())
+    assert mir.row(ports.BACKUP_NOTE, _note(bak)).fingerprint != mirror.fingerprint(_note(bak).read_bytes())
+    mir.sync(ports.BACKUP_NOTE, _note(bak))
+    assert mir.row(ports.BACKUP_NOTE, _note(bak)).fingerprint == mirror.fingerprint(_note(bak).read_bytes())
 
 
 def test_an_older_build_that_unkept_a_backup_cannot_make_pruning_remove_it(mir, bak):
@@ -105,19 +105,19 @@ def test_an_older_build_that_kept_more_loses_nothing(mir, bak):
 def test_without_a_mirror_the_files_alone_work(bak):
     bootstrap.bind(mirror=None)
     backups.set_keep(bak, True)
-    assert backups.protection(bak) == backups.KEPT and not mirror.keep_doubt(_note(bak))
+    assert backups.protection(bak) == backups.KEPT and not ports.keep_doubt(_note(bak))
 
 
 def test_history_index_is_mirrored_and_an_older_writer_is_harmless(mir, tmp_path):
     d = tmp_path / "hist"
     d.mkdir()
     history._write_index(d, {"a.me3": "why a"})
-    row = mir.row(mirror.HISTORY, d / history.INDEX)
+    row = mir.row(ports.HISTORY, d / history.INDEX)
     assert json.loads(row.payload) == {"a.me3": "why a"}
     (d / history.INDEX).write_text(json.dumps({"a.me3": "why a", "b.me3": "old build"}), encoding="utf-8")
     assert history._index(d) == {"a.me3": "why a", "b.me3": "old build"}  # the file wins
     history._write_index(d, history._index(d))
-    assert json.loads(mir.row(mirror.HISTORY, d / history.INDEX).payload)["b.me3"] == "old build"
+    assert json.loads(mir.row(ports.HISTORY, d / history.INDEX).payload)["b.me3"] == "old build"
 
 
 def test_library_manifest_is_mirrored_from_a_real_shaped_old_folder(mir, tmp_path):

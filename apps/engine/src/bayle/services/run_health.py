@@ -9,10 +9,10 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from bayle import overhauls
 from bayle.config.settings import change_settings, load_settings
 from bayle.game import exe as game_exe
 from bayle.game.locate import Locations
+from bayle.overhauls import recipes
 from bayle.overhauls.config import Health
 from bayle.platform import logging as run_logging
 from bayle.platform import paths
@@ -45,7 +45,7 @@ Watch = list[tuple[str, Path, Health, int | None]]  # mod label, log path, entry
 def watch(profile: str | Path, game: str) -> Watch:
     """The declared logs of the overhauls in this profile's folder, with each log's size now (None: not there yet)."""
     out: Watch = []
-    for config in overhauls.load(game):
+    for config in recipes.load(game):
         folder = Path(profile).parent / config.recognise.folder
         if not folder.is_dir():
             continue

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from bayle import __version__, overhauls
+from bayle import __version__
 from bayle.config.settings import (
     FROZEN,
     LauncherSettings,
@@ -41,6 +41,7 @@ from bayle.mods import operations as mod_operations
 from bayle.mods import profile as profile_tools
 from bayle.mods import profile_edit as mod_manage
 from bayle.mods import rebuild as mod_merge
+from bayle.overhauls import recipes
 from bayle.platform import desktop, me3_info, paths, steam
 from bayle.platform import logging as run_logging
 from bayle.platform import session as me3_session
@@ -204,8 +205,8 @@ def launch_profile_from_path(p: str | Path, loc: Locations) -> LaunchProfile | N
     """A setup for a picked file: a .me3 profile, or an overhaul's installer manifest (installation.json) for a game
     it has a config for."""
     p = Path(p)
-    if p.name.lower() in {o.recognise.manifest.lower() for o in overhauls.load()}:
-        manifests = {o.recognise.manifest.lower() for o in overhauls.load(loc.game.key)}
+    if p.name.lower() in {o.recognise.manifest.lower() for o in recipes.load()}:
+        manifests = {o.recognise.manifest.lower() for o in recipes.load(loc.game.key)}
         return launch_profile_from_installation(p, loc) if p.name.lower() in manifests else None
     if p.suffix.lower() == ".me3" and p.is_file():
         return LaunchProfile("me3", p, loc=loc)
@@ -216,7 +217,7 @@ def discover(remembered: str | None, loc: Locations):
     """loc's game's me3 profiles (+ the remembered one), and every installation of an overhaul with a config for the
     game (data/overhauls) in its folder next to them or in the game folder."""
     found, seen = [], set()
-    places = [(o.recognise.folder, o.recognise.manifest) for o in overhauls.load(loc.game.key)]
+    places = [(o.recognise.folder, o.recognise.manifest) for o in recipes.load(loc.game.key)]
 
     def add(s):
         key = os.path.normcase(s.source) if s else None
@@ -258,7 +259,7 @@ def overhauls_in(launch: LaunchProfile) -> list[str]:
     ids = {m["id"].lower() for m in read_profile_mods(profile)} if profile.is_file() else set()
     source = Path(launch.source).name.lower() if launch.source else ""
     out = []
-    for o in overhauls.load():
+    for o in recipes.load():
         r = o.recognise
         if (
             (launch.kind == "manifest" and source == r.manifest.lower())
@@ -518,7 +519,7 @@ PACKAGE_BLOCK_RE = re.compile(r"(^[ \t]*\[\[packages\]\].*?)(?=^[ \t]*\[\[|\Z)",
 
 def overhaul_mark() -> re.Pattern | None:
     """Text marking a profile entry as an overhaul's own (its config's profile_marks), or None when none has marks."""
-    marks = [m for o in overhauls.load() for m in o.recognise.profile_marks if m]
+    marks = [m for o in recipes.load() for m in o.recognise.profile_marks if m]
     return re.compile("|".join(re.escape(m) for m in marks), re.I) if marks else None
 
 

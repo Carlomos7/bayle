@@ -235,14 +235,13 @@ def test_an_overhaul_cannot_take_the_name_of_a_launcher_folder(tmp_path, name):
 
 # ----------------------------------------------------------------------------- gap 5: saving applies the setup again
 def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped_and_said(world, monkeypatch):
-    from bayle import overhauls
     from bayle.mods import overhaul_install
-    from bayle.overhauls import writer
+    from bayle.overhauls import recipes, writer
     from bayle.services import mods as mod_service
     from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
-    config = overhauls.read(toml)
+    config = recipes.read(toml)
     natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot", "load_early": True})]
     saved = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
     writer.save_local(saved, expect=writer.sha256_of(toml), path=toml)
@@ -352,15 +351,14 @@ def two_profiles(world):
     config changed so applying it changes both."""
     import shutil
 
-    from bayle import overhauls
     from bayle.mods import overhaul_install
-    from bayle.overhauls import writer
+    from bayle.overhauls import recipes, writer
     from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
     other = world.base / "other.me3"
     other.write_bytes(world.profile.read_bytes())
-    config = overhauls.read(toml)
+    config = recipes.read(toml)
     for p in (world.profile, other):  # `other` gets the launcher's files for it, as if it had been set up too
         src = overhaul_install.places(world.profile, config.id, world.loc)
         dst = overhaul_install.places(p, config.id, world.loc)
@@ -392,8 +390,7 @@ def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
 
 
 def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
-    from bayle import overhauls
-    from bayle.overhauls import writer
+    from bayle.overhauls import recipes, writer
     from bayle.services import mods as mod_service
     from overhaul_world import set_up
 
@@ -401,7 +398,7 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
     text = world.text().replace('id = "mixed-mod"', 'id = "mixed-mod"\nenabled = false')
     text = text.replace("MixedMod.dll'", "MixedMod.dll'\nenabled = false")
     world.profile.write_text(text, encoding="utf-8")
-    config = overhauls.read(toml)
+    config = recipes.read(toml)
     writer.save_local(config, expect=writer.sha256_of(toml), path=toml)
     mod_service.reapply_overhaul_setup(world.profile, "mixed-mod", loc=world.loc)
     after = world.data()
@@ -424,12 +421,12 @@ def open_install(world, monkeypatch, folder):
 
 
 def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world, monkeypatch):
-    from bayle import overhauls
+    from bayle.overhauls import recipes
     from bayle.services.mod_configs import SetupValues
     from overhaul_world import set_up
 
     folder, toml, _out = set_up(world)
-    config = overhauls.read(toml)
+    config = recipes.read(toml)
     natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
     config = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
     toml.write_text(__import__("bayle.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")

@@ -48,6 +48,7 @@ from bayle.mods import checks, history, library, me3_text, naming, profile_edit
 from bayle.mods import order as mod_order
 from bayle.mods import profile as profile_tools
 from bayle.mods.models import ModError
+from bayle.overhauls import recipes
 from bayle.platform import files
 
 if TYPE_CHECKING:
@@ -335,7 +336,7 @@ class StaticRequirements:
 
 
 class OverhaulRequirements:
-    """Requirements from the overhaul configs (overhauls.load): an entry an overhaul owns (its package ids, its DLL
+    """Requirements from the overhaul configs (recipes.load): an entry an overhaul owns (its package ids, its DLL
     file names) needs what that edition's requires list names. game: the configs of one game (all when None)."""
 
     def __init__(self, configs: Sequence[overhauls.OverhaulConfig] | None = None, game: str | None = None):
@@ -345,7 +346,7 @@ class OverhaulRequirements:
     @property
     def configs(self) -> list[overhauls.OverhaulConfig]:
         if self._configs is None:
-            self._configs = overhauls.load(self.game)
+            self._configs = recipes.load(self.game)
         return self._configs
 
     def of(self, entry: dict) -> list[Requirement]:

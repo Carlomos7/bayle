@@ -9,6 +9,7 @@ from bayle import overhauls
 from bayle.game import catalog as games
 from bayle.game.locate import Locations, Overrides
 from bayle.overhauls import config as overhaul_config
+from bayle.overhauls import recipes
 from bayle.services import play
 
 TOY = """overhaul = 1
@@ -26,7 +27,7 @@ profile_marks = ["toyoverhaul"]
 
 
 def local(name: str, text: str) -> Path:
-    folder = overhauls.local_dir()
+    folder = recipes.local_dir()
     assert folder is not None
     folder.mkdir(parents=True, exist_ok=True)
     (folder / name).write_text(text, encoding="utf-8")
@@ -34,30 +35,30 @@ def local(name: str, text: str) -> Path:
 
 
 def test_the_shipped_config_runs_nothing_of_the_mods():
-    (example,) = overhauls.load()
+    (example,) = recipes.load()
     assert (example.id, example.game, example.short_label) == ("example-overhaul", "eldenring", "Example")
     (lite,) = [example.recipe(b) for b in example.builds]
     assert lite["id"] == "example-overhaul-lite" and lite["recipe"] == overhauls.RECIPE_VERSION and "tool" not in lite
     grace = [s for s in lite["steps"] if s.get("file") == "script/talk/m00_00_00_00.talkesdbnd.dcx"]
     assert [s["do"] for s in grace] == ["merge"]  # the ESD rule, not the mod's tool
     assert not any("Assets.exe" in json.dumps(s) for s in lite["steps"]) and "Assets.exe" not in json.dumps(lite)
-    assert overhauls.problems() == []
+    assert recipes.problems() == []
 
 
 def test_the_published_schema_is_the_models():
-    assert json.loads(overhauls.schema_path().read_text(encoding="utf-8")) == overhauls.schema()
+    assert json.loads(recipes.schema_path().read_text(encoding="utf-8")) == overhauls.schema()
 
 
 def test_configs_are_per_game():
-    assert [o.id for o in overhauls.load("eldenring")] == ["example-overhaul"]
-    assert overhauls.load("nightreign") == []
+    assert [o.id for o in recipes.load("eldenring")] == ["example-overhaul"]
+    assert recipes.load("nightreign") == []
 
 
 def test_a_local_config_replaces_the_shipped_one_with_its_id_and_adds_new_ones():
-    shipped = (overhaul_config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
+    shipped = (recipes.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
     local("mine.toml", shipped.replace('short_label = "Example"', 'short_label = "XYZ"'))
     local("toy.toml", TOY)
-    by_id = {o.id: o for o in overhauls.load()}
+    by_id = {o.id: o for o in recipes.load()}
     assert sorted(by_id) == ["example-overhaul", "toy"]
     assert by_id["example-overhaul"].short_label == "XYZ" and by_id["toy"].builds == []
 
@@ -65,8 +66,8 @@ def test_a_local_config_replaces_the_shipped_one_with_its_id_and_adds_new_ones()
 def test_a_bad_config_is_left_out_and_problems_say_why():
     bad = local("bad.toml", TOY.replace("overhaul = 1", "overhaul = 2"))
     broken = local("broken.toml", "id = [")
-    assert [o.id for o in overhauls.load()] == ["example-overhaul"]
-    said = overhauls.problems()
+    assert [o.id for o in recipes.load()] == ["example-overhaul"]
+    said = recipes.problems()
     assert len(said) == 2 and any(str(bad) in p for p in said) and any(str(broken) in p for p in said)
 
 
@@ -134,21 +135,21 @@ def test_the_offline_strip_uses_each_configs_profile_marks():
 
 
 def test_a_config_with_the_old_seamless_key_is_left_out_and_says_where_it_went():
-    shipped = (overhaul_config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
+    shipped = (recipes.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
     old = shipped.replace("[builds.install]\n", '[builds.install]\nseamless = { dll = "ersc.dll" }\n')
     bad = local("old.toml", old.replace('id = "example-overhaul"', 'id = "old-example"', 1))
-    assert "old-example" not in [o.id for o in overhauls.load()]
-    (said,) = overhauls.problems()
+    assert "old-example" not in [o.id for o in recipes.load()]
+    (said,) = recipes.problems()
     assert said.startswith(f"{bad}: builds.0.install.seamless: Extra inputs are not permitted")
     assert said.endswith("(seamless: since 3.20 a required mod is listed in the build's requires)")
 
 
 def test_a_config_with_the_old_script_append_step_is_left_out_and_says_where_it_went():
-    shipped = (overhaul_config.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
+    shipped = (recipes.SHIPPED_DIR / "example-overhaul.toml").read_text(encoding="utf-8")
     old = shipped.replace('do = "hook"', 'do = "script_append"').replace('id = "example-overhaul"', 'id = "x"', 1)
     local("old.toml", old)
-    assert "x" not in [o.id for o in overhauls.load()]
-    (said,) = overhauls.problems()
+    assert "x" not in [o.id for o in recipes.load()]
+    (said,) = recipes.problems()
     assert said.endswith(
         '(script_append: since 3.20 a script fragment is added with do = "hook" (append is fragment, refuse is markers))'
     )
@@ -161,7 +162,7 @@ def test_the_writer_reads_back_and_never_overwrites_a_file_changed_since_it_was_
 
     from bayle.overhauls import basic, writer
 
-    (example,) = overhauls.load()
+    (example,) = recipes.load()
     back = overhaul_config.OverhaulConfig.model_validate(tomllib.loads(writer.render(example)))
     assert back.recipe(back.builds[0]) == example.recipe(example.builds[0])  # same build: nothing goes out of date
     mod = tmp_path / "My Mod"
@@ -171,7 +172,7 @@ def test_the_writer_reads_back_and_never_overwrites_a_file_changed_since_it_was_
     (mod / "My.ini").write_text("a = 1")
     made = basic.make(id="my-mod", label="My Mod", game="eldenring", basic=basic.propose(mod, "1.0"), folder=mod)
     path = writer.save_local(made, expect=None)
-    assert overhauls.read(path) == made and basic.level(overhauls.read(path), mod) == "basic"
+    assert recipes.read(path) == made and basic.level(recipes.read(path), mod) == "basic"
     read_sha = writer.sha256_of(path)
     hand = path.read_text(encoding="utf-8") + "# the player's note\n"
     path.write_text(hand, encoding="utf-8")

@@ -261,10 +261,10 @@ def installable_overhauls(game: str) -> list[str]:
     """The overhauls and editions the launcher can install for this game (a config's build with an install
     description), in plain words: the overhaul's name, the values its download must have (its edition) and the
     versions the build was written for."""
-    from bayle import overhauls
+    from bayle.overhauls import recipes
 
     out: list[str] = []
-    for config in overhauls.load(game):
+    for config in recipes.load(game):
         for b in config.builds:
             if b.install is None:
                 continue
@@ -387,10 +387,10 @@ def install_overhaul(preview, *, loc: Locations) -> dict:
 def profile_overhaul(profile, *, loc: Locations) -> dict | None:
     """The overhaul the profile has, for the Overhaul menu: {label, short_label, legacy} (legacy: its own installer
     set it up), or None."""
-    from bayle import overhauls
     from bayle.mods import overhaul_install
+    from bayle.overhauls import recipes
 
-    hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
+    hit = overhaul_install.overhaul_in(Path(profile), recipes.load(loc.game.key))
     if hit is None:  # no config for it: a setup some installer made is still the launcher's to take over
         from bayle.mods import installer_leftovers
 
@@ -491,9 +491,8 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     mod keeps its package id, so its entries are replaced), loading last, its top-level DLLs with no special
     options, the settings files beside them kept. Returns an overhauls.OverhaulConfig; raises ValueError when the
     folder has nothing to set up."""
-    from bayle import overhauls
     from bayle.mods import naming
-    from bayle.overhauls import basic
+    from bayle.overhauls import basic, recipes
 
     ident = overhaul_id or naming.mod_id(name)
     game = loc.game.key
@@ -501,8 +500,8 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
 
     proposed = basic.propose(Path(folder), game=game, game_dir=loc.game_dir())
     dlls = {n.file.lower() for n in proposed.natives}
-    for old in overhauls.load(game):  # a saved setup of this mod: its choices carry over (the file is not touched)
-        if old.basic is None or overhauls.verified(old.id):
+    for old in recipes.load(game):  # a saved setup of this mod: its choices carry over (the file is not touched)
+        if old.basic is None or recipes.verified(old.id):
             continue
         r = old.recognise
         same_dlls = bool(dlls) and dlls == {n.file.lower() for n in old.basic.natives}
@@ -525,9 +524,9 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
 def setup_is_editable(config) -> bool:
     """Whether a config is a setup made with the form (the DLL options and the Files table are the player's to
     change), not a verified one that comes with the launcher."""
-    from bayle import overhauls
+    from bayle.overhauls import recipes
 
-    return config.basic is not None and not overhauls.verified(config.id)
+    return config.basic is not None and not recipes.verified(config.id)
 
 
 def setup_file_rows(config, folder) -> list[dict]:
@@ -568,22 +567,21 @@ def overhaul_setup_of(profile, *, loc: Locations) -> dict | None:
     """The profile's overhaul for the Mod Configs "Overhaul setup" node: {config, path (its file), sha (of the file
     as read, for save_overhaul_setup), verified, level ("basic" or "advanced"), folder (the launcher's copy of its
     download, the files the form lists; None when there is none)}; None without an overhaul."""
-    from bayle import overhauls
     from bayle.mods import overhaul_install
-    from bayle.overhauls import basic, writer
+    from bayle.overhauls import basic, recipes, writer
 
-    hit = overhaul_install.overhaul_in(Path(profile), overhauls.load(loc.game.key))
+    hit = overhaul_install.overhaul_in(Path(profile), recipes.load(loc.game.key))
     if hit is None:
         return None
     config = hit[0]
-    path = overhauls.origin(config.id)
+    path = recipes.origin(config.id)
     where = overhaul_install.places(Path(profile), config.id, loc)
     folder = where.sources if where is not None and where.sources.is_dir() else None
     return {
         "config": config,
         "path": path,
         "sha": writer.sha256_of(path) if path is not None else None,
-        "verified": overhauls.verified(config.id),
+        "verified": recipes.verified(config.id),
         "level": basic.level(config, folder) if folder is not None else "advanced",
         "folder": folder,
     }
@@ -609,11 +607,10 @@ def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list
     the job takes back every profile it changed (run inside a logged job). A profile that refuses, has no copy of
     the download or has another overhaul is skipped and said. Returns the names of the profiles changed; raises
     OverhaulError when none was (the job must not look like a success)."""
-    from bayle import overhauls
     from bayle.mods import overhaul_install
-    from bayle.overhauls import requirements
+    from bayle.overhauls import recipes, requirements
 
-    config = next((c for c in overhauls.load(loc.game.key) if c.id == overhaul_id), None)
+    config = next((c for c in recipes.load(loc.game.key) if c.id == overhaul_id), None)
     if config is None:
         raise overhaul_install.OverhaulError(f"The setup {overhaul_id} was not found after saving.")
     try:

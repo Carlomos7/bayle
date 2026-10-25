@@ -122,6 +122,9 @@ layers = [
     "bayle.platform",
     "bayle.errors",
 ]
+# storage.mirror and mods.history are adapters of the saves record-index port; they move to adapters/ with the
+# layout change.
+ignore_imports = ["bayle.storage.mirror -> bayle.saves.ports", "bayle.mods.history -> bayle.saves.ports"]
 
 [[tool.importlinter.contracts]]
 name = "The engine has no Qt and knows no app"

@@ -6,9 +6,8 @@ from __future__ import annotations
 import random
 
 import pytest
-from bayle import overhauls
 from bayle.mods import records
-from bayle.overhauls import sources
+from bayle.overhauls import recipes, sources
 from bayle.overhauls.config import Build
 from pydantic import ValidationError
 
@@ -67,7 +66,7 @@ DOWNLOAD = [
 
 
 def example() -> Build:
-    (cfg,) = [o for o in overhauls.load() if o.id == "example-overhaul"]
+    (cfg,) = [o for o in recipes.load() if o.id == "example-overhaul"]
     (build,) = cfg.builds
     return build
 
@@ -231,7 +230,7 @@ def test_runtime_targets_have_no_roles():
 def test_the_tables_dont_change_what_the_build_does():
     """The engine reads the download as before: the tables are not in the recipe, so adding them changes neither a
     build nor whether it is out of date."""
-    (cfg,) = [o for o in overhauls.load() if o.id == "example-overhaul"]
+    (cfg,) = [o for o in recipes.load() if o.id == "example-overhaul"]
     recipe = cfg.recipe(cfg.builds[0])
     assert "sources" not in recipe and "runtime" not in recipe
 
@@ -257,8 +256,9 @@ def _imports(module: str) -> set[str]:
     ("module", "allowed"),
     [
         ("bayle.overhauls.sources", ("bayle.overhauls",)),
+        ("bayle.overhauls.config", ("bayle.overhauls",)),
         (
-            "bayle.overhauls.config",
+            "bayle.overhauls.recipes",
             ("bayle.overhauls", "bayle.resources", "bayle.platform"),
         ),  # fmt: skip
         ("bayle.merging.record", ("bayle.game", "bayle.formats")),

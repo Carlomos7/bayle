@@ -11,12 +11,11 @@ import pytest
 from fakegame import bnd, dcx, fmg
 from test_overhaul_install import World, files, set_up
 
-from bayle import overhauls
 from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B
 from bayle.mods import overhaul_install
 from bayle.mods.overhaul_install import OverhaulError
-from bayle.overhauls import basic
+from bayle.overhauls import basic, recipes
 
 # Copied from the desktop app's test_overhaul_gaps (it also holds Qt-only tests, so it lives there).
 TALK = "script/talk/m00.talkesdbnd.dcx"
@@ -238,21 +237,21 @@ def test_a_newer_download_keeps_the_players_settings_file_and_the_saved_setup(wo
     shutil.copytree(folder, newer)
     (newer / "MixedMod.dll").write_bytes(b"d2")
     (newer / "MixedMod.ini").write_text("[a]\nb=1\nc=new\n")
-    config = overhauls.read(toml)
+    config = recipes.read(toml)
     p = overhaul_install.preview_setup(world.profile, newer, config, loc=world.loc)
     assert p.ok and p.update, p.refusals
     overhaul_install.install_setup(p, loc=world.loc)
     assert (own / "MixedMod.dll").read_bytes() == b"d2"
     text = (own / "MixedMod.ini").read_text()
     assert "b=player" in text and "c=new" in text  # kept, new keys added
-    assert overhauls.read(toml) == config and toml.read_bytes() == setup
+    assert recipes.read(toml) == config and toml.read_bytes() == setup
 
 
 def test_a_download_missing_a_file_the_setup_names_is_refused_and_the_old_build_stays(world, tmp_path):
     folder, toml, _out = set_up(world)
     own = world.base / "mixed-mod"
     before, profile = files(own), world.profile.read_bytes()
-    config = overhauls.read(toml)
+    config = recipes.read(toml)
     newer = tmp_path / "Downloads" / "Mixed Mod 3"
     shutil.copytree(folder, newer)
     (newer / "MixedMod.dll").unlink()  # the DLL the setup loads is gone

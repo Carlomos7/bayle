@@ -139,5 +139,9 @@ def test_finishing_a_job_tells_the_workers(monkeypatch):
     monkeypatch.setattr(cpu, "invalidate", told.append)
     monkeypatch.setattr(jobs.run_logging, "begin_job", lambda *a, **k: None)
     monkeypatch.setattr(jobs.run_logging, "end_job", lambda *a, **k: None)
-    jobs.run_job(lambda launch, loc: None, None, Locations(catalog.ELDEN_RING), "t")
+    unbind = bootstrap.bind(after_job=bootstrap._after_job)
+    try:
+        jobs.run_job(lambda launch, loc: None, None, Locations(catalog.ELDEN_RING), "t")
+    finally:
+        unbind()
     assert told == ["item_names"]

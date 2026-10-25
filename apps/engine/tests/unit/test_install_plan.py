@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from bayle import overhauls
-from bayle.overhauls import install_plan
+from bayle.overhauls import install_plan, recipes
 from bayle.overhauls.install_plan import Change, apply, check, plan
 
 PROFILE = Path("C:/Games/me3/profiles/my.me3")
@@ -17,7 +17,7 @@ ANY_DIR = lambda _p: True  # noqa: E731  (every package folder is there)
 
 
 def example():
-    config = next(c for c in overhauls.load() if c.id == "example-overhaul")
+    config = next(c for c in recipes.load() if c.id == "example-overhaul")
     build, problem = install_plan.install_of(config, "LITE")
     assert problem is None and build is not None and build.install is not None
     return config, build

@@ -62,7 +62,7 @@ from bayle.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
 from bayle.mods.profile_edit import quote
 from bayle.mods.profile_writer import Plan as WriterPlan
 from bayle.mods.profile_writer import ProfileWriter
-from bayle.overhauls import install_plan, requirements, sources
+from bayle.overhauls import install_plan, recipes, requirements, sources
 from bayle.overhauls.config import Build, OverhaulConfig
 from bayle.platform import files, trash
 
@@ -191,7 +191,7 @@ def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | N
     folder = Path(folder)
     if not folder.is_dir():
         raise OverhaulError(f"{folder} is not a folder.")
-    configs = list(configs) if configs is not None else overhauls.load()
+    configs = list(configs) if configs is not None else recipes.load()
     tries = [folder, *sorted((p for p in folder.iterdir() if p.is_dir()), key=lambda p: p.name.lower())]
     newer = None
     for place in tries:
@@ -380,7 +380,7 @@ def preview_install(
     """What installing the download into the profile would do (see the module notes). Raises OverhaulError when
     the download isn't one the launcher installs; other reasons are the preview's refusals."""
     profile = Path(profile)
-    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    configs = list(configs) if configs is not None else recipes.load(_game(loc))
     found = find_download(download, _game(loc), configs)
     config, build = found.config, found.build
     assert build.install is not None
@@ -793,7 +793,7 @@ def preview_remove(
     install switched it on. legacy_choices: for a setup its own installer made, the side effects (legacy_effects)
     the player chose to put back. Raises OverhaulError when the profile has no overhaul."""
     profile = Path(profile)
-    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    configs = list(configs) if configs is not None else recipes.load(_game(loc))
     hit = overhaul_in(profile, configs)
     if hit is None:
         raise OverhaulError(f"{profile.name} has no overhaul the launcher knows.")
@@ -856,7 +856,7 @@ def _installer_made(profile: Path, config: OverhaulConfig, own: Path, effects_fi
 
 def installer_made(profile: Path, *, loc: Locations, configs: Sequence[OverhaulConfig] | None = None) -> bool:
     """The profile has an overhaul and its own installer set it up (Take over applies)."""
-    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    configs = list(configs) if configs is not None else recipes.load(_game(loc))
     hit = overhaul_in(Path(profile), configs)
     if hit is None:
         return False
@@ -1085,7 +1085,7 @@ def leftovers(profile: Path, *, loc: Locations, configs: Sequence[OverhaulConfig
     folder (when no profile's entries point into it), the folders they keep (installer_folders), and their backups
     (installer_backups), last."""
     profile = Path(profile)
-    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    configs = list(configs) if configs is not None else recipes.load(_game(loc))
     out: list[Leftover] = []
     backups: list[Leftover] = []
     for config in configs:
@@ -1131,7 +1131,7 @@ def legacy_effects(
     initializers it gives other mods' DLLs) where the profile still has the value the install sets. Each is offered
     to choose from; none is put back unless chosen. Empty when there is no backup to compare with."""
     profile = Path(profile)
-    configs = list(configs) if configs is not None else overhauls.load(_game(loc))
+    configs = list(configs) if configs is not None else recipes.load(_game(loc))
     hit = overhaul_in(profile, configs)
     if hit is None or not hit[0].recognise.installer_backups:
         return []
@@ -1219,11 +1219,11 @@ def setup_config(config: OverhaulConfig, folder: Path) -> OverhaulConfig:
 
 def config_path(config: OverhaulConfig) -> Path | None:
     """Where the config is written: the local file it was loaded from, else <id>.toml in the local folder (None
-    before the launcher's data folder is set). Call after overhauls.load()."""
-    found = overhauls.origin(config.id)
-    if found is not None and not overhauls.verified(config.id):
+    before the launcher's data folder is set). Call after recipes.load()."""
+    found = recipes.origin(config.id)
+    if found is not None and not recipes.verified(config.id):
         return found
-    folder = overhauls.local_dir()
+    folder = recipes.local_dir()
     return folder / f"{config.id}.toml" if folder is not None else None
 
 
@@ -1234,8 +1234,8 @@ def preview_setup(profile: Path, folder: Path, config: OverhaulConfig, *, loc: L
     OverhaulError when it can't be set up."""
     from bayle.overhauls import writer
 
-    configs = overhauls.load(_game(loc))
-    if config.basic is not None and overhauls.verified(config.id):
+    configs = recipes.load(_game(loc))
+    if config.basic is not None and recipes.verified(config.id):
         raise OverhaulError(f"{config.label} already has a verified setup that comes with the launcher.")
     try:
         made = setup_config(config, Path(folder))
@@ -1317,12 +1317,12 @@ def preview_turn_off(profile: Path, *, loc: Locations) -> TurnOffPreview:
     when the profile has no overhaul."""
     from bayle.mods import install as mod_install
 
-    configs = overhauls.load(_game(loc))
+    configs = recipes.load(_game(loc))
     r = preview_remove(profile, loc=loc, configs=configs)
     cfg = r.config
-    path = overhauls.origin(cfg.id)
+    path = recipes.origin(cfg.id)
     out = TurnOffPreview(r, path, {}, False, refusals=list(r.refusals))
-    if path is None or overhauls.verified(cfg.id):
+    if path is None or recipes.verified(cfg.id):
         out.refusals.append(f"{cfg.label} comes with the launcher's own setup; use Remove {cfg.short_label} instead.")
     if r.legacy or r.places is None or not r.places.sources.is_dir():
         out.refusals.append(

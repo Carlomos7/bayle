@@ -141,10 +141,10 @@ def plan(profile: Path, loc: Locations) -> MovePlan:
     layout = library.ProfileFolder(folder)
     item = Item(profile, name, folder, library.state_of(profile).root, old_bytes=raw)
     seen: set[str] = set()
-    from bayle import overhauls
+    from bayle.overhauls import recipes
 
     # an overhaul's own folder is part of the profile's layout, at its root: it moves whole, not entry by entry
-    owns = [Path(os.path.abspath(o)) for o in overhaul_install.own_folders(profile, rows, overhauls.load(loc.game.key))]
+    owns = [Path(os.path.abspath(o)) for o in overhaul_install.own_folders(profile, rows, recipes.load(loc.game.key))]
     for e in rows:
         if not e.get("path"):
             continue

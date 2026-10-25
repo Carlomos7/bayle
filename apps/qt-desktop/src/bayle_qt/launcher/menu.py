@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from bayle.game import catalog as games
+from bayle.modules.games import catalog as games
 
 from bayle_qt.launcher import topbar
 from bayle_qt.text import tr

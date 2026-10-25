@@ -5,9 +5,9 @@ import shutil
 
 from test_mod_merge import World
 
-from bayle.config import settings_file
-from bayle.mods import profile_settings
-from bayle.mods import rebuild as merge
+from bayle.adapters.persistence import settings_file
+from bayle.modules.mods import profile_settings
+from bayle.modules.mods import rebuild as merge
 
 
 def test_settings_round_trip_and_keep_what_this_version_does_not_know(tmp_path):

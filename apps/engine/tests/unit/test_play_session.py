@@ -7,11 +7,11 @@ import json
 import pytest
 from fakehost import STEAM_EXE, FakeHost, launch_profile_for
 
-from bayle.game import catalog as games
-from bayle.game.locate import Locations
-from bayle.platform import logging as run_logging
-from bayle.platform import session
-from bayle.services import play as core
+from bayle.adapters.integrations.me3 import session
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.games import catalog as games
+from bayle.modules.games.locate import Locations
+from bayle.modules.launch import play as core
 from bayle.work import runner as jobs
 from support import er
 
@@ -344,7 +344,8 @@ def test_after_play_me3s_failed_dlc_loading_is_said(play, lines, monkeypatch, tm
 
 
 def test_running_and_dead_shell_go_by_threads_not_memory(monkeypatch):
-    from bayle.platform import paths, proc
+    from bayle.adapters.games import paths
+    from bayle.adapters.system import proc
 
     monkeypatch.setattr(paths, "IS_WINDOWS", True)
     monkeypatch.setattr(proc, "processes", lambda _name: [(1, 0)])  # no threads: a corpse

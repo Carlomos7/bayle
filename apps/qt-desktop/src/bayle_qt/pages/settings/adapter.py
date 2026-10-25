@@ -9,11 +9,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
+from bayle.adapters.system import desktop
+from bayle.adapters.system.threads import assert_not_ui_thread
 from bayle.errors import OperationError
-from bayle.platform import desktop
-from bayle.platform.threads import assert_not_ui_thread
-from bayle.services.play import TITLE, VERSION
-from bayle.services.settings import KEEP_RANGE, Changed, SettingsService
+from bayle.modules.launch.play import TITLE, VERSION
+from bayle.modules.settings.service import KEEP_RANGE, Changed, SettingsService
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 

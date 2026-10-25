@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config import settings, settings_file
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.mods import library, migrate, move_in, profile_edit, profile_rename, shared_mods
-from bayle.platform import trash
-from bayle.services import profile_transfer
+from bayle.adapters.filesystem import trash
+from bayle.adapters.persistence import settings_file
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import library, migrate, move_in, profile_edit, profile_rename, profile_transfer, shared_mods
+from bayle.modules.settings import models as settings
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -183,7 +183,7 @@ def test_duplicate_refuses_a_record_it_cannot_read_and_leaves_nothing(home):
 
 
 def test_custom_names_are_reserved_and_split_by_the_settings_names(home, monkeypatch):
-    from bayle.mods import folder_split, naming
+    from bayle.modules.mods import folder_split, naming
 
     monkeypatch.setattr(
         settings_file,

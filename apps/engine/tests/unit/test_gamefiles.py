@@ -8,9 +8,9 @@ from compression import zstd
 import pytest
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from bayle import formats
-from bayle.saves import analyze as A
-from bayle.saves import item_names as N
+from bayle.adapters import formats
+from bayle.adapters.saves import item_names as N
+from bayle.modules.saves import analyze as A
 
 
 def param(ids):

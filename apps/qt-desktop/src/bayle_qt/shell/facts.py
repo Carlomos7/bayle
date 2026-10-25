@@ -6,9 +6,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from bayle.config.settings import LauncherSettings, game_setting
-from bayle.game import catalog as games
-from bayle.services.play import Problem
+from bayle.modules.games import catalog as games
+from bayle.modules.launch.play import Problem
+from bayle.modules.settings.models import LauncherSettings, game_setting
 
 PROFILE, OFFLINE, VANILLA = "profile", "offline", "vanilla"
 MODES = (PROFILE, OFFLINE, VANILLA)

@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 
 from bayle.errors import OperationError
-from bayle.mods.overhaul_takeover import EntryChoice
-from bayle.services import mods as mod_service
-from bayle.services.mod_install import ModInstallService
+from bayle.modules.mods import service as mod_service
+from bayle.modules.mods.mod_install import ModInstallService
+from bayle.modules.mods.overhaul_takeover import EntryChoice
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import ServiceCalls, er, mods_profile

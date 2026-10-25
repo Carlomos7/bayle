@@ -14,8 +14,8 @@ from fastapi import APIRouter, Depends, Query
 from bayle.api.deps import service
 from bayle.api.models import JobStarted as Started
 from bayle.api.models import Params, Result
-from bayle.services import mods_page
-from bayle.services.mods_page import ModsPageState, ModsService
+from bayle.modules.mods import mods_page
+from bayle.modules.mods.mods_page import ModsPageState, ModsService
 
 router = APIRouter(prefix="/mods", tags=["mods"])
 Mods = Annotated[ModsService, Depends(service("mods"))]

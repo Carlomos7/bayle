@@ -13,8 +13,8 @@ import textwrap
 import time
 
 import pytest
-from bayle.platform.filelock import ReadWriteLock
-from bayle.storage import db, models
+from bayle.adapters.filesystem.filelock import ReadWriteLock
+from bayle.adapters.persistence import db, models
 
 HEAD = db.head_revision()  # the newest real revision; test revisions (9xxx) are added after it
 
@@ -26,8 +26,8 @@ HOLDER = textwrap.dedent(
     """
     import sys
     from pathlib import Path
-    from bayle.platform.filelock import ReadWriteLock
-    from bayle.storage import db
+    from bayle.adapters.filesystem.filelock import ReadWriteLock
+    from bayle.adapters.persistence import db
 
     folder, mode = Path(sys.argv[1]), sys.argv[2]
     if mode == "open":
@@ -342,7 +342,7 @@ def test_everything_the_migration_scripts_import_is_imported_by_storage_db():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 wanted.add(node.module)
     probe = (
-        "import sys, bayle.storage.db\n"
+        "import sys, bayle.adapters.persistence.db\n"
         f"missing = [m for m in {sorted(wanted)!r} if m not in sys.modules]\n"
         "print(missing)\n"
     )
@@ -426,9 +426,8 @@ def test_create_engine_runs_on_without_storage_when_it_is_refused(monkeypatch):
 
 def test_a_failed_upgrade_stops_start_up_and_play_reports_nothing_ready(monkeypatch):
     from bayle import cli
-    from bayle.game import catalog as games
-    from bayle.platform import instance
-    from bayle.runtime import bootstrap
+    from bayle.modules.games import catalog as games
+    from bayle.runtime import bootstrap, instance
 
     from bayle_qt.updater import apply as updates
 

@@ -6,8 +6,8 @@ import threading
 import pytest
 
 from bayle.errors import Busy, Cancelled, ErrorInfo, OperationError
-from bayle.game import catalog
-from bayle.game.locate import Locations
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations
 from bayle.work import runner as jobs
 
 

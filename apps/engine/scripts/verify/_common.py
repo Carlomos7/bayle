@@ -44,8 +44,8 @@ def settings() -> dict:
 def game_dir(given: Path | None) -> Path:
     game = given or (Path(settings()["game"]) if "game" in settings() else None)
     if game is None:
-        from bayle.game import catalog
-        from bayle.game.locate import Locations
+        from bayle.modules.games import catalog
+        from bayle.modules.games.locate import Locations
 
         game = Locations(catalog.ELDEN_RING).game_dir()
     if game is None or not (Path(game) / "eldenring.exe").is_file():
@@ -93,14 +93,14 @@ def sandbox_launcher(out: Path, game: Path):
     """Point the launcher's code at a data folder inside `out` and at `game`. Its settings, caches, history and logs
     then live there (run from source, the launcher would otherwise keep them beside the code). Returns the Locations
     to hand the mods code: Elden Ring in `game`."""
-    from bayle.config import app_paths
+    from bayle.adapters.system import app_paths
 
     data = out / "launcher-data"
     data.mkdir(parents=True, exist_ok=True)
     app_paths.data_dir = lambda: data
-    from bayle.game import catalog
-    from bayle.game.locate import Locations, Overrides
-    from bayle.platform import paths
+    from bayle.adapters.games import paths
+    from bayle.modules.games import catalog
+    from bayle.modules.games.locate import Locations, Overrides
     from bayle.runtime.bootstrap import use_data_folder
 
     use_data_folder()  # app_paths.data_dir is the folder above

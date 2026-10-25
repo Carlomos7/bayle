@@ -11,8 +11,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from bayle.formats import config_model
-from bayle.services import mod_configs
+from bayle.adapters.formats import config_model
+from bayle.modules.mods import mod_configs
 from bayle.work.prompts import Confirm, Pick, Refusal
 
 from bayle_qt.pages.mods.file_actions import file_action_text, shown_path

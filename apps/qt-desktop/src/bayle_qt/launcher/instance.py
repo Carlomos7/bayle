@@ -4,7 +4,7 @@ the window is open) launches in this window. Only this user can connect."""
 
 from __future__ import annotations
 
-from bayle.platform import instance
+from bayle.runtime import instance
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtNetwork import QLocalServer
 

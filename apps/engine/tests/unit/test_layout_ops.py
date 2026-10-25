@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.config import settings_file
-from bayle.merging import build as B
-from bayle.mods import layout
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.persistence import settings_file
+from bayle.modules.mods import layout
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 
@@ -258,7 +258,7 @@ def test_rename_refusals(world):
 
 
 def test_the_activity_undo_records_take_a_relocation_and_a_rename_back(world):
-    from bayle.mods import undo
+    from bayle.modules.mods import undo
 
     before = tree(world.root)
     r = layout.rename_layout(world.loc, shared="common")

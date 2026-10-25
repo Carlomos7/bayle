@@ -9,17 +9,17 @@ from pathlib import Path
 import pytest
 from synthetic_save import build, disk_full_on_tmp, put, stale_slot, strays
 
+from bayle.adapters.saves import layout as L
+from bayle.adapters.system import logging as run_logging
 from bayle.api.routers import saves as saves_router
 from bayle.errors import Busy, OperationError
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.platform import logging as run_logging
-from bayle.saves import fix as save_fix
-from bayle.saves import layout as L
-from bayle.saves import library as save_library
-from bayle.saves import transfer as save_transfer
-from bayle.services import saves as saves_service
-from bayle.services.saves_page import SavesService
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.saves import fix as save_fix
+from bayle.modules.saves import library as save_library
+from bayle.modules.saves import service as saves_service
+from bayle.modules.saves import transfer as save_transfer
+from bayle.modules.saves.saves_page import SavesService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import Direct
@@ -207,7 +207,7 @@ def test_a_character_copy_that_cannot_be_planned_is_not_possible(world, monkeypa
 
 def test_post_session_repair_and_undo_are_jobs(world, monkeypatch):
     ran = []
-    monkeypatch.setattr("bayle.saves.repair.repair_all", lambda loc: ran.append(loc))
+    monkeypatch.setattr("bayle.modules.saves.repair.repair_all", lambda loc: ran.append(loc))
     s = world.session()
     snap = finished(s, s.run("saves.post_session_repair").job_id)
     assert ran == [world.loc] and snap.result == {"save": None, "backup": None, "undo": None}

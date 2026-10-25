@@ -30,8 +30,8 @@ from pathlib import Path
 import _common
 from esd_roundtrip import counts, shape
 
-from bayle import formats
-from bayle.game import oodle as game_oodle
+from bayle.adapters import formats
+from bayle.adapters.games import oodle as game_oodle
 
 TALK = "script/talk/m00_00_00_00.talkesdbnd.dcx"
 SAVE = "RoundtableTest.sl2"
@@ -45,9 +45,9 @@ def main() -> int:
     out = _common.output_dir(args.out, "ingame-esd", game)
     _common.sandbox_launcher(out, game)
 
-    from bayle.formats.esd import read_esd, write_esd
-    from bayle.game import archives as gamearchive
-    from bayle.game.oodle import find_oodle
+    from bayle.adapters.formats.esd import read_esd, write_esd
+    from bayle.adapters.games import archives as gamearchive
+    from bayle.adapters.games.oodle import find_oodle
 
     started = time.time()
     dec = find_oodle(game)

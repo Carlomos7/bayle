@@ -2,8 +2,8 @@
 
 import pytest
 
-from bayle.config.settings import LauncherSettings
-from bayle.services import play as g
+from bayle.modules.launch import play as g
+from bayle.modules.settings.models import LauncherSettings
 
 P = g.profile_tools
 M = g.me3_info

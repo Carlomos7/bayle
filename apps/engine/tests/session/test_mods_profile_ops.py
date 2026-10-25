@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.config.app_paths import data_dir
-from bayle.services import profile_mods
-from bayle.services.mods import profile_entries, read_profile_settings
+from bayle.adapters.system.app_paths import data_dir
+from bayle.modules.mods import profile_mods
+from bayle.modules.mods.service import profile_entries, read_profile_settings
 from support import mods_profile, mods_session, refused, tree_state
 
 make = mods_session
@@ -143,7 +143,7 @@ def test_seamless_coop_is_offered_only_when_it_sits_in_the_game_folder(profile):
 
 
 def test_a_seamless_move_is_checked_then_started_for_what_was_shown(profile, monkeypatch):
-    from bayle.services import coop as coop_service
+    from bayle.modules.coop import service as coop_service
 
     found = SimpleNamespace(kind="move", folder=Path("g/SeamlessCoop"), files=["a", "b"], launcher=Path("launcher.exe"))
     moved = []
@@ -183,7 +183,7 @@ def test_the_profile_block_names_why_in_codes(profile, tmp_path):
 
 
 def test_copying_the_profile_asks_only_when_its_packages_could_be_shared(profile, monkeypatch):
-    from bayle.services import shared_mods as library_service
+    from bayle.modules.mods import shared_mods_page as library_service
 
     s, ref = make(), {"profile": str(profile)}
     snap = job(s, s.run("mods.duplicate_profile", ref))

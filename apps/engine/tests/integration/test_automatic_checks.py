@@ -3,11 +3,11 @@ DLC.bdt next to the game. Runs on COPIES of a real co-op save (skipped without o
 
 import pytest
 
-from bayle.game import discovery
-from bayle.saves import layout as save_layout_check
-from bayle.saves import vanilla as save_vanilla
-from bayle.services import play as g
-from bayle.services import saves as saves_service
+from bayle.adapters.games import discovery
+from bayle.adapters.saves import layout as save_layout_check
+from bayle.modules.launch import play as g
+from bayle.modules.saves import service as saves_service
+from bayle.modules.saves import vanilla as save_vanilla
 from support import copy_live_save as _copy
 from support import er, er_items
 

@@ -1,6 +1,6 @@
 """Editor helpers behind Ctrl+/, Tab and Shift+Tab in the profile and share boxes."""
 
-from bayle.services import coop as coop_service
+from bayle.modules.coop import service as coop_service
 
 
 def test_toggle_comment_toml_block_and_back():

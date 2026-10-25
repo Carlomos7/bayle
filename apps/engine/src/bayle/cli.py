@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bayle.game.catalog import Game
+    from bayle.modules.games.catalog import Game
 
 
 @dataclass(frozen=True)
@@ -39,15 +39,15 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
     hook). argv is sys.argv by default (program name first)."""
     argv = sys.argv if argv is None else argv
     if "--worker" in argv:  # a CPU worker for the window (platform/cpu.py): before anything else starts
-        from bayle.platform import cpu
+        from bayle.work import cpu
 
         return cpu.worker_main()
     if "--backend" in argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
+        from bayle.adapters.persistence.db import MigrationFailed
+        from bayle.adapters.persistence.settings_file import load_settings
+        from bayle.adapters.system import logging as run_logging
         from bayle.api.server import main as backend_main
-        from bayle.config.settings_file import load_settings
-        from bayle.platform import logging as run_logging
         from bayle.runtime.bootstrap import create_engine, use_data_folder
-        from bayle.storage.db import MigrationFailed
 
         use_data_folder()  # the same start-up as the window, minus Qt
         run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO", console=False)
@@ -58,11 +58,11 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         return backend_main(engine)
     if "--self-test" in argv:  # first: before anything picks the data folder or starts Velopack's hooks
         return self_test(argv, window)
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
     from bayle.runtime.bootstrap import use_data_folder
 
     use_data_folder()  # before anything logs: the platform layer is told where the data folder is
-    from bayle.config.settings_file import load_settings
+    from bayle.adapters.persistence.settings_file import load_settings
 
     run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO")
 
@@ -77,8 +77,8 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         return check_storage()
     game = None  # --game without --play/--check: the tab the window opens on, this run only
     if "--play" in argv or "--check" in argv or any(a.startswith("--game") for a in argv):
-        from bayle.game import catalog as games
-        from bayle.services import play as core
+        from bayle.modules.games import catalog as games
+        from bayle.modules.launch import play as core
 
         game = core.game_from_args(argv)
         if game is None:
@@ -87,8 +87,8 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         if "--play" in argv:
             return play_from_shortcut(game, allow_without_backup="--allow-without-backup" in argv, window=window)
         if "--check" in argv:
+            from bayle.adapters.persistence.db import MigrationFailed
             from bayle.runtime.bootstrap import create_engine
-            from bayle.storage.db import MigrationFailed
 
             try:
                 ctx = create_engine(game)
@@ -97,8 +97,8 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
             with run_logging.job_store_scope(ctx.activity):  # no JobManager here: the standalone job gets the engine's
                 core.check(ctx.settings, ctx.locations, ctx.data_dir)
             return 0
+    from bayle.adapters.persistence.db import MigrationFailed
     from bayle.runtime.bootstrap import create_engine
-    from bayle.storage.db import MigrationFailed
 
     if window is None:  # python -m bayle from the engine alone: the headless modes above still work
         print("No window program is installed: use --play, --check, --update or --check-storage.", file=sys.stderr)
@@ -131,7 +131,7 @@ def self_test(argv: list[str], window: WindowHooks | None = None) -> int:
         if sys.stdout is not None:
             print(line, flush=True)
 
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
     from bayle.runtime.bootstrap import use_data_folder
 
     try:
@@ -160,11 +160,10 @@ def check_storage() -> int:
     only when it is open at the current schema. Used on builds, to prove the migrations were packaged."""
     import sqlite3
 
-    from bayle.config import identity
-    from bayle.platform import data_folder
+    from bayle.adapters.persistence import db as storage_db
+    from bayle.adapters.system import data_folder, identity
     from bayle.resources import MIGRATIONS_DIR
     from bayle.runtime.bootstrap import use_data_folder
-    from bayle.storage import db as storage_db
 
     use_data_folder()
     root = data_folder.data_root()
@@ -189,14 +188,14 @@ def check_storage() -> int:
             head = storage_db.head_revision()
             say(f"database: {db.path} at {db.revision} (head {head}), journal {db.journal_mode}")
             ok = db.revision == head
-            from bayle.platform import logging as run_logging
-            from bayle.storage.activity import ActivityLog
-            from bayle.storage.cache import HashCache
-            from bayle.storage.imports import run_imports
+            from bayle.adapters.persistence.activity import ActivityLog
+            from bayle.adapters.persistence.cache import HashCache
+            from bayle.adapters.persistence.imports import run_imports
+            from bayle.adapters.system import logging as run_logging
 
             cache, activity = HashCache(db, say), ActivityLog(db, say)
             jobs = run_logging.log_dir() / run_logging.JOBS_INDEX
-            from bayle.storage.rebuild_runs import RebuildRuns
+            from bayle.adapters.persistence.rebuild_runs import RebuildRuns
 
             out = run_imports(
                 root / "cache" / "hashes.json",
@@ -221,7 +220,7 @@ def check_storage() -> int:
 def storage_failed(error: Exception, window: WindowHooks | None) -> int:
     """The database upgrade failed: say so (the log, the console, and a small window when there is a display);
     this version does not report itself ready."""
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
 
     run_logging.log(f"error: Bayle could not start: {error}")
     print(f"Bayle could not start: {error}", file=sys.stderr)
@@ -237,10 +236,10 @@ def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowH
     """--play: when the window is open, it runs Play itself (one launcher manages the session); otherwise Play runs
     here, holding the PLAY name so a second shortcut start, or a silent update, waits for it to end.
     allow_without_backup (--allow-without-backup): start even when 'back up saves before Play' fails."""
-    from bayle.platform import instance
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
+    from bayle.modules.launch import play as core
+    from bayle.runtime import instance
     from bayle.runtime.bootstrap import create_engine
-    from bayle.services import play as core
 
     ready = window.ready if window is not None else (lambda kind: None)
     message = f"play {game.key}" + (" allow-without-backup" if allow_without_backup else "")
@@ -255,7 +254,7 @@ def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowH
         run_logging.log("error: a Play from a Steam shortcut is already running")
         return 1
     try:
-        from bayle.storage.db import MigrationFailed
+        from bayle.adapters.persistence.db import MigrationFailed
 
         try:
             ctx = create_engine(game)
@@ -278,7 +277,7 @@ def play_from_shortcut(game, allow_without_backup: bool = False, window: WindowH
 def not_started_notice(game: Game, why: str, headline: str | None = None, window: WindowHooks | None = None) -> None:
     """--play without the window, when the game was not started: a small window saying why, with a way to open the
     launcher (a Steam shortcut or Gaming Mode has nowhere else to show it). Nothing happens without a display."""
-    from bayle.services import play as core
+    from bayle.modules.launch import play as core
 
     try:
         import subprocess

@@ -4,9 +4,9 @@ memory."""
 
 from types import SimpleNamespace
 
-from bayle.config.settings import LauncherSettings
-from bayle.game import catalog
-from bayle.services import play as core
+from bayle.modules.games import catalog
+from bayle.modules.launch import play as core
+from bayle.modules.settings.models import LauncherSettings
 
 from bayle_qt.launcher import menu, topbar
 from bayle_qt.launcher.topbar import Facts

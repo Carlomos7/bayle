@@ -10,17 +10,17 @@ from types import SimpleNamespace
 
 import pytest
 
+from bayle.adapters.filesystem import files
 from bayle.api.routers import saves as saves_router
 from bayle.errors import Busy, OperationError
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.platform import files
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as save_fix
-from bayle.saves import library as save_library
-from bayle.saves import regulation as save_regulation
-from bayle.services import saves as saves_service
-from bayle.services.saves_page import SavesService
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as save_fix
+from bayle.modules.saves import library as save_library
+from bayle.modules.saves import regulation as save_regulation
+from bayle.modules.saves import service as saves_service
+from bayle.modules.saves.saves_page import SavesService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import Direct

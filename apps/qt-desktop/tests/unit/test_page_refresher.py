@@ -3,7 +3,7 @@
 import threading
 
 import pytest
-from bayle.platform import threads
+from bayle.adapters.system import threads
 
 from bayle_qt.refresh import Refresher, stat_key
 
@@ -117,7 +117,7 @@ def test_io_on_the_ui_thread_is_refused_unless_it_stands_in_for_a_worker():
 
 def test_shutdown_logs_the_work_still_running_and_returns_false():
     pytest.importorskip("PySide6.QtCore")
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
 
     from bayle_qt import jobs as ui_jobs
 

@@ -6,7 +6,7 @@ import struct
 
 import pytest
 
-from bayle import formats
+from bayle.adapters import formats
 
 # The 0x4C header of the game's own Kraken files, sizes zeroed (the layout the game's files and the public format
 # libraries agree on: DCX version 0x11000, DCS / DCP "KRAK", level 6, 0x10100, DCA).

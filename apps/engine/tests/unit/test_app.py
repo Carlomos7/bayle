@@ -1,8 +1,9 @@
 """The app context and a game's Locations: values handed to the code that needs them, instead of module globals."""
 
-from bayle.config import settings, settings_file
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
+from bayle.adapters.persistence import settings_file
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.settings import models as settings
 from bayle.runtime.bootstrap import create_engine
 
 

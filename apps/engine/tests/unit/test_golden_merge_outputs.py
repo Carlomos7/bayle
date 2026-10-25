@@ -13,16 +13,16 @@ from fakegame import bnd, dcx, fmg
 from test_esd_merge import game_script, with_option
 from test_param_merge import pack, set_word, vanilla
 
-from bayle import formats
-from bayle.formats.esd import write_esd
-from bayle.formats.tae import IMPORT, STANDARD, TAE, Animation, Event, write_tae
-from bayle.merging import merger
-from bayle.merging.changes import Result
-from bayle.merging.rules import bnd4 as bnd4_rule
-from bayle.merging.rules import esd as esd_rule
-from bayle.merging.rules import fmg as fmg_rule
-from bayle.merging.rules import param as param_rule
-from bayle.merging.rules import tae as tae_rule
+from bayle.adapters import formats
+from bayle.adapters.formats.esd import write_esd
+from bayle.adapters.formats.tae import IMPORT, STANDARD, TAE, Animation, Event, write_tae
+from bayle.adapters.merging import merger
+from bayle.adapters.merging.changes import Result
+from bayle.adapters.merging.rules import bnd4 as bnd4_rule
+from bayle.adapters.merging.rules import esd as esd_rule
+from bayle.adapters.merging.rules import fmg as fmg_rule
+from bayle.adapters.merging.rules import param as param_rule
+from bayle.adapters.merging.rules import tae as tae_rule
 
 GOLDEN = {
     "bnd4": "9be34e336f64e12747824f0de91147243caebe77f2a90940eeb3a60b4a8e4995",

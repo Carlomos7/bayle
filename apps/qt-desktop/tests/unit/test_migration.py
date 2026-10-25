@@ -4,8 +4,8 @@ Steam shortcuts at the new copy; continued at a later start when something had t
 from pathlib import Path
 
 import pytest
-from bayle.config import settings_file
-from bayle.platform import steam_shortcuts
+from bayle.adapters.integrations.steam import steam_shortcuts
+from bayle.adapters.persistence import settings_file
 
 from bayle_qt.updater import inno as migration
 

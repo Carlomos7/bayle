@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 
 from bayle.api.deps import service
 from bayle.api.models import JobStarted, NoParams, Params, Result
-from bayle.services.settings import SettingSpec, SettingsService
+from bayle.modules.settings.service import SettingSpec, SettingsService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 Settings = Annotated[SettingsService, Depends(service("settings"))]

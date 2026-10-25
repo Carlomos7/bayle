@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import PureWindowsPath
 
-from bayle.game import catalog as games
+from bayle.modules.games import catalog as games
 
 from bayle_qt.shell.facts import MODES, OFFLINE, PROFILE, VANILLA, Block, Facts, profile_labels
 from bayle_qt.shell.facts import blocked as block_of

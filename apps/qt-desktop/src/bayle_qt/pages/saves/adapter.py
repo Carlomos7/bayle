@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.errors import OperationError
-from bayle.services.saves_page import SavesService, retention_limits
+from bayle.modules.saves.saves_page import SavesService, retention_limits
 from bayle.work.prompts import Refusal
 from PySide6.QtCore import Property, QObject, Signal, Slot
 

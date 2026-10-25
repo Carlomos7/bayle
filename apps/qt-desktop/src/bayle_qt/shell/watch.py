@@ -11,8 +11,8 @@ import threading
 import time
 from collections.abc import Callable
 
-from bayle.services.play import steam_state
-from bayle.services.saves import dead_shells_count
+from bayle.modules.launch.play import steam_state
+from bayle.modules.saves.service import dead_shells_count
 
 from bayle_qt.shell.background import Background
 

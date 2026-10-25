@@ -5,11 +5,11 @@ import uuid
 
 import pytest
 
-from bayle.config.settings import LauncherSettings
-from bayle.game.locate import Locations
-from bayle.platform import instance
-from bayle.platform import logging as run_logging
-from bayle.services import play as core
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.games.locate import Locations
+from bayle.modules.launch import play as core
+from bayle.modules.settings.models import LauncherSettings
+from bayle.runtime import instance
 from support import er
 
 
@@ -65,7 +65,7 @@ def test_a_failed_backup_stops_play_and_offline_play(session):
 
 
 def test_the_saves_that_could_be_backed_up_still_are(session):
-    from bayle.saves import backups as save_backups
+    from bayle.modules.saves import backups as save_backups
 
     with pytest.raises(core.BackupBeforePlayFailed):
         core.backup_saves_before_play(er(), required=True)
@@ -104,7 +104,7 @@ def test_headless_play_fails_clearly_unless_bypass_was_asked_for(session, monkey
 
 def test_the_shortcut_flag_reaches_headless_play_and_an_open_window(monkeypatch):
     from bayle import cli
-    from bayle.game import catalog as games
+    from bayle.modules.games import catalog as games
 
     played, sent = [], []
     monkeypatch.setattr(

@@ -3,13 +3,13 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from bayle.adapters.system.app_paths import data_dir
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.config.app_paths import data_dir
-from bayle.mods.layout import LayoutError
-from bayle.services import layout as layout_service
-from bayle.services import play as play_service
-from bayle.services.settings import SettingsService
+from bayle.modules.launch import play as play_service
+from bayle.modules.mods.layout import LayoutError
+from bayle.modules.settings import locations as layout_service
+from bayle.modules.settings.service import SettingsService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import er

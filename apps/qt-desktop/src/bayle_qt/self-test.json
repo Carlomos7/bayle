@@ -1,5 +1,5 @@
 {
-  "$comment": "The Qt half of the --self-test requirements (the engine's half is bayle/data/self-test.json). qml_modules is what pyside6-qmlimportscanner finds in bayle_qt/qml (tests/unit/test_self_test.py keeps them in step). files are relative to the package; min is the least number of matches a glob must have.",
+  "$comment": "The Qt half of the --self-test requirements (the engine's half is bayle/resources/self-test.json). qml_modules is what pyside6-qmlimportscanner finds in bayle_qt/qml (tests/unit/test_self_test.py keeps them in step). files are relative to the package; min is the least number of matches a glob must have.",
   "python_modules": [
     "bayle_qt.qml_env",
     "bayle_qt.launcher.window",

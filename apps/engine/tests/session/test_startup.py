@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from bayle.session import startup
+from bayle.runtime import startup
 
 
 def test_recovery_steps_order_and_calls(monkeypatch):

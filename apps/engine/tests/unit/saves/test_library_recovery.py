@@ -7,10 +7,10 @@ import shutil
 
 import pytest
 
-from bayle.game import catalog as games
-from bayle.saves import backups as save_backups
-from bayle.saves import library as Lib
-from bayle.saves import regulation
+from bayle.modules.games import catalog as games
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import library as Lib
+from bayle.modules.saves import regulation
 
 ER = games.ELDEN_RING
 

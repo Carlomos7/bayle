@@ -8,10 +8,10 @@ import sqlite3
 
 import pytest
 
-from bayle.mods import history
+from bayle.adapters.persistence import db, mirror
+from bayle.modules.mods import history
+from bayle.modules.saves import backups, ports
 from bayle.runtime import bootstrap
-from bayle.saves import backups, ports
-from bayle.storage import db, mirror
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
 
@@ -121,7 +121,7 @@ def test_history_index_is_mirrored_and_an_older_writer_is_harmless(mir, tmp_path
 
 
 def test_library_manifest_is_mirrored_from_a_real_shaped_old_folder(mir, tmp_path):
-    from bayle.saves import library
+    from bayle.modules.saves import library
 
     save_dir = tmp_path / "saves" / "76561198000000000"
     save_dir.mkdir(parents=True)

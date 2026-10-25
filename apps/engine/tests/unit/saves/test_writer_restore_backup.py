@@ -17,10 +17,10 @@ from synthetic_save import (
     strays,
 )
 
-from bayle.game.locate import Locations
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as F
-from bayle.services import saves
+from bayle.modules.games.locate import Locations
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as F
+from bayle.modules.saves import service as saves
 from support import er
 
 NOW_MTIME_NS = OLD_MTIME_NS + 5_000_000_000  # the live save is newer than the backup's

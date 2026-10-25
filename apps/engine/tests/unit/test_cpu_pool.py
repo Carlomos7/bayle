@@ -9,11 +9,11 @@ import time
 
 import pytest
 
-from bayle.platform import cpu
-from bayle.platform.cpu_pool import CpuPool
 from bayle.runtime import bootstrap
+from bayle.work import cpu
+from bayle.work.cpu_pool import CpuPool
 
-PROBE = "bayle.platform.cpu:probe"
+PROBE = "bayle.work.cpu:probe"
 
 
 @pytest.fixture
@@ -121,9 +121,9 @@ def _alive(pid: int) -> bool:
 def test_an_idle_worker_exits_when_its_parent_dies_without_cleaning_up():
     parent = (
         "import os, sys\n"
-        "from bayle.platform.cpu_pool import CpuPool\n"
+        "from bayle.work.cpu_pool import CpuPool\n"
         "pool = CpuPool(size=1)\n"
-        "print(pool.submit('bayle.platform.cpu:probe', {}).result(60)['pid'], flush=True)\n"
+        "print(pool.submit('bayle.work.cpu:probe', {}).result(60)['pid'], flush=True)\n"
         "os._exit(0)\n"  # no shutdown: the pipe to the worker just closes
     )
     out = subprocess.run([sys.executable, "-c", parent], capture_output=True, timeout=120, check=True)

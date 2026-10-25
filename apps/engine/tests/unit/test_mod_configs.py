@@ -2,8 +2,8 @@
 
 import pytest
 
-from bayle.config.settings import LauncherSettings
-from bayle.mods import configs as C
+from bayle.modules.mods import configs as C
+from bayle.modules.settings.models import LauncherSettings
 
 
 def _files(folder, *names):
@@ -92,7 +92,7 @@ def test_a_readme_in_a_natives_own_folder_is_found_but_not_in_a_shared_one(tmp_p
 
 
 def test_the_mod_configs_tree_offers_a_native_mods_readme(tmp_path):
-    from bayle.services import mod_configs as M
+    from bayle.modules.mods import mod_configs as M
 
     d = _files(tmp_path / "QuestPath", "QuestPath.dll", "README.md")
     assert [p.name for p in M._readmes_of("native", d / "QuestPath.dll")] == ["README.md"]

@@ -18,8 +18,8 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
-from bayle.platform import cpu
 from bayle.resources import DATA_DIR, PACKAGE_DIR
+from bayle.work import cpu
 
 LIST_FILE = DATA_DIR / "self-test.json"
 
@@ -84,7 +84,7 @@ def _worker() -> str:
     """The build starts itself again with --worker (platform/cpu.py) and gets an answer, without Qt in the worker."""
     import subprocess
 
-    request = json.dumps({"id": 1, "task": "bayle.platform.cpu:probe", "args": {"value": 41}}) + "\n"
+    request = json.dumps({"id": 1, "task": "bayle.work.cpu:probe", "args": {"value": 41}}) + "\n"
     done = subprocess.run(cpu.worker_command(), input=request.encode(), capture_output=True, timeout=120, check=False)
     if done.returncode != 0:
         raise RuntimeError(f"the worker exited with {done.returncode}: {done.stderr.decode(errors='replace')[-300:]}")
@@ -101,7 +101,7 @@ def _raise(e: Exception):
 
 
 def _isolated(data_dir: Path) -> str:
-    from bayle.config.app_paths import data_dir as settings_data_dir
+    from bayle.adapters.system.app_paths import data_dir as settings_data_dir
 
     data_dir = data_dir.resolve()
     if Path(os.environ.get("ROUNDTABLE_SOULS_DATA", "")).resolve() != data_dir or settings_data_dir() != data_dir:
@@ -128,7 +128,7 @@ def _files(spec: dict, base: Path) -> str | None:
 def _sqlite() -> str:
     import sqlite3
 
-    from bayle.storage.db import sqlite_problem
+    from bayle.adapters.persistence.db import sqlite_problem
 
     problem = sqlite_problem()
     if problem:
@@ -137,7 +137,7 @@ def _sqlite() -> str:
 
 
 def _database(data_dir: Path) -> None:
-    from bayle.storage import db
+    from bayle.adapters.persistence import db
 
     database = db.open_database(data_dir)
     database.close()

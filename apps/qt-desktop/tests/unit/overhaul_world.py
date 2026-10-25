@@ -9,14 +9,15 @@ import tomllib
 from pathlib import Path
 
 import fakegame
-from bayle import formats
-from bayle.game import catalog, discovery
-from bayle.game import config as game_config
-from bayle.game.locate import Locations, Overrides
-from bayle.mods import library, overhaul_install
-from bayle.overhauls import recipes
-from bayle.platform import paths as common
-from bayle.platform import trash as real_trash
+from bayle.adapters import formats
+from bayle.adapters.filesystem import trash as real_trash
+from bayle.adapters.games import discovery
+from bayle.adapters.games import paths as common
+from bayle.adapters.overhauls import recipes
+from bayle.modules.games import catalog
+from bayle.modules.games import config as game_config
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import library, overhaul_install
 from fakegame import bnd, dcx, fmg
 
 DCX = (  # the 0x4C header of the game's regulation (sizes are filled in on write)
@@ -302,7 +303,7 @@ def mixed_mod(world) -> Path:
 
 
 def set_up(world) -> tuple[Path, Path, dict]:
-    from bayle.overhauls import basic
+    from bayle.adapters.overhauls import basic
 
     folder = mixed_mod(world)
     config = basic.make(id="mixed-mod", label="Mixed Mod", game="eldenring", basic=basic.propose(folder), folder=folder)

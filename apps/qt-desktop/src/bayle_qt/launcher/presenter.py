@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from bayle.services.play import TITLE, VERSION
+from bayle.modules.launch.play import TITLE, VERSION
 from bayle.work.prompts import Choice, Choose, Question
 
 from bayle_qt.launcher import topbar

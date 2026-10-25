@@ -11,11 +11,11 @@ import pytest
 from fakegame import bnd, dcx, fmg
 from test_overhaul_install import World, files, set_up
 
-from bayle.game.locate import Locations, Overrides
-from bayle.merging import build as B
-from bayle.mods import overhaul_install
-from bayle.mods.overhaul_install import OverhaulError
-from bayle.overhauls import basic, recipes
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.overhauls import basic, recipes
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import overhaul_install
+from bayle.modules.mods.overhaul_install import OverhaulError
 
 # Copied from the desktop app's test_overhaul_gaps (it also holds Qt-only tests, so it lives there).
 TALK = "script/talk/m00.talkesdbnd.dcx"
@@ -44,7 +44,7 @@ def revive_shaped(world) -> Path:
 
 
 def texts_setup(world, texts: dict[str, str]):
-    from bayle.overhauls.config import BasicText
+    from bayle.modules.overhauls.config import BasicText
 
     folder = revive_shaped(world)
     (folder / "settings/en.json").write_text('{"99002000": "Session settings"}', encoding="utf-8")
@@ -176,7 +176,7 @@ def test_the_download_is_never_moved_or_changed(world):
 
 # ----------------------------------------------------------------------------- 4: no game folder
 def test_no_game_folder_refuses_in_the_preview_and_writes_nothing(world, monkeypatch):
-    from bayle.game import discovery
+    from bayle.adapters.games import discovery
 
     folder = revive_shaped(world)
     monkeypatch.setattr(discovery, "installed_dir", lambda _game: None)

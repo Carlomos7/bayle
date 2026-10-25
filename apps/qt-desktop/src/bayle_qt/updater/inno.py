@@ -21,10 +21,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from bayle.config import identity
-from bayle.config.app_paths import identity_matches, is_installed, launch_target
-from bayle.config.settings_file import load_settings, save_settings
-from bayle.platform import data_folder, steam_shortcuts
+from bayle.adapters.integrations.steam import steam_shortcuts
+from bayle.adapters.persistence.settings_file import load_settings, save_settings
+from bayle.adapters.system import data_folder, identity
+from bayle.adapters.system.app_paths import identity_matches, is_installed, launch_target
 
 
 def _windows() -> bool:
@@ -128,13 +128,13 @@ def steam_root() -> Path | None:
     override = identity.get().steam_root
     if override:
         return Path(override)
-    from bayle.platform import steam
+    from bayle.adapters.integrations.steam import steam
 
     return steam.steam_root()
 
 
 def steam_running() -> bool:
-    from bayle.platform import steam
+    from bayle.adapters.integrations.steam import steam
 
     if identity.get().steam_root:  # a test build's fake Steam is never running
         return False

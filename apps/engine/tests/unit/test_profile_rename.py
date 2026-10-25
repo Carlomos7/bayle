@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config.settings_file import load_settings, save_settings
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.merging import build as B
-from bayle.mods import history, library, naming, operations, profile_rename
-from bayle.mods import profile_settings as ps
-from bayle.mods.profile_rename import ProfileRenameError
-from bayle.mods.rebuild import _key
-from bayle.platform import trash
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.filesystem import trash
+from bayle.adapters.persistence.settings_file import load_settings, save_settings
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import history, library, naming, operations, profile_rename
+from bayle.modules.mods import profile_settings as ps
+from bayle.modules.mods.profile_rename import ProfileRenameError
+from bayle.modules.mods.rebuild import _key
 
 ME3 = (
     'profileVersion = "v1"\r\n\r\n[[supports]]\r\ngame = "eldenring"\r\n\r\n'

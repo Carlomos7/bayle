@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-from bayle.coop import ini as coop_ini
-from bayle.formats import me3_profile
-from bayle.mods import profile as profile_tools
-from bayle.mods import profile_edit
-from bayle.services import mods as mods_service
+from bayle.adapters.formats import me3_profile
+from bayle.modules.coop import ini as coop_ini
+from bayle.modules.mods import profile as profile_tools
+from bayle.modules.mods import profile_edit
+from bayle.modules.mods import service as mods_service
 
 BLOCKS = (
     'profileVersion = "v1"\n\n'

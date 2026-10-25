@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from bayle import __version__
-from bayle.config import identity
-from bayle.config.settings import LauncherSettings
-from bayle.config.settings_file import change_settings, load_settings, save_settings
+from bayle.adapters.persistence.settings_file import change_settings, load_settings, save_settings
+from bayle.adapters.system import identity
+from bayle.modules.settings.models import LauncherSettings
 
 ID = identity.get()
 RELEASES_URL = ID.releases_page

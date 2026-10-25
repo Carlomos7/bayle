@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from bayle.api.deps import service
 from bayle.api.models import JobStarted, Params, Result
-from bayle.services.profile_transfer import ProfileTransferService
+from bayle.modules.mods.profile_transfer import ProfileTransferService
 
 router = APIRouter(prefix="/profile_transfer", tags=["profile_transfer"])
 Transfer = Annotated[ProfileTransferService, Depends(service("profile_transfer"))]

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 
 from bayle.api.deps import service
 from bayle.api.models import NoParams, Params, Result
-from bayle.services.activity import ActivityService
+from bayle.modules.activity.service import ActivityService
 
 router = APIRouter(prefix="/activity", tags=["activity"])
 Activity = Annotated[ActivityService, Depends(service("activity"))]

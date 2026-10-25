@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 
 import pytest
-from bayle import formats
-from bayle.overhauls import basic
-from bayle.overhauls.config import BasicText
+from bayle.adapters import formats
+from bayle.adapters.overhauls import basic
+from bayle.modules.overhauls.config import BasicText
 from fakegame import FMG_HEADER, bnd
 from pydantic import ValidationError
 
@@ -54,7 +54,7 @@ def test_ids_no_table_clearly_holds_leave_the_table_to_the_player(tmp_path):
 
 
 def test_a_setup_with_no_table_chosen_is_not_made_or_saved_but_the_form_gets_it(tmp_path):
-    from bayle.services import mod_configs
+    from bayle.modules.mods import mod_configs
 
     folder = download(tmp_path, {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
     b = basic.propose(folder, game="eldenring")
@@ -93,7 +93,7 @@ def test_a_texts_path_must_stay_inside_the_mods_folder():
 
 
 def test_the_texts_files_are_not_rows_of_the_files_table(tmp_path):
-    from bayle.services import mod_configs
+    from bayle.modules.mods import mod_configs
 
     folder = download(tmp_path, {"A.fmg": [10]}, {"10": "a"})
     b = basic.propose(folder, game="eldenring")

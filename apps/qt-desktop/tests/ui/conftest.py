@@ -11,7 +11,7 @@ switch it off. A test that must block longer (a cold QML compile) is marked @pyt
 import os
 
 import pytest
-from bayle.platform import threads
+from bayle.adapters.system import threads
 
 from bayle_qt import stall
 

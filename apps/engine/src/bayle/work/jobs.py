@@ -15,8 +15,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from bayle.adapters.system import logging as run_logging
 from bayle.errors import Busy, Cancelled, ErrorInfo, OperationError
-from bayle.platform import logging as run_logging
 from bayle.work import runner as service_jobs
 from bayle.work.events import EventBus
 from bayle.work.prompts import Choose, PromptBroker

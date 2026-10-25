@@ -3,10 +3,10 @@ dialog's adapter; its edits go to the engine with the preview it asks for after 
 
 from types import SimpleNamespace
 
-from bayle.overhauls import basic
-from bayle.overhauls.config import BasicNative
-from bayle.services import mods as mod_service
-from bayle.services.mod_install import plan_facts
+from bayle.adapters.overhauls import basic
+from bayle.modules.mods import service as mod_service
+from bayle.modules.mods.mod_install import plan_facts
+from bayle.modules.overhauls.config import BasicNative
 
 from bayle_qt.pages.mods.install_adapter import InstallAdapter
 from bayle_qt.pages.mods.install_presenter import InstallDraft
@@ -40,7 +40,7 @@ def test_dll_options_changed_in_the_dialog_go_into_the_setup_and_ask_for_a_new_p
 
 
 def test_a_download_is_opened_edited_planned_again_and_installed_through_the_adapter(qt_app, tmp_path):
-    from bayle.services.mods import profile_entries
+    from bayle.modules.mods.service import profile_entries
     from test_mods_view import Host
 
     from bayle_qt.notifications import Notifier

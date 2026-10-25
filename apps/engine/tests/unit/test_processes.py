@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from bayle.platform import processes
+from bayle.adapters.system import processes
 
 
 class FakeRun:

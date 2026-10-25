@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from bayle.errors import OperationError
-from bayle.mods import profile_import
-from bayle.services.features import Features
-from bayle.services.profile_transfer import Listing, Opened, PreviewFacts, ProfileTransferService
+from bayle.modules.mods import profile_import
+from bayle.modules.mods.profile_transfer import Listing, Opened, PreviewFacts, ProfileTransferService
+from bayle.runtime.features import Features
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from bayle_qt.notifications import Notifier

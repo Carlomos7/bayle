@@ -4,7 +4,7 @@ folders and synthetic files only."""
 from pathlib import Path
 
 import pytest
-from bayle.overhauls import basic
+from bayle.adapters.overhauls import basic
 
 
 def make_folder(root: Path, names: list[str]) -> Path:
@@ -107,7 +107,7 @@ def test_a_placement_to_something_that_is_no_game_folder_or_twice_to_one_path_is
 
 
 def test_the_files_table_lists_every_file_and_stores_only_what_differs(tmp_path):
-    from bayle.services import mod_configs
+    from bayle.modules.mods import mod_configs
 
     folder = placed_folder(tmp_path / "dl")
     b = basic.propose(folder, game="eldenring")
@@ -145,7 +145,7 @@ def test_a_files_choice_that_the_file_cannot_have_is_refused(tmp_path):
 
 
 def test_the_files_table_rows_are_choices_with_a_game_path_for_a_placed_file(tmp_path):
-    from bayle.services import mod_configs
+    from bayle.modules.mods import mod_configs
 
     from bayle_qt.pages.mod_configs.presenter import ModConfigsPresenter
 
@@ -167,7 +167,7 @@ def test_the_files_table_rows_are_choices_with_a_game_path_for_a_placed_file(tmp
 
 
 def test_leaving_out_a_file_beside_a_dll_is_said_in_the_preview(world):
-    from bayle.mods import overhaul_install
+    from bayle.modules.mods import overhaul_install
 
     folder = revive_shaped(world)
     b = basic.propose(folder, game="eldenring").model_copy(update={"files": {"RevivePrototype.ini": "leave"}})
@@ -207,7 +207,7 @@ def revive_shaped(world) -> Path:
 
 
 def test_a_revive_shaped_download_installs_with_its_files_merged_placed_and_its_folder_in_the_layout(world):
-    from bayle.mods import move_in, overhaul_install
+    from bayle.modules.mods import move_in, overhaul_install
 
     folder = revive_shaped(world)
     b = basic.propose(folder, game="eldenring")
@@ -235,9 +235,9 @@ def test_an_overhaul_cannot_take_the_name_of_a_launcher_folder(tmp_path, name):
 
 # ----------------------------------------------------------------------------- gap 5: saving applies the setup again
 def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped_and_said(world, monkeypatch):
-    from bayle.mods import overhaul_install
-    from bayle.overhauls import recipes, writer
-    from bayle.services import mods as mod_service
+    from bayle.adapters.overhauls import recipes, writer
+    from bayle.modules.mods import overhaul_install
+    from bayle.modules.mods import service as mod_service
     from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
@@ -255,7 +255,7 @@ def test_saving_the_setup_applies_it_again_and_a_profile_that_refuses_is_skipped
 
 
 def test_applying_a_saved_setup_leaves_a_hand_edited_file_as_it_is(world):
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
     from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
@@ -267,7 +267,7 @@ def test_applying_a_saved_setup_leaves_a_hand_edited_file_as_it_is(world):
 
 # ----------------------------------------------------------------------------- gap 3: texts from a JSON file
 def texts_setup(world, texts: dict[str, str]):
-    from bayle.overhauls.config import BasicText
+    from bayle.modules.overhauls.config import BasicText
 
     folder = revive_shaped(world)
     (folder / "settings/en.json").write_text('{"99002000": "Session settings"}', encoding="utf-8")
@@ -278,7 +278,7 @@ def texts_setup(world, texts: dict[str, str]):
 
 
 def test_texts_from_json_files_are_set_in_each_languages_binder_and_the_files_are_not_copied(world):
-    from bayle.mods import overhaul_install
+    from bayle.modules.mods import overhaul_install
 
     folder, config = texts_setup(world, {"rusru": "settings/ru.json", "*": "settings/en.json"})
     (step,) = [s for s in config.builds[0].steps if s.do == "text"]
@@ -292,7 +292,7 @@ def test_texts_from_json_files_are_set_in_each_languages_binder_and_the_files_ar
 
 
 def test_a_language_with_no_texts_is_left_alone_and_said(world):
-    from bayle.mods import overhaul_install
+    from bayle.modules.mods import overhaul_install
 
     folder, config = texts_setup(world, {"rusru": "settings/ru.json"})
     overhaul_install.install_setup(
@@ -305,7 +305,7 @@ def test_a_language_with_no_texts_is_left_alone_and_said(world):
 
 
 def test_malformed_texts_stop_the_install_and_write_nothing(world):
-    from bayle.mods import overhaul_install
+    from bayle.modules.mods import overhaul_install
 
     folder, config = texts_setup(world, {"*": "settings/en.json"})
     (folder / "settings/en.json").write_text('{"not a number": "x"}', encoding="utf-8")
@@ -317,7 +317,8 @@ def test_malformed_texts_stop_the_install_and_write_nothing(world):
 
 
 def test_a_texts_file_that_is_too_big_stops_the_install(world, monkeypatch):
-    from bayle.mods import engine, overhaul_install
+    from bayle.adapters.overhauls import engine
+    from bayle.modules.mods import overhaul_install
 
     folder, config = texts_setup(world, {"*": "settings/en.json"})
     before = world.profile.read_bytes()
@@ -329,8 +330,8 @@ def test_a_texts_file_that_is_too_big_stops_the_install(world, monkeypatch):
 
 
 def test_a_texts_file_the_mod_does_not_have_is_refused_and_the_form_keeps_the_texts(world):
-    from bayle.overhauls.config import BasicText
-    from bayle.services import mod_configs
+    from bayle.modules.mods import mod_configs
+    from bayle.modules.overhauls.config import BasicText
 
     folder, config = texts_setup(world, {"*": "settings/en.json"})
     gone = BasicText(file="msg/engus/m.msgbnd.dcx", table="t.fmg", texts={"*": "settings/none.json"})
@@ -351,8 +352,8 @@ def two_profiles(world):
     config changed so applying it changes both."""
     import shutil
 
-    from bayle.mods import overhaul_install
-    from bayle.overhauls import recipes, writer
+    from bayle.adapters.overhauls import recipes, writer
+    from bayle.modules.mods import overhaul_install
     from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
@@ -371,9 +372,9 @@ def two_profiles(world):
 
 
 def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
-    from bayle.mods import overhaul_install, undo
-    from bayle.platform import logging as run_logging
-    from bayle.services import mods as mod_service
+    from bayle.adapters.system import logging as run_logging
+    from bayle.modules.mods import overhaul_install, undo
+    from bayle.modules.mods import service as mod_service
 
     other = two_profiles(world)
     monkeypatch.setattr(overhaul_install, "users_of", lambda p, c, e: [Path(p), other])
@@ -390,8 +391,8 @@ def test_one_undo_takes_back_every_profile_the_save_changed(world, monkeypatch):
 
 
 def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
-    from bayle.overhauls import recipes, writer
-    from bayle.services import mods as mod_service
+    from bayle.adapters.overhauls import recipes, writer
+    from bayle.modules.mods import service as mod_service
     from overhaul_world import set_up
 
     _folder, toml, _out = set_up(world)
@@ -410,8 +411,8 @@ def test_a_disabled_overhaul_stays_disabled_when_the_setup_is_applied(world):
 # ----------------------------------------------------------------------------- gap 4: a matched setup is pre-filled
 def open_install(world, monkeypatch, folder):
     """An open install in the engine, the way the dialog holds it: (the service, its OpenedInstall)."""
-    from bayle.services import mods as mod_service
-    from bayle.services.mod_install import ModInstallService
+    from bayle.modules.mods import service as mod_service
+    from bayle.modules.mods.mod_install import ModInstallService
     from bayle.work.events import EventBus
     from bayle.work.jobs import JobManager
 
@@ -421,15 +422,15 @@ def open_install(world, monkeypatch, folder):
 
 
 def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_installs_the_changes(world, monkeypatch):
-    from bayle.overhauls import recipes
-    from bayle.services.mod_configs import SetupValues
+    from bayle.adapters.overhauls import recipes
+    from bayle.modules.mods.mod_configs import SetupValues
     from overhaul_world import set_up
 
     folder, toml, _out = set_up(world)
     config = recipes.read(toml)
     natives = [config.basic.natives[0].model_copy(update={"initializer": "Boot"})]
     config = config.model_copy(update={"basic": config.basic.model_copy(update={"natives": natives})})
-    toml.write_text(__import__("bayle.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")
+    toml.write_text(__import__("bayle.adapters.overhauls.writer", fromlist=["x"]).render(config), encoding="utf-8")
     service, opened = open_install(world, monkeypatch, folder)
     assert opened.plan["option"] == "matched"
     got = service.check_overhaul(opened.install_id, "mixed-mod")
@@ -444,7 +445,7 @@ def test_a_download_matching_a_saved_setup_shows_its_dll_options_and_files_and_i
 
 
 def test_a_dll_with_the_name_of_one_already_in_the_profile_is_said_in_the_review(world):
-    from bayle.mods import overhaul_install
+    from bayle.modules.mods import overhaul_install
 
     folder = revive_shaped(world)
     world.profile.write_text(
@@ -469,8 +470,8 @@ def test_a_files_choice_encodes_and_decodes_the_same_way_everywhere():
 
 
 def test_applying_a_saved_setup_that_no_profile_took_is_an_error_not_a_success(world):
-    from bayle.mods import overhaul_install
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import overhaul_install
+    from bayle.modules.mods import service as mod_service
     from overhaul_world import set_up
 
     set_up(world)
@@ -488,8 +489,8 @@ def test_applying_a_saved_setup_that_no_profile_took_is_an_error_not_a_success(w
 
 
 def test_the_left_out_note_ignores_the_case_of_the_folder(world):
-    from bayle.mods import overhaul_install
-    from bayle.overhauls.config import BasicNative
+    from bayle.modules.mods import overhaul_install
+    from bayle.modules.overhauls.config import BasicNative
 
     folder = revive_shaped(world)
     make_folder(folder, ["Cfg/B.dll", "Cfg/a.ini"])
@@ -502,7 +503,7 @@ def test_the_left_out_note_ignores_the_case_of_the_folder(world):
 
 
 def test_the_files_table_is_read_off_the_ui_thread(world, monkeypatch):
-    from bayle.platform import threads
+    from bayle.adapters.system import threads
     from overhaul_world import set_up
 
     folder, _toml, _out = set_up(world)
@@ -518,7 +519,7 @@ def test_the_files_table_is_read_off_the_ui_thread(world, monkeypatch):
 
 
 def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen(world, monkeypatch):
-    from bayle.services.mod_configs import SetupValues
+    from bayle.modules.mods.mod_configs import SetupValues
     from test_overhaul_texts_propose import download
 
     folder = download(world.tmp / "dl" / "Texty", {"A.fmg": [1], "B.fmg": [2]}, {"50": "a"})
@@ -536,7 +537,7 @@ def test_the_review_lists_the_proposed_texts_and_refuses_until_a_table_is_chosen
 
 
 def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
-    from bayle.services.mod_install import setup_notes
+    from bayle.modules.mods.mod_install import setup_notes
 
     folder = make_folder(tmp_path / "dl", ["mod/chr/a.anibnd.dcx", "M.dll"])
     b = basic.propose(folder, game="eldenring").model_copy(update={"files": {"old/gone.ini": "leave"}})
@@ -546,7 +547,7 @@ def test_what_a_newer_download_dropped_is_said_in_the_review_notes(tmp_path):
 
 
 def test_a_saved_setup_with_flat_paths_carries_over_to_a_download_with_a_package_root(tmp_path):
-    from bayle.overhauls.config import Basic, BasicNative
+    from bayle.modules.overhauls.config import Basic, BasicNative
 
     from bayle_qt.pages.mods.file_actions import shown_path
 

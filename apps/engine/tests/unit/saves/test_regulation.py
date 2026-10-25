@@ -6,8 +6,8 @@ import sys
 
 import pytest
 
-from bayle.saves import regulation as reg_mod
-from bayle.saves.regulation import (
+from bayle.modules.saves import regulation as reg_mod
+from bayle.modules.saves.regulation import (
     BLOCK,
     FILE_SIZE,
     HEALTHY_HEADER,
@@ -107,7 +107,7 @@ def test_a_rebuilt_block_is_signed_and_the_right_size():
 
 
 def test_backup_is_the_save_fix_backup_with_its_note(monkeypatch, tmp_path):
-    from bayle.saves import fix as save_fix
+    from bayle.modules.saves import fix as save_fix
 
     seen = []
     monkeypatch.setattr(save_fix, "backup", lambda save, manifest: seen.append((save, manifest)) or "done")
@@ -165,8 +165,8 @@ def test_an_output_path_leaves_the_original_and_takes_no_backup(tmp_path, lines,
 
 def run_main(monkeypatch, argv, *, game_running=False, regulation=None, saves=()):
     """The command line with a fake install: its saves and regulation.bin come from the test."""
-    from bayle.game import locate
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
+    from bayle.modules.games import locate
 
     class FakeLocations:
         def __init__(self, game):

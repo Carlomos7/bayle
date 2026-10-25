@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game import catalog as games
-from bayle.game.locate import Locations
-from bayle.platform import logging as rl
-from bayle.platform import logging as run_logging
-from bayle.services import play as core
+from bayle.adapters.system import logging as rl
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.games import catalog as games
+from bayle.modules.games.locate import Locations
+from bayle.modules.launch import play as core
 from bayle.work import runner as jobs
 
 

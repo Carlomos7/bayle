@@ -4,10 +4,10 @@ entries me3 would refuse. Uses the small regulation files and profiles of the co
 from test_mod_merge import TALK, World
 from test_param_merge import pack, set_word, vanilla
 
-from bayle.game import discovery
-from bayle.mods import conflicts as overview
-from bayle.mods import rebuild as merge
-from bayle.platform import paths as common
+from bayle.adapters.games import discovery
+from bayle.adapters.games import paths as common
+from bayle.modules.mods import conflicts as overview
+from bayle.modules.mods import rebuild as merge
 from support import er
 
 

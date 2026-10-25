@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from bayle.mods import records
-from bayle.mods.records import (
+from bayle.modules.mods import records
+from bayle.modules.mods.records import (
     BuildRecord,
     OverhaulRecord,
     RecordError,

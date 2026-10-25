@@ -5,12 +5,12 @@ launch's strip read the configs and still do what they did."""
 import json
 from pathlib import Path
 
-from bayle import overhauls
-from bayle.game import catalog as games
-from bayle.game.locate import Locations, Overrides
-from bayle.overhauls import config as overhaul_config
-from bayle.overhauls import recipes
-from bayle.services import play
+from bayle.adapters.overhauls import recipes
+from bayle.modules import overhauls
+from bayle.modules.games import catalog as games
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.launch import play
+from bayle.modules.overhauls import config as overhaul_config
 
 TOY = """overhaul = 1
 id = "toy"
@@ -160,7 +160,7 @@ def test_the_writer_reads_back_and_never_overwrites_a_file_changed_since_it_was_
 
     import pytest
 
-    from bayle.overhauls import basic, writer
+    from bayle.adapters.overhauls import basic, writer
 
     (example,) = recipes.load()
     back = overhaul_config.OverhaulConfig.model_validate(tomllib.loads(writer.render(example)))

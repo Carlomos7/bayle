@@ -6,12 +6,12 @@ through the profile writer."""
 from pathlib import Path
 
 import pytest
-from bayle.config.settings import LauncherSettings
-from bayle.game import catalog as games
-from bayle.services import features
-from bayle.services.mods import profile_entries
-from bayle.services.saves_page import SavesService
-from bayle.services.settings import SettingsService
+from bayle.modules.games import catalog as games
+from bayle.modules.mods.service import profile_entries
+from bayle.modules.saves.saves_page import SavesService
+from bayle.modules.settings.models import LauncherSettings
+from bayle.modules.settings.service import SettingsService
+from bayle.runtime import features
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from page_window import PageWindow
@@ -271,7 +271,7 @@ def test_switching_a_mod_off_writes_the_profile_and_offers_undo(qt_app, profile)
 
 
 def test_the_page_does_not_recover_interrupted_changes_itself(qt_app, profile, monkeypatch):
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
 
     calls = []
 
@@ -304,7 +304,7 @@ def test_every_notice_bar_shows_its_text(qt_app, profile, theme):
 
 
 def test_a_profile_outside_bayles_folder_gets_a_notice_with_a_move_in_button(qt_app, profile, monkeypatch):
-    from bayle.services import profile_mods
+    from bayle.modules.mods import profile_mods
 
     monkeypatch.setattr(profile_mods, "_outside", lambda prof, loc: True)
     w = opened(Host(profile))
@@ -320,7 +320,7 @@ def test_a_profile_outside_bayles_folder_gets_a_notice_with_a_move_in_button(qt_
 
 
 def test_online_with_a_packages_parameters_warns_and_play_offline_turns_it_off(qt_app, profile):
-    from bayle.services.mods import read_profile_settings
+    from bayle.modules.mods.service import read_profile_settings
 
     profile.write_text(PROFILE.replace('profileVersion = "v1"\n', 'profileVersion = "v1"\nstart_online = true\n'))
     (profile.parent / "mod/flora/regulation.bin").write_bytes(b"params")
@@ -419,7 +419,7 @@ def test_the_toast_undo_keeps_a_later_unrelated_edit(qt_app, profile):
 
 
 def test_the_toast_undo_refuses_when_the_bin_item_is_gone(qt_app, profile, monkeypatch):
-    from bayle.platform import trash
+    from bayle.adapters.filesystem import trash
 
     sent, real = [], trash.send
     monkeypatch.setattr(trash, "send", lambda path: sent.append(real(path)) or sent[-1])
@@ -444,7 +444,7 @@ class Effect:
 
 def overhaul_services(monkeypatch, legacy=True, on=True):
     """The overhaul services faked: a profile with an overhaul its installer made, one change to put back."""
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
 
     calls: dict = {"previews": [], "removed": []}
 
@@ -489,7 +489,7 @@ def test_the_overhaul_entries_follow_the_preview_switch(qt_app, profile, monkeyp
 
 def test_removing_an_installer_made_overhaul_asks_what_to_put_back_then_confirms(qt_app, profile, monkeypatch):
     calls = overhaul_services(monkeypatch)
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
 
     monkeypatch.setattr(mod_service, "remove_overhaul", lambda p: calls["removed"].append(p))
     host = Host(profile)
@@ -633,7 +633,7 @@ def test_the_profile_menu_commands_reach_the_page(qt_app, profile):
 def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_install_again(
     qt_app, profile, monkeypatch
 ):
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
 
     overhaul_services(monkeypatch)
     for takeover, enabled in ((False, False), (True, True)):
@@ -683,8 +683,8 @@ def test_take_over_is_enabled_only_for_an_installer_made_setup_and_offers_to_ins
 
 
 def test_take_over_ticks_the_entries_the_installer_copied(qt_app, profile, monkeypatch):
-    from bayle.mods.overhaul_takeover import EntryChoice
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
+    from bayle.modules.mods.overhaul_takeover import EntryChoice
 
     overhaul_services(monkeypatch)
     monkeypatch.setattr(
@@ -712,7 +712,7 @@ def test_take_over_ticks_the_entries_the_installer_copied(qt_app, profile, monke
 def test_cleaning_installer_leftovers_picks_the_folders_then_asks_about_each_backup(qt_app, profile, monkeypatch):
     from types import SimpleNamespace
 
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
 
     overhaul_services(monkeypatch)
     left = [

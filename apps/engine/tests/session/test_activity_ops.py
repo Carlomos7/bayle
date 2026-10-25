@@ -5,12 +5,12 @@ import time
 
 import pytest
 
-from bayle.config.app_paths import DATA_ENV, data_dir
+from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system.app_paths import DATA_ENV, data_dir
 from bayle.errors import Busy, OperationError
-from bayle.mods import models as mod_models
-from bayle.mods import undo as mod_undo
-from bayle.platform import logging as run_logging
-from bayle.services.activity import ActivityService
+from bayle.modules.activity.service import ActivityService
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods import undo as mod_undo
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import FakeActivityFacts, er

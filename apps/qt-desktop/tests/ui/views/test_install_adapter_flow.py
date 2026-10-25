@@ -7,10 +7,10 @@ from types import SimpleNamespace
 
 import pytest
 from bayle.errors import OperationError
-from bayle.services import profile_mods
-from bayle.services.mod_configs import stamp
-from bayle.services.mod_install import OpenedInstall, OverhaulChoices, OverhaulPlan, OverhaulPreview, Sources
-from bayle.services.mods import profile_entries
+from bayle.modules.mods import profile_mods
+from bayle.modules.mods.mod_configs import stamp
+from bayle.modules.mods.mod_install import OpenedInstall, OverhaulChoices, OverhaulPlan, OverhaulPreview, Sources
+from bayle.modules.mods.service import profile_entries
 from test_mods_view import Host
 
 from bayle_qt.notifications import Notifier

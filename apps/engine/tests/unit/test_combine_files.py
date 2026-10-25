@@ -8,12 +8,12 @@ import pytest
 from fakegame import bnd, dcx, files_of
 from test_param_merge import vanilla
 
-from bayle.game import discovery
-from bayle.mods import conflicts as overview
-from bayle.mods import rebuild as merge
-from bayle.mods import undo
-from bayle.mods.backends import builtin
-from bayle.platform import paths as common
+from bayle.adapters.games import discovery
+from bayle.adapters.games import paths as common
+from bayle.adapters.overhauls.backends import builtin
+from bayle.modules.mods import conflicts as overview
+from bayle.modules.mods import rebuild as merge
+from bayle.modules.mods import undo
 from support import er
 
 REL = "menu/hi/01_common.sblytbnd.dcx"
@@ -77,7 +77,7 @@ def test_a_rebuild_merges_both_mods_changes_after_them(prof):
 
 
 def test_load_order_says_the_copies_are_combined(prof):
-    from bayle.mods import profile as profile_tools
+    from bayle.modules.mods import profile as profile_tools
 
     merge.rebuild(prof, lambda s: None, loc=er())
     got = overview.classify(prof, profile_tools.scan_conflicts(prof), loc=er())
@@ -128,7 +128,7 @@ def test_a_file_the_launcher_cannot_merge_is_left_to_the_later_mod(prof, monkeyp
 
 
 def test_the_record_says_how_the_build_was_made_and_other_rules_make_it_out_of_date(prof):
-    from bayle.merging import record
+    from bayle.adapters.merging import record
 
     merge.rebuild(prof, lambda s: None, loc=er())
     tool = builtin.find(prof, merge.layers(prof), loc=er())
@@ -149,7 +149,7 @@ def test_the_record_says_how_the_build_was_made_and_other_rules_make_it_out_of_d
 
 
 def test_an_interrupted_rebuild_leaves_the_previous_result_and_the_next_one_finishes(prof, monkeypatch):
-    from bayle.merging import build as B
+    from bayle.adapters.filesystem import build as B
 
     merge.rebuild(prof, lambda s: None, loc=er())
     folder = builtin.find(prof, merge.layers(prof), loc=er()).folder
@@ -184,8 +184,8 @@ def _add_mod(prof, name: str, change: dict) -> None:
 
 
 def test_removing_a_mod_and_rebuilding_equals_building_without_it(prof, tmp_path, monkeypatch):
-    from bayle.mods import profile_edit as manage
-    from bayle.mods import remove
+    from bayle.modules.mods import profile_edit as manage
+    from bayle.modules.mods import remove
 
     _add_mod(prof, "map", {"SB_Map.layout": b"big map"})
     merge.rebuild(prof, lambda s: None, loc=er())
@@ -211,7 +211,7 @@ def test_removing_a_mod_and_rebuilding_equals_building_without_it(prof, tmp_path
 
 
 def test_a_rebuild_without_room_on_the_drive_is_not_started(prof, monkeypatch):
-    from bayle.merging import build as B
+    from bayle.adapters.filesystem import build as B
 
     merge.rebuild(prof, lambda s: None, loc=er())
     folder = builtin.find(prof, merge.layers(prof), loc=er()).folder

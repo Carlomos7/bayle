@@ -3,8 +3,8 @@ binder-kind table says how the game finds an inner file. Synthetic executables o
 
 import struct
 
-from bayle.game import exe as game_exe
-from bayle.game import knowledge
+from bayle.adapters.games import exe as game_exe
+from bayle.adapters.games import knowledge
 
 
 def _pe(version: tuple[int, int, int, int] | None) -> bytes:

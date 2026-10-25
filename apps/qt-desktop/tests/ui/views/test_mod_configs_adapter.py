@@ -6,8 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from bayle.platform.threads import as_worker
-from bayle.services.mod_configs import ModConfigsService
+from bayle.adapters.system.threads import as_worker
+from bayle.modules.mods.mod_configs import ModConfigsService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from overhaul_world import PROFILE, World, mixed_mod, other_of

@@ -3,8 +3,8 @@ real one: no Qt, no window. Every profile is invented in the test's own folder."
 
 import pytest
 
-from bayle.config.app_paths import data_dir
-from bayle.services import shared_mods as library_service
+from bayle.adapters.system.app_paths import data_dir
+from bayle.modules.mods import shared_mods_page as library_service
 from support import mods_profile, mods_session, refused, tree_state
 
 make = mods_session
@@ -57,7 +57,7 @@ def test_a_closed_notice_stays_closed_for_the_profile_in_the_session(profile):
 
 
 def test_the_library_hint_waits_for_enough_wasted_space(profile, monkeypatch):
-    from bayle.mods import shared_mods
+    from bayle.modules.mods import shared_mods
 
     s, ref = make(), {"profile": str(profile)}
     monkeypatch.setattr(library_service, "duplicates", lambda loc: (1, 10))

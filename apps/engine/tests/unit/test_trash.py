@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from bayle.platform import trash
+from bayle.adapters.filesystem import trash
 
 pytestmark = [
     pytest.mark.real_recycle_bin,

@@ -7,7 +7,7 @@ from test_overhaul_install import PROFILE, World, mixed_mod
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.services.mod_configs import ModConfigsService
+from bayle.modules.mods.mod_configs import ModConfigsService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 

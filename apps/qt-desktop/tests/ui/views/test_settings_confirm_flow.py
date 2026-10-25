@@ -5,10 +5,10 @@ JobManager (work runs inline unless a test holds it); only the folder moves them
 from pathlib import Path
 
 import pytest
-from bayle.config.settings_file import load_settings, save_settings
+from bayle.adapters.persistence.settings_file import load_settings, save_settings
 from bayle.errors import Cancelled
-from bayle.services import layout as layout_service
-from bayle.services.settings import SettingsService
+from bayle.modules.settings import locations as layout_service
+from bayle.modules.settings.service import SettingsService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from PySide6.QtCore import QObject

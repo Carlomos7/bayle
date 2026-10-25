@@ -5,7 +5,8 @@ import os
 import uuid
 
 import pytest
-from bayle.platform import filelock, instance
+from bayle.adapters.filesystem import filelock
+from bayle.runtime import instance
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalServer
@@ -71,8 +72,8 @@ def test_a_second_start_reaches_the_window(name):
 
 def test_play_from_a_shortcut_hands_off_or_holds_the_play_name(monkeypatch):
     from bayle import cli
-    from bayle.game import catalog as games
-    from bayle.services import play as core
+    from bayle.modules.games import catalog as games
+    from bayle.modules.launch import play as core
 
     played, sent = [], []
     monkeypatch.setattr(

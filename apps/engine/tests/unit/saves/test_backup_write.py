@@ -10,9 +10,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.platform.files import Unsettled
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as save_fix
+from bayle.adapters.filesystem.files import Unsettled
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as save_fix
 
 DATA = b"invented save bytes " * 50
 DAY = 86400

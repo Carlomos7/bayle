@@ -3,8 +3,8 @@ nothing; a job's id is read back from the session's JobManager."""
 
 import pytest
 
-from bayle.services import profile_mods
-from bayle.services.mods import profile_entries
+from bayle.modules.mods import profile_mods
+from bayle.modules.mods.service import profile_entries
 from support import MODS_PROFILE, mods_profile, mods_session, refused
 
 make = mods_session

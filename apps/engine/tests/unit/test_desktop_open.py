@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.platform import desktop
+from bayle.adapters.system import desktop
 
 
 def test_windows_uses_startfile(monkeypatch, tmp_path):

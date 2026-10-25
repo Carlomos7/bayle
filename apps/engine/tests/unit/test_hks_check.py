@@ -5,11 +5,11 @@ import struct
 
 import pytest
 
-from bayle import formats
-from bayle.formats import hks
-from bayle.game import knowledge
-from bayle.overhauls import hks_check
-from bayle.overhauls.hooks import Hook, compose
+from bayle.adapters import formats
+from bayle.adapters.formats import hks
+from bayle.adapters.games import knowledge
+from bayle.adapters.overhauls import hks_check
+from bayle.adapters.overhauls.hooks import Hook, compose
 
 ENTRY = "action/script/c0000.hks"
 

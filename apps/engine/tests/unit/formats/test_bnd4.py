@@ -5,7 +5,7 @@ import struct
 
 import pytest
 
-from bayle import formats
+from bayle.adapters import formats
 
 GAMEPARAM = "N:\\GR\\data\\Param\\param\\GameParam\\"
 
@@ -78,7 +78,7 @@ def test_a_compressed_entry_keeps_the_size_its_writer_gave():
 def test_text_added_to_a_text_archive_is_stored_with_its_new_size(text):
     from fakegame import fmg
 
-    from bayle.merging.rules import fmg as fmg_rule
+    from bayle.adapters.merging.rules import fmg as fmg_rule
 
     menu = fmg({1: "first", 2: "second entry"})
     archive = formats.bnd4.Bnd4(

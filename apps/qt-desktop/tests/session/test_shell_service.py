@@ -4,10 +4,10 @@ the Launch flow's questions over the prompt broker, start-up ownership. No Qt, n
 import time
 
 import pytest
+from bayle.adapters.system import logging as run_logging
 from bayle.errors import Busy
-from bayle.platform import logging as run_logging
-from bayle.services import play as core
-from bayle.session import startup
+from bayle.modules.launch import play as core
+from bayle.runtime import startup
 from bayle.work.jobs import JobManager  # noqa: F401
 from bayle.work.prompts import Choice, Choose, Option, Question
 
@@ -202,7 +202,7 @@ def test_startup_runs_the_session_steps_once_and_tells_what_they_put_right(shell
 
 
 def test_reading_recovers_nothing(shell, monkeypatch):
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import service as mod_service
 
     monkeypatch.setattr(mod_service, "recover_interrupted", lambda *a, **k: pytest.fail("a read recovered"))
     shell.facts()

@@ -6,15 +6,15 @@ from fastapi.testclient import TestClient
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as save_fix
-from bayle.saves import library as save_library
-from bayle.saves import regulation as save_regulation
-from bayle.saves import transfer as save_transfer
-from bayle.services import saves as saves_service
-from bayle.services.saves_page import SavesService
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as save_fix
+from bayle.modules.saves import library as save_library
+from bayle.modules.saves import regulation as save_regulation
+from bayle.modules.saves import service as saves_service
+from bayle.modules.saves import transfer as save_transfer
+from bayle.modules.saves.saves_page import SavesService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 
@@ -404,7 +404,7 @@ def test_repair_copy_character_and_post_session_repair_over_http(env, monkeypatc
     assert (got["character"], got["slot"], got["file"]) == ("Ann", 2, "ER0000.sl2") and got["undo"]
 
     ran = []
-    monkeypatch.setattr("bayle.saves.repair.repair_all", lambda loc: ran.append(loc))
+    monkeypatch.setattr("bayle.modules.saves.repair.repair_all", lambda loc: ran.append(loc))
     assert start(env, "saves.post_session_repair", {}) == {"save": None, "backup": None, "undo": None} and ran == [
         env.loc
     ]

@@ -15,7 +15,7 @@ import time
 import _common
 import _readers
 
-from bayle import formats
+from bayle.adapters import formats
 
 FILES = (
     "msg/engus/menu_dlc02.msgbnd.dcx",
@@ -28,7 +28,7 @@ FILES = (
 
 def calibrate(game, dec, files) -> dict:
     """{rel: {reader: "opens (n files)" | "refuses: why" | "same bytes" | ...}} for the game's own copies."""
-    from bayle.game import archives as gamearchive
+    from bayle.adapters.games import archives as gamearchive
 
     readers = {"launcher": _readers.ours(dec), "soulstruct": _readers.soulstruct()}
     ooz = _readers.pyooz()
@@ -65,7 +65,7 @@ def main() -> int:
     game = _common.game_dir(args.game)
     out = _common.output_dir(args.out, "calibrate", game)
     _common.sandbox_launcher(out, game)
-    from bayle.game.oodle import find_oodle
+    from bayle.adapters.games.oodle import find_oodle
 
     result = calibrate(game, find_oodle(game), args.file or FILES)
     for rel, row in result.items():

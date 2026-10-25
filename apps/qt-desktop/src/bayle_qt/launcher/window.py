@@ -14,8 +14,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
-from bayle.platform import cpu_pool, instance
-from bayle.services.play import TITLE
+from bayle.modules.launch.play import TITLE
+from bayle.runtime import instance
+from bayle.work import cpu_pool
 from PySide6.QtCore import QEventLoop, QObject, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon, QWindow
 from PySide6.QtQml import QQmlApplicationEngine, QQmlError
@@ -137,7 +138,7 @@ class ShellWindow(QObject):
     @staticmethod
     def _log_backend(win: QQuickWindow) -> None:
         """The render backend in the log (a GPU one in normal runs; Software only in offscreen tests)."""
-        from bayle.platform import logging as run_logging
+        from bayle.adapters.system import logging as run_logging
 
         api = win.rendererInterface().graphicsApi()
         run_logging.log_shown(f"render backend: {api.name.lower()}")
@@ -213,9 +214,9 @@ def main(engine, run: Callable[[], int] | None = None) -> int:
     run: the event loop (tests give their own)."""
     import threading
 
-    from bayle.config import identity
-    from bayle.platform import logging as run_logging
-    from bayle.services.play import report_exception
+    from bayle.adapters.system import identity
+    from bayle.adapters.system import logging as run_logging
+    from bayle.modules.launch.play import report_exception
 
     if identity.get().display_platform:  # an isolated test build (Velopack starts it with the user's own environment)
         os.environ["QT_QPA_PLATFORM"] = identity.get().display_platform

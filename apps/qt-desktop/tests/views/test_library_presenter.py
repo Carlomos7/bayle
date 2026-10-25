@@ -3,8 +3,8 @@ the confirmations, and the install dialog's choices; every string through tr()."
 
 from pathlib import Path
 
-from bayle.mods import shared_mods
-from bayle.services.shared_mods import LibraryMod, LibraryVersion
+from bayle.modules.mods import shared_mods
+from bayle.modules.mods.shared_mods_page import LibraryMod, LibraryVersion
 from test_mods_presenter import facts
 
 from bayle_qt.pages.mods.install_presenter import InstallDraft

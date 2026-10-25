@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.mods import undo as mod_undo
+from bayle.modules.mods import undo as mod_undo
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import FakeActivityFacts

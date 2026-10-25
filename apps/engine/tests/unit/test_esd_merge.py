@@ -6,9 +6,9 @@ import struct
 import pytest
 from fakegame import bnd, dcx, files_of
 
-from bayle.formats.esd import ESD, Command, Condition, State, read_esd, write_esd
-from bayle.merging import merger
-from bayle.merging.rules import esd as rule
+from bayle.adapters.formats.esd import ESD, Command, Condition, State, read_esd, write_esd
+from bayle.adapters.merging import merger
+from bayle.adapters.merging.rules import esd as rule
 
 END = b"\xa1"
 TRUE = b"\x41" + END
@@ -210,7 +210,7 @@ def test_talk_commands_and_functions_the_game_lacks_are_found_by_machine_and_sta
 
 
 def test_the_merge_warns_about_a_mods_unknown_talk_ids(tmp_path):
-    from bayle.game import knowledge
+    from bayle.adapters.games import knowledge
 
     shipped = knowledge._exe_lists("eldenring").versions["2.7.1.0"]
     lists = knowledge.Lists(

@@ -11,13 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.errors import OperationError
-from bayle.game import catalog
-from bayle.mods import shared_mods
-from bayle.mods import undo as mod_undo
-from bayle.services import mods_page, profile_mods
-from bayle.services.mods_page import ModsPageState, ToolInfo, TrimPlan
-from bayle.services.profile_mods import PageFacts, Removal
-from bayle.services.shared_mods import LibraryMod
+from bayle.modules.games import catalog
+from bayle.modules.mods import mods_page, profile_mods, shared_mods
+from bayle.modules.mods import undo as mod_undo
+from bayle.modules.mods.mods_page import ModsPageState, ToolInfo, TrimPlan
+from bayle.modules.mods.profile_mods import PageFacts, Removal
+from bayle.modules.mods.shared_mods_page import LibraryMod
 from bayle.work.prompts import Confirm, Pick, Refusal
 
 from bayle_qt.pages.mods import load_order
@@ -301,7 +300,7 @@ class ModsPresenter:
 
     def dialog_words(self) -> dict[str, str]:
         """The dialogs' labels: Mod options, Profile settings, Versions, Add existing."""
-        from bayle.mods.profile import SETTING_TEXT
+        from bayle.modules.mods.profile import SETTING_TEXT
 
         words = {
             "optionsTitle": tr("Mod options: {name}"),
@@ -1173,7 +1172,7 @@ class ModsPresenter:
 
     @staticmethod
     def setting_changed(key: str) -> str:
-        from bayle.mods.profile import SETTING_TEXT
+        from bayle.modules.mods.profile import SETTING_TEXT
 
         return tr("{setting} changed: it applies at the next launch").format(setting=tr(SETTING_TEXT[key][0]))
 

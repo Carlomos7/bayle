@@ -15,7 +15,7 @@ import uvicorn
 from bayle import __version__
 from bayle.api.app import create_app
 from bayle.api.models import CONTRACT_VERSION
-from bayle.services import features
+from bayle.runtime import features
 
 
 async def serve(engine) -> None:

@@ -4,8 +4,8 @@ up, a bundled download imports its profile, a refusal is told in the presenter's
 
 from pathlib import Path
 
-from bayle.platform.threads import as_worker
-from bayle.services.profile_transfer import ProfileTransferService
+from bayle.adapters.system.threads import as_worker
+from bayle.modules.mods.profile_transfer import ProfileTransferService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 
@@ -115,7 +115,7 @@ def test_an_export_runs_as_a_job_the_page_follows_and_shows_done(qt_app, tmp_pat
 
 
 def test_a_big_export_is_asked_once_and_a_no_starts_nothing(qt_app, tmp_path, monkeypatch):
-    monkeypatch.setattr("bayle.services.profile_transfer.LARGE_EXPORT", 1)
+    monkeypatch.setattr("bayle.modules.mods.profile_transfer.LARGE_EXPORT", 1)
     host = Host(make(tmp_path / "a"), tmp_path / "out")
     page = ProfileTransferAdapter(host, Told(yes=False))
     page.refresh()

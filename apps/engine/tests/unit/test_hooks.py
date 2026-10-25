@@ -3,8 +3,8 @@ wrapping the one before, and the guardrails (compiled or non-text base, a hook a
 
 import pytest
 
-from bayle.overhauls import hooks
-from bayle.overhauls.hooks import Hook, HookError, compose
+from bayle.adapters.overhauls import hooks
+from bayle.adapters.overhauls.hooks import Hook, HookError, compose
 
 BASE = "-- the game's script, as text\nfunction Update()\n    Move()\nend\n"
 FIRST = "local FirstOriginalUpdate = Update\nfunction Update()\n    FirstOriginalUpdate()\n    First()\nend\n"

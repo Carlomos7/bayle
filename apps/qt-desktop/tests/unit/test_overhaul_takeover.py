@@ -7,8 +7,8 @@ import tomllib
 from pathlib import Path
 
 import pytest
-from bayle.mods import overhaul_install, overhaul_takeover
-from bayle.mods.overhaul_install import Leftover, OverhaulError
+from bayle.modules.mods import overhaul_install, overhaul_takeover
+from bayle.modules.mods.overhaul_install import Leftover, OverhaulError
 from overhaul_world import PROFILE, World, files, legacy
 
 
@@ -129,7 +129,7 @@ def test_a_setup_the_launcher_made_is_removed_not_taken_over(world):
 
 
 def test_the_service_flags_take_over_for_an_installer_setup(world):
-    from bayle.services import mods as service
+    from bayle.modules.mods import service
 
     legacy(world)
     assert service.profile_overhaul(world.profile, loc=world.loc)["takeover"] is True
@@ -169,7 +169,7 @@ def live_stray(world, how="manifest"):
 
 
 def test_the_installers_records_show_what_changed_and_only_the_ticked_go(world):
-    from bayle.services import mods as service
+    from bayle.modules.mods import service
 
     live_stray(world)
     assert service.profile_overhaul(world.profile, loc=world.loc) == {

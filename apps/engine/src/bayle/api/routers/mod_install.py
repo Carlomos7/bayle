@@ -17,9 +17,9 @@ from bayle.api.deps import service
 from bayle.api.models import JobStarted as Started
 from bayle.api.models import Params, Result
 from bayle.api.routers.mods import ProfileRef
-from bayle.overhauls.config import BasicNative
-from bayle.services import mod_configs
-from bayle.services.mod_install import InstallChoices, LeftoverFolder, ModInstallService
+from bayle.modules.mods import mod_configs
+from bayle.modules.mods.mod_install import InstallChoices, LeftoverFolder, ModInstallService
+from bayle.modules.overhauls.config import BasicNative
 
 router = APIRouter(prefix="/mod_install", tags=["mod_install"])
 Install = Annotated[ModInstallService, Depends(service("mod_install"))]

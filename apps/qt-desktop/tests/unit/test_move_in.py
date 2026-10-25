@@ -6,13 +6,13 @@ import shutil
 from pathlib import Path
 
 import pytest
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.merging import build as B
-from bayle.mods import library, move_in, undo
-from bayle.mods import models as mod_models
-from bayle.mods import profile_settings as ps
-from bayle.platform import trash
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.filesystem import trash
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import library, move_in, undo
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods import profile_settings as ps
 
 from bayle_qt.pages.mods.presenter import ModsPresenter
 

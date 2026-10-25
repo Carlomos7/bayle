@@ -11,15 +11,15 @@ import time
 
 import pytest
 
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as save_fix
-from bayle.services import saves as saves_service
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as save_fix
+from bayle.modules.saves import service as saves_service
 
 HOLDER = textwrap.dedent(
     """
     import sys, time
     from pathlib import Path
-    from bayle.saves import backups as save_backups
+    from bayle.modules.saves import backups as save_backups
 
     folder, mode = Path(sys.argv[1]), sys.argv[2]
     with save_backups.account_lock(folder):

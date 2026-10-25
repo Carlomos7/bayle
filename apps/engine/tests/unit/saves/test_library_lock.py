@@ -10,10 +10,10 @@ import textwrap
 
 import pytest
 
-from bayle.game import catalog as games
-from bayle.saves import backups as save_backups
-from bayle.saves import library as Lib
-from bayle.saves import regulation
+from bayle.modules.games import catalog as games
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import library as Lib
+from bayle.modules.saves import regulation
 
 ER = games.ELDEN_RING
 
@@ -21,8 +21,8 @@ WORKER = textwrap.dedent(
     """
     import sys
     from pathlib import Path
-    from bayle.platform import data_folder
-    from bayle.saves import library as Lib
+    from bayle.adapters.system import data_folder
+    from bayle.modules.saves import library as Lib
 
     root, save_dir, entry_id, tag, mode = sys.argv[1:6]
     data_folder.data_root = lambda: Path(root)  # the test's data folder, never the real one

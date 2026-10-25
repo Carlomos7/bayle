@@ -4,9 +4,9 @@ import time
 
 import pytest
 
-from bayle.mods import history, me3_text, remove
-from bayle.mods import profile_edit as M
-from bayle.services import mods as service
+from bayle.adapters.formats import me3_text
+from bayle.modules.mods import history, remove, service
+from bayle.modules.mods import profile_edit as M
 from support import er
 
 SF_VOICE = """profileVersion = "v1"

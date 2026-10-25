@@ -3,8 +3,8 @@ launcher's own writers, and a stand-in for the game's archives (game.archives.re
 
 import struct
 
-from bayle import formats
-from bayle.game import archives as gamearchive
+from bayle.adapters import formats
+from bayle.adapters.games import archives as gamearchive
 
 BND_HEADER = (
     b"BND4\0\0\0\0\0\0\x01\0"

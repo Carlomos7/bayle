@@ -2,7 +2,8 @@
 
 import json
 
-from bayle.config import settings, settings_file
+from bayle.adapters.persistence import settings_file
+from bayle.modules.settings import models as settings
 
 
 def test_defaults_when_missing_or_broken(tmp_path):
@@ -71,7 +72,7 @@ def test_settings_an_older_build_wrote_for_overhauls_still_load():
 
 
 def test_logo_setting_migrates_old_values():
-    from bayle.config.settings import LauncherSettings
+    from bayle.modules.settings.models import LauncherSettings
 
     got = {v: LauncherSettings.from_raw({"logo": v}).logo for v in ("dark", "light", "gold", "ice", "bogus", None)}
     assert got == {"dark": "crimson", "light": "ice", "gold": "gold", "ice": "ice", "bogus": "auto", None: "auto"}

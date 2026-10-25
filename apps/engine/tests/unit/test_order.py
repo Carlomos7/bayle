@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from bayle.mods import models as mod_models
-from bayle.mods import order
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods import order
 
 CASES = json.loads((Path(__file__).parent / "order_cases.json").read_text(encoding="utf-8"))
 

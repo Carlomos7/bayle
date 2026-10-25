@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.merging import build as B
-from bayle.mods import install, library, migrate, operations, remove, undo
-from bayle.mods import profile_settings as ps
-from bayle.platform import trash
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.filesystem import trash
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import install, library, migrate, operations, remove, undo
+from bayle.modules.mods import profile_settings as ps
 from support import er
 
 NEW = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
@@ -137,7 +137,7 @@ def test_migration_gives_each_profile_its_folder_and_copies_what_two_share(world
     assert not root.exists() and not (home / "roundtable").exists()  # nothing was left in the old folders
     mine = home / "eldenring-mods"
     assert (mine / "mine.me3").is_file() and (mine / "mod" / "x" / "x.dcx").is_file()
-    from bayle.platform import me3_paths
+    from bayle.adapters.integrations.me3 import me3_paths
 
     found = [p for p in me3_paths.find_profiles(home, "eldenring", "eldenring") if not p.name.endswith(".offline.me3")]
     assert found == sorted([a, b, c, d, mine / "mine.me3"], key=lambda p: (p.name.lower(), str(p).lower()))
@@ -312,7 +312,8 @@ def test_a_second_run_after_the_move_finds_nothing_and_old_state_is_still_read(t
 
 
 def test_custom_folder_names_are_followed(tmp_path, monkeypatch):
-    from bayle.config import settings, settings_file
+    from bayle.adapters.persistence import settings_file
+    from bayle.modules.settings import models as settings
 
     monkeypatch.setattr(
         settings_file,
@@ -333,8 +334,9 @@ def test_custom_folder_names_are_followed(tmp_path, monkeypatch):
 
 
 def test_migration_follows_a_custom_game_folder_and_dot_folders_are_never_profiles(world, monkeypatch):
-    from bayle.config import settings, settings_file
-    from bayle.platform import me3_paths
+    from bayle.adapters.integrations.me3 import me3_paths
+    from bayle.adapters.persistence import settings_file
+    from bayle.modules.settings import models as settings
 
     monkeypatch.setattr(
         settings_file,

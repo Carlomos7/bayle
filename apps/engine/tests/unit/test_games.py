@@ -5,18 +5,19 @@ import struct
 
 import pytest
 
-from bayle.config import settings, settings_file
-from bayle.config.settings import LauncherSettings
-from bayle.game import catalog as games
-from bayle.game.discovery import installed_dir
-from bayle.game.locate import Locations, Overrides
-from bayle.platform import paths as common
-from bayle.platform import steam
-from bayle.saves import container
-from bayle.saves import nightreign as nr
-from bayle.services import coop as coop_service
-from bayle.services import play as core
-from bayle.services import saves
+from bayle.adapters.games import paths as common
+from bayle.adapters.games.discovery import installed_dir
+from bayle.adapters.integrations.steam import steam
+from bayle.adapters.persistence import settings_file
+from bayle.adapters.saves import container
+from bayle.adapters.saves import nightreign as nr
+from bayle.modules.coop import service as coop_service
+from bayle.modules.games import catalog as games
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.launch import play as core
+from bayle.modules.saves import service as saves
+from bayle.modules.settings import models as settings
+from bayle.modules.settings.models import LauncherSettings
 
 NR = games.NIGHTREIGN
 ER = games.ELDEN_RING

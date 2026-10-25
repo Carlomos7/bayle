@@ -20,9 +20,9 @@ from synthetic_save import (
     with_block,
 )
 
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as F
-from bayle.saves import regulation as R
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as F
+from bayle.modules.saves import regulation as R
 
 REG = made_up_regulation()
 HEADER = R.HEALTHY_HEADER

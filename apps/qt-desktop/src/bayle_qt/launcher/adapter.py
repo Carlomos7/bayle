@@ -12,9 +12,9 @@ from __future__ import annotations
 from typing import Any
 
 from bayle import __version__
-from bayle.platform import desktop
-from bayle.services import play as core
-from bayle.services.settings import save_settings
+from bayle.adapters.system import desktop
+from bayle.modules.launch import play as core
+from bayle.modules.settings.service import save_settings
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
 from bayle_qt.launcher import menu, topbar
@@ -588,6 +588,6 @@ class ShellAdapter(QObject):
 
 def _readme_url() -> str:
     """The project's home page (How to use is its README)."""
-    from bayle.config import identity
+    from bayle.adapters.system import identity
 
     return identity.get().releases_page.rsplit("/releases", 1)[0] + "#readme"

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Query
 
 from bayle.api.deps import service
 from bayle.api.models import JobStarted, NoParams, Params, Result
-from bayle.services.saves_page import SavesFacts, SavesService
+from bayle.modules.saves.saves_page import SavesFacts, SavesService
 
 router = APIRouter(prefix="/saves", tags=["saves"])
 Saves = Annotated[SavesService, Depends(service("saves"))]

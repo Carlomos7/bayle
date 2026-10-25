@@ -284,12 +284,14 @@ def point_at_local_feed(key: Key) -> None:
         "signing_key": key.public_text(),
         "display_platform": "offscreen",
     }
-    # the installed (previous) release reads the override from its own package's data folder: bayle/ since the
-    # package rename, roundtable_souls/ in the releases published before it (4.5.1, 4.6.0-rc.N)
+    # the installed (previous) release reads the override from its own package's shipped files: bayle/resources/
+    # since the modules/adapters layout, bayle/data/ since the package rename, roundtable_souls/data/ in the releases
+    # published before it (4.5.1, 4.6.0-rc.N)
     internal = INSTALL / "current" / "_internal"
-    data_dir = next((d for d in (internal / p / "data" for p in ("bayle", "roundtable_souls")) if d.is_dir()), None)
+    shipped = (internal / "bayle" / "resources", internal / "bayle" / "data", internal / "roundtable_souls" / "data")
+    data_dir = next((d for d in shipped if d.is_dir()), None)
     if data_dir is None:
-        fail(f"no bayle/data or roundtable_souls/data under {internal}: the installed layout changed")
+        fail(f"no bayle/resources, bayle/data or roundtable_souls/data under {internal}: the installed layout changed")
     (data_dir / "build-identity.json").write_text(json.dumps(override, indent=1), encoding="utf-8")
 
 

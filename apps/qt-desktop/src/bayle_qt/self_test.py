@@ -73,10 +73,10 @@ class _Context:
     own empty ones), the settings in memory."""
 
     def __init__(self, data_dir: Path, theme: str):
-        from bayle.config.settings import LauncherSettings
-        from bayle.config.settings_file import save_settings
-        from bayle.game import catalog
-        from bayle.game.locate import Locations
+        from bayle.adapters.persistence.settings_file import save_settings
+        from bayle.modules.games import catalog
+        from bayle.modules.games.locate import Locations
+        from bayle.modules.settings.models import LauncherSettings
         from bayle.work.events import EventBus
         from bayle.work.jobs import JobManager
 
@@ -97,12 +97,12 @@ class _Context:
         self.activity = None  # no database: the records are in jobs.jsonl
 
     def startup(self, profile):
-        from bayle.session.startup import recovery_steps
+        from bayle.runtime.startup import recovery_steps
 
         return recovery_steps(lambda: self.locations, profile)
 
     def select_game(self, game):
-        from bayle.game.locate import Locations
+        from bayle.modules.games.locate import Locations
 
         self.game = game
         self.locations = Locations.from_settings(self.settings, game)

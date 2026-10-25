@@ -41,7 +41,7 @@ VPK_VERSION = "1.2.161"  # = the velopack Python package pinned in pyproject.tom
 WINDOWS = sys.platform == "win32"
 
 
-MIGRATIONS = engine_package() / "storage" / "migrations"
+MIGRATIONS = engine_package() / "adapters" / "persistence" / "migrations"
 
 
 def run(*args: str | Path, env: dict | None = None) -> None:
@@ -75,9 +75,9 @@ def pyinstaller(py: str, identity_file: Path | None) -> Path:
         staged = BUILD / "identity" / "build-identity.json"
         staged.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(identity_file, staged)
-        extra = ["--add-data", f"{staged}{os.pathsep}bayle/data"]
+        extra = ["--add-data", f"{staged}{os.pathsep}bayle/resources"]
     # Alembic loads the migration scripts by path, so they ship as files (--collect-data leaves .py files out).
-    extra += ["--add-data", f"{MIGRATIONS}{os.pathsep}bayle/storage/migrations"]
+    extra += ["--add-data", f"{MIGRATIONS}{os.pathsep}bayle/adapters/persistence/migrations"]
     run(
         py, "-m", "PyInstaller", "--noconfirm", "--onedir", "--windowed", "--name", EXE_NAME,
         "--icon", PKG / "assets" / "icon.ico", "--paths", ROOT / "src", "--paths", engine_package().parent,
@@ -116,7 +116,7 @@ def check_migrations(folder: Path) -> None:
     opens one: the release workflow does.)"""
     source = MIGRATIONS
     wanted = [p.relative_to(source) for p in source.rglob("*") if p.is_file() and "__pycache__" not in p.parts]
-    shipped = next((p for p in folder.rglob("migrations") if p.parent.name == "storage"), None)
+    shipped = next((p for p in folder.rglob("migrations") if p.parent.name == "persistence"), None)
     missing = [
         str(w)
         for w in wanted
@@ -131,7 +131,7 @@ def check_sqlite() -> None:
     program that runs without its database. Checked before anything is built."""
     import sqlite3
 
-    from bayle.storage.db import sqlite_problem
+    from bayle.adapters.persistence.db import sqlite_problem
 
     problem = sqlite_problem(sqlite3.sqlite_version)
     if problem:
@@ -144,7 +144,7 @@ def load_identity(path: Path | None):
     import json
     from dataclasses import fields
 
-    from bayle.config.identity import Identity
+    from bayle.adapters.system.identity import Identity
 
     if path is None:
         return Identity()

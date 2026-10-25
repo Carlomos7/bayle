@@ -6,14 +6,15 @@ import struct
 
 import pytest
 
-from bayle import formats
-from bayle.game import discovery, locate
-from bayle.merging.rules import param as pm
-from bayle.mods import profile_edit as M
-from bayle.mods import rebuild as merge
-from bayle.mods import remove
-from bayle.mods.backends import builtin
-from bayle.platform import paths as common
+from bayle.adapters import formats
+from bayle.adapters.games import discovery
+from bayle.adapters.games import paths as common
+from bayle.adapters.merging.rules import param as pm
+from bayle.adapters.overhauls.backends import builtin
+from bayle.modules.games import locate
+from bayle.modules.mods import profile_edit as M
+from bayle.modules.mods import rebuild as merge
+from bayle.modules.mods import remove
 from support import er
 
 DCX = (  # the 0x4C header of the game's regulation (sizes are filled in on write)
@@ -314,7 +315,7 @@ def test_with_an_overlay_tool_the_combine_sits_right_before_it_and_feeds_it(tmp_
 def test_the_combined_package_is_listed_for_the_overlay_so_me3_loads_it_before_it(tmp_path, monkeypatch):
     from test_mod_merge import World
 
-    from bayle.mods import profile as P
+    from bayle.modules.mods import profile as P
 
     w = World(tmp_path, monkeypatch)
     (w.game / "regulation.bin").write_bytes(vanilla())

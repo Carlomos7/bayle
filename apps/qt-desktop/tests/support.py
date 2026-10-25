@@ -10,9 +10,9 @@ import shutil
 from pathlib import Path
 
 import pytest
-from bayle.game import catalog
-from bayle.game.locate import Locations
-from bayle.services.activity import ActivityService
+from bayle.modules.activity.service import ActivityService
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 
@@ -112,8 +112,8 @@ class FakeShellContext:
     profile or save folder; settings go to the isolated settings file. What the shell tests build a Shell on."""
 
     def __init__(self, data_dir: Path, spawn=None):
-        from bayle.config.settings import LauncherSettings
-        from bayle.services.settings import load_settings, save_settings
+        from bayle.modules.settings.models import LauncherSettings
+        from bayle.modules.settings.service import load_settings, save_settings
 
         self._load = load_settings
 
@@ -130,7 +130,7 @@ class FakeShellContext:
         self.activity = None
 
     def startup(self, profile):
-        from bayle.session.startup import recovery_steps
+        from bayle.runtime.startup import recovery_steps
 
         return recovery_steps(lambda: self.locations, profile)
 

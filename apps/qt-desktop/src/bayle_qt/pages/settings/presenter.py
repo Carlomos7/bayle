@@ -11,9 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.errors import OperationError
-from bayle.services import play as play_service
-from bayle.services.play import TITLE, VERSION
-from bayle.services.settings import (
+from bayle.modules.launch import play as play_service
+from bayle.modules.launch.play import TITLE, VERSION
+from bayle.modules.settings.service import (
     KEEP_RANGE,
     LOCATIONS,
     Changed,

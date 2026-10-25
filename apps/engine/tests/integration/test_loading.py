@@ -6,11 +6,11 @@ import struct
 
 import pytest
 
-from bayle.platform import paths
-from bayle.saves import layout as save_layout_check
-from bayle.saves import loading as save_loading
-from bayle.services import play as g
-from bayle.services import saves as saves_service
+from bayle.adapters.games import paths
+from bayle.adapters.saves import layout as save_layout_check
+from bayle.modules.launch import play as g
+from bayle.modules.saves import loading as save_loading
+from bayle.modules.saves import service as saves_service
 from support import copy_live_save as _copy
 from support import er
 

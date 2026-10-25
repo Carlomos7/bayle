@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from bayle.services.settings import SettingsService
+from bayle.modules.settings.service import SettingsService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from page_window import PageWindow

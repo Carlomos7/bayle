@@ -2,8 +2,8 @@ import threading
 
 import pytest
 
+from bayle.adapters.system import logging as run_logging
 from bayle.errors import Busy, Cancelled, OperationError
-from bayle.platform import logging as run_logging
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager, current_context, notice
 from bayle.work.runner import JobResult

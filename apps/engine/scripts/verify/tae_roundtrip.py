@@ -26,7 +26,7 @@ from pathlib import Path
 
 import _common
 
-from bayle import formats
+from bayle.adapters import formats
 
 
 def model(t) -> tuple:
@@ -64,8 +64,8 @@ def main() -> int:
     out = _common.output_dir(args.out, "tae-roundtrip", game)
     _common.sandbox_launcher(out, game)
 
-    from bayle.game import archives
-    from bayle.game import oodle as game_oodle
+    from bayle.adapters.games import archives
+    from bayle.adapters.games import oodle as game_oodle
 
     started = time.time()
     dec = game_oodle.find_oodle(game)

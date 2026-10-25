@@ -7,8 +7,8 @@ import struct
 import pytest
 from fakegame import bnd, dcx, files_of
 
-from bayle import formats
-from bayle.formats.tae import (
+from bayle.adapters import formats
+from bayle.adapters.formats.tae import (
     IMPORT,
     STANDARD,
     TAE,
@@ -22,8 +22,8 @@ from bayle.formats.tae import (
     write_tae,
     written_as,
 )
-from bayle.merging import merger
-from bayle.merging.rules import tae as rule
+from bayle.adapters.merging import merger
+from bayle.adapters.merging.rules import tae as rule
 
 FOREVER = 3.4028234663852886e38  # float.MaxValue: an event that lasts to the animation's end
 FLAGS = b"\x01\x00\x01\x02\x02\x01\x01\x01"

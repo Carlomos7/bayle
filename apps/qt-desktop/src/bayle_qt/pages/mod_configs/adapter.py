@@ -12,11 +12,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
-from bayle.coop import scaling as coop_scaling
+from bayle.adapters.formats import config_model
 from bayle.errors import OperationError
-from bayle.formats import config_model
-from bayle.services import mod_configs
-from bayle.services.features import Features
+from bayle.modules.coop import scaling as coop_scaling
+from bayle.modules.mods import mod_configs
+from bayle.runtime.features import Features
 from bayle.work.prompts import Confirm, Pick, Refusal
 from PySide6.QtCore import Property, QObject, Signal, Slot
 

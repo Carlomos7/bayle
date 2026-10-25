@@ -18,9 +18,9 @@ from synthetic_save import (
     strays,
 )
 
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as F
-from bayle.saves import layout as L
+from bayle.adapters.saves import layout as L
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as F
 
 SLOT0_BODY = L.HEADER + 0x10
 

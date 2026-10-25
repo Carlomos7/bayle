@@ -2,7 +2,7 @@
 and its first page loaded; when either fails, nothing is reported and the start fails (the watchdog then rolls back)."""
 
 import pytest
-from bayle.platform import instance
+from bayle.runtime import instance
 
 from bayle_qt import self_test
 from bayle_qt.launcher import window

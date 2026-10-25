@@ -106,7 +106,7 @@ def test_a_click_on_a_job_opens_its_log_and_a_second_closes_it(qt_app, activity_
 
 
 def test_undo_asks_first_and_then_runs_as_a_job(qt_app, activity_entry, host, monkeypatch):
-    from bayle.mods import undo as mod_undo
+    from bayle.modules.mods import undo as mod_undo
 
     monkeypatch.setattr(mod_undo, "run", lambda u, log, loc: "undid it")
     w = opened(activity_entry, host)

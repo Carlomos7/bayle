@@ -7,7 +7,7 @@ import ast
 
 from bayle.resources import PACKAGE_DIR
 
-LIMIT = 21  # 81 before the kind registries, the shared types in mods/models.py, the hoisted leaf imports and the backends lookup
+LIMIT = 59  # 21 between the mods modules, 38 more since the Mods page services moved into modules/mods (they imported the mods modules inside functions when they were a layer above)
 
 
 def _targets(node: ast.stmt, mods: set[str]) -> int:
@@ -21,8 +21,8 @@ def _targets(node: ast.stmt, mods: set[str]) -> int:
 
 
 def function_level_imports() -> list[str]:
-    root = PACKAGE_DIR / "mods"
-    mods = {"bayle.mods." + ".".join(p.relative_to(root).with_suffix("").parts) for p in root.rglob("*.py")}
+    root = PACKAGE_DIR / "modules" / "mods"
+    mods = {"bayle.modules.mods." + ".".join(p.relative_to(root).with_suffix("").parts) for p in root.rglob("*.py")}
     found = []
     for path in sorted(root.rglob("*.py")):
         for fn in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -39,7 +39,7 @@ def test_function_level_imports_between_mods_modules_do_not_grow():
 
 
 def test_the_kind_registry_is_filled_for_every_persisted_kind():
-    from bayle.mods import kinds
+    from bayle.modules.mods import kinds
 
     kinds.ensure_loaded()
     assert set(kinds.FINISHERS) == {

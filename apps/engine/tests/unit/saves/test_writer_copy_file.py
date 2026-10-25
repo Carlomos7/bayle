@@ -16,11 +16,11 @@ from synthetic_save import (
     strays,
 )
 
-from bayle.game import catalog as games
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as F
-from bayle.saves import library
-from bayle.saves import transfer as T
+from bayle.modules.games import catalog as games
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as F
+from bayle.modules.saves import library
+from bayle.modules.saves import transfer as T
 
 ER = games.ELDEN_RING
 

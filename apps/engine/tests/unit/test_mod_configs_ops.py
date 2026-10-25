@@ -8,11 +8,10 @@ from test_overhaul_install import PROFILE, World, mixed_mod, set_up
 
 from bayle.api.routers import mod_configs as mod_configs_router
 from bayle.errors import OperationError
-from bayle.mods import configs, overhaul_install
-from bayle.services import mod_configs
-from bayle.services import mods as mod_service
-from bayle.services.mod_configs import ModConfigsService, SetupValues
-from bayle.services.settings import load_settings
+from bayle.modules.mods import configs, mod_configs, overhaul_install
+from bayle.modules.mods import service as mod_service
+from bayle.modules.mods.mod_configs import ModConfigsService, SetupValues
+from bayle.modules.settings.service import load_settings
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import Direct

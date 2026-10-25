@@ -1,8 +1,8 @@
 """The saves-folder override: refused unless it holds a game's save, blank detects, a valid one is what is used."""
 
-from bayle.config.settings import LauncherSettings
-from bayle.game import catalog
-from bayle.game.locate import Locations, saves_dir_problem
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, saves_dir_problem
+from bayle.modules.settings.models import LauncherSettings
 
 
 def test_a_saves_folder_with_no_account_holding_a_save_is_refused(tmp_path):
@@ -18,6 +18,6 @@ def test_a_valid_override_is_what_save_roots_returns_and_blank_detects(tmp_path,
     assert saves_dir_problem(tmp_path, catalog.ELDEN_RING) == ""
     loc = Locations.from_settings(LauncherSettings(saves_dir=str(tmp_path)), catalog.ELDEN_RING)
     assert loc.save_roots() == [tmp_path]
-    monkeypatch.setattr("bayle.platform.paths.save_roots_for", lambda *a: ["detected"])
+    monkeypatch.setattr("bayle.adapters.games.paths.save_roots_for", lambda *a: ["detected"])
     blank = Locations.from_settings(LauncherSettings(), catalog.ELDEN_RING)
     assert blank.save_roots() == ["detected"]

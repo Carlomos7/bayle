@@ -18,17 +18,17 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from bayle.config.app_paths import data_dir
+from bayle.adapters.games.discovery import installed_dir
+from bayle.adapters.system import desktop
+from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system.app_paths import data_dir
 from bayle.errors import Busy, OperationError
-from bayle.game import catalog as games
-from bayle.game.discovery import installed_dir
-from bayle.platform import desktop
-from bayle.platform import logging as run_logging
-from bayle.services import features
-from bayle.services import play as core
-from bayle.services.mods import me3_facts
-from bayle.services.settings import load_settings, save_game_settings
-from bayle.session.startup import StepReport, recover_profile, run_steps
+from bayle.modules.games import catalog as games
+from bayle.modules.launch import play as core
+from bayle.modules.mods.service import me3_facts
+from bayle.modules.settings.service import load_settings, save_game_settings
+from bayle.runtime import features
+from bayle.runtime.startup import StepReport, recover_profile, run_steps
 from bayle.work.jobs import JobManager
 
 from bayle_qt.shell import facts as topbar
@@ -251,7 +251,7 @@ class Shell:
 
     def new_profile(self, name: str, include_seamless: bool) -> str:
         """A profile for this game (and Seamless Co-op moved into it when asked), as a logged job; its id."""
-        from bayle.services import mods as mods_service
+        from bayle.modules.mods import service as mods_service
         from bayle.work import runner as jobs_service
 
         st = self.state

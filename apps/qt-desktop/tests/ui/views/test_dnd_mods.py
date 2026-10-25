@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 import pytest
-from bayle.services.mods import profile_entries
+from bayle.modules.mods.service import profile_entries
 from page_window import PageWindow
 from PySide6.QtCore import QObject, QPoint, Qt
 from PySide6.QtGui import QGuiApplication

@@ -6,9 +6,10 @@ import struct
 
 import pytest
 
-from bayle import formats
-from bayle.formats import dcx
-from bayle.game import archives, config
+from bayle.adapters import formats
+from bayle.adapters.formats import dcx
+from bayle.adapters.games import archives
+from bayle.modules.games import config
 
 KRAK_HEADER = (
     b"DCX\0"

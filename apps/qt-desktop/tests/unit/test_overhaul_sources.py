@@ -6,9 +6,10 @@ from __future__ import annotations
 import random
 
 import pytest
-from bayle.mods import records
-from bayle.overhauls import recipes, sources
-from bayle.overhauls.config import Build
+from bayle.adapters.overhauls import recipes
+from bayle.modules.mods import records
+from bayle.modules.overhauls import sources
+from bayle.modules.overhauls.config import Build
 from pydantic import ValidationError
 
 LANGS = ["araae", "deude", "engus", "frafr", "itait", "jpnjp", "korkr", "polpl", "porbr", "rusru", "spaar", "spaes",
@@ -245,8 +246,8 @@ def _imports(module: str) -> set[str]:
     out = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
-            # from bayle import formats -> bayle.formats
-            out |= {f"{node.module}.{a.name}" for a in node.names} if node.module == "bayle" else {node.module}
+            # from bayle.adapters import formats -> bayle.adapters.formats (a name, or a module below the package)
+            out |= {f"{node.module}.{a.name}" for a in node.names}
         elif isinstance(node, ast.Import):
             out |= {a.name for a in node.names}
     return {m for m in out if m.startswith("bayle")}
@@ -255,23 +256,24 @@ def _imports(module: str) -> set[str]:
 @pytest.mark.parametrize(
     ("module", "allowed"),
     [
-        ("bayle.overhauls.sources", ("bayle.overhauls",)),
-        ("bayle.overhauls.config", ("bayle.overhauls",)),
+        ("bayle.modules.overhauls.sources", ("bayle.modules.overhauls",)),
+        ("bayle.modules.overhauls.config", ("bayle.modules.overhauls",)),
         (
-            "bayle.overhauls.recipes",
-            ("bayle.overhauls", "bayle.resources", "bayle.platform"),
+            "bayle.adapters.overhauls.recipes",
+            ("bayle.modules.overhauls", "bayle.resources", "bayle.adapters.system"),
         ),  # fmt: skip
-        ("bayle.merging.record", ("bayle.game", "bayle.formats")),
-        ("bayle.game.archives", ("bayle.game", "bayle.platform")),
-        ("bayle.mods.naming", ("bayle.config.layout",)),
-        ("bayle.mods.records", ("bayle.resources",)),
+        ("bayle.adapters.merging.record", ("bayle.modules.games", "bayle.adapters.formats", "bayle.adapters.games")),
+        ("bayle.adapters.games.archives", ("bayle.modules.games", "bayle.adapters.system")),
+        ("bayle.modules.mods.naming", ("bayle.modules.settings.layout",)),
+        ("bayle.modules.mods.records", ("bayle.resources",)),
         (
-            "bayle.mods.library",
+            "bayle.modules.mods.library",
             (
-                "bayle.formats",
-                "bayle.platform",
-                "bayle.game.locate",
-                "bayle.config.layout",
+                "bayle.adapters.filesystem",
+                "bayle.adapters.formats",
+                "bayle.adapters.system",
+                "bayle.modules.games.locate",
+                "bayle.modules.settings.layout",
             ),
         ),  # fmt: skip
     ],
@@ -281,4 +283,4 @@ def test_the_new_modules_keep_the_layers(module, allowed):
     services. (lint-imports checks the whole tree; this pins the modules the library foundations added or moved.)"""
     found = _imports(module)
     assert all(m.startswith(allowed) for m in found), found - {m for m in found if m.startswith(allowed)}
-    assert not any(m.startswith(("PySide6", "bayle_qt", "bayle.services")) for m in found)
+    assert not any(m.startswith(("PySide6", "bayle_qt", "bayle.api", "bayle.runtime")) for m in found)

@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
-from bayle.platform.threads import as_worker
+from bayle.adapters.system.threads import as_worker
 
 log = logging.getLogger(__name__)
 _SAME = object()

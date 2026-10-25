@@ -13,7 +13,7 @@ dependencies = [
     "cryptography>=50.0.1",
     "constrata>=1.3.3",
     "sqlalchemy>=2.1.3,<3",  # 2.x: typed DeclarativeBase, Mapped[], mapped_column (storage/)
-    "alembic>=1.20.0",  # storage/migrations, run in code at start-up
+    "alembic>=1.20.0",  # adapters/persistence/migrations, run in code at start-up
     "lupa>=2.8,<3",  # Lua 5.1 compiler: composed character scripts are checked before a build is used (decision 0006)
     "tomlkit==0.15.1",
 ]
@@ -101,30 +101,6 @@ root = "."
 [tool.importlinter]
 root_package = "bayle"
 include_external_packages = true
-
-[[tool.importlinter.contracts]]
-name = "Layers"
-type = "layers"
-exhaustive = false
-layers = [
-    "bayle.cli",
-    "bayle.runtime",
-    "bayle.api",
-    "bayle.session",
-    "bayle.services",
-    "bayle.work",
-    "bayle.mods | bayle.saves | bayle.coop",
-    "bayle.overhauls",
-    "bayle.merging",
-    "bayle.formats | bayle.game",
-    "bayle.storage",
-    "bayle.config",
-    "bayle.platform",
-    "bayle.errors",
-]
-# storage.mirror and mods.history are adapters of the saves record-index port; they move to adapters/ with the
-# layout change.
-ignore_imports = ["bayle.storage.mirror -> bayle.saves.ports", "bayle.mods.history -> bayle.saves.ports"]
 
 [[tool.importlinter.contracts]]
 name = "The engine has no Qt and knows no app"

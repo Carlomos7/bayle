@@ -8,8 +8,8 @@ import os
 
 import pytest
 
-from bayle.platform import files
-from bayle.platform.files import Unsettled, read_settled
+from bayle.adapters.filesystem import files
+from bayle.adapters.filesystem.files import Unsettled, read_settled
 
 DATA = b"invented save bytes " * 50
 

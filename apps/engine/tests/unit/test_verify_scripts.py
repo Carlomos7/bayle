@@ -67,7 +67,7 @@ def test_a_text_table_two_mods_change_is_merged_entry_by_entry():
 
 
 def test_animation_events_two_mods_change_are_worked_out_animation_by_animation():
-    from bayle.formats import tae
+    from bayle.adapters.formats import tae
 
     def t(bank: int, *anims: tuple[int, float]) -> bytes:
         events = lambda end: [tae.Event(0.0, end, 16, 0, bytes(16))]  # noqa: E731

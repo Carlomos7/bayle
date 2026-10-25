@@ -9,10 +9,10 @@ import io
 import os
 from pathlib import Path
 
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as F
-from bayle.saves import layout as L
-from bayle.saves import regulation as R
+from bayle.adapters.saves import layout as L
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as F
+from bayle.modules.saves import regulation as R
 
 
 def build(marks: dict[int, bytes] | None = None, active: tuple[int, ...] = ()) -> bytes:
@@ -159,7 +159,7 @@ def corrupt_after_replace(monkeypatch, onto: Path) -> None:
 # ----------------------------------------------------------------------------- an invented Nightreign container
 def nightreign_good(reg: bytes = b"RSLT" + bytes(12)) -> bytes:
     """A whole Nightreign-shaped save (14 encrypted sections, every checksum right); reg is section 12's payload."""
-    from bayle.saves import nightreign as nr
+    from bayle.adapters.saves import nightreign as nr
 
     payloads = [(reg if i == 12 else bytes([i]) + bytes(15)) for i in range(14)]
     return nr.pack_save(payloads, ivs=[bytes([i, *range(1, 16)]) for i in range(14)])
@@ -167,8 +167,8 @@ def nightreign_good(reg: bytes = b"RSLT" + bytes(12)) -> bytes:
 
 def nightreign_stale(data: bytes, section: int = 3) -> bytes:
     """The same save with one section's stored checksum wrong."""
-    from bayle.saves import container
-    from bayle.saves import nightreign as nr
+    from bayle.adapters.saves import container
+    from bayle.adapters.saves import nightreign as nr
 
     out = bytearray(data)
     sec = container.sections(data)[section]
@@ -180,7 +180,7 @@ def nightreign_stale(data: bytes, section: int = 3) -> bytes:
 
 
 def nightreign_section_offset(data: bytes, section: int) -> int:
-    from bayle.saves import container
+    from bayle.adapters.saves import container
 
     return container.sections(data)[section].offset
 

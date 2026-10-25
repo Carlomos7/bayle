@@ -1,4 +1,4 @@
-"""Rebuild src/bayle/data/known_item_ids.txt: every item ID the game defines, one per line.
+"""Rebuild src/bayle/resources/known_item_ids.txt: every item ID the game defines, one per line.
 
 Reads numeric IDs from src/db/{item,weapon,armor,accessory,aow}_name.rs in the folder you pass. IDs carry the
 category in the high nibble (weapon 0x0, armour 0x1, talisman 0x2, goods 0x4, ash of war 0x8). Weapons get every
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "src" / "bayle" / "data" / "known_item_ids.txt"
+OUT = ROOT / "src" / "bayle" / "resources" / "known_item_ids.txt"
 WEAPON, ARMOR, TALISMAN, GOODS, AOW = 0x00000000, 0x10000000, 0x20000000, 0x40000000, 0x80000000
 TABLES = {"item_name": GOODS, "weapon_name": WEAPON, "armor_name": ARMOR, "accessory_name": TALISMAN, "aow_name": AOW}
 MAX_UPGRADE = 25

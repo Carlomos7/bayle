@@ -7,10 +7,10 @@ from pathlib import Path
 
 from test_engine import PROFILE, Example
 
-from bayle.game import catalog as games
-from bayle.game.locate import Locations, Overrides
-from bayle.mods import rebuild as merge
-from bayle.services import play
+from bayle.modules.games import catalog as games
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.launch import play
+from bayle.modules.mods import rebuild as merge
 from support import er
 
 

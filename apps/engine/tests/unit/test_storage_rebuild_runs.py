@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from bayle.mods import rebuild
+from bayle.adapters.persistence import db, models
+from bayle.adapters.persistence.rebuild_runs import RebuildRuns, fingerprint
+from bayle.modules.mods import rebuild
 from bayle.runtime import bootstrap
-from bayle.storage import db, models
-from bayle.storage.rebuild_runs import RebuildRuns, fingerprint
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
 

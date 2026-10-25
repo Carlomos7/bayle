@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from bayle.platform import steam_shortcuts
+from bayle.adapters.integrations.steam import steam_shortcuts
 
 from bayle_qt.updater import inno, retitle
 

@@ -5,16 +5,16 @@ import dataclasses
 
 import pytest
 
-from bayle.config.app_paths import data_dir
+from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system.app_paths import data_dir
 from bayle.errors import OperationError
-from bayle.game import catalog
-from bayle.game.locate import Locations
-from bayle.mods.layout import Cancelled as LayoutCancelled
-from bayle.mods.layout import LayoutError
-from bayle.platform import logging as run_logging
-from bayle.services import layout as layout_service
-from bayle.services import play as play_service
-from bayle.services.settings import SettingsService, load_settings
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations
+from bayle.modules.launch import play as play_service
+from bayle.modules.mods.layout import Cancelled as LayoutCancelled
+from bayle.modules.mods.layout import LayoutError
+from bayle.modules.settings import locations as layout_service
+from bayle.modules.settings.service import SettingsService, load_settings
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import er

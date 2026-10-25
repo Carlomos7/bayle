@@ -15,8 +15,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from bayle.adapters.system import logging as run_logging
 from bayle.errors import Cancelled, ErrorInfo, OperationError
-from bayle.platform import logging as run_logging
 
 PROGRESS = "progress"
 RESULT = "result"

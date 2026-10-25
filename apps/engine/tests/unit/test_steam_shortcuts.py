@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.platform import steam_shortcuts as vdf
+from bayle.adapters.integrations.steam import steam_shortcuts as vdf
 
 
 def _s(name, value):

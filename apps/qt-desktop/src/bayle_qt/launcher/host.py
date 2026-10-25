@@ -13,12 +13,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
+from bayle.adapters.system import desktop
+from bayle.adapters.system import logging as run_logging
 from bayle.errors import Busy, OperationError
-from bayle.game import catalog as games
-from bayle.platform import desktop
-from bayle.platform import logging as run_logging
-from bayle.services import play as core
-from bayle.services.settings import load_settings
+from bayle.modules.games import catalog as games
+from bayle.modules.launch import play as core
+from bayle.modules.settings.service import load_settings
 from bayle.work.events import Event
 from bayle.work.prompts import Question
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -392,7 +392,7 @@ class ShellHost(QObject):
 
     def seamless_offer(self) -> bool:
         """Seamless Co-op sits in the game folder: a new profile may take it along (moved into the profile)."""
-        from bayle.services import coop as coop_service
+        from bayle.modules.coop import service as coop_service
 
         g = self.state.game
         try:

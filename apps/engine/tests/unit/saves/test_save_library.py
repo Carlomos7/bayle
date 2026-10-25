@@ -5,12 +5,12 @@ import json
 
 import pytest
 
-from bayle.game import catalog as games
-from bayle.platform import paths as common
-from bayle.saves import library as Lib
-from bayle.saves import regulation
-from bayle.services import play as core
-from bayle.services import saves as saves_service
+from bayle.adapters.games import paths as common
+from bayle.modules.games import catalog as games
+from bayle.modules.launch import play as core
+from bayle.modules.saves import library as Lib
+from bayle.modules.saves import regulation
+from bayle.modules.saves import service as saves_service
 from support import er
 
 ER = games.ELDEN_RING

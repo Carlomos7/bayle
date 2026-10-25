@@ -15,9 +15,9 @@ from pydantic import BaseModel
 from bayle.api.deps import service
 from bayle.api.models import JobStarted, Params, Result
 from bayle.api.routers.mod_install import SetupForm
-from bayle.services import game_checks
-from bayle.services import mod_configs as svc
-from bayle.services.mod_configs import ModConfigsService, ModConfigsState
+from bayle.modules.launch import game_checks
+from bayle.modules.mods import mod_configs as svc
+from bayle.modules.mods.mod_configs import ModConfigsService, ModConfigsState
 
 router = APIRouter(prefix="/mod_configs", tags=["mod_configs"])
 Configs = Annotated[ModConfigsService, Depends(service("mod_configs"))]

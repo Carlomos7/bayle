@@ -9,7 +9,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from bayle.platform import logging as run_logging
+from bayle.adapters.system import logging as run_logging
 from bayle.work import runner as jobs
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 

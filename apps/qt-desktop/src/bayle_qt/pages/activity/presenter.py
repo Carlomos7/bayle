@@ -15,12 +15,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from bayle.adapters.system import logging as run_logging
 from bayle.errors import OperationError
-from bayle.game import catalog as games
-from bayle.mods import kinds
-from bayle.mods import undo as mod_undo
-from bayle.platform import logging as run_logging
-from bayle.services.activity import JobLog
+from bayle.modules.activity.service import JobLog
+from bayle.modules.games import catalog as games
+from bayle.modules.mods import kinds
+from bayle.modules.mods import undo as mod_undo
 from bayle.work.prompts import Confirm, Refusal
 
 from bayle_qt.text import plural, tr

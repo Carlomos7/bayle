@@ -6,11 +6,11 @@ import struct
 
 import pytest
 
-from bayle.game import catalog as games
-from bayle.saves import fix as F
-from bayle.saves import layout as L
-from bayle.saves import library as Lib
-from bayle.saves import transfer as T
+from bayle.adapters.saves import layout as L
+from bayle.modules.games import catalog as games
+from bayle.modules.saves import fix as F
+from bayle.modules.saves import library as Lib
+from bayle.modules.saves import transfer as T
 from support import copy_live_save as _copy
 
 ER = games.ELDEN_RING

@@ -28,12 +28,13 @@ from urllib.request import url2pathname
 
 import pytest
 
-from bayle.config import settings_file
-from bayle.platform import data_folder, instance, me3_paths
-from bayle.platform import paths as common
-from bayle.runtime import bootstrap
-from bayle.saves import backups as save_backups
-from bayle.saves import item_names
+from bayle.adapters.games import paths as common
+from bayle.adapters.integrations.me3 import me3_paths
+from bayle.adapters.persistence import settings_file
+from bayle.adapters.saves import item_names
+from bayle.adapters.system import data_folder
+from bayle.modules.saves import backups as save_backups
+from bayle.runtime import bootstrap, instance
 
 _WRITABLE: list[str] = []  # while a test runs: the folders it may write in; empty = not guarding
 _WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_TRUNC
@@ -127,8 +128,8 @@ def isolated_settings(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def example_overhaul_shipped(monkeypatch):
     """The launcher ships no overhaul config; the tests ship an invented one (tests/data/overhauls)."""
-    from bayle.overhauls import recipes as overhaul_recipes
-    from bayle.overhauls import writer as overhaul_writer
+    from bayle.adapters.overhauls import recipes as overhaul_recipes
+    from bayle.adapters.overhauls import writer as overhaul_writer
 
     here = Path(__file__).parent / "data" / "overhauls"
     monkeypatch.setattr(overhaul_recipes, "SHIPPED_DIR", here)
@@ -138,7 +139,7 @@ def example_overhaul_shipped(monkeypatch):
 @pytest.fixture(autouse=True)
 def installed_me3_not_asked(monkeypatch):
     """A rebuild records the installed me3's version by running it: tests never run the developer's me3."""
-    from bayle.mods.backends import builtin
+    from bayle.adapters.overhauls.backends import builtin
 
     monkeypatch.setattr(builtin, "_me3_version", lambda _loc: "0.13.0")
 
@@ -147,7 +148,7 @@ def installed_me3_not_asked(monkeypatch):
 def no_programs_running(monkeypatch):
     """Tests never list this machine's processes (whether Steam or the game runs here): nothing is running unless a
     test says so. Listing them took about a second each time on Windows."""
-    from bayle.platform import proc
+    from bayle.adapters.system import proc
 
     monkeypatch.setattr(proc, "processes", lambda name: [])
 
@@ -156,7 +157,7 @@ def no_programs_running(monkeypatch):
 def saves_written_without_waiting(monkeypatch):
     """The save lock waits until a save has been unchanged for 4 seconds; a test's save was always just written, so
     every write waited. Tests that check the wait set services.saves.SETTLE_SECONDS themselves."""
-    from bayle.services import saves
+    from bayle.modules.saves import service as saves
 
     monkeypatch.setattr(saves, "SETTLE_SECONDS", 0.0)
 
@@ -173,7 +174,7 @@ def recycle_bin_left_clean(request, monkeypatch, tmp_path):
     """Removing a mod sends its folder to the trash. On Windows that is the real Recycle Bin: every item a test sends
     there is purged after it, so the bin is left as it was. Elsewhere the desktop trash is a folder the launcher
     writes itself, so each test gets its own in its temporary folder (the real one is never touched)."""
-    from bayle.platform import trash
+    from bayle.adapters.filesystem import trash
 
     if sys.platform != "win32":
         own = tmp_path / "Trash"
@@ -223,7 +224,7 @@ def recycle_bin_left_clean(request, monkeypatch, tmp_path):
 def clean_logging(isolated_settings):
     """No job, sink or standalone run survives a test, so one test's lines never reach another's files. Ended while
     the test's own data folder is still in place (isolated_settings), where the job's index is written."""
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
 
     yield
     job = run_logging.current_job()

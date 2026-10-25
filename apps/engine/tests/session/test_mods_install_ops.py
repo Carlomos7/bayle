@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from bayle.adapters.system import threads
 from bayle.errors import OperationError
-from bayle.platform import threads
-from bayle.services import profile_mods
-from bayle.services.mod_install import ModInstallService
-from bayle.services.mods import profile_entries
+from bayle.modules.mods import profile_mods
+from bayle.modules.mods.mod_install import ModInstallService
+from bayle.modules.mods.service import profile_entries
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import ServiceCalls, er, mods_profile

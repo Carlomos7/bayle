@@ -7,12 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.game import catalog as games
-from bayle.mods import profile_edit
-from bayle.mods import rebuild as mod_merge
-from bayle.platform import logging as run_logging
-from bayle.services import profile_mods as pm
-from bayle.services.mods import profile_entries
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.games import catalog as games
+from bayle.modules.mods import profile_edit
+from bayle.modules.mods import profile_mods as pm
+from bayle.modules.mods import rebuild as mod_merge
+from bayle.modules.mods.service import profile_entries
 from support import er
 
 PROFILE = (
@@ -99,7 +99,7 @@ def test_taking_out_a_holder_is_one_write_with_one_version(profile):
 
 
 def test_a_holder_removal_that_fails_leaves_the_profile_as_it_was(profile, monkeypatch):
-    from bayle.mods.profile_writer import ProfileWriter
+    from bayle.modules.mods.profile_writer import ProfileWriter
 
     def fail(self, index):
         raise OSError("disk gone")
@@ -112,8 +112,8 @@ def test_a_holder_removal_that_fails_leaves_the_profile_as_it_was(profile, monke
 
 
 def test_a_holder_removal_interrupted_before_it_counted_is_put_right(profile, monkeypatch):
-    from bayle.mods import operations
-    from bayle.services import mods as mod_service
+    from bayle.modules.mods import operations
+    from bayle.modules.mods import service as mod_service
 
     def crash(op, then=None):
         raise KeyboardInterrupt  # the window closed before the operation counted as done
@@ -201,7 +201,7 @@ def test_the_service_does_not_touch_profile_edit_rules_it_reuses():
 
 
 def test_the_page_facts_read_in_one_pass(profile):
-    from bayle.config.settings import LauncherSettings
+    from bayle.modules.settings.models import LauncherSettings
 
     (profile.parent / "natives" / "other" / "other.dll").unlink()  # its DLL went missing
     (profile.parent / "mod" / "flora" / "parts").rmdir()  # flora's folder is empty now
@@ -215,7 +215,7 @@ def test_the_page_facts_read_in_one_pass(profile):
 
 
 def test_unreadable_page_facts_say_why(tmp_path):
-    from bayle.config.settings import LauncherSettings
+    from bayle.modules.settings.models import LauncherSettings
 
     facts = pm.page_facts(tmp_path / "gone.me3", loc=er(), settings=LauncherSettings())
     assert facts.error and facts.entries == ()

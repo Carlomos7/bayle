@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from bayle.adapters.filesystem import trash
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.platform import trash
-from bayle.services.mod_install import ModInstallService
-from bayle.services.shared_mods import ModLibraryService
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods.mod_install import ModInstallService
+from bayle.modules.mods.shared_mods_page import ModLibraryService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 

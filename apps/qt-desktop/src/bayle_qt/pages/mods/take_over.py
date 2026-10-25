@@ -17,7 +17,7 @@ from bayle_qt.pages.mods.install_adapter import query
 from bayle_qt.text import tr
 
 if TYPE_CHECKING:
-    from bayle.services.mod_install import OverhaulChoices, OverhaulPlan
+    from bayle.modules.mods.mod_install import OverhaulChoices, OverhaulPlan
 
     from bayle_qt.pages.mods.adapter import ModsAdapter
 

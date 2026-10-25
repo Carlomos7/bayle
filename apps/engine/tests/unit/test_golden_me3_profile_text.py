@@ -1,8 +1,7 @@
 """Golden text for me3 profiles: the text codec (formats.me3_profile) and the text surgery (mods.profile_edit)
 give exactly these bytes for fixed input. Later phases move both; the text must not change."""
 
-from bayle.formats import me3_profile
-from bayle.mods import me3_text
+from bayle.adapters.formats import me3_profile, me3_text
 
 BASE = (
     'profileVersion = "v1"\n'

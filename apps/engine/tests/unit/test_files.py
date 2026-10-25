@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from bayle.platform.files import atomic_write
+from bayle.adapters.filesystem.files import atomic_write
 
 
 def test_a_failed_write_leaves_the_file_and_no_temp_file(tmp_path, monkeypatch):

@@ -43,11 +43,11 @@ from pathlib import Path
 from typing import Any
 
 from bayle import __version__
-from bayle.config import identity
-from bayle.config.app_paths import appimage, identity_matches, is_portable, velopack_root
-from bayle.config.settings import LauncherSettings
-from bayle.config.settings_file import change_settings, load_settings, save_settings
-from bayle.platform import data_folder, instance
+from bayle.adapters.persistence.settings_file import change_settings, load_settings, save_settings
+from bayle.adapters.system import data_folder, identity
+from bayle.adapters.system.app_paths import appimage, identity_matches, is_portable, velopack_root
+from bayle.modules.settings.models import LauncherSettings
+from bayle.runtime import instance
 
 from bayle_qt.resources import UPDATER_DATA
 from bayle_qt.updater import signing

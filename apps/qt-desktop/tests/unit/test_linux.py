@@ -1,11 +1,11 @@
 """Linux and Steam Deck detection, exercised on fake home folders so it runs on any OS."""
 
-from bayle.game import catalog
-from bayle.game.locate import Locations
-from bayle.platform import me3_paths
-from bayle.platform import paths as common
-from bayle.platform import proc as process_list
-from bayle.platform import steam as steam_detect
+from bayle.adapters.games import paths as common
+from bayle.adapters.integrations.me3 import me3_paths
+from bayle.adapters.integrations.steam import steam as steam_detect
+from bayle.adapters.system import proc as process_list
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations
 
 from bayle_qt.updater import apply as updates
 

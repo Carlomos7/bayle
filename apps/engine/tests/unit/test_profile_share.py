@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config.settings_file import load_settings
-from bayle.merging.build import BuildError
-from bayle.mods import profile_share, undo
-from bayle.mods.models import ModError
-from bayle.services import profile_transfer as pt
+from bayle.adapters.filesystem.build import BuildError
+from bayle.adapters.persistence.settings_file import load_settings
+from bayle.modules.mods import profile_share, undo
+from bayle.modules.mods import profile_transfer as pt
+from bayle.modules.mods.models import ModError
 from support import er
 
 PROFILE = (
@@ -330,7 +330,7 @@ def _pack(tmp_path: Path, volume: int) -> Path:
 
 def _folders(profile: Path) -> list[str]:
     """Where each entry of the profile points, as written (one per entry)."""
-    from bayle.formats import me3_profile
+    from bayle.adapters.formats import me3_profile
 
     return sorted(e["path"] for e in me3_profile.entries(me3_profile.read_text(profile)) if e["path"])
 

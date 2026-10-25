@@ -7,10 +7,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
-from bayle.services.activity import ActivityService
-from bayle.services.features import Features
-from bayle.services.saves_page import SavesService
-from bayle.services.settings import SettingsService
+from bayle.modules.activity.service import ActivityService
+from bayle.modules.saves.saves_page import SavesService
+from bayle.modules.settings.service import SettingsService
+from bayle.runtime.features import Features
 
 
 class Host(Protocol):

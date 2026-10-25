@@ -8,13 +8,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
-from bayle.game import catalog as games
-from bayle.platform import logging as run_logging
-from bayle.platform.logging import JobStore
-from bayle.services import play as core
-from bayle.services.mods import migrate_profile_folders
-from bayle.services.settings import load_settings, save_settings
-from bayle.session.startup import StartupStep
+from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system.logging import JobStore
+from bayle.modules.games import catalog as games
+from bayle.modules.launch import play as core
+from bayle.modules.mods.service import migrate_profile_folders
+from bayle.modules.settings.service import load_settings, save_settings
+from bayle.runtime.startup import StartupStep
 from bayle.work.jobs import JobManager
 
 

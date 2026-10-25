@@ -2849,7 +2849,7 @@
           "tool": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/bayle__services__mods_page__ToolInfo"
+                "$ref": "#/components/schemas/bayle__modules__mods__mods_page__ToolInfo"
               },
               {
                 "type": "null"
@@ -7179,7 +7179,7 @@
         "title": "ToolInfo",
         "type": "object"
       },
-      "bayle__services__mods_page__ToolInfo": {
+      "bayle__modules__mods__mods_page__ToolInfo": {
         "description": "A mod's rebuild tool: what the player is asked to allow. key tells that it is another version of the tool.",
         "properties": {
           "key": {

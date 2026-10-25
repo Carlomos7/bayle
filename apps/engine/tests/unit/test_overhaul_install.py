@@ -13,17 +13,18 @@ from fakegame import bnd, dcx, fmg
 from test_engine import ARCHIVES, GAME_CLIPS, PAYLOAD, game_files
 from test_param_merge import pack, set_word, vanilla
 
-from bayle import overhauls
-from bayle.game import catalog, discovery
-from bayle.game.locate import Locations, Overrides
-from bayle.merging import build as B
-from bayle.mods import library, operations, overhaul_install, records, undo
-from bayle.mods import models as mod_models
-from bayle.mods import rebuild as merge
-from bayle.mods.overhaul_install import OverhaulError
-from bayle.overhauls import recipes
-from bayle.platform import paths as common
-from bayle.platform import trash as real_trash
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.filesystem import trash as real_trash
+from bayle.adapters.games import discovery
+from bayle.adapters.games import paths as common
+from bayle.adapters.overhauls import recipes
+from bayle.modules import overhauls
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import library, operations, overhaul_install, records, undo
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods import rebuild as merge
+from bayle.modules.mods.overhaul_install import OverhaulError
 
 PROFILE = """profileVersion = "v1"
 start_online = true
@@ -343,7 +344,7 @@ def test_a_profile_changed_after_the_preview_is_not_overwritten(world):
 
 
 def test_a_failed_build_leaves_everything_as_it_was(world, monkeypatch):
-    from bayle.mods import engine
+    from bayle.adapters.overhauls import engine
 
     before = files(world.base)
 
@@ -545,9 +546,9 @@ def test_without_choices_an_installer_setups_side_effects_stay(world):
 
 # ----------------------------------------------------------------------------- the services the pages call
 def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch):
-    from bayle.config import settings_file
-    from bayle.platform import logging as run_logging
-    from bayle.services import mods as service
+    from bayle.adapters.persistence import settings_file
+    from bayle.adapters.system import logging as run_logging
+    from bayle.modules.mods import service
 
     assert not service.overhaul_preview_on(world.loc)  # the switch is off by default
     settings_file.save_settings(overhaul_install=True)
@@ -578,7 +579,7 @@ def test_the_services_leave_the_undo_records_activity_offers(world, monkeypatch)
 def test_a_profile_its_overhauls_installer_made_cannot_be_deleted_one_the_launcher_made_can(world):
     from types import SimpleNamespace
 
-    from bayle.services import profile_mods as pm
+    from bayle.modules.mods import profile_mods as pm
 
     def refusal(kind="me3", source=None):
         return pm.delete_refusal(
@@ -598,7 +599,7 @@ def test_a_profile_its_overhauls_installer_made_cannot_be_deleted_one_the_launch
 
 
 def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
-    from bayle.services import mods as service
+    from bayle.modules.mods import service
 
     legacy(world)
     assert service.profile_overhaul(world.profile, loc=world.loc)["legacy"] is True
@@ -613,7 +614,7 @@ def test_an_installer_setups_choices_and_leftovers_through_the_services(world):
 
 
 def test_the_switch_and_button_words_come_from_the_configs(world):
-    from bayle.services import mods as service
+    from bayle.modules.mods import service
 
     assert service.installable_overhauls("eldenring") == ["Example Overhaul LITE 0.1.33-rc3"]
     assert service.installable_overhauls("nightreign") == []
@@ -636,7 +637,7 @@ def mixed_mod(world) -> Path:
 
 
 def set_up(world) -> tuple[Path, Path, dict]:
-    from bayle.overhauls import basic
+    from bayle.adapters.overhauls import basic
 
     folder = mixed_mod(world)
     config = basic.make(id="mixed-mod", label="Mixed Mod", game="eldenring", basic=basic.propose(folder), folder=folder)
@@ -690,9 +691,9 @@ def test_turn_off_makes_the_mod_ordinary_and_undo_puts_the_setup_back(world):
 
 # ----------------------------------------------------------------------------- the generic setup needs no shipped config
 def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(world, monkeypatch, tmp_path):
-    from bayle.config import settings_file
-    from bayle.overhauls import recipes as overhaul_recipes
-    from bayle.services import mods as service
+    from bayle.adapters.overhauls import recipes as overhaul_recipes
+    from bayle.adapters.persistence import settings_file
+    from bayle.modules.mods import service
 
     empty = tmp_path / "no-shipped"
     empty.mkdir()
@@ -707,8 +708,8 @@ def test_the_setup_is_offered_with_the_switch_on_even_with_no_shipped_config(wor
 
 
 def test_a_local_config_the_player_made_is_listed(world, monkeypatch, tmp_path):
-    from bayle.overhauls import recipes
-    from bayle.services import mods as service
+    from bayle.adapters.overhauls import recipes
+    from bayle.modules.mods import service
 
     shipped = recipes.SHIPPED_DIR / "example-overhaul.toml"
     empty = tmp_path / "no-shipped"

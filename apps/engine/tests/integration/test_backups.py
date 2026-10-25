@@ -7,13 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config.settings import LauncherSettings
-from bayle.game.locate import Locations
-from bayle.platform import data_folder, paths
-from bayle.saves import backups as save_backups
-from bayle.saves import layout as save_layout_check
-from bayle.services import play as g
-from bayle.services import saves as saves_service
+from bayle.adapters.games import paths
+from bayle.adapters.saves import layout as save_layout_check
+from bayle.adapters.system import data_folder
+from bayle.modules.games.locate import Locations
+from bayle.modules.launch import play as g
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import service as saves_service
+from bayle.modules.settings.models import LauncherSettings
 from support import copy_live_save as _copy
 from support import er
 

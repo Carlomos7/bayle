@@ -6,11 +6,11 @@ import shutil
 from pathlib import Path
 
 import pytest
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.mods import shared_mods
-from bayle.platform import trash
-from bayle.services.mods import profile_entries
+from bayle.adapters.filesystem import trash
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import shared_mods
+from bayle.modules.mods.service import profile_entries
 from test_mods_view import Host, closed, opened, settle
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
@@ -158,8 +158,8 @@ def test_duplicate_asks_and_can_share_with_the_original(qt_app, world):
 
 
 def test_the_install_dialog_offers_keep_separate_or_share_for_identical_files(qt_app, world, tmp_path, shots):
-    from bayle.services import mods as mod_service
-    from bayle.services.mod_install import plan_facts
+    from bayle.modules.mods import service as mod_service
+    from bayle.modules.mods.mod_install import plan_facts
 
     from bayle_qt.pages.mods.install_presenter import InstallDraft
 

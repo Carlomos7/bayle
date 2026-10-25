@@ -18,10 +18,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from bayle.mods import rebuild as mod_merge
-from bayle.platform import logging as run_logging
-from bayle.services import game_checks, profile_mods
-from bayle.services import play as core
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.launch import game_checks
+from bayle.modules.launch import play as core
+from bayle.modules.mods import profile_mods
+from bayle.modules.mods import rebuild as mod_merge
 from bayle.work import jobs
 from bayle.work.prompts import Option, Question
 

@@ -1,0 +1,582 @@
+"""The save library: named copies of whole save files kept beside the live ones, and the swaps between them.
+
+Each Steam account's saves get a library folder in the launcher's data folder (save_backups.library) with the copies
+and a `library.json` that tracks them:
+
+  entries  one per copy: its name, the file it came from, when, the game, the save format, a summary of its
+           characters and a SHA-256 of the copy, so a file changed outside the launcher is noticed.
+  history  every save copy, swap, rename, import and delete, newest last.
+
+A swap never loses anything: the live file goes into the library under a name first (the user's, or a default built
+from its characters and the time), then the chosen copy is written over the live file. Entries stay in the library
+after they are swapped in. Callers check the game is closed (service.assert_writable) before any write here.
+"""
+
+from __future__ import annotations
+
+import datetime
+import hashlib
+import json
+import re
+import shutil
+import struct
+import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
+from bayle.adapters.filesystem import filelock
+from bayle.adapters.filesystem.files import atomic_write, durable_write, read_settled
+from bayle.adapters.saves import container as save_container
+from bayle.adapters.saves import layout as L
+from bayle.modules.games import catalog as games
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as save_fix
+from bayle.modules.saves import ports
+from bayle.modules.saves import regulation as save_regulation
+
+MANIFEST = "library.json"
+SUMMARY_STRIDE = 0x24C  # one character's entry in the profile summary list after the ten active flags
+NAME_MAX = 80
+
+
+class LibraryError(Exception):
+    pass
+
+
+class NotASave(LibraryError):
+    """The file is not a whole save of this game (or far too big to be one). Nothing was added."""
+
+
+# shortcut: a fixed ceiling well above every save format we know (an Elden Ring PC save is about 28 MB); raise it
+# if a game's saves ever come near. It keeps a picked or client-named file from being read into memory whole.
+MAX_SAVE_BYTES = 128 * 1024 * 1024
+
+
+# ----------------------------------------------------------------------------- reading a save's characters
+def characters(path: Path, game: games.Game | None = None) -> list[dict]:
+    """Active characters as {slot, name, level, seconds} from the profile summary. Empty for saves this launcher
+    cannot read inside (Nightreign encrypts its saves) or that do not parse."""
+    game = game or games.for_save(path) or games.ELDEN_RING
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return []
+    return characters_in(data, game)
+
+
+def characters_in(data: bytes, game: games.Game) -> list[dict]:
+    """characters() of a save's bytes already read."""
+    if game.save_reader != "eldenring":
+        return []
+    try:
+        r = L.parse_bytes(data)
+    except L.ParseError, EOFError, ValueError, struct.error:
+        return []
+    base = r["ud10"]["active_pos"] + 10
+    out = []
+    for i, on in enumerate(r["ud10"]["active"]):
+        if not on:
+            continue
+        off = base + i * SUMMARY_STRIDE
+        name = data[off : off + 0x22].decode("utf-16-le", "replace").split("\0")[0]
+        level, seconds = struct.unpack_from("<II", data, off + 0x22)
+        out.append({"slot": i + 1, "name": name, "level": level, "seconds": seconds})
+    return out
+
+
+def default_name(path: Path, game: games.Game | None = None, when: datetime.datetime | None = None) -> str:
+    """A name that says what is inside: the most played character, how many more, and when it was set aside."""
+    when = when or datetime.datetime.now()
+    chars = characters(path, game)
+    stamp = when.strftime("%Y-%m-%d %H:%M")
+    if not chars:
+        return f"{Path(path).name} · {stamp}"
+    top = max(chars, key=lambda c: c["seconds"])
+    more = f" +{len(chars) - 1}" if len(chars) > 1 else ""
+    return f"{top['name']} lvl {top['level']}{more} · {stamp}"
+
+
+def clean_name(name: str) -> str:
+    name = " ".join(str(name or "").split())[:NAME_MAX]
+    if not name:
+        raise LibraryError("Give the copy a name.")
+    return name
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def check_whole(data: bytes, game: games.Game) -> None:
+    """Refuse bytes that are not a whole save of this game."""
+    if game.save_reader == "eldenring":
+        if not save_regulation.is_pc_save(data):
+            raise NotASave(f"That file is not a PC {game.name} save.")
+        return
+    try:
+        save_container.check(data, game.save_sections)
+    except save_container.ContainerError as e:
+        raise NotASave(f"That file is not a whole {game.name} save: {e}.") from e
+
+
+STEAM_ID = re.compile(r"7656119\d{10}")
+
+
+def account_of(path: Path) -> int | None:
+    """The Steam account a save belongs to: its folder's name when that is one, else the Steam ID in its profile
+    summary (UserData10). None when neither can be read. Read-only."""
+    path = Path(path)
+    if STEAM_ID.fullmatch(path.parent.name):
+        return int(path.parent.name)
+    try:
+        return int(L.parse(str(path))["ud10"]["steam_id"])
+    except OSError, L.ParseError, EOFError, ValueError, struct.error:
+        return None
+
+
+def signed_for_account(data: bytes, target: Path, game: games.Game) -> tuple[bytes, bool]:
+    """Whole-file bytes of an Elden Ring save, made the target's own: the Steam ID in the profile summary and in every
+    active character set to the target's account, then every checksum signed again. Returns (bytes, changed); the same
+    bytes when the game is another one, the account is the same or the target's account is unknown. The result is
+    parsed back and compared before it is returned, so nothing is written from a bad edit (LibraryError)."""
+    if game.save_reader != "eldenring":
+        return data, False
+    sid = account_of(target)
+    try:
+        src = L.parse_bytes(data)
+    except (L.ParseError, EOFError, struct.error) as e:
+        raise LibraryError(f"That file could not be read: {e}") from e
+    active = [i for i, on in enumerate(src["ud10"]["active_raw"]) if on]
+    if sid is None or (src["ud10"]["steam_id"] == sid and all(src["slots"][i]["steam_id"] == sid for i in active)):
+        return data, False
+    old = [i for i in active if i in src["unreadable"]]
+    if old:
+        raise LibraryError(
+            f"Slot {old[0] + 1} is in a layout this launcher cannot read, so the file cannot be signed for this "
+            "account. Load that character once in the game, then try again."
+        )
+    out = bytearray(data)
+    for i in active:
+        struct.pack_into("<Q", out, src["slots"][i]["steam_id_pos"], sid)
+        save_fix._sign_slot(out, i)
+    struct.pack_into("<Q", out, src["ud10_pos"] + 0x14, sid)
+    save_fix._sign_ud10(out, src["ud10_pos"])
+    try:
+        got = L.parse_bytes(bytes(out))
+    except (L.ParseError, EOFError, struct.error) as e:
+        raise LibraryError(f"The re-signed copy did not read back ({e}); nothing was written.") from e
+    ok = (
+        got["ud10_md5_ok"]
+        and got["ud10"]["steam_id"] == sid
+        and got["ud10"]["active_raw"] == src["ud10"]["active_raw"]
+        and all(
+            got["slot_md5_ok"][i]
+            and got["slots"][i]["steam_id"] == sid
+            and got["slots"][i]["pgd"]["name"] == src["slots"][i]["pgd"]["name"]
+            and got["slots"][i]["pgd"]["level"] == src["slots"][i]["pgd"]["level"]
+            for i in active
+        )
+    )
+    if not ok:
+        raise LibraryError("The re-signed copy did not read back as expected; nothing was written.")
+    return bytes(out), True
+
+
+# ----------------------------------------------------------------------------- the manifest
+def folder_for(save_dir: Path) -> Path:
+    """The library for one account's saves (save_dir: the folder holding ER0000.sl2)."""
+    return save_backups.library(save_dir)
+
+
+class LockOrderError(RuntimeError):
+    """A programming error: the library lock was asked for inside a backups lock (see library_lock)."""
+
+
+class LibraryBusy(LibraryError):
+    """Another launcher process or thread held the library's lock past the timeout. Nothing was changed."""
+
+
+@contextmanager
+def library_lock(save_dir: Path) -> Iterator[None]:
+    """Hold the lock on one account's library (<library>.lock beside its folder) for a whole change: the manifest
+    is read after the lock is taken and written, with the copies it moves, before it is let go. Shared by every
+    launcher process and thread (platform.filelock.exclusive); a call inside another on the same thread
+    (swap_in adding the outgoing save) just enters. Raises LibraryBusy when it isn't free within
+    save_backups.LOCK_TIMEOUT. Lock order: the library lock first, then the backups lock (swap_in backs up the live
+    save inside it); taking the library lock while this thread holds a backups lock raises LockOrderError, since
+    two processes taking them in opposite orders could each wait for the other."""
+    if save_backups.holding_account_lock():
+        raise LockOrderError("The save library's lock is taken before a backups lock, never inside one.")
+    folder = folder_for(save_dir)
+    message = f"Another Bayle window or Play is changing the save library ({folder}). Try again."
+    with filelock.exclusive(folder, save_backups.LOCK_TIMEOUT, lambda: LibraryBusy(message)):
+        yield
+
+
+class LibraryUnreadable(LibraryError):
+    """library.json exists but can't be read, or isn't the shape this launcher writes. It is left exactly as it is:
+    nothing in that library changes until it is fixed or moved aside by hand."""
+
+
+def _read_manifest(folder: Path) -> dict | None:
+    """library.json as stored, or None when there is none. Raises LibraryUnreadable when it can't be read, isn't
+    JSON, or isn't an object whose entries (each with an id) and history are lists of objects: rewriting such a file
+    would drop what this launcher can't read."""
+    p = folder / MANIFEST
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except OSError, ValueError:
+        raise LibraryUnreadable(f"{p} can't be read") from None
+    if not isinstance(raw, dict):
+        raise LibraryUnreadable(f"{p} isn't a library manifest")
+    entries, history = raw.get("entries", []), raw.get("history", [])
+    if not isinstance(entries, list) or not all(isinstance(e, dict) and e.get("id") for e in entries):
+        raise LibraryUnreadable(f"{p} has entries this launcher can't read")
+    if not isinstance(history, list) or not all(isinstance(h, dict) for h in history):
+        raise LibraryUnreadable(f"{p} has a history this launcher can't read")
+    return raw
+
+
+def load(save_dir: Path) -> dict:
+    """The library for one account folder; a missing manifest reads as empty. An unreadable one also lists as empty,
+    with doc["unreadable"] saying why, and every change to that library is refused (LibraryUnreadable) so the file
+    is never rewritten as an empty library. Entries whose file is gone are kept but flagged, so nothing silently
+    disappears from the list. A missing file still in the removed folder (a removal that could neither finish nor
+    move it back) is named in in_removed. Fields this launcher doesn't know, at any level, are kept."""
+    folder = folder_for(save_dir)
+    doc: dict = {"version": 1, "entries": [], "history": []}
+    try:
+        raw = _read_manifest(folder) or {}
+    except LibraryUnreadable as e:
+        doc["unreadable"] = str(e)
+        return doc
+    doc.update(raw)
+    doc["entries"] = list(raw.get("entries", []))
+    doc["history"] = list(raw.get("history", []))
+    for e in doc["entries"]:
+        e["missing"] = not (folder / e.get("file", "")).is_file()
+        stranded = folder / save_backups.LIBRARY_REMOVED / e.get("file", "")
+        if e["missing"] and e.get("file") and stranded.is_file():
+            e["in_removed"] = str(stranded)
+    return doc
+
+
+def _load_for_change(save_dir: Path) -> dict:
+    """load(), refusing when the manifest can't be read: a change would overwrite it."""
+    doc = load(save_dir)
+    if doc.get("unreadable"):
+        raise LibraryUnreadable(
+            f"{doc['unreadable']}, so the library was not changed. Fix the file or move it aside, then try again."
+        )
+    return doc
+
+
+def _save(save_dir: Path, doc: dict) -> None:
+    """Write the manifest (under library_lock). History lines a change could not write earlier (pending-history/)
+    are added first, once each (by their op id), and their files removed after the write."""
+    folder = folder_for(save_dir)
+    _read_manifest(folder)  # last check: never write over a manifest that became unreadable since it was loaded
+    folder.mkdir(parents=True, exist_ok=True)
+    pending = _pending_history(folder)
+    seen = {h.get("op") for h in doc["history"] if h.get("op")}
+    for _path, lines in pending:
+        for line in lines:
+            if line.get("op") not in seen:
+                doc["history"].append(line)
+                seen.add(line.get("op"))
+    clean = {k: v for k, v in doc.items() if k != "unreadable"}  # top-level fields this launcher doesn't know stay
+    clean["entries"] = [{k: v for k, v in e.items() if k not in _SHOWN_ONLY} for e in doc["entries"]]
+    clean["history"] = doc["history"][-500:]
+    atomic_write(folder / MANIFEST, json.dumps(clean, indent=1, ensure_ascii=False))
+    ports.record(ports.LIBRARY, folder / MANIFEST)
+    for path, _lines in pending:
+        path.unlink(missing_ok=True)
+
+
+PENDING_HISTORY = "pending-history"  # in the library folder: history lines a finished change could not write yet
+
+
+def _pending_history(folder: Path) -> list[tuple[Path, list[dict]]]:
+    """Waiting history files and their lines. One that can't be read stays where it is, untouched."""
+    out = []
+    d = folder / PENDING_HISTORY
+    for path in sorted(d.glob("*.json")) if d.is_dir() else []:
+        try:
+            lines = json.loads(path.read_text(encoding="utf-8"))
+        except OSError, ValueError:
+            continue
+        if isinstance(lines, list) and all(isinstance(h, dict) and h.get("op") for h in lines):
+            out.append((path, lines))
+    return out
+
+
+def _record(save_dir: Path, line: dict) -> str | None:
+    """Add one history line for a change that already happened on disk (a swap, a restore). None when written.
+    When the manifest can't be written (or read), the line waits in pending-history/ for the next change and the
+    returned sentence says so; the change itself stands either way."""
+    try:
+        doc = _load_for_change(save_dir)
+        doc["history"].append(line)
+        _save(save_dir, doc)
+        return None
+    except (OSError, LibraryError) as e:
+        line["op"] = line.get("op") or uuid.uuid4().hex
+        folder = folder_for(save_dir)
+        try:
+            (folder / PENDING_HISTORY).mkdir(parents=True, exist_ok=True)
+            path = folder / PENDING_HISTORY / f"{line['op']}.json"
+            atomic_write(path, json.dumps([line], indent=1, ensure_ascii=False))
+        except OSError as e2:
+            return f"the library's history could not be updated ({e}), nor kept for later ({e2})"
+        return f"the library's history could not be updated ({e}); the record is kept in {path} and added later"
+
+
+_SHOWN_ONLY = ("missing", "in_removed")  # worked out by load(), never stored
+
+
+def _line(action: str, entry: dict | None, **detail) -> dict:
+    return {
+        "when": datetime.datetime.now().isoformat(timespec="seconds"),
+        "action": action,
+        "entry": entry["id"] if entry else None,
+        "name": entry["name"] if entry else None,
+        **detail,
+    }
+
+
+def _log(doc: dict, action: str, entry: dict | None, **detail) -> None:
+    doc["history"].append(_line(action, entry, **detail))
+
+
+def entry_path(save_dir: Path, entry: dict) -> Path:
+    return folder_for(save_dir) / entry["file"]
+
+
+def find(doc: dict, entry_id: str) -> dict:
+    e = next((e for e in doc["entries"] if e["id"] == entry_id), None)
+    if e is None:
+        raise LibraryError("That copy is no longer in the library.")
+    return e
+
+
+def changed_outside(save_dir: Path, entry: dict) -> bool:
+    """The copy's bytes no longer match what the library recorded (edited or replaced outside the launcher)."""
+    p = entry_path(save_dir, entry)
+    return p.is_file() and bool(entry.get("sha256")) and _sha256(p) != entry["sha256"]
+
+
+# ----------------------------------------------------------------------------- operations
+def add(save_dir: Path, source: Path, name: str, game: games.Game, action: str = "save copy", note: str = "") -> dict:
+    """Copy a whole save file into the library under a name. The source is only read, once, as one consistent
+    snapshot (read_settled: Unsettled when it kept changing or stayed locked), and everything recorded about it
+    (size, hash, characters, its modified time) comes from that same read."""
+    source = Path(source)
+    if source.stat().st_size > MAX_SAVE_BYTES:
+        raise NotASave(f"{source.name} is far too big to be a {game.name} save.")
+    data, st = read_settled(source)
+    check_whole(data, game)
+    with library_lock(save_dir):
+        return _add(save_dir, source, data, name, game, action, note, st.st_mtime)
+
+
+def _add(
+    save_dir: Path,
+    source: Path,
+    data: bytes,
+    name: str,
+    game: games.Game,
+    action: str,
+    note: str,
+    source_mtime: float | None = None,
+) -> dict:
+    doc = _load_for_change(save_dir)
+    if source_mtime is None:
+        source_mtime = source.stat().st_mtime
+    entry_id = uuid.uuid4().hex[:12]
+    fmt = source.suffix.lower().lstrip(".") or "sl2"
+    entry = {
+        "id": entry_id,
+        "name": clean_name(name),
+        "file": f"{entry_id}.{fmt}",
+        "format": fmt,
+        "game": game.key,
+        "from": source.name,
+        "from_path": str(source),
+        "added": datetime.datetime.now().isoformat(timespec="seconds"),
+        "source_modified": datetime.datetime.fromtimestamp(source_mtime).isoformat(timespec="seconds"),
+        "note": note,
+        "characters": characters_in(data, game),
+        "size": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+    folder = folder_for(save_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / entry["file"]
+
+    def same_copy(tmp: Path) -> None:
+        if _sha256(tmp) != entry["sha256"]:
+            raise LibraryError("The copy did not read back the same; nothing was added.")
+
+    durable_write(target, data, verify=same_copy)  # a new file of its own: checked before it gets its name
+    doc["entries"].append(entry)
+    _log(doc, action, entry, source=source.name)
+    try:
+        _save(save_dir, doc)
+    except BaseException:
+        target.unlink(missing_ok=True)  # not in the manifest: the copy would only be left behind
+        raise
+    return entry
+
+
+def swap_in(save_dir: Path, entry_id: str, live: Path, outgoing_name: str | None, game: games.Game) -> dict:
+    """Put a library copy in place of the live save. The live file goes into the library first under outgoing_name
+    (skipped only when there is no live file), and a regular backup is kept for Undo. Returns
+    {entry, outgoing, backup, warning, signed}. Runs under the library lock throughout. Once the live file is replaced the
+    swap stands: when its history line can't be written, warning says so and where the record waits."""
+    with library_lock(save_dir):
+        return _swap_in(save_dir, entry_id, Path(live), outgoing_name, game)
+
+
+def _swap_in(save_dir: Path, entry_id: str, live: Path, outgoing_name: str | None, game: games.Game) -> dict:
+    doc = _load_for_change(save_dir)
+    entry = find(doc, entry_id)
+    src = entry_path(save_dir, entry)
+    if not src.is_file():
+        raise LibraryError(f"The file for '{entry['name']}' is missing from {folder_for(save_dir)}.")
+    data = src.read_bytes()
+    check_whole(data, game)
+    data, signed = signed_for_account(data, live, game)
+    outgoing = None
+    if live.exists():
+        outgoing = add(save_dir, live, outgoing_name or default_name(live, game), game, action="swapped out")
+    manifest = {"action": f"Before swapping in '{entry['name']}'", "changes": [entry["name"]]}
+
+    def same(path: Path, why: str) -> None:
+        if path.read_bytes() != data:
+            raise LibraryError(f"{live.name} {why}")
+
+    bak = durable_write(
+        live,
+        data,
+        verify=lambda tmp: same(tmp, "was not written as expected; nothing was changed."),
+        before_replace=(lambda: save_fix.backup(live, manifest)) if outgoing is not None else None,
+        after=lambda p: same(p, "did not read back the same after the swap; restore it from Backups."),
+    )
+    # The swap has happened: from here on nothing undoes it or reports it as failed.
+    warning = _record(
+        save_dir,
+        _line(
+            "swap in",
+            entry,
+            target=live.name,
+            outgoing=outgoing["id"] if outgoing else None,
+            backup=bak.name if bak else None,
+        ),
+    )
+    return {"entry": entry, "outgoing": outgoing, "backup": bak, "warning": warning, "signed": signed}
+
+
+def rename(save_dir: Path, entry_id: str, name: str) -> dict:
+    with library_lock(save_dir):
+        doc = _load_for_change(save_dir)
+        entry = find(doc, entry_id)
+        old = entry["name"]
+        entry["name"] = clean_name(name)
+        _log(doc, "rename", entry, was=old)
+        _save(save_dir, doc)
+        return entry
+
+
+def remove(save_dir: Path, entry_id: str) -> Path | None:
+    """Take a copy out of the library. Its file moves to the library's removed folder rather than being erased, with
+    a note (<file>.json: the entry, and library_path, where it was) written first. When the manifest can't be
+    written afterwards the file is moved back and the note removed; if even that fails, both stay in the removed
+    folder, the library still lists the entry (load() names the file in in_removed) and the error says where."""
+    with library_lock(save_dir):
+        doc = _load_for_change(save_dir)
+        entry = find(doc, entry_id)
+        src = entry_path(save_dir, entry)
+        moved = note = None
+        if src.is_file():
+            trash = folder_for(save_dir) / save_backups.LIBRARY_REMOVED
+            trash.mkdir(parents=True, exist_ok=True)
+            moved, note = trash / entry["file"], trash / f"{entry['file']}.json"
+            record = {**{k: v for k, v in entry.items() if k not in _SHOWN_ONLY}, "library_path": str(src)}
+            atomic_write(note, json.dumps(record, indent=1, ensure_ascii=False))
+            shutil.move(str(src), str(moved))
+        doc["entries"] = [e for e in doc["entries"] if e["id"] != entry_id]
+        _log(doc, "delete", entry, moved_to=str(moved) if moved else None)
+        try:
+            _save(save_dir, doc)
+        except BaseException as e:
+            if moved is not None and note is not None:
+                _undo_remove(src, moved, note, e)
+            raise
+        return moved
+
+
+def _stranded(save_dir: Path, doc: dict, entry_id: str) -> tuple[dict, Path, Path, Path]:
+    """A copy a failed removal left in removed/, checked against what the removal recorded: (entry, home, moved,
+    note). Raises LibraryError, changing nothing, when anything differs from then: the copy is back home, gone
+    from removed/, changed since, or its note is missing, unreadable or about another copy or place."""
+    entry = find(doc, entry_id)
+    folder = folder_for(save_dir)
+    home = folder / entry["file"]
+    moved = folder / save_backups.LIBRARY_REMOVED / entry["file"]
+    note = moved.with_name(moved.name + ".json")
+    if home.exists():
+        raise LibraryError(f"'{entry['name']}' is in the library again; nothing was changed.")
+    if not moved.is_file():
+        raise LibraryError(f"'{entry['name']}' is not in the removed folder ({moved}); nothing was changed.")
+    try:
+        record = json.loads(note.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        raise LibraryError(f"The note beside {moved} can't be read; nothing was changed.") from None
+    if not isinstance(record, dict) or record.get("id") != entry["id"] or record.get("library_path") != str(home):
+        raise LibraryError(f"The note beside {moved} is about another copy or place; nothing was changed.")
+    if entry.get("sha256") and _sha256(moved) != entry["sha256"]:
+        raise LibraryError(f"{moved} changed after it was moved; nothing was changed.")
+    return entry, home, moved, note
+
+
+def restore_removed(save_dir: Path, entry_id: str) -> str | None:
+    """Put back a copy a failed removal left in removed/ (load() marks it in_removed), after checking nothing
+    changed since (_stranded). Works after a restart: everything it needs is on disk. Returns a warning when only
+    the history line has to wait (_record)."""
+    with library_lock(save_dir):
+        doc = _load_for_change(save_dir)
+        entry, home, moved, note = _stranded(save_dir, doc, entry_id)
+        shutil.move(str(moved), str(home))
+        note.unlink(missing_ok=True)
+        return _record(save_dir, _line("restore", entry, moved_from=str(moved)))
+
+
+def finish_removal(save_dir: Path, entry_id: str) -> None:
+    """Finish a removal that failed after moving the copy to removed/: the entry leaves the library, the copy and
+    its note stay in removed/ as after any removal. Checked first like restore_removed."""
+    with library_lock(save_dir):
+        doc = _load_for_change(save_dir)
+        entry, _home, moved, _note = _stranded(save_dir, doc, entry_id)
+        doc["entries"] = [e for e in doc["entries"] if e["id"] != entry_id]
+        _log(doc, "delete", entry, moved_to=str(moved), finished_later=True)
+        _save(save_dir, doc)
+
+
+def _undo_remove(src: Path, moved: Path, note: Path, cause: BaseException) -> None:
+    """Put a removed copy back after the manifest could not be written. Raises LibraryError naming where everything
+    is when the copy can't be moved back."""
+    try:
+        shutil.move(str(moved), str(src))
+    except OSError as e:
+        raise LibraryError(
+            f"The library could not be updated ({cause}), and the copy could not be put back ({e}). It is at "
+            f"{moved}; {note.name} beside it says where it belongs. The library still lists it."
+        ) from cause
+    note.unlink(missing_ok=True)

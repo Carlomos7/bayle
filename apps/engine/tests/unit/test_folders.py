@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from bayle.platform import data_folder
-from bayle.saves import backups as save_backups
+from bayle.adapters.system import data_folder
+from bayle.modules.saves import backups as save_backups
 
 
 def _account(tmp_path):
@@ -157,7 +157,7 @@ def test_an_interrupted_note_write_leaves_the_previous_note(tmp_path, monkeypatc
 
 
 def test_set_keep_copies_an_unreadable_note_aside_and_delete_takes_it_along(tmp_path):
-    from bayle.services import saves as saves_service
+    from bayle.modules.saves import service as saves_service
 
     bak = tmp_path / "ER0000.co2.20260101-000000.bak"
     bak.write_bytes(b"x")
@@ -224,7 +224,7 @@ def test_set_keep_on_a_readable_note_keeps_its_other_fields_and_sets_nothing_asi
 
 
 def test_the_backup_list_says_when_protection_is_unreadable_without_calling_it_kept(tmp_path):
-    from bayle.services import saves as saves_service
+    from bayle.modules.saves import service as saves_service
     from support import er
 
     acct = _account(tmp_path)
@@ -292,7 +292,7 @@ def _old_backups(folder, n):
 
 
 def test_prune_keeps_the_newest_backups_count_setting(tmp_path):
-    from bayle.config.settings_file import save_settings
+    from bayle.adapters.persistence.settings_file import save_settings
 
     save_settings(backups_keep=30)
     made, now = _old_backups(tmp_path / "b", 35)
@@ -302,7 +302,7 @@ def test_prune_keeps_the_newest_backups_count_setting(tmp_path):
 
 @pytest.mark.parametrize("value", [0, -1, 4, 201, "ten", None])
 def test_a_bad_backups_count_means_20_never_less(tmp_path, value):
-    from bayle.config.settings_file import settings_path
+    from bayle.adapters.persistence.settings_file import settings_path
 
     settings_path().write_text(json.dumps({"backups_keep": value}))  # as a hand-edited file could hold it
     assert save_backups.keep_newest() == save_backups.KEEP_NEWEST

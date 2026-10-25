@@ -10,17 +10,17 @@ from pathlib import Path
 import pytest
 
 import bayle
-from bayle.platform import cpu
+from bayle.work import cpu
 
 SRC = Path(bayle.__file__).resolve().parent
 TASK = re.compile(r"bayle(\.\w+)+:[A-Za-z]\w*")
 # What the code uses today. A string leaving this list is a removed task; add new ones here.
 KNOWN = {
-    "bayle.platform.cpu:probe",
-    "bayle.saves.caches:forget",
-    "bayle.merging.rules.param:combine_job",
-    "bayle.platform.tree_hash:tree_hash_job",
-    "bayle.services.saves:save_info_job",
+    "bayle.work.cpu:probe",
+    "bayle.modules.saves.caches:forget",
+    "bayle.adapters.merging.rules.param:combine_job",
+    "bayle.adapters.filesystem.tree_hash:tree_hash_job",
+    "bayle.modules.saves.service:save_info_job",
 }
 
 

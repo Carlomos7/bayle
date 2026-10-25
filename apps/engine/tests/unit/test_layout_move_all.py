@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from bayle.services import layout
-from bayle.services import mods as mod_service
+from bayle.modules.mods import service as mod_service
+from bayle.modules.settings import locations as layout
 
 
 def test_move_all_records_one_multi_undo_last_first(monkeypatch):

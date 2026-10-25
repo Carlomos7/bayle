@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game.locate import Locations
-from bayle.merging import build as B
-from bayle.mods import dll_folders as df
-from bayle.mods import install, operations, undo
-from bayle.mods import models as mod_models
-from bayle.mods.profile_edit import entries
-from bayle.platform import trash
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.filesystem import trash
+from bayle.modules.games.locate import Locations
+from bayle.modules.mods import dll_folders as df
+from bayle.modules.mods import install, operations, undo
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods.profile_edit import entries
 from support import er
 
 HEAD = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'

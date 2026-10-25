@@ -4,12 +4,12 @@ import json
 from pathlib import Path
 
 import pytest
-from bayle.config.settings import LauncherSettings
-from bayle.game.locate import Locations, Overrides
-from bayle.services import coop as coop_service
-from bayle.services import mods as mods_service
-from bayle.services import play as g
-from bayle.services import saves as saves_service
+from bayle.modules.coop import service as coop_service
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.launch import play as g
+from bayle.modules.mods import service as mods_service
+from bayle.modules.saves import service as saves_service
+from bayle.modules.settings.models import LauncherSettings
 
 from bayle_qt import branding
 from bayle_qt.pages.mod_configs import presenter as mod_configs_words

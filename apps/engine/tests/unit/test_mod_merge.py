@@ -8,12 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game import discovery
-from bayle.mods import backends, install, remove, tools
-from bayle.mods import profile_edit as M
-from bayle.mods import rebuild as merge
-from bayle.platform import me3_paths
-from bayle.platform import paths as common
+from bayle.adapters.games import discovery
+from bayle.adapters.games import paths as common
+from bayle.adapters.integrations.me3 import me3_paths
+from bayle.adapters.overhauls import backends
+from bayle.modules.mods import install, remove, tools
+from bayle.modules.mods import profile_edit as M
+from bayle.modules.mods import rebuild as merge
 from support import er
 
 TALK = "script/talk/m00_00_00_00.talkesdbnd.dcx"

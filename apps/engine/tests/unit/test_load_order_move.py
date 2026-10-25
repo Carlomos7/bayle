@@ -5,9 +5,8 @@ entries keep their place and can be moved; the write goes through the profile wr
 
 from pathlib import Path
 
-from bayle.mods import history, order
-from bayle.services import profile_mods
-from bayle.services.mods import profile_entries
+from bayle.modules.mods import history, order, profile_mods
+from bayle.modules.mods.service import profile_entries
 from support import er
 
 PROFILE = (

@@ -9,7 +9,7 @@ import threading
 
 import pytest
 
-from bayle.platform.files import atomic_write, durable_write
+from bayle.adapters.filesystem.files import atomic_write, durable_write
 
 
 def sharing_violation(winerror=32):
@@ -185,7 +185,7 @@ def test_two_writers_at_once_leave_one_complete_result(tmp_path):
 CHILD = """
 import os, sys, time
 from pathlib import Path
-from bayle.platform.files import durable_write
+from bayle.adapters.filesystem.files import durable_write
 
 def stall(tmp):
     print("AT", tmp.name, flush=True)  # the temp file is written and fsynced; the target is not touched yet

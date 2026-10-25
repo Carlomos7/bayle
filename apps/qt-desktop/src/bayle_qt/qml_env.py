@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from bayle.platform import data_folder
+from bayle.adapters.system import data_folder
 from PySide6.QtGui import QFontDatabase
 
 from bayle_qt import code_editor  # noqa: F401  (registers Roundtable.Code for QML)

@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from bayle.mods import conflicts as mod_overview
+from bayle.modules.mods import conflicts as mod_overview
 
 from bayle_qt.text import plural, tr
 
@@ -140,6 +140,6 @@ def shown(panel: LoadOrderPanel, show_all: bool) -> LoadOrderPanel:
 
 def same_profile(scan: dict | None, profile) -> bool:
     """The scan is for this profile (an answer for one no longer shown is dropped)."""
-    from bayle.mods import checks
+    from bayle.modules.mods import checks
 
     return bool(scan) and checks.same_folder(Path(scan.get("profile") or ""), Path(profile))

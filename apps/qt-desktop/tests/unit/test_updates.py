@@ -15,7 +15,8 @@ from pathlib import Path
 import fakerelease
 import pytest
 from bayle import __version__
-from bayle.config import app_paths, settings_file
+from bayle.adapters.persistence import settings_file
+from bayle.adapters.system import app_paths
 
 from bayle_qt.updater import apply as updates
 from bayle_qt.updater import feed, signing
@@ -582,7 +583,7 @@ def test_an_update_that_never_applied_is_reported_after_the_watchdogs_time():
 
 
 def test_busy_reason_names_a_shortcut_play(monkeypatch):
-    from bayle.platform import instance
+    from bayle.runtime import instance
 
     monkeypatch.setattr(instance, "held", lambda name: name == instance.PLAY)
     assert "Steam shortcut" in updates.busy_reason()
@@ -671,7 +672,7 @@ def test_data_folder_and_install_folder_can_never_be_the_same(tmp_path, monkeypa
     _frozen_at(monkeypatch, root / "current" / "RoundtableSouls.exe")
     with pytest.raises(RuntimeError, match="app ID must differ"):
         app_paths.data_dir()
-    from bayle.config import identity
+    from bayle.adapters.system import identity
 
     assert identity.Identity().pack_id.lower() != identity.Identity().data_dir_name.lower()  # the release default
 
@@ -715,7 +716,7 @@ def test_identity_matches_reads_the_installed_app_id(tmp_path, monkeypatch):
     (root / "current").mkdir(parents=True)
     (root / "Update.exe").write_bytes(b"x")
     _frozen_at(monkeypatch, root / "current" / "RoundtableSouls.exe")
-    from bayle.config import identity
+    from bayle.adapters.system import identity
 
     (root / "current" / "sq.version").write_text(
         f"<package><metadata><id>{identity.get().pack_id}</id><version>1.0.0</version></metadata></package>"

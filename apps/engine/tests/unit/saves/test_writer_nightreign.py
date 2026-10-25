@@ -17,9 +17,9 @@ from synthetic_save import (
     strays,
 )
 
-from bayle.saves import backups as save_backups
-from bayle.saves import fix as F
-from bayle.saves import nightreign as nr
+from bayle.adapters.saves import nightreign as nr
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import fix as F
 
 
 @pytest.fixture

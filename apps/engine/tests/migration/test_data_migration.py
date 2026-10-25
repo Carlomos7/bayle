@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from bayle.storage import db as storage_db
-from bayle.storage.datamigrations import MigrationError, migrate, runner, write_json
+from bayle.adapters.persistence import db as storage_db
+from bayle.adapters.persistence.datamigrations import MigrationError, migrate, runner, write_json
 
 
 @pytest.fixture
@@ -96,9 +96,9 @@ def test_journals_are_resolved_before_the_database_opens_on_every_start(data):
 
 
 def test_create_engine_recovers_and_stamps_before_it_opens_the_database(monkeypatch):
-    from bayle.platform import data_folder
+    from bayle.adapters.system import data_folder
+    from bayle.runtime import startup_recovery
     from bayle.runtime.bootstrap import create_engine
-    from bayle.services import startup_recovery
 
     ran = []
     monkeypatch.setattr(startup_recovery, "recover", lambda covered=None: ran.append(1) or [])
@@ -125,7 +125,7 @@ def test_a_process_killed_mid_write_leaves_the_old_file_whole(data):
         "import json, os, sys, time\n"
         "from pathlib import Path\n"
         "os.replace = lambda *a: (print('AT', flush=True), time.sleep(120))\n"  # stop just before the rename
-        "from bayle.storage.datamigrations import write_json\n"
+        "from bayle.adapters.persistence.datamigrations import write_json\n"
         "write_json(Path(sys.argv[1]), {'a': 2})\n"
     )
     proc = subprocess.Popen([sys.executable, "-c", code, str(target)], stdout=subprocess.PIPE, text=True)

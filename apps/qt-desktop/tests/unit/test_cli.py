@@ -9,12 +9,12 @@ from types import SimpleNamespace
 
 import pytest
 from bayle import cli
-from bayle.config import settings_file
-from bayle.platform import data_folder
-from bayle.platform import logging as run_logging
+from bayle.adapters.persistence import db as storage_db
+from bayle.adapters.persistence import settings_file
+from bayle.adapters.system import data_folder
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.launch import play as core
 from bayle.runtime import bootstrap
-from bayle.services import play as core
-from bayle.storage import db as storage_db
 
 from bayle_qt import entry
 from bayle_qt.updater import apply, headless
@@ -240,7 +240,7 @@ def test_storage_failed_with_a_window_asks_and_survives_a_broken_box(monkeypatch
 
 
 def test_play_is_handed_to_an_open_window(monkeypatch, quiet):
-    from bayle.platform import instance
+    from bayle.runtime import instance
 
     from bayle_qt.updater import apply as updates
 
@@ -254,7 +254,7 @@ def test_play_is_handed_to_an_open_window(monkeypatch, quiet):
 
 
 def test_second_play_from_a_shortcut_is_refused(monkeypatch, quiet):
-    from bayle.platform import instance
+    from bayle.runtime import instance
 
     monkeypatch.setattr(instance, "held", lambda name: False)
     monkeypatch.setattr(instance, "acquire", lambda name: None)
@@ -265,7 +265,7 @@ def test_second_play_from_a_shortcut_is_refused(monkeypatch, quiet):
 
 @pytest.mark.parametrize("allow", [False, True])
 def test_play_runs_headless_and_releases_its_hold(monkeypatch, quiet, allow):
-    from bayle.platform import instance
+    from bayle.runtime import instance
 
     from bayle_qt.updater import apply as updates
 
@@ -283,7 +283,7 @@ def test_play_runs_headless_and_releases_its_hold(monkeypatch, quiet, allow):
 
 
 def test_play_with_a_failed_upgrade_still_releases_the_hold(monkeypatch, quiet):
-    from bayle.platform import instance
+    from bayle.runtime import instance
 
     released = []
     monkeypatch.setattr(instance, "held", lambda name: False)
@@ -379,7 +379,7 @@ def test_headless_paths_import_no_qt(tmp_path):
         from bayle import cli
 
         for flags in (["--worker"], ["--update"], ["--check-storage"], ["--play", "--game", "nope"]):
-            with mock.patch("bayle.platform.cpu.worker_main", return_value=0):
+            with mock.patch("bayle.work.cpu.worker_main", return_value=0):
                 cli.main(["bayle", *flags])
         assert not [m for m in sys.modules if m.split(".")[0] == "PySide6"], "Qt was imported"
         assert not [m for m in sys.modules if m.startswith("bayle_qt")], "bayle_qt was imported"

@@ -9,7 +9,7 @@ import datetime
 from collections.abc import Callable
 from typing import Protocol
 
-from bayle.services.activity import ActivityService
+from bayle.modules.activity.service import ActivityService
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
@@ -227,7 +227,7 @@ class ActivityAdapter(QObject):
             if path is None:
                 self.notifier.toast(tr("That file is no longer there."), error=True)
                 return
-            from bayle.platform import desktop
+            from bayle.adapters.system import desktop
 
             desktop.open_path(path)
 

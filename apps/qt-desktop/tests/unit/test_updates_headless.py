@@ -3,8 +3,8 @@
 from types import SimpleNamespace
 
 import pytest
-from bayle.platform import instance
-from bayle.platform import logging as run_logging
+from bayle.adapters.system import logging as run_logging
+from bayle.runtime import instance
 
 from bayle_qt.updater import apply, feed, headless
 

@@ -4,8 +4,8 @@ table is decided from the game's copy. Plus the omission notice. Synthetic archi
 
 from fakegame import BND_HEADER
 
-from bayle import formats
-from bayle.merging import merger, record
+from bayle.adapters import formats
+from bayle.adapters.merging import merger, record
 
 
 def _archive(entries: list[tuple[str, int, bytes]]) -> bytes:

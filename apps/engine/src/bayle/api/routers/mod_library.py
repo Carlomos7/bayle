@@ -14,8 +14,8 @@ from bayle.api.deps import service
 from bayle.api.models import JobStarted as Started
 from bayle.api.models import Params, Result
 from bayle.api.routers.mods import EntryRef, ProfileRef
-from bayle.services import shared_mods
-from bayle.services.shared_mods import ModLibraryService
+from bayle.modules.mods import shared_mods_page as shared_mods
+from bayle.modules.mods.shared_mods_page import ModLibraryService
 
 router = APIRouter(prefix="/mod_library", tags=["mod_library"])
 Library = Annotated[ModLibraryService, Depends(service("mod_library"))]

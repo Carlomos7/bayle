@@ -12,10 +12,11 @@ from __future__ import annotations
 import argparse
 import sys
 
-from bayle.game import catalog
-from bayle.platform import logging as run_logging
-from bayle.platform import paths, processes
-from bayle.platform.logging import log
+from bayle.adapters.games import paths
+from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system import processes
+from bayle.adapters.system.logging import log
+from bayle.modules.games import catalog
 from bayle.runtime.bootstrap import use_data_folder
 
 

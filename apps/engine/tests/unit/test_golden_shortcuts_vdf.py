@@ -4,7 +4,7 @@ exactly the recorded bytes. A refactor that moves the platform code must not cha
 import hashlib
 import struct
 
-from bayle.platform import steam_shortcuts as vdf
+from bayle.adapters.integrations.steam import steam_shortcuts as vdf
 
 OLD = r"C:\Users\me\AppData\Local\Programs\Roundtable Souls\RoundtableSouls.exe"
 

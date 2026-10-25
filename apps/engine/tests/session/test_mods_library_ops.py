@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from bayle.adapters.filesystem import trash
 from bayle.errors import OperationError
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.mods import shared_mods
-from bayle.platform import trash
-from bayle.services.mods import profile_entries
-from bayle.services.shared_mods import ModLibraryService
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import shared_mods
+from bayle.modules.mods.service import profile_entries
+from bayle.modules.mods.shared_mods_page import ModLibraryService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import ServiceCalls
@@ -133,7 +133,7 @@ def test_the_library_lists_versions_and_unused_ones_are_removed_after_a_check(wo
 
 
 def test_the_library_job_gives_its_reason_when_the_library_refuses(world, monkeypatch):
-    from bayle.services import shared_mods as library_service
+    from bayle.modules.mods import shared_mods_page as library_service
 
     s, _loc, a, _b = world
 

@@ -15,8 +15,10 @@ import subprocess
 import time as _real_time
 from dataclasses import dataclass, field
 
-from bayle.platform import proc, processes, session, steam
-from bayle.services import play
+from bayle.adapters.integrations.me3 import session
+from bayle.adapters.integrations.steam import steam
+from bayle.adapters.system import proc, processes
+from bayle.modules.launch import play
 
 GAME_THREADS = 120  # a running game has threads; a dead shell has none (platform.paths.dead_exe_shells)
 STEAM_EXE = r"C:\Program Files (x86)\Steam\steam.exe"

@@ -9,8 +9,8 @@ import pytest
 
 from bayle.api.routers import profile_transfer as profile_transfer_router
 from bayle.errors import OperationError
-from bayle.services.profile_transfer import ProfileTransferService
-from bayle.services.transfer_resources import TransferResources
+from bayle.modules.mods.profile_transfer import ProfileTransferService
+from bayle.modules.mods.transfer_resources import TransferResources
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import Direct, er
@@ -135,7 +135,7 @@ def test_a_big_export_is_a_check_and_a_start_that_is_stale_when_the_mods_changed
     prof = make(tmp_path / "me")
     s = session()
     keys = keys_of(s, prof)
-    monkeypatch.setattr("bayle.services.profile_transfer.LARGE_EXPORT", 1)
+    monkeypatch.setattr("bayle.modules.mods.profile_transfer.LARGE_EXPORT", 1)
     got = s.run("profile_transfer.check_export", dict(profile=str(prof), kind="full", chosen=keys))
     assert got.big and got.size > 0
     assert not s.run("profile_transfer.check_export", dict(profile=str(prof), kind="list", chosen=keys)).big
@@ -223,7 +223,7 @@ def test_a_failed_import_carries_a_code_and_details_and_keeps_the_resource(tmp_p
     def boom(*a, **k):
         raise RuntimeError("disk full")
 
-    monkeypatch.setattr("bayle.services.profile_transfer.apply", boom)
+    monkeypatch.setattr("bayle.modules.mods.profile_transfer.apply", boom)
     snap = job_of(s, "profile_transfer.import", dict(resource=opened.resource))
     assert snap.state == "failed" and snap.error.code == "import_failed"
     assert snap.error.details == {"resource": opened.resource} and "disk full" in snap.error.message

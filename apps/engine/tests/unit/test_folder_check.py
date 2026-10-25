@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game import catalog
-from bayle.game.locate import Locations, Overrides
-from bayle.merging import build as B
-from bayle.mods import folder_check as fc
-from bayle.mods import folder_split as fs
-from bayle.mods import library, operations, undo
-from bayle.mods import models as mod_models
-from bayle.platform import trash
+from bayle.adapters.filesystem import build as B
+from bayle.adapters.filesystem import trash
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations, Overrides
+from bayle.modules.mods import folder_check as fc
+from bayle.modules.mods import folder_split as fs
+from bayle.modules.mods import library, operations, undo
+from bayle.modules.mods import models as mod_models
 
 NEW = 'profileVersion = "v1"\n\n[[supports]]\ngame = "eldenring"\n'
 

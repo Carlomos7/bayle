@@ -2,11 +2,11 @@
 right writes. The repair test runs on a temporary COPY of a real save (skipped without one)."""
 
 import pytest
-from bayle.game.locate import Locations
-from bayle.saves import fix as F
-from bayle.saves import layout as L
-from bayle.services import saves as service
-from bayle.services.saves_page import apply_repairs, repair_calls
+from bayle.adapters.saves import layout as L
+from bayle.modules.games.locate import Locations
+from bayle.modules.saves import fix as F
+from bayle.modules.saves import service
+from bayle.modules.saves.saves_page import apply_repairs, repair_calls
 
 from bayle_qt.notifications import Notifier
 from bayle_qt.pages.saves.adapter import SavesAdapter

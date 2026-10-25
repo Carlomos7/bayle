@@ -2,7 +2,7 @@
 refuses one with a stale checksum ("Save data is corrupted"; in-game test T3, evidence E-023). The live-save tests in
 tests/integration check the other writers on a copy of a real save; this one needs no save and runs everywhere."""
 
-from bayle.saves import regulation as R
+from bayle.modules.saves import regulation as R
 
 
 def _save_with(block: bytes) -> bytearray:

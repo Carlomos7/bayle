@@ -7,11 +7,11 @@ import sys
 import pytest
 from test_mod_merge import TALK, World
 
-from bayle.mods import conflicts as overview
-from bayle.mods import models as mod_models
-from bayle.mods import rebuild as merge
-from bayle.mods import remove, undo
-from bayle.platform import trash
+from bayle.adapters.filesystem import trash
+from bayle.modules.mods import conflicts as overview
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods import rebuild as merge
+from bayle.modules.mods import remove, undo
 from support import er
 
 PROFILE = """profileVersion = "v1"

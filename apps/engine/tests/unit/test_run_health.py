@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.game import catalog
-from bayle.game import exe as game_exe
-from bayle.overhauls.config import Health
-from bayle.platform import logging as run_logging
-from bayle.services import run_health
+from bayle.adapters.games import exe as game_exe
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.games import catalog
+from bayle.modules.launch import run_health
+from bayle.modules.overhauls.config import Health
 
 
 def fake_exe(path, stamp=1788261400, image=0x5000000):
@@ -116,9 +116,9 @@ def test_a_notice_alone_is_only_logged_and_report_tells_the_callable_it_is_given
 
 
 def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatch):
-    from bayle.config.settings_file import load_settings
-    from bayle.overhauls import recipes
-    from bayle.overhauls.config import OverhaulConfig
+    from bayle.adapters.overhauls import recipes
+    from bayle.adapters.persistence.settings_file import load_settings
+    from bayle.modules.overhauls.config import OverhaulConfig
 
     cfg = OverhaulConfig.model_validate(
         {
@@ -148,8 +148,8 @@ def test_a_run_nobody_saw_end_is_reported_at_the_next_start(tmp_path, monkeypatc
 
 
 def test_the_setup_form_texts_become_a_health_entry_and_back():
-    from bayle.overhauls.config import Basic
-    from bayle.services import mod_configs
+    from bayle.modules.mods import mod_configs
+    from bayle.modules.overhauls.config import Basic
 
     (entry,) = mod_configs.health_of_form({"log": "Mod.log", "fail": "failed (code 3)", "ok": r"re:started\b"})
     assert entry.fail == [r"failed\ \(code\ 3\)"] and entry.ok == r"started\b"  # plain text is escaped, re: is not

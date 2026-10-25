@@ -15,13 +15,13 @@ import time
 import pytest
 from sqlalchemy import select
 
-from bayle.platform import hashing
-from bayle.platform import logging as rl
+from bayle.adapters.filesystem import hashing
+from bayle.adapters.persistence import activity as act
+from bayle.adapters.persistence import db, models
+from bayle.adapters.persistence.cache import HashCache
+from bayle.adapters.persistence.imports import run_imports
+from bayle.adapters.system import logging as rl
 from bayle.runtime import bootstrap
-from bayle.storage import activity as act
-from bayle.storage import db, models
-from bayle.storage.cache import HashCache
-from bayle.storage.imports import run_imports
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))
 
@@ -278,7 +278,7 @@ def test_two_processes_importing_and_writing_at_once_lose_and_double_nothing(dat
         """
         import json, sys, time
         from pathlib import Path
-        from bayle.storage import activity, db
+        from bayle.adapters.persistence import activity, db
         folder, jobs, tag = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
         d = db.open_database(folder, log=lambda line: None)
         log = activity.ActivityLog(d)

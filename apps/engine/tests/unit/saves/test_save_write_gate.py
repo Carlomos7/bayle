@@ -3,12 +3,12 @@ backup back after backing the current file up. Writes happen on temporary files 
 
 import pytest
 
-from bayle.game.locate import Locations
-from bayle.mods import models as mod_models
-from bayle.mods import undo
-from bayle.saves import backups as save_backups
-from bayle.saves import repair as save_repair
-from bayle.services import saves as service
+from bayle.modules.games.locate import Locations
+from bayle.modules.mods import models as mod_models
+from bayle.modules.mods import undo
+from bayle.modules.saves import backups as save_backups
+from bayle.modules.saves import repair as save_repair
+from bayle.modules.saves import service
 from support import copy_live_save, er
 
 

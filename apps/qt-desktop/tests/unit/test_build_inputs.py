@@ -52,7 +52,7 @@ def test_build_packs_both_packages_and_their_data(build, pyinstaller_args):
     pkg = build.PKG
     for needed in ("qml/Main.qml", "assets/icon.ico", "self-test.json", "updater/data/release-signing.pub"):
         assert (pkg / needed).is_file(), needed
-    assert (build.engine_package() / "data").is_dir() and (build.MIGRATIONS / "env.py").is_file()
+    assert (build.engine_package() / "resources").is_dir() and (build.MIGRATIONS / "env.py").is_file()
     assert (build.MIGRATIONS / "versions").is_dir()
 
 

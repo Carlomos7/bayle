@@ -6,10 +6,10 @@ import json
 import pytest
 from test_mod_merge import World
 
-from bayle.config.settings import LauncherSettings
-from bayle.mods import rebuild as merge
-from bayle.platform import logging as run_logging
-from bayle.services import play as core
+from bayle.adapters.system import logging as run_logging
+from bayle.modules.launch import play as core
+from bayle.modules.mods import rebuild as merge
+from bayle.modules.settings.models import LauncherSettings
 from support import er
 
 
@@ -40,7 +40,9 @@ def test_an_out_of_date_merge_is_rebuilt_before_play(world):
 def test_a_failed_update_raises_and_leaves_the_previous_result(world, monkeypatch):
     world.pack("params")
     before = (world.winner / "regulation.bin").read_bytes()
-    monkeypatch.setattr("bayle.mods.backends.CommandTool.run", lambda b, log: world.fake_run(b, fail=True))
+    monkeypatch.setattr(
+        "bayle.adapters.overhauls.backends.CommandTool.run", lambda b, log: world.fake_run(b, fail=True)
+    )
     with pytest.raises(merge.MergeError):
         merge.update_before_play(world.profile, lambda s: None, loc=er())
     assert (world.winner / "regulation.bin").read_bytes() == before
@@ -66,7 +68,7 @@ def test_stacked_packs_without_a_merge_are_left_alone(tmp_path, monkeypatch):
 
 
 def test_only_the_newest_tool_backups_are_kept_after_an_automatic_rebuild(world, monkeypatch):
-    from bayle.platform import trash
+    from bayle.adapters.filesystem import trash
 
     if not trash.available():
         pytest.skip("no Recycle Bin here")
@@ -107,7 +109,9 @@ def test_play_without_the_window_never_runs_a_tool_it_was_not_allowed_to(world, 
 
 def test_play_without_the_window_does_not_start_when_the_update_fails(world, monkeypatch):
     world.pack("params")
-    monkeypatch.setattr("bayle.mods.backends.CommandTool.run", lambda b, log: world.fake_run(b, fail=True))
+    monkeypatch.setattr(
+        "bayle.adapters.overhauls.backends.CommandTool.run", lambda b, log: world.fake_run(b, fail=True)
+    )
     lines = []
     monkeypatch.setattr(run_logging, "log", lines.append)
     why = core.update_merge_headless(

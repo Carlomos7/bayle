@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from bayle.services import profile_mods
-from bayle.services.mods_page import ToolInfo, TrimPlan
-from bayle.services.profile_mods import PageFacts, Removal
+from bayle.modules.mods import profile_mods
+from bayle.modules.mods.mods_page import ToolInfo, TrimPlan
+from bayle.modules.mods.profile_mods import PageFacts, Removal
 
 from bayle_qt import text
 from bayle_qt.pages.mods import load_order
@@ -164,7 +164,7 @@ def test_the_parameters_card():
 
 
 def test_the_online_warning_comes_first_and_the_fingerprint_is_on_the_card():
-    from bayle.services.game_checks import Fingerprint
+    from bayle.modules.launch.game_checks import Fingerprint
 
     p = ModsPresenter()
     stale = {"state": "stale", "packs": ["a"], "backend": "t", "reasons": []}

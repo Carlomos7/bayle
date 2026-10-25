@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
-from bayle.services.profile_transfer import ProfileTransferService
+from bayle.modules.mods.profile_transfer import ProfileTransferService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from support import er
@@ -95,7 +95,7 @@ def test_a_failed_export_job_carries_its_code_and_details(env):
 
 
 def test_the_check_and_the_start_of_a_big_export_over_json(env, monkeypatch):
-    monkeypatch.setattr("bayle.services.profile_transfer.LARGE_EXPORT", 1)
+    monkeypatch.setattr("bayle.modules.mods.profile_transfer.LARGE_EXPORT", 1)
     key = env.client.get("/v1/profile_transfer", params={"profile": str(env.profile)}).json()["mods"][0]["key"]
     body = dict(profile=str(env.profile), kind="full", chosen=[key])
     checked = env.post("profile_transfer.check_export", body)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from bayle import __version__
-from bayle.platform import instance
+from bayle.runtime import instance
 
 from bayle_qt.updater import apply, feed
 
@@ -14,8 +14,8 @@ def update_headless(restart_args: list[str], log=None, start_log=None) -> int:
     over to Velopack and exits; the launcher restarts with args (none: the window; --game er --play: Play).
 
     Exit codes: 0 updating or already up to date, 1 failed (nothing changed), 3 the newest release is blocked here."""
-    from bayle.game import catalog
-    from bayle.platform import logging as run_logging
+    from bayle.adapters.system import logging as run_logging
+    from bayle.modules.games import catalog
 
     log = log or run_logging.log
     if start_log is not None:

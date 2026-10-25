@@ -14,13 +14,13 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
+from bayle.adapters.system.threads import as_worker
 from bayle.errors import OperationError
-from bayle.platform.threads import as_worker
-from bayle.services.activity import ActivityService
-from bayle.services.features import Features
-from bayle.services.mod_install import ModInstallService
-from bayle.services.mods_page import Dependency, ModsService, OptionsChange, ToolInfo
-from bayle.services.shared_mods import ModLibraryService
+from bayle.modules.activity.service import ActivityService
+from bayle.modules.mods.mod_install import ModInstallService
+from bayle.modules.mods.mods_page import Dependency, ModsService, OptionsChange, ToolInfo
+from bayle.modules.mods.shared_mods_page import ModLibraryService
+from bayle.runtime.features import Features
 from bayle.work.prompts import Confirm, Pick, Refusal, prompt_dict
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 

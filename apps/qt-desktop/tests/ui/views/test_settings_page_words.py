@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 from bayle.errors import OperationError
-from bayle.services import settings as engine
-from bayle.services.settings import Changed, NameCheck, RelocateFacts
+from bayle.modules.settings import service as engine
+from bayle.modules.settings.service import Changed, NameCheck, RelocateFacts
 from bayle.work.prompts import Confirm
 
 from bayle_qt.pages.settings import presenter as view

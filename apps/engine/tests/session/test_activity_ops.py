@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from bayle.config.settings import DATA_ENV, data_dir
+from bayle.config.app_paths import DATA_ENV, data_dir
 from bayle.errors import Busy, OperationError
 from bayle.mods import models as mod_models
 from bayle.mods import undo as mod_undo

@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from bayle.config.settings import change_settings, load_settings
+from bayle.config.settings_file import change_settings, load_settings
 from bayle.game import exe as game_exe
 from bayle.game.locate import Locations
 from bayle.overhauls import recipes

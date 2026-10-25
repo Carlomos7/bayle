@@ -28,8 +28,8 @@ from urllib.request import url2pathname
 
 import pytest
 
-from bayle.config import settings
-from bayle.platform import data_folder, instance
+from bayle.config import settings_file
+from bayle.platform import data_folder, instance, me3_paths
 from bayle.platform import paths as common
 from bayle.runtime import bootstrap
 from bayle.saves import backups as save_backups
@@ -106,7 +106,7 @@ def writes_stay_in_temporary_folders(tmp_path_factory):
 
 @pytest.fixture(autouse=True)
 def isolated_settings(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "settings_path", lambda: tmp_path / "launcher_settings.json")
+    monkeypatch.setattr(settings_file, "settings_path", lambda: tmp_path / "launcher_settings.json")
     monkeypatch.setattr(data_folder, "data_root", lambda: tmp_path / "launcher-data")
     # Moving older folders into the data folder only ever happens inside this test's own folder: a test that builds
     # the real window sees the developer's real saves and profiles, and must never move anything out of them.
@@ -261,10 +261,10 @@ def elden_ring_is_the_active_game(tmp_path, monkeypatch):
     locks = Path(tempfile.mkdtemp(prefix="rsl-"))
     monkeypatch.setattr(instance, "_lock_dir", lambda: locks)
     common.clear_detection_cache()
-    common._PROFILE_GAMES_CACHE.clear()
+    me3_paths._PROFILE_GAMES_CACHE.clear()
     yield
     common.clear_detection_cache()
-    common._PROFILE_GAMES_CACHE.clear()
+    me3_paths._PROFILE_GAMES_CACHE.clear()
     shutil.rmtree(locks, ignore_errors=True)
 
 

@@ -28,7 +28,9 @@ from typing import Any
 
 from bayle import __version__
 from bayle.config import identity
-from bayle.config.settings import LauncherSettings, data_dir, load_settings
+from bayle.config.app_paths import data_dir
+from bayle.config.settings import LauncherSettings
+from bayle.config.settings_file import load_settings
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods import rebuild as mod_rebuild

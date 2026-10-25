@@ -191,7 +191,7 @@ def _package_files(settings: LauncherSettings, folder: Path) -> list[dict]:
 
 def attach(settings: LauncherSettings, target: Path, file: Path) -> dict:
     """Attach file to the mod (settings.native_configs, never the .me3); returns the new value, saved."""
-    from bayle.config.settings import save_settings
+    from bayle.config.settings_file import save_settings
 
     ties = configs.with_tie(settings, target, file)
     save_settings(native_configs=ties)
@@ -200,7 +200,7 @@ def attach(settings: LauncherSettings, target: Path, file: Path) -> dict:
 
 
 def detach(settings: LauncherSettings, target: Path, file: Path) -> dict:
-    from bayle.config.settings import save_settings
+    from bayle.config.settings_file import save_settings
 
     ties = configs.without_tie(settings, target, file)
     save_settings(native_configs=ties)
@@ -724,7 +724,7 @@ class ModConfigsService:
 
     @staticmethod
     def _settings(settings: LauncherSettings | None) -> LauncherSettings:
-        from bayle.config.settings import load_settings
+        from bayle.config.settings_file import load_settings
 
         return settings if settings is not None else load_settings()
 

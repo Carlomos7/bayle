@@ -101,7 +101,7 @@ def _raise(e: Exception):
 
 
 def _isolated(data_dir: Path) -> str:
-    from bayle.config.settings import data_dir as settings_data_dir
+    from bayle.config.app_paths import data_dir as settings_data_dir
 
     data_dir = data_dir.resolve()
     if Path(os.environ.get("ROUNDTABLE_SOULS_DATA", "")).resolve() != data_dir or settings_data_dir() != data_dir:

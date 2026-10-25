@@ -5,7 +5,7 @@ import dataclasses
 
 import pytest
 
-from bayle.config.settings import data_dir
+from bayle.config.app_paths import data_dir
 from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations

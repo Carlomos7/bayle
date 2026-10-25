@@ -462,7 +462,7 @@ def page_facts(profile, *, loc: Locations, settings=None) -> PageFacts:
     except Exception:
         tgt = None
     if settings is None:
-        from bayle.config.settings import load_settings
+        from bayle.config.settings_file import load_settings
 
         settings = load_settings()
     missing, empty, configs = [], {}, {}

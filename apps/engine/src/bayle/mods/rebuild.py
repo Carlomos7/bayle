@@ -51,9 +51,9 @@ STATE_TEXT = {
 
 # ----------------------------------------------------------------------------- layers
 def is_elden_ring(profile: Path) -> bool:
-    from bayle.platform import paths
+    from bayle.platform import me3_paths
 
-    named = paths.profile_games(Path(profile))
+    named = me3_paths.profile_games(Path(profile))
     return games.ELDEN_RING.key in named if named else True  # a profile that names no game counts as Elden Ring's
 
 
@@ -103,13 +103,13 @@ def _key(profile: Path) -> str:
 
 def _legacy_mark(profile: Path):
     """What launchers before 3.10 kept in their own settings (per PC), or None."""
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
 
     return load_settings().parameter_overlays.get(_key(profile))  # read fresh: Options just set it
 
 
 def _set_legacy_mark(profile: Path, value) -> None:
-    from bayle.config.settings import load_settings, save_settings
+    from bayle.config.settings_file import load_settings, save_settings
 
     marks = dict(load_settings().parameter_overlays)
     if value is None:
@@ -177,7 +177,7 @@ def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path 
 def approved(tool) -> bool:
     """Whether the user allowed this rebuild tool (this version of it) to run. The launcher's own combine, and its own
     build of an overhaul (mods.engine: nothing of the mod's runs), need no permission."""
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
 
     if getattr(tool, "builtin", False) or getattr(getattr(tool, "recipe", None), "engine", None) is not None:
         return True
@@ -194,7 +194,7 @@ def approved(tool) -> bool:
 
 
 def approve(tool) -> None:
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
 
     keys = list(load_settings().rebuild_approved)
     if tool.approval_key() not in keys:
@@ -202,7 +202,7 @@ def approve(tool) -> None:
 
 
 def _keep_approval(key: str, keys: list[str]) -> None:
-    from bayle.config.settings import save_settings
+    from bayle.config.settings_file import save_settings
 
     save_settings(rebuild_approved=[*keys, key][-50:])
 

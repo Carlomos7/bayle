@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config.settings import load_settings, save_settings
+from bayle.config.settings_file import load_settings, save_settings
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.merging import build as B

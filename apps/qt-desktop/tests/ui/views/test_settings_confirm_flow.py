@@ -5,7 +5,7 @@ JobManager (work runs inline unless a test holds it); only the folder moves them
 from pathlib import Path
 
 import pytest
-from bayle.config.settings import load_settings, save_settings
+from bayle.config.settings_file import load_settings, save_settings
 from bayle.errors import Cancelled
 from bayle.services import layout as layout_service
 from bayle.services.settings import SettingsService

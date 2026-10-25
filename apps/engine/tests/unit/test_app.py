@@ -1,6 +1,6 @@
 """The app context and a game's Locations: values handed to the code that needs them, instead of module globals."""
 
-from bayle.config import settings
+from bayle.config import settings, settings_file
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides
 from bayle.runtime.bootstrap import create_engine
@@ -51,7 +51,7 @@ def test_a_custom_me3_wins_when_it_exists(tmp_path):
 
 
 def test_the_context_follows_the_game_and_the_profile():
-    settings.save_game_settings("nightreign", game_exe="D:/nr/nightreign.exe")
+    settings_file.save_game_settings("nightreign", game_exe="D:/nr/nightreign.exe")
     ctx = create_engine()
     assert ctx.game is catalog.ELDEN_RING and ctx.locations.game is catalog.ELDEN_RING
     ctx.note_profile_saves({"standard": "My.sl2"})

@@ -18,10 +18,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from bayle.config.settings import data_dir
+from bayle.config.app_paths import data_dir
 from bayle.errors import Busy, OperationError
 from bayle.game import catalog as games
-from bayle.game.locate import installed_dir
+from bayle.game.discovery import installed_dir
 from bayle.platform import desktop
 from bayle.platform import logging as run_logging
 from bayle.platform.text import tr

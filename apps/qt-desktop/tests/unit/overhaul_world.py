@@ -10,7 +10,7 @@ from pathlib import Path
 
 import fakegame
 from bayle import formats
-from bayle.game import catalog, locate
+from bayle.game import catalog, discovery
 from bayle.game import config as game_config
 from bayle.game.locate import Locations, Overrides
 from bayle.mods import library, overhaul_install
@@ -175,7 +175,7 @@ class World:
         (self.game / "regulation.bin").write_bytes(vanilla())
         (self.game / "eldenring.exe").write_bytes(b"x")
         fakegame.game(monkeypatch, game_files())
-        monkeypatch.setattr(locate, "installed_dir", lambda _game: self.game)
+        monkeypatch.setattr(discovery, "installed_dir", lambda _game: self.game)
         monkeypatch.setattr(common, "exe_running", lambda _exe: False)
         self.loc = Locations(catalog.ELDEN_RING, Overrides(profiles_dir=str(self.profiles)))
         self.download = self.make_download(tmp_path / "Downloads" / "ExampleOverhaul-LITE-0.1.33-rc3")

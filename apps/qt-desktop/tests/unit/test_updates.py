@@ -15,7 +15,7 @@ from pathlib import Path
 import fakerelease
 import pytest
 from bayle import __version__
-from bayle.config import settings
+from bayle.config import app_paths, settings_file
 
 from bayle_qt.updater import apply as updates
 from bayle_qt.updater import feed, signing
@@ -67,7 +67,7 @@ def test_newer_release_is_offered_and_cached_for_an_hour():
     clock = [1000.0]
     out = feed.check_launcher_update(fetch=fetch, now=lambda: clock[0])
     assert out.status == "fresh" and out.offer["version"] == newer and out.checked == 1000.0
-    assert settings.load_settings().launcher_latest["version"] == newer
+    assert settings_file.load_settings().launcher_latest["version"] == newer
     clock[0] += 1800
     again = feed.check_launcher_update(fetch=fetch, now=lambda: clock[0])
     assert again.status == "cached" and again.offer["version"] == newer and len(fetch.calls) == 1
@@ -87,17 +87,17 @@ def test_not_modified_keeps_the_cached_answer_and_counts_as_checked():
 
 def test_same_or_older_release_is_quiet():
     for v in (__version__, "0.1.0"):
-        settings.save_settings(launcher_latest=None)
+        settings_file.save_settings(launcher_latest=None)
         out = feed.check_launcher_update(fetch=_fetcher(feed.Fetched("ok", data=_rel(v))))
         assert out.status == "fresh" and out.offer is None and not out.failed
 
 
 def test_a_failed_check_is_reported_never_up_to_date():
     for status in ("offline", "rate_limited", "error"):
-        settings.save_settings(launcher_latest=None, launcher_next_check=0.0, launcher_check_failures=0)
+        settings_file.save_settings(launcher_latest=None, launcher_next_check=0.0, launcher_check_failures=0)
         out = feed.check_launcher_update(fetch=_fetcher(feed.Fetched(status, reason="why")), force=True)
         assert out.failed and out.status == status and out.reason == "why" and out.offer is None
-        assert settings.load_settings().launcher_check_error == "why"
+        assert settings_file.load_settings().launcher_check_error == "why"
 
 
 def test_failures_back_off_and_a_success_resets():
@@ -114,7 +114,7 @@ def test_failures_back_off_and_a_success_resets():
     assert waits[:5] == [3600, 7200, 14400, 28800, 57600] and waits[-1] == feed.MAX_BACKOFF
     assert len(down.calls) == 7
     up = feed.check_launcher_update(fetch=_fetcher(feed.Fetched("ok", data=_rel(__version__))), now=lambda: clock[0])
-    s = settings.load_settings()
+    s = settings_file.load_settings()
     assert up.status == "fresh" and s.launcher_check_failures == 0 and s.launcher_check_error == ""
 
 
@@ -132,7 +132,7 @@ def test_force_ignores_cache_backoff_toggle_and_skip():
     assert feed.check_launcher_update(fetch=fetch).offer
     feed.skip_update(newer)
     assert feed.check_launcher_update(fetch=fetch).offer is None
-    settings.save_settings(check_launcher_updates=False, launcher_next_check=1e12)
+    settings_file.save_settings(check_launcher_updates=False, launcher_next_check=1e12)
     assert feed.check_launcher_update(fetch=fetch).status == "off"
     forced = feed.check_launcher_update(fetch=fetch, force=True)
     assert forced.status == "fresh" and forced.offer["version"] == newer and len(fetch.calls) == 2
@@ -141,7 +141,7 @@ def test_force_ignores_cache_backoff_toggle_and_skip():
 def test_channel_switch_does_not_reuse_the_other_channels_answer():
     beta = _bump(__version__) + "-rc.1"
     feed.check_launcher_update(fetch=_fetcher(feed.Fetched("ok", data=_rel(__version__))))
-    settings.save_settings(launcher_channel="beta")
+    settings_file.save_settings(launcher_channel="beta")
     fetch = _fetcher(feed.Fetched("ok", data=_rel(beta, prerelease=True)))
     out = feed.check_launcher_update(fetch=fetch)
     assert fetch.calls == [("beta", "")] and out.offer["version"] == beta
@@ -217,10 +217,10 @@ def test_advisory_warns_only_below_the_minimum():
 
     assert feed.check_advisory(fetch=fetch)["message"] == "known bug"
     assert feed.check_advisory(fetch=fetch) and len(calls) == 1  # cached for the hour
-    settings.save_settings(launcher_advisory=None)
+    settings_file.save_settings(launcher_advisory=None)
     got.data = {"minimum": None, "message": "", "url": ""}
     assert feed.check_advisory(fetch=fetch) is None
-    settings.save_settings(launcher_advisory=None)
+    settings_file.save_settings(launcher_advisory=None)
     got.data = {"minimum": __version__, "message": "x", "url": ""}
     assert feed.check_advisory(fetch=fetch) is None  # this version is the minimum: fine
 
@@ -335,7 +335,7 @@ def test_download_refuses_not_newer_and_blocked_versions(tmp_path):
     rel = fakerelease.make(version="1.0.0")
     with pytest.raises(feed.UpdateError, match="not newer"):
         rel.download(workdir=tmp_path, current="1.0.0")
-    settings.save_settings(update_blocked=["99.0.0"])
+    settings_file.save_settings(update_blocked=["99.0.0"])
     rel = fakerelease.make()
     with pytest.raises(feed.UpdateError, match="failed to start here before"):
         rel.download(workdir=tmp_path)
@@ -527,7 +527,7 @@ def test_apply_hands_velopack_the_verified_folder_and_starts_the_watchdog(tmp_pa
     assert (
         updates.state_dir() / ("update-watchdog.ps1" if updates.OS_CHANNEL == "win" else "update-watchdog.sh")
     ).is_file()
-    pending = settings.load_settings().update_pending
+    pending = settings_file.load_settings().update_pending
     assert pending["version"] == "99.0.0" and pending["rollback"] == str(prepared.rollback)
 
 
@@ -540,19 +540,19 @@ def test_apply_refuses_without_a_rollback_copy_or_with_another_target(tmp_path, 
     prepared.rollback.write_bytes(b"previous")
     with pytest.raises(feed.UpdateError, match="did not match"):
         updates.apply_update(prepared, velopack_module=_FakeVelopack(target="98.5.0"), popen=lambda *a, **k: None)
-    assert settings.load_settings().update_pending is None
+    assert settings_file.load_settings().update_pending is None
 
 
 def test_ready_finishes_a_pending_update(tmp_path):
     assert updates.mark_ready("window", current="99.0.0") is None  # nothing pending: just the marker
     assert (updates.state_dir() / "ready-99.0.0").is_file()
-    settings.save_settings(update_pending={"version": "99.0.0", "from": "98.0.0", "started": 1.0})
+    settings_file.save_settings(update_pending={"version": "99.0.0", "from": "98.0.0", "started": 1.0})
     result = updates.mark_ready("play", current="99.0.0")
-    assert result["status"] == "ok" and result["how"] == "play" and settings.load_settings().update_pending is None
+    assert result["status"] == "ok" and result["how"] == "play" and settings_file.load_settings().update_pending is None
 
 
 def test_a_rollback_is_reported_once_and_blocks_that_version():
-    settings.save_settings(update_pending={"version": "99.0.0", "from": "98.0.0", "started": 1.0})
+    settings_file.save_settings(update_pending={"version": "99.0.0", "from": "98.0.0", "started": 1.0})
     state = updates.state_dir()
     state.mkdir(parents=True)
     (state / "rollback.json").write_text(
@@ -560,7 +560,7 @@ def test_a_rollback_is_reported_once_and_blocks_that_version():
     )
     result = updates.update_outcome(current="98.0.0")
     assert result["status"] == "rolled_back" and result["version"] == "99.0.0" and "90 seconds" in result["error"]
-    s = settings.load_settings()
+    s = settings_file.load_settings()
     assert s.update_blocked == ["99.0.0"] and s.update_pending is None and not (state / "rollback.json").exists()
     fetch = _fetcher(feed.Fetched("ok", data=_rel("99.0.0")))
     check = feed.check_launcher_update(fetch=fetch, force=True, current="98.0.0")
@@ -574,11 +574,11 @@ def test_a_rollback_is_reported_once_and_blocks_that_version():
 
 
 def test_an_update_that_never_applied_is_reported_after_the_watchdogs_time():
-    settings.save_settings(update_pending={"version": "99.0.0", "from": "98.0.0", "started": 1000.0})
+    settings_file.save_settings(update_pending={"version": "99.0.0", "from": "98.0.0", "started": 1000.0})
     assert updates.update_outcome(current="98.0.0", now=lambda: 1000.0 + 60) is None  # still being applied
     late = 1000.0 + updates.WATCHDOG_APPLY + updates.WATCHDOG_READY + 61
     result = updates.update_outcome(current="98.0.0", now=lambda: late)
-    assert result["status"] == "failed" and settings.load_settings().update_pending is None
+    assert result["status"] == "failed" and settings_file.load_settings().update_pending is None
 
 
 def test_busy_reason_names_a_shortcut_play(monkeypatch):
@@ -615,15 +615,15 @@ def test_velopack_startup_never_auto_applies(monkeypatch):
 
 
 def test_settings_writes_from_many_threads_lose_nothing():
-    settings.save_settings(launcher_check_failures=0)
+    settings_file.save_settings(launcher_check_failures=0)
 
     def bump():
         for _ in range(20):
-            settings.change_settings(lambda cur: {"launcher_check_failures": cur.launcher_check_failures + 1})
+            settings_file.change_settings(lambda cur: {"launcher_check_failures": cur.launcher_check_failures + 1})
 
     def other(i):
         for j in range(20):
-            settings.save_settings(**{f"probe_{i}": j})
+            settings_file.save_settings(**{f"probe_{i}": j})
 
     threads = [threading.Thread(target=bump) for _ in range(4)] + [
         threading.Thread(target=other, args=(i,)) for i in range(4)
@@ -632,15 +632,15 @@ def test_settings_writes_from_many_threads_lose_nothing():
         t.start()
     for t in threads:
         t.join()
-    s = settings.load_settings()
+    s = settings_file.load_settings()
     assert s.launcher_check_failures == 80 and all(getattr(s, f"probe_{i}") == 19 for i in range(4))
-    assert not list(settings.settings_path().parent.glob("*.tmp"))
+    assert not list(settings_file.settings_path().parent.glob("*.tmp"))
 
 
 def _frozen_at(monkeypatch, exe: Path):
-    monkeypatch.setattr(settings, "FROZEN", True)
+    monkeypatch.setattr(app_paths, "FROZEN", True)
     monkeypatch.setattr(sys, "executable", str(exe))
-    monkeypatch.delenv(settings.DATA_ENV, raising=False)
+    monkeypatch.delenv(app_paths.DATA_ENV, raising=False)
     monkeypatch.delenv("APPIMAGE", raising=False)
 
 
@@ -652,25 +652,25 @@ def test_data_never_lives_where_updates_or_uninstall_replace_files(tmp_path, mon
     (root / "current").mkdir(parents=True)
     (root / "Update.exe").write_bytes(b"x")
     _frozen_at(monkeypatch, root / "current" / "RoundtableSouls.exe")
-    assert settings.velopack_root() == root and settings.is_installed() and not settings.is_portable()
-    assert settings.data_dir() == local / settings.APP_DIR_NAME  # installed: per-user app data
+    assert app_paths.velopack_root() == root and app_paths.is_installed() and not app_paths.is_portable()
+    assert app_paths.data_dir() == local / app_paths.APP_DIR_NAME  # installed: per-user app data
     (root / ".portable").write_text("")
-    assert settings.is_portable() and not settings.is_installed()
-    assert settings.data_dir() == root / "RoundtableSouls-data"  # portable: beside Update.exe, never in current\
-    monkeypatch.setenv(settings.DATA_ENV, str(tmp_path / "explicit"))
-    assert settings.data_dir() == tmp_path / "explicit"
+    assert app_paths.is_portable() and not app_paths.is_installed()
+    assert app_paths.data_dir() == root / "RoundtableSouls-data"  # portable: beside Update.exe, never in current\
+    monkeypatch.setenv(app_paths.DATA_ENV, str(tmp_path / "explicit"))
+    assert app_paths.data_dir() == tmp_path / "explicit"
 
 
 def test_data_folder_and_install_folder_can_never_be_the_same(tmp_path, monkeypatch):
     local = tmp_path / "local"
     monkeypatch.setenv("LOCALAPPDATA", str(local))
     monkeypatch.setenv("XDG_DATA_HOME", str(local))
-    root = local / settings.APP_DIR_NAME  # an app ID equal to the data folder's name
+    root = local / app_paths.APP_DIR_NAME  # an app ID equal to the data folder's name
     (root / "current").mkdir(parents=True)
     (root / "Update.exe").write_bytes(b"x")
     _frozen_at(monkeypatch, root / "current" / "RoundtableSouls.exe")
     with pytest.raises(RuntimeError, match="app ID must differ"):
-        settings.data_dir()
+        app_paths.data_dir()
     from bayle.config import identity
 
     assert identity.Identity().pack_id.lower() != identity.Identity().data_dir_name.lower()  # the release default
@@ -683,10 +683,10 @@ def test_appimage_and_raw_builds(tmp_path, monkeypatch):
     mount = tmp_path / "mount"
     mount.mkdir()
     _frozen_at(monkeypatch, mount / "RoundtableSouls")
-    assert settings.data_dir() == mount  # a build run straight from its folder keeps data beside itself
+    assert app_paths.data_dir() == mount  # a build run straight from its folder keeps data beside itself
     monkeypatch.setenv("APPIMAGE", str(tmp_path / "RoundtableSouls.AppImage"))
-    assert settings.data_dir() == local / settings.APP_DIR_NAME  # never the AppImage's read-only mount
-    assert settings.launch_target() == tmp_path / "RoundtableSouls.AppImage"
+    assert app_paths.data_dir() == local / app_paths.APP_DIR_NAME  # never the AppImage's read-only mount
+    assert app_paths.launch_target() == tmp_path / "RoundtableSouls.AppImage"
 
 
 def test_shortcuts_start_the_stub_not_the_replaceable_program(tmp_path, monkeypatch):
@@ -695,7 +695,7 @@ def test_shortcuts_start_the_stub_not_the_replaceable_program(tmp_path, monkeypa
     (root / "Update.exe").write_bytes(b"x")
     (root / "Bayle.exe").write_bytes(b"stub")
     _frozen_at(monkeypatch, root / "current" / "RoundtableSouls.exe")
-    assert settings.launch_target() == root / "Bayle.exe"
+    assert app_paths.launch_target() == root / "Bayle.exe"
 
 
 def test_apply_refuses_when_the_build_is_not_this_installs(tmp_path, monkeypatch):
@@ -720,8 +720,8 @@ def test_identity_matches_reads_the_installed_app_id(tmp_path, monkeypatch):
     (root / "current" / "sq.version").write_text(
         f"<package><metadata><id>{identity.get().pack_id}</id><version>1.0.0</version></metadata></package>"
     )
-    assert settings.installed_pack_id() == identity.get().pack_id and settings.identity_matches()
+    assert app_paths.installed_pack_id() == identity.get().pack_id and app_paths.identity_matches()
     (root / "current" / "sq.version").write_text("<package><metadata><id>Someone.Else</id></metadata></package>")
-    assert not settings.identity_matches()
+    assert not app_paths.identity_matches()
     (root / "current" / "sq.version").unlink()
-    assert not settings.identity_matches()  # unknown: treated as not ours
+    assert not app_paths.identity_matches()  # unknown: treated as not ours

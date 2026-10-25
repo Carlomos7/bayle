@@ -44,16 +44,9 @@ from typing import Any
 
 from bayle import __version__
 from bayle.config import identity
-from bayle.config.settings import (
-    LauncherSettings,
-    appimage,
-    change_settings,
-    identity_matches,
-    is_portable,
-    load_settings,
-    save_settings,
-    velopack_root,
-)
+from bayle.config.app_paths import appimage, identity_matches, is_portable, velopack_root
+from bayle.config.settings import LauncherSettings
+from bayle.config.settings_file import change_settings, load_settings, save_settings
 from bayle.platform import data_folder, instance
 
 from bayle_qt.resources import UPDATER_DATA

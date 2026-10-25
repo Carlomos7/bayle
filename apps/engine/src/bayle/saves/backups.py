@@ -47,7 +47,7 @@ KEEP_DAYS = 7
 def keep_newest() -> int:
     """How many of the newest backups of a save are kept: the backups_keep setting, 5 to 200; anything else
     (missing, text, 0, negative, huge) is the default, never a small number that would delete backups."""
-    from bayle.config.settings import load_settings
+    from bayle.config.settings_file import load_settings
 
     try:
         n = load_settings().backups_keep

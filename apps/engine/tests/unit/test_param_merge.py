@@ -7,7 +7,7 @@ import struct
 import pytest
 
 from bayle import formats
-from bayle.game import locate
+from bayle.game import discovery, locate
 from bayle.merging.rules import param as pm
 from bayle.mods import profile_edit as M
 from bayle.mods import rebuild as merge
@@ -214,7 +214,7 @@ def prof(tmp_path, monkeypatch):
     game = tmp_path / "Game"
     game.mkdir()
     (game / "regulation.bin").write_bytes(vanilla())
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: game)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: game)
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
     base = tmp_path / "profiles" / "er"
     text = "# mine\n"
@@ -270,7 +270,7 @@ def test_a_pack_placed_after_the_combined_one_is_moved_behind_on_rebuild(prof):
 
 def test_a_game_update_or_a_removed_pack_makes_the_combine_stale(prof):
     merge.rebuild(prof, lambda s: None, combine=True, loc=er())
-    game_dir = locate.installed_dir(locate.catalog.ELDEN_RING)
+    game_dir = discovery.installed_dir(locate.catalog.ELDEN_RING)
     assert game_dir is not None
     game = game_dir / "regulation.bin"
     game.write_bytes(pack({"EquipParamWeapon": set_word(2000, 0, 1)}))

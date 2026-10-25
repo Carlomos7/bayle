@@ -22,7 +22,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bayle.config import identity
-from bayle.config.settings import identity_matches, is_installed, launch_target, load_settings, save_settings
+from bayle.config.app_paths import identity_matches, is_installed, launch_target
+from bayle.config.settings_file import load_settings, save_settings
 from bayle.platform import data_folder, steam_shortcuts
 
 

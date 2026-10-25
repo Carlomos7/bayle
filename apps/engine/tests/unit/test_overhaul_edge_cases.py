@@ -176,10 +176,10 @@ def test_the_download_is_never_moved_or_changed(world):
 
 # ----------------------------------------------------------------------------- 4: no game folder
 def test_no_game_folder_refuses_in_the_preview_and_writes_nothing(world, monkeypatch):
-    from bayle.game import locate
+    from bayle.game import discovery
 
     folder = revive_shaped(world)
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: None)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: None)
     before = files(world.base)
     profile = world.profile.read_bytes()
     _config, p = setup_of(world, folder)

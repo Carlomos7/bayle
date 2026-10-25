@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from bayle.config.settings import load_settings
+from bayle.config.settings_file import load_settings
 from bayle.merging.build import BuildError
 from bayle.mods import profile_share, undo
 from bayle.mods.models import ModError

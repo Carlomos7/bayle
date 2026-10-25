@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from test_mod_merge import World, _pack_source
 
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.mods import install, profile_settings, remove
 from bayle.mods import order as mod_order
 from bayle.mods import profile as profile_tools
@@ -327,6 +327,6 @@ def test_a_profile_without_it_still_combines(tmp_path, monkeypatch):
         (base / "mod" / name / "regulation.bin").write_bytes(name.encode())
     prof = base / "p.me3"
     prof.write_text("[[packages]]\nid = \"a\"\npath = 'mod/a'\n\n[[packages]]\nid = \"b\"\npath = 'mod/b'\n")
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: None)
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: None)
     assert merge.setup_problem(prof, loc=er()) is None
     assert Path(prof).is_file()

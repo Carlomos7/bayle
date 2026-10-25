@@ -8,10 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from bayle.game import locate
+from bayle.game import discovery
 from bayle.mods import backends, install, remove, tools
 from bayle.mods import profile_edit as M
 from bayle.mods import rebuild as merge
+from bayle.platform import me3_paths
 from bayle.platform import paths as common
 from support import er
 
@@ -37,7 +38,7 @@ class World:
         self.game.mkdir(parents=True)
         (self.game / "regulation.bin").write_bytes(b"GAME")
         (self.game / "eldenring.exe").write_bytes(b"x")
-        monkeypatch.setattr(locate, "installed_dir", lambda _game: self.game)
+        monkeypatch.setattr(discovery, "installed_dir", lambda _game: self.game)
         monkeypatch.setattr(common, "exe_running", lambda _exe: False)
         (self.base / "mod" / "parts" / "parts").mkdir(parents=True)
         self.winner = self.base / "Merger" / "mod"
@@ -211,7 +212,7 @@ def test_sources_written_on_another_pc_are_found_here(world):
 
 def test_not_for_other_games(world):
     world.profile.write_text('[[supports]]\ngame = "nightreign"\n\n' + world.profile.read_text(encoding="utf-8"))
-    common._PROFILE_GAMES_CACHE.clear()
+    me3_paths._PROFILE_GAMES_CACHE.clear()
     assert merge.health(world.profile, loc=er())["state"] is None
 
 
@@ -392,7 +393,7 @@ def _declared(tmp_path, monkeypatch):
 
     base = tmp_path / "prof"
     monkeypatch.setattr(common, "exe_running", lambda _exe: False)
-    monkeypatch.setattr(locate, "installed_dir", lambda _game: tmp_path / "Game")
+    monkeypatch.setattr(discovery, "installed_dir", lambda _game: tmp_path / "Game")
     for name in ("params", "overhaul"):
         (base / "mod" / name).mkdir(parents=True)
         (base / "mod" / name / "regulation.bin").write_bytes(name.encode())

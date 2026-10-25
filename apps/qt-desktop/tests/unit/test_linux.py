@@ -2,6 +2,7 @@
 
 from bayle.game import catalog
 from bayle.game.locate import Locations
+from bayle.platform import me3_paths
 from bayle.platform import paths as common
 from bayle.platform import proc as process_list
 from bayle.platform import steam as steam_detect
@@ -13,10 +14,11 @@ def linux(monkeypatch, home):
     for module in (common, steam_detect, process_list):  # each keeps its own copy of the platform flags
         monkeypatch.setattr(module, "IS_WINDOWS", False)
         monkeypatch.setattr(module, "IS_LINUX", True)
-    monkeypatch.setattr(common.Path, "home", classmethod(lambda cls: home))
+    monkeypatch.setattr(me3_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(me3_paths.Path, "home", classmethod(lambda cls: home))
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
-    monkeypatch.setattr(common.shutil, "which", lambda name: None)
+    monkeypatch.setattr(me3_paths.shutil, "which", lambda name: None)
 
 
 def fake_proc(root, pid, argv, comm, rss_kb):
@@ -87,14 +89,14 @@ def test_steam_library_saves_and_sign_in(tmp_path, monkeypatch):
 def test_me3_paths_follow_its_linux_layout(tmp_path, monkeypatch):
     home = tmp_path / "home"
     linux(monkeypatch, home)
-    assert common.me3_profiles_dir() == home / ".config" / "me3" / "profiles"
-    assert common.me3_exe() is None
+    assert me3_paths.me3_profiles_dir() == home / ".config" / "me3" / "profiles"
+    assert me3_paths.me3_exe() is None
     (home / ".local" / "bin").mkdir(parents=True)
     (home / ".local" / "bin" / "me3").write_bytes(b"#!/bin/sh\n")
     common.clear_detection_cache()  # detection is cached per session; the app clears it on every game switch
-    assert common.me3_exe() == home / ".local" / "bin" / "me3"
+    assert me3_paths.me3_exe() == home / ".local" / "bin" / "me3"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
-    assert common.me3_profiles_dir() == tmp_path / "cfg" / "me3" / "profiles"
+    assert me3_paths.me3_profiles_dir() == tmp_path / "cfg" / "me3" / "profiles"
 
 
 def test_linux_updates_use_the_linux_feed(monkeypatch):

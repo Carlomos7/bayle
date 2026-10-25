@@ -4,7 +4,7 @@ test's own folders; the game is never running unless a test says so. The writes 
 import pytest
 
 from bayle.api.routers import saves as saves_router
-from bayle.config.settings import data_dir
+from bayle.config.app_paths import data_dir
 from bayle.errors import OperationError
 from bayle.game import catalog
 from bayle.game.locate import Locations, Overrides

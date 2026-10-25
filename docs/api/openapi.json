@@ -401,7 +401,7 @@
       },
       "Choices": {
         "additionalProperties": false,
-        "description": "What the player set in the dialog (services.mod_install.InstallChoices).",
+        "description": "What the player set in the dialog (modules.mods.mod_install.InstallChoices).",
         "properties": {
           "after_last": {
             "default": false,
@@ -599,7 +599,7 @@
         "type": "object"
       },
       "ConfigFileRead": {
-        "description": "A file as read: the text exactly (line breaks as \\n) and what writing it back needs. The client builds the\nform from the text (services.mod_configs.parse_doc).",
+        "description": "A file as read: the text exactly (line breaks as \\n) and what writing it back needs. The client builds the\nform from the text (modules.mods.mod_configs.parse_doc).",
         "properties": {
           "crlf": {
             "title": "Crlf",
@@ -7368,7 +7368,7 @@
     },
     "/v1/activity/undo": {
       "post": {
-        "description": "Start taking a job back (its result: {\"said\": ...}); refusals are OperationError codes (services.activity).",
+        "description": "Start taking a job back (its result: {\"said\": ...}); refusals are OperationError codes\n(modules.activity.service).",
         "operationId": "activity_undo",
         "requestBody": {
           "content": {

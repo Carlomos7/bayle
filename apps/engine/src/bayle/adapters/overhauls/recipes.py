@@ -1,6 +1,6 @@
-"""Reading the overhaul configs: the shipped folder (data/overhauls) and the local one (overhauls/ in the launcher's
-data folder), one TOML file per overhaul, validated as overhauls.config.OverhaulConfig. A local file with the same id
-replaces the shipped one; a file that does not read or fit is left out and problems() says why."""
+"""Reading the overhaul configs: the shipped folder (resources/overhauls) and the local one (overhauls/ in the
+launcher's data folder), one TOML file per overhaul, validated as overhauls.config.OverhaulConfig. A local file with the
+same id replaces the shipped one; a file that does not read or fit is left out and problems() says why."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def schema_path() -> Path:
 
 
 def write_schema() -> Path:
-    """Regenerate data/schemas/overhaul.schema.json from the model (tests check they match)."""
+    """Regenerate resources/schemas/overhaul.schema.json from the model (tests check they match)."""
     path = schema_path()
     path.write_text(json.dumps(schema(), indent=1) + "\n", encoding="utf-8", newline="\n")
     return path

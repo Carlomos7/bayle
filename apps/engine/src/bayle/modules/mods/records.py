@@ -14,7 +14,7 @@ each one travels with the folder it describes (§8.8). Each keeps only what cann
 Every record has a `version`. read() takes the JSON as written and moves an older version forward one step at a time
 (MIGRATIONS: version -> the function making the next version), so a file written by an earlier launcher still reads.
 A newer version than this launcher knows, an unknown key or a wrong value is refused with RecordError, never guessed
-at or overwritten. The JSON schemas in data/schemas are made from these models (write_schemas), never edited.
+at or overwritten. The JSON schemas in resources/schemas are made from these models (write_schemas), never edited.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ class Record(_Strict):
     VERSION: ClassVar[int] = 1
     MIGRATIONS: ClassVar[dict[int, Callable[[dict], dict]]] = {}
     FILE: ClassVar[str] = ""  # its file name in the library
-    SCHEMA: ClassVar[str] = ""  # its schema's file name in data/schemas
+    SCHEMA: ClassVar[str] = ""  # its schema's file name in resources/schemas
     # Each record declares `version: Literal[VERSION]`, the version it writes.
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -232,7 +232,7 @@ def schema_path(record: type[Record]) -> Path:
 
 
 def write_schemas() -> list[Path]:
-    """Regenerate each record's schema in data/schemas from its model (tests check they match)."""
+    """Regenerate each record's schema in resources/schemas from its model (tests check they match)."""
     out = []
     for record in RECORDS:
         path = schema_path(record)

@@ -1,7 +1,7 @@
 """The launcher's own build of a mod that must stay last, from a recipe instead of the mod's installer: nothing of
 the mod's (its installer, its merge tool) runs.
 
-A recipe (one build of an overhaul config, data/overhauls/*.toml, see docs/Overhaul configs.md) says how to
+A recipe (one build of an overhaul config, resources/overhauls/*.toml, see docs/Overhaul configs.md) says how to
 recognise the mod's download (its setup folder: files that must be there, values in its JSON files, the versions it
 was written for) and the steps that build its output folder from the packages before it:
 

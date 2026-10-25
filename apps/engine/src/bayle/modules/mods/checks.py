@@ -17,7 +17,7 @@ from bayle.modules.mods.profile_edit import (
 
 NOT_GAME_FOLDERS = {"_backup", "_unknown"}  # accepted when installing, but me3 serves nothing from them
 
-# The game's mod layout (data/games): the folders a package may have, and DLLs that are not mods
+# The game's mod layout (resources/games): the folders a package may have, and DLLs that are not mods
 ACCEPTABLE_FOLDERS = set(game_config.load().mod_folders) | NOT_GAME_FOLDERS
 IGNORED_DLLS = set(game_config.load().ignored_dlls)
 

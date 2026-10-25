@@ -1,6 +1,6 @@
 """What the launcher knows about how the game reads what it is given, beyond the file formats: data the game-model
 session derived from the game (tools/roundtable-dev/rea-eldenring/game-model in the owner's workspace), shipped in
-data/games.
+resources/games.
 
 <game>-exe-lists.json: lists that live in the game's executable, keyed by its FileVersion (game.exe): the command IDs
 its character scripts (HKS env/act) and talk scripts (ESD) can use, its event instructions (EMEVD) and the functions it

@@ -1,4 +1,4 @@
-"""What the launcher knows about a game's files, from data/games/<game>.json, as a Pydantic model."""
+"""What the launcher knows about a game's files, from resources/games/<game>.json, as a Pydantic model."""
 
 from __future__ import annotations
 

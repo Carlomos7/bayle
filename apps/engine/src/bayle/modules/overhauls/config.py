@@ -1,4 +1,4 @@
-"""Overhaul configs: one TOML file per overhaul mod (data/overhauls/*.toml, or the local folder) saying how to
+"""Overhaul configs: one TOML file per overhaul mod (resources/overhauls/*.toml, or the local folder) saying how to
 recognise it and how the launcher builds it, as a Pydantic model.
 
 An overhaul is a mod that must load after the others and ships merged copies of game files other mods also change
@@ -14,8 +14,8 @@ An overhaul is a mod that must load after the others and ships merged copies of 
                 and, optionally, what installing that edition does to the me3 profile (install; overhauls.install_plan
                 works out the changes, nothing here writes a profile)
 
-The shipped configs are in data/overhauls; a file in the local folder (overhauls/ in the launcher's data folder) with
-the same id replaces the shipped one, and one with a new id adds an overhaul. A file that does not read or does not
+The shipped configs are in resources/overhauls; a file in the local folder (overhauls/ in the launcher's data folder)
+with the same id replaces the shipped one, and one with a new id adds an overhaul. A file that does not read or does not
 fit the model is left out (adapters.overhauls.recipes reads them, and problems() says why).
 """
 

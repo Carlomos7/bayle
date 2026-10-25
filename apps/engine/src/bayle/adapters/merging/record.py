@@ -7,7 +7,8 @@ When a build is out of date (what play checks before starting the game):
                  packages ship it, or their order, changed
     game         the game's regulation.bin differs from its recorded sha256; an archive index (.bhd) changed size or
                  modification time (a game update rewrites them; the archives themselves are too large to hash)
-    config       an overhaul's build: the build in its config (data/overhauls) differs from the one it was made with
+    config       an overhaul's build: the build in its config (resources/overhauls) differs from the one it was
+                 made with
 The game's files and the config are recorded by game_files() and the overhaul's build (config_sha256 in facts());
 reasons() compares them with today's when it is given them. Combine (adapters.overhauls.backends.builtin) and the
 launcher's overhaul build (adapters.overhauls.engine) both take their facts from here. The me3 version is recorded but

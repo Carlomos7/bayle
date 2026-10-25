@@ -207,7 +207,7 @@ def launch_profile_from_path(p: str | Path, loc: Locations) -> LaunchProfile | N
 
 def discover(remembered: str | None, loc: Locations):
     """loc's game's me3 profiles (+ the remembered one), and every installation of an overhaul with a config for the
-    game (data/overhauls) in its folder next to them or in the game folder."""
+    game (resources/overhauls) in its folder next to them or in the game folder."""
     found, seen = [], set()
     places = [(o.recognise.folder, o.recognise.manifest) for o in recipes.load(loc.game.key)]
 

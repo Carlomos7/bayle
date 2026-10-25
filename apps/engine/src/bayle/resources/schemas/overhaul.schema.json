@@ -46,7 +46,7 @@
   },
   "Basic": {
    "additionalProperties": false,
-   "description": "What the Overhaul setup form sets (overhauls.basic derives the rest of the config from it and the mod's\nfiles). The config's recognise and builds are written beside it; it loads last whatever is set here.",
+   "description": "What the Overhaul setup form sets (adapters.overhauls.basic derives the rest of the config from it and the mod's\nfiles). The config's recognise and builds are written beside it; it loads last whatever is set here.",
    "properties": {
     "version": {
      "anyOf": [
@@ -377,7 +377,7 @@
   },
   "Health": {
    "additionalProperties": false,
-   "description": "A log the mod writes, read after a run (services.run_health): only the lines written since the launch, and\nonly for what this entry names. A line matching a `fail` pattern is shown in Activity as a warning naming the mod.",
+   "description": "A log the mod writes, read after a run (modules.launch.run_health): only the lines written since the launch, and\nonly for what this entry names. A line matching a `fail` pattern is shown in Activity as a warning naming the mod.",
    "properties": {
     "log": {
      "title": "Log",
@@ -413,7 +413,7 @@
   },
   "Hook": {
    "additionalProperties": false,
-   "description": "A mod's script fragment added to the entry script (overhauls.hooks): the packages' own script folder copied\nin load order, then the fragment appended to the entry file (the last package's copy, else the download's base).\nSeveral hooks for one entry are appended in the order of the steps, each wrapping the one before.",
+   "description": "A mod's script fragment added to the entry script (adapters.overhauls.hooks): the packages' own script folder\ncopied in load order, then the fragment appended to the entry file (the last package's copy, else the download's\nbase). Several hooks for one entry are appended in the order of the steps, each wrapping the one before.",
    "properties": {
     "do": {
      "const": "hook",

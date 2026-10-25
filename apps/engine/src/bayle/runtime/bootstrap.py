@@ -27,10 +27,10 @@ from pathlib import Path
 from typing import Any
 
 from bayle import __version__
-from bayle.adapters.filesystem import hashing
-from bayle.adapters.games import discovery, paths
-from bayle.adapters.integrations.me3 import me3_info, me3_paths
-from bayle.adapters.integrations.me3 import session as me3_session
+from bayle.adapters.filesystem import data_folder, hashing
+from bayle.adapters.games import discovery, me3_paths, paths
+from bayle.adapters.games import session as me3_session
+from bayle.adapters.integrations.me3 import me3_info
 from bayle.adapters.integrations.steam import steam
 from bayle.adapters.overhauls import backends as tool_backends
 from bayle.adapters.overhauls import engine as overhaul_engine
@@ -42,17 +42,15 @@ from bayle.adapters.persistence.imports import run_imports
 from bayle.adapters.persistence.mirror import Mirror
 from bayle.adapters.persistence.rebuild_runs import RebuildRuns
 from bayle.adapters.persistence.settings_file import load_settings
-from bayle.adapters.system import app_paths, data_folder, desktop, identity
+from bayle.adapters.system import app_paths, desktop, identity
 from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.app_paths import data_dir
 from bayle.modules import ports
 from bayle.modules.games import catalog
 from bayle.modules.games import ports as game_ports
 from bayle.modules.games.locate import Locations
-from bayle.modules.launch import ports as launch_ports
 from bayle.modules.mods import ports as mod_ports
 from bayle.modules.mods import rebuild as mod_rebuild
-from bayle.modules.saves import ports as save_ports
 from bayle.modules.settings.models import LauncherSettings
 from bayle.runtime import instance, startup_recovery
 from bayle.runtime.startup import StartupStep, recovery_steps
@@ -68,7 +66,7 @@ _SLOTS: dict[str, tuple[Any, str]] = {
     "hash_store": (hashing, "_HASH_STORE"),
     "hash_file_in_use": (hashing, "_HASH_FILE_IN_USE"),
     "run_store": (mod_rebuild, "_RUN_STORE"),
-    "mirror": (save_ports, "_CURRENT"),
+    "mirror": (ports, "_RECORD_INDEX"),
     "after_job": (runner, "_AFTER_JOB"),
     "cpu_backend": (cpu, "_backend"),
     "cpu_broadcast": (cpu, "_broadcast"),
@@ -81,8 +79,8 @@ def bind_ports() -> None:
     concrete adapters. Stateless forwarders: they stay bound for the whole process, so this is not part of _SLOTS, and
     calling it again changes nothing. Every entry point that can run a workflow before an engine exists calls it."""
     game_ports._DISCOVERY, game_ports._PATHS = discovery, paths
-    launch_ports._ME3_INFO, launch_ports._ME3_PATHS, launch_ports._ME3_SESSION = me3_info, me3_paths, me3_session
-    launch_ports._STEAM, launch_ports._DESKTOP = steam, desktop
+    ports._ME3_INFO, ports._ME3_PATHS, ports._ME3_SESSION = me3_info, me3_paths, me3_session
+    ports._STEAM, ports._DESKTOP = steam, desktop
     ports._DATA_FOLDER = data_folder
     ports._SETTINGS_FILE = settings_file
     ports._APP_PATHS = app_paths

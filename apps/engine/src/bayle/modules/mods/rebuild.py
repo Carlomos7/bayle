@@ -53,9 +53,9 @@ STATE_TEXT = {
 
 # ----------------------------------------------------------------------------- layers
 def is_elden_ring(profile: Path) -> bool:
-    from bayle.modules.launch import ports as launch_ports
+    from bayle.modules import ports
 
-    named = launch_ports.profile_games(Path(profile))
+    named = ports.profile_games(Path(profile))
     return games.ELDEN_RING.key in named if named else True  # a profile that names no game counts as Elden Ring's
 
 

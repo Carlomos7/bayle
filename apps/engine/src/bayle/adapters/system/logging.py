@@ -89,7 +89,7 @@ def log_dir() -> Path:
     """The logs folder in the launcher's data folder (worked out on each call)."""
     if _dir_override is not None:
         return _dir_override
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     return data_folder.data_root() / "logs"
 

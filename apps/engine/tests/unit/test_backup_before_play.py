@@ -5,8 +5,8 @@ import uuid
 
 import pytest
 
+from bayle.adapters.games import session as me3_session
 from bayle.adapters.integrations.me3 import me3_info
-from bayle.adapters.integrations.me3 import session as me3_session
 from bayle.adapters.system import logging as run_logging
 from bayle.modules.games.locate import Locations
 from bayle.modules.launch import play as core

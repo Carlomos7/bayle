@@ -137,7 +137,7 @@ def test_migration_gives_each_profile_its_folder_and_copies_what_two_share(world
     assert not root.exists() and not (home / "roundtable").exists()  # nothing was left in the old folders
     mine = home / "eldenring-mods"
     assert (mine / "mine.me3").is_file() and (mine / "mod" / "x" / "x.dcx").is_file()
-    from bayle.adapters.integrations.me3 import me3_paths
+    from bayle.adapters.games import me3_paths
 
     found = [p for p in me3_paths.find_profiles(home, "eldenring", "eldenring") if not p.name.endswith(".offline.me3")]
     assert found == sorted([a, b, c, d, mine / "mine.me3"], key=lambda p: (p.name.lower(), str(p).lower()))
@@ -334,7 +334,7 @@ def test_custom_folder_names_are_followed(tmp_path, monkeypatch):
 
 
 def test_migration_follows_a_custom_game_folder_and_dot_folders_are_never_profiles(world, monkeypatch):
-    from bayle.adapters.integrations.me3 import me3_paths
+    from bayle.adapters.games import me3_paths
     from bayle.adapters.persistence import settings_file
     from bayle.modules.settings import models as settings
 

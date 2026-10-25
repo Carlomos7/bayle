@@ -8,9 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from bayle.adapters.games import paths
-from bayle.adapters.integrations.me3 import me3_paths
-from bayle.adapters.integrations.steam import steam_paths
+from bayle.adapters.games import me3_paths, paths, steam_paths
 from bayle.modules.games import catalog
 
 

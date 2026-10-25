@@ -24,7 +24,7 @@ _origins: dict[str, Path] = {}  # config id -> the file the last load() took it 
 
 def local_dir() -> Path | None:
     """The local folder (overhauls/ in the launcher's data folder), or None before the data folder is set."""
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     try:
         return data_folder.data_root() / "overhauls"

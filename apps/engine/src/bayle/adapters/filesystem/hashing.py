@@ -30,7 +30,7 @@ _HASH_FILE_IN_USE = True
 
 
 def _hash_file() -> Path:
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     return data_folder.data_root() / "cache" / "hashes.json"
 

@@ -1,4 +1,5 @@
-"""Other programs the launcher works with: Steam (steam) and me3 (me3)."""
+"""Other programs as programs: Steam (whether it runs and is signed in, its libraries, its shortcuts) and me3 (its
+version, its info, the latest release)."""
 
 from typing import TYPE_CHECKING
 

@@ -4,9 +4,9 @@ bus, close() unbinds what the engine bound, and a second engine after it binds a
 from pathlib import Path
 
 from bayle.adapters.filesystem import hashing
+from bayle.modules import ports
 from bayle.modules.mods import rebuild
 from bayle.modules.mods import service as mod_service
-from bayle.modules.saves import ports
 from bayle.runtime import startup, startup_recovery
 from bayle.runtime.bootstrap import create_engine
 from bayle.work import cpu
@@ -73,11 +73,11 @@ def test_close_unbinds_and_a_second_engine_binds_afresh():
     first.use_cpu(backend, backend, 1)
     assert cpu._backend is backend and cpu._ui_thread == 1
     first.close()
-    assert hashing._HASH_STORE is None and rebuild._RUN_STORE is None and ports._CURRENT is None
+    assert hashing._HASH_STORE is None and rebuild._RUN_STORE is None and ports._RECORD_INDEX is None
     assert cpu._backend is None and cpu._ui_thread is None
     second = create_engine()
     try:
         assert second.storage is not None and hashing._HASH_STORE is second.hash_cache
-        assert second.jobs.store is second.activity and ports._CURRENT is not None
+        assert second.jobs.store is second.activity and ports._RECORD_INDEX is not None
     finally:
         second.close()

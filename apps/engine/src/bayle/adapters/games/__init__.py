@@ -1,4 +1,5 @@
-"""The game on this machine and its own files: finding it and its saves (discovery, paths), its packed archives
+"""The game on this machine: finding it, its saves and me3 (discovery, paths, steam_paths, me3_paths), playing it
+(session: Steam started, the launch through me3, waiting for the exit, leftover shells cleared), its packed archives
 (archives), its Oodle library (oodle), its executable's version (exe) and what the launcher knows about how it reads
 what it is given (knowledge)."""
 
@@ -10,8 +11,11 @@ if TYPE_CHECKING:  # each module is imported where it is used, not here: importi
         discovery,
         exe,
         knowledge,
+        me3_paths,
         oodle,
         paths,
+        session,
+        steam_paths,
     )
 
 __all__ = [
@@ -19,6 +23,9 @@ __all__ = [
     "discovery",
     "exe",
     "knowledge",
+    "me3_paths",
     "oodle",
     "paths",
+    "session",
+    "steam_paths",
 ]

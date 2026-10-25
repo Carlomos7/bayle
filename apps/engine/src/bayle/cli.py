@@ -163,8 +163,9 @@ def check_storage() -> int:
     only when it is open at the current schema. Used on builds, to prove the migrations were packaged."""
     import sqlite3
 
+    from bayle.adapters.filesystem import data_folder
     from bayle.adapters.persistence import db as storage_db
-    from bayle.adapters.system import data_folder, identity
+    from bayle.adapters.system import identity
     from bayle.resources import MIGRATIONS_DIR
     from bayle.runtime.bootstrap import use_data_folder
 

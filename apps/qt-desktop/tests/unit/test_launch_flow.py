@@ -5,7 +5,7 @@ flow runs over fakes: no Qt, no game, no files."""
 from pathlib import Path
 from types import SimpleNamespace
 
-from bayle.adapters.integrations.me3 import session as me3_session
+from bayle.adapters.games import session as me3_session
 from bayle.adapters.system import desktop
 from bayle.modules.games import catalog
 from bayle.modules.launch import play as core

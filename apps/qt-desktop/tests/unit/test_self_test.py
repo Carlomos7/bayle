@@ -70,7 +70,7 @@ def test_a_missing_file_is_a_failure_not_a_skip():
 def test_compiled_qml_is_cached_inside_this_runs_data_folder(monkeypatch, tmp_path):
     """Qt names its QML cache folder after the program, which for the packaged build is the real data folder's name;
     use_qml_cache_folder() keeps it inside the data folder this run uses (the conftest's temporary one here)."""
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     from bayle_qt import qml_env
 

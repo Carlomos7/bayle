@@ -28,11 +28,11 @@ from urllib.request import url2pathname
 
 import pytest
 
+from bayle.adapters.filesystem import data_folder
+from bayle.adapters.games import me3_paths
 from bayle.adapters.games import paths as common
-from bayle.adapters.integrations.me3 import me3_paths
 from bayle.adapters.persistence import settings_file
 from bayle.adapters.saves import item_names
-from bayle.adapters.system import data_folder
 from bayle.modules.saves import backups as save_backups
 from bayle.runtime import bootstrap, instance
 

@@ -11,7 +11,6 @@ from bayle.adapters.formats import me3_profile
 from bayle.adapters.system import logging as run_logging
 from bayle.modules import ports
 from bayle.modules.games.locate import Locations
-from bayle.modules.launch import ports as launch_ports
 from bayle.modules.mods import (
     install,
     installer_leftovers,
@@ -102,8 +101,8 @@ def me3_facts(launch, loc: Locations) -> dict:
     me3 = launch.me3_path() if launch else loc.me3_exe()
     facts = {
         "path": str(me3) if me3 else "",
-        "version": launch_ports.me3_version(me3),
-        "info": launch_ports.me3_info(me3),
+        "version": ports.me3_version(me3),
+        "info": ports.me3_info(me3),
         "latest": None,
         "update": False,
         "reload": False,
@@ -119,13 +118,13 @@ def me3_facts(launch, loc: Locations) -> dict:
         cached = s.me3_latest
         when = float(s.me3_latest_checked or 0)
         if not cached or time.time() - when > 86400:
-            rel = launch_ports.latest_release()
+            rel = ports.latest_release()
             if rel:
                 cached = rel
                 ports.save_settings(me3_latest=rel, me3_latest_checked=time.time())
         if isinstance(cached, dict):
             facts["latest"] = cached
-            facts["update"] = launch_ports.update_available(facts["version"], cached.get("version"))
+            facts["update"] = ports.update_available(facts["version"], cached.get("version"))
     return facts
 
 

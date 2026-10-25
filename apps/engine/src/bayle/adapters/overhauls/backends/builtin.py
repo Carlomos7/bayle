@@ -106,7 +106,7 @@ def history_root(profile: Path) -> Path:
     import hashlib
     import os
 
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     key = hashlib.sha1(os.path.normcase(os.path.abspath(profile)).encode()).hexdigest()[:8]
     return data_folder.data_root() / "mods" / "combined-history" / f"{Path(profile).stem}-{key}"

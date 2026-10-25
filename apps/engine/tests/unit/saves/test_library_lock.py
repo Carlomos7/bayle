@@ -21,7 +21,7 @@ WORKER = textwrap.dedent(
     """
     import sys
     from pathlib import Path
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
     from bayle.modules.saves import library as Lib
     from bayle.runtime.bootstrap import bind_ports
 

@@ -7,7 +7,8 @@ import json
 import pytest
 from fakehost import STEAM_EXE, FakeHost, launch_profile_for
 
-from bayle.adapters.integrations.me3 import me3_info, session
+from bayle.adapters.games import session
+from bayle.adapters.integrations.me3 import me3_info
 from bayle.adapters.system import logging as run_logging
 from bayle.modules.games import catalog as games
 from bayle.modules.games.locate import Locations

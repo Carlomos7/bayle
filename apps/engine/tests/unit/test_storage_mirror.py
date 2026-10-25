@@ -9,8 +9,9 @@ import sqlite3
 import pytest
 
 from bayle.adapters.persistence import db, mirror
+from bayle.modules import ports
 from bayle.modules.mods import history
-from bayle.modules.saves import backups, ports
+from bayle.modules.saves import backups
 from bayle.runtime import bootstrap
 
 pytestmark = pytest.mark.skipif(db.sqlite_problem() is not None, reason=str(db.sqlite_problem()))

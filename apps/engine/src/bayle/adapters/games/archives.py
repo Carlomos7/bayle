@@ -69,7 +69,7 @@ def _entries(index: bytes) -> dict[int, tuple]:
 
 
 def _cache_dir() -> Path:
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     return data_folder.data_root() / "cache" / "archives"
 

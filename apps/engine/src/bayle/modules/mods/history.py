@@ -15,7 +15,6 @@ import re
 from pathlib import Path
 
 from bayle.modules import ports
-from bayle.modules.saves import ports as save_ports
 
 KEEP = 30
 INDEX = "versions.json"  # file name -> why, word for word (the file name only carries a short form)
@@ -48,7 +47,7 @@ def _write_index(d: Path, data: dict) -> None:
         tmp = d / (INDEX + ".tmp")
         tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
         tmp.replace(d / INDEX)
-        save_ports.record(save_ports.HISTORY, d / INDEX)
+        ports.record(ports.HISTORY, d / INDEX)
     except OSError:
         pass
 

@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # each module is imported where it is used, not here: importing the package does nothing
     from bayle.adapters.system import (
         app_paths,
-        data_folder,
         desktop,
         identity,
         logging,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:  # each module is imported where it is used, not here: importi
 
 __all__ = [
     "app_paths",
-    "data_folder",
     "desktop",
     "identity",
     "logging",

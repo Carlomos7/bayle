@@ -21,9 +21,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from bayle.adapters.filesystem import data_folder
 from bayle.adapters.integrations.steam import steam_shortcuts
 from bayle.adapters.persistence.settings_file import load_settings, save_settings
-from bayle.adapters.system import data_folder, identity
+from bayle.adapters.system import identity
 from bayle.adapters.system.app_paths import identity_matches, is_installed, launch_target
 
 

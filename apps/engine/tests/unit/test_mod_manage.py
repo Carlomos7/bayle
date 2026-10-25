@@ -364,7 +364,7 @@ def test_create_and_delete_profile(tmp_path):
     assert c == tmp_path / "profiles" / "b-eldenring" / "copy" / "copy.me3" and "flora" in c.read_text(encoding="utf-8")
     assert (c.parent / "mod" / "flora" / "f.dcx").read_bytes() == b"f"  # the mods come along
     gone = M.delete_profile(c)
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
 
     assert not c.exists() and gone.parent == data_folder.deleted_profiles(c.parent) and gone.suffix == ".me3"
     assert '"from"' in Path(str(gone) + ".json").read_text(encoding="utf-8")  # a note of where it lived

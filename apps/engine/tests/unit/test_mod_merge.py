@@ -8,9 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from bayle.adapters.games import discovery
+from bayle.adapters.games import discovery, me3_paths
 from bayle.adapters.games import paths as common
-from bayle.adapters.integrations.me3 import me3_paths
 from bayle.adapters.overhauls import backends
 from bayle.modules.mods import install, remove
 from bayle.modules.mods import ports as tool_ports

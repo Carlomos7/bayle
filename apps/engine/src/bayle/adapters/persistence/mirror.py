@@ -27,7 +27,7 @@ from sqlalchemy import delete
 
 from bayle.adapters.persistence.db import Database
 from bayle.adapters.persistence.models import RecordMirrorRow, utc_now
-from bayle.modules.saves.ports import BACKUP_NOTE
+from bayle.modules.ports import BACKUP_NOTE
 
 PROTECTIVE_SCHEMA = 1
 

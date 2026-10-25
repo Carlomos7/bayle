@@ -96,7 +96,7 @@ def test_journals_are_resolved_before_the_database_opens_on_every_start(data):
 
 
 def test_create_engine_recovers_and_stamps_before_it_opens_the_database(monkeypatch):
-    from bayle.adapters.system import data_folder
+    from bayle.adapters.filesystem import data_folder
     from bayle.runtime import startup_recovery
     from bayle.runtime.bootstrap import create_engine
 

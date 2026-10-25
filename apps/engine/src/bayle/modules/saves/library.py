@@ -29,10 +29,10 @@ from bayle.adapters.filesystem import filelock
 from bayle.adapters.filesystem.files import atomic_write, durable_write, read_settled
 from bayle.adapters.saves import container as save_container
 from bayle.adapters.saves import layout as L
+from bayle.modules import ports
 from bayle.modules.games import catalog as games
 from bayle.modules.saves import backups as save_backups
 from bayle.modules.saves import fix as save_fix
-from bayle.modules.saves import ports
 from bayle.modules.saves import regulation as save_regulation
 
 MANIFEST = "library.json"

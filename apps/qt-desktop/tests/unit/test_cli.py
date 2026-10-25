@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 from bayle import cli
+from bayle.adapters.filesystem import data_folder
 from bayle.adapters.persistence import db as storage_db
 from bayle.adapters.persistence import settings_file
-from bayle.adapters.system import data_folder
 from bayle.adapters.system import logging as run_logging
 from bayle.modules.launch import play as core
 from bayle.runtime import bootstrap

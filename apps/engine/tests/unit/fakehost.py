@@ -15,7 +15,7 @@ import subprocess
 import time as _real_time
 from dataclasses import dataclass, field
 
-from bayle.adapters.integrations.me3 import session
+from bayle.adapters.games import session
 from bayle.adapters.integrations.steam import steam
 from bayle.adapters.system import proc, processes
 from bayle.modules.launch import play

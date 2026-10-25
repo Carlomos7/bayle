@@ -51,7 +51,6 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
-from bayle import overhauls
 from bayle.formats import me3_profile
 from bayle.game import catalog as games
 from bayle.mods import engine, installer_leftovers, kinds, library, operations, records
@@ -62,7 +61,7 @@ from bayle.mods.overhaul_manifest import INSTALLED_BY, launcher_installed
 from bayle.mods.profile_edit import quote
 from bayle.mods.profile_writer import Plan as WriterPlan
 from bayle.mods.profile_writer import ProfileWriter
-from bayle.overhauls import install_plan, recipes, requirements, sources
+from bayle.overhauls import basic, install_plan, recipes, requirements, sources
 from bayle.overhauls.config import Build, OverhaulConfig
 from bayle.platform import files, trash
 
@@ -1206,7 +1205,7 @@ def setup_config(config: OverhaulConfig, folder: Path) -> OverhaulConfig:
         return config
     from bayle.config import layout
 
-    return overhauls.basic.make(
+    return basic.make(
         reserved=layout.reserved_names(),
         id=config.id,
         label=config.label,

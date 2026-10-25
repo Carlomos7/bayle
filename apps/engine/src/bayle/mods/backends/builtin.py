@@ -22,9 +22,8 @@ from bayle.game import config as game_config
 from bayle.game import oodle as game_oodle
 from bayle.merging import record as merge_record
 from bayle.merging.build import Build, BuildError
-from bayle.mods import rebuild as merge
-from bayle.mods.backends import BackendError
-from bayle.platform import cpu
+from bayle.mods.tools import BackendError
+from bayle.platform import cpu, hashing
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -36,7 +35,7 @@ REGULATION = games.ELDEN_RING.regulation
 
 def _sha(p: Path) -> str:
 
-    return merge.sha256(p) or ""
+    return hashing.sha256(p) or ""
 
 
 def _me3_version(loc: Locations) -> str | None:
@@ -265,10 +264,10 @@ class CombineTool:
         return out
 
     # -------------------------------------------------------------- running
-    def run(self, log, all_layers: list[dict] | None = None, until: dict | None = None) -> dict:
+    def run(self, log, all_layers: list[dict], until: dict | None = None) -> dict:
         from bayle import __version__
 
-        layers = merge.layers(self.profile) if all_layers is None else all_layers
+        layers = all_layers
         packs = self.inputs(layers, until)
         build = Build(self.folder, RECORD)  # finishes undoing an interrupted rebuild first, if there was one
         try:

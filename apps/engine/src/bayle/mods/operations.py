@@ -35,6 +35,7 @@ from bayle.merging import build
 from bayle.mods import kinds, library, rebuild
 from bayle.mods.checks import same_folder
 from bayle.mods.models import UndoError
+from bayle.mods.tools import EngineHost
 
 
 class OperationError(RuntimeError):
@@ -109,6 +110,9 @@ def commit(op: build.Operation, then=None) -> None:
     kept: the newest one is the one a rollback or an undo takes back."""
     op.commit(then=then)
     _release_others(op)
+
+
+ENGINE_HOST = EngineHost(start, commit, same_folder)  # what mods.engine builds under (see mods.tools)
 
 
 def _release_others(op: build.Operation) -> None:
@@ -251,7 +255,7 @@ def _profile_back(
     """The profile's bytes once op is taken back, with the sha256 of its bytes now (what Operation.write_file
     expects to find, so a profile edited outside the launcher meanwhile is not overwritten): its exact previous bytes
     when it has not changed since; else the current text without the entries op added. None: leave it as it is."""
-    from bayle.mods import profile_edit, rename
+    from bayle.mods import me3_text, rename
 
     if op.info.get("kind") == rename.KIND:
         return rename.profile_back(op, profile, notes)
@@ -276,7 +280,7 @@ def _profile_back(
         if e["path"].replace("\\", "/").lower() in mine and e["path"].replace("\\", "/").lower() not in _coop_entries(
             text
         ):
-            text = profile_edit.remove_block(text, e["index"])
+            text = me3_text.remove_block(text, e["index"])
     return (text.encode("utf-8"), expect) if text != current else None
 
 

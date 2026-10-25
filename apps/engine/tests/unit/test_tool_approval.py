@@ -6,10 +6,11 @@ from pathlib import Path
 
 from bayle.config.settings import load_settings, save_settings
 from bayle.mods import rebuild
-from bayle.mods.backends import Recipe, Tool, program_fingerprint
+from bayle.mods.backends import CommandTool, program_fingerprint
+from bayle.mods.tools import Recipe
 
 
-def tool(tmp_path: Path, program: str = "refresh.exe") -> Tool:
+def tool(tmp_path: Path, program: str = "refresh.exe") -> CommandTool:
     recipe = Recipe(
         label="refresh",
         package={"name": "Overhaul"},
@@ -19,7 +20,7 @@ def tool(tmp_path: Path, program: str = "refresh.exe") -> Tool:
         sources_file=tmp_path / "installation.json",
         approval=f"{tmp_path}|refresh",
     )
-    return Tool(recipe)
+    return CommandTool(recipe)
 
 
 def test_a_new_version_of_the_program_is_asked_about_again(tmp_path):
@@ -48,7 +49,7 @@ def test_a_changed_script_is_asked_about_again_though_the_interpreter_is_the_sam
     script = tmp_path / "tool.py"
     script.write_text("print('version 1')\n", encoding="utf-8")
 
-    def scripted() -> Tool:
+    def scripted() -> CommandTool:
         t = tool(tmp_path, program="python")
         t.recipe.command = ["python", "tool.py", "--refresh"]
         return t
@@ -64,7 +65,7 @@ def test_the_data_a_tool_is_given_does_not_count_as_the_tool(tmp_path):
     data = tmp_path / "p.me3"
     data.write_text("profileVersion = 'v1'\n", encoding="utf-8")
 
-    def scripted() -> Tool:
+    def scripted() -> CommandTool:
         t = tool(tmp_path, program="python")
         t.recipe.command = ["python", "tool.py", str(data)]
         return t

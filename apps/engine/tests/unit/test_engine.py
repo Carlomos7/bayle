@@ -16,7 +16,7 @@ from bayle import overhauls
 from bayle.formats.esd import write_esd
 from bayle.game import config as game_config
 from bayle.game import locate
-from bayle.mods import backends, engine
+from bayle.mods import backends, engine, operations
 from bayle.mods import models as mod_models
 from bayle.mods import rebuild as merge
 from bayle.mods.backends import launcher_build
@@ -155,7 +155,9 @@ class Example:
 
     def build(self, log=lambda s: None):
         recipe, version, _ = engine.match(self.setup)
-        return engine.build(self.profile, self.own / "mod", self.setup, recipe, version, log, loc=er())
+        return engine.build(
+            self.profile, self.own / "mod", self.setup, recipe, version, log, loc=er(), host=operations.ENGINE_HOST
+        )
 
 
 @pytest.fixture
@@ -307,7 +309,15 @@ def test_a_build_can_be_left_staged_for_an_operation_to_put_in_place(world):
     recipe, version, _ = engine.match(world.setup)
     work = world.base / engine.WORK
     out = engine.build(
-        world.profile, world.own / "mod", world.setup, recipe, version, lambda s: None, loc=er(), swap=False
+        world.profile,
+        world.own / "mod",
+        world.setup,
+        recipe,
+        version,
+        lambda s: None,
+        loc=er(),
+        host=operations.ENGINE_HOST,
+        swap=False,
     )
     staged = out["output"]
     assert staged != world.own and staged.parent == world.base and (staged / "mod/regulation.bin").is_file()
@@ -375,7 +385,16 @@ def test_a_configs_requirements_refuse_the_build_naming_them(world):
         "Example Overhaul needs ersc.dll switched on in the profile.",
     ]
     with pytest.raises(mod_models.EngineError, match="needs Trees"):
-        engine.build(world.profile, world.own / "mod", world.setup, needs, version, lambda s: None, loc=er())
+        engine.build(
+            world.profile,
+            world.own / "mod",
+            world.setup,
+            needs,
+            version,
+            lambda s: None,
+            loc=er(),
+            host=operations.ENGINE_HOST,
+        )
     assert (world.own / "mod/regulation.bin").read_bytes() == b"OLD BUILD"
 
 
@@ -393,15 +412,15 @@ def test_the_inputs_are_only_read(world):
 
 def test_the_launcher_builds_only_what_it_installed_and_never_runs_another_installers_setup(world, monkeypatch):
     layer = next(l for l in merge.layers(world.profile) if l["name"] == "example-overhaul")
-    r = launcher_build.recipe(world.profile, layer, loc=er())
+    r = launcher_build.recipe(world.profile, layer, loc=er(), host=operations.ENGINE_HOST)
     assert r.engine is not None and r.label == "the launcher's build of example-overhaul" and not r.command
-    assert "Example Overhaul" in backends.Tool(r).describe()
+    assert "Example Overhaul" in backends.CommandTool(r).describe()
     manifest = world.own / "installation.json"
     data = json.loads(manifest.read_text())
     data.pop("installedBy")  # made by another installer: left alone
     manifest.write_text(json.dumps(data))
     before = manifest.read_bytes()
-    assert launcher_build.recipe(world.profile, layer, loc=er()) is None
+    assert launcher_build.recipe(world.profile, layer, loc=er(), host=operations.ENGINE_HOST) is None
     assert merge.find_backend(world.profile, loc=er()) is None
     assert "another installer" in merge.setup_problem(world.profile, loc=er())
     assert manifest.read_bytes() == before
@@ -461,7 +480,7 @@ def test_a_second_recipe_needs_no_code(world, tmp_path):
     target.mkdir(parents=True)
     world.profile.write_text(PROFILE + "\n[[packages]]\nid = \"toy\"\npath = 'Toy/mod'\n")
     (world.own / "mod/regulation.bin").write_bytes(vanilla())  # the package before it: a real one
-    engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er())
+    engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er(), host=operations.ENGINE_HOST)
     assert (world.base / "Toy/toy.dll").read_bytes() == b"toy"
     rows = rows_of((target / "regulation.bin").read_bytes(), "EquipParamWeapon")
     assert int.from_bytes(rows[2000].data[8:12], "little") == 9  # the toy's change
@@ -588,7 +607,7 @@ def hooks_setup(world, tmp_path):
 
 def test_several_hook_steps_are_appended_in_order_to_the_last_packages_script(world, tmp_path):
     setup, target, recipe, version = hooks_setup(world, tmp_path)
-    engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er())
+    engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er(), host=operations.ENGINE_HOST)
     # the last package before it with the script: Example's build ("ExampleOverhaul/mod" loads after anims)
     hks = (target / "action/script/c0000.hks").read_text()
     assert hks.endswith("\nlocal FirstOriginalUpdate = Update\n\nlocal SecondOriginalUpdate = Update\n")
@@ -599,7 +618,9 @@ def test_a_hook_already_in_a_package_before_it_is_refused(world, tmp_path):
     setup, target, recipe, version = hooks_setup(world, tmp_path)
     (world.base / "mod/anims/action/script/c0000.hks").write_text("local SecondOriginalUpdate = Update\n")
     with pytest.raises(mod_models.EngineError, match="A mod before Hooks already contains its script."):
-        engine.build(world.profile, target, setup, recipe, version, lambda s: None, loc=er())
+        engine.build(
+            world.profile, target, setup, recipe, version, lambda s: None, loc=er(), host=operations.ENGINE_HOST
+        )
 
 
 def test_licence_and_notice_files_travel_with_the_dlls_when_present(world, tmp_path):
@@ -625,7 +646,7 @@ def test_licence_and_notice_files_travel_with_the_dlls_when_present(world, tmp_p
     world.profile.write_text(PROFILE + "\n[[packages]]\nid = \"toy\"\npath = 'Toy/mod'\n")
     (world.own / "mod/regulation.bin").write_bytes(vanilla())
     said = []
-    engine.build(world.profile, target, setup, recipe, version, said.append, loc=er())
+    engine.build(world.profile, target, setup, recipe, version, said.append, loc=er(), host=operations.ENGINE_HOST)
     toy = world.base / "Toy"
     assert (toy / "LICENSE.txt").read_text() == "MIT" and (toy / "NOTICE").read_text() == "notice"
     assert (toy / "licenses/zlib.txt").read_text() == "zlib"

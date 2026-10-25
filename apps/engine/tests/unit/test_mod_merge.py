@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from bayle.game import locate
-from bayle.mods import backends, install, remove
+from bayle.mods import backends, install, remove, tools
 from bayle.mods import profile_edit as M
 from bayle.mods import rebuild as merge
 from bayle.platform import paths as common
@@ -64,7 +64,7 @@ class World:
         self.profile = self.base / "p.me3"
         self.profile.write_text(PROFILE, encoding="utf-8")
         self.runs = 0
-        monkeypatch.setattr(backends.Tool, "run", lambda b, log: self.fake_run(b))
+        monkeypatch.setattr(backends.CommandTool, "run", lambda b, log: self.fake_run(b))
         self.fake_run(None)  # a first merge, as the tool leaves it
         merge.approve(merge.find_backend(self.profile, loc=er()))
 
@@ -90,7 +90,7 @@ class World:
         own vanilla copy), its sources listed with sha256; and the profile rewritten without comments."""
         self.runs += 1
         if fail:
-            raise backends.BackendError("merge tool refused a file")
+            raise tools.BackendError("merge tool refused a file")
         layers = merge.layers(self.profile)
         before = [l for l in layers if l["name"] != "last"]
         sources = []
@@ -218,12 +218,12 @@ def test_not_for_other_games(world):
 # ----------------------------------------------------------------------------- rebuilds
 def test_a_rebuild_that_does_not_use_the_new_pack_fails_and_says_so(world, monkeypatch):
     world.pack("params")
-    monkeypatch.setattr(backends.Tool, "run", lambda b, log: world.fake_run(b, sources_from_game=True))
+    monkeypatch.setattr(backends.CommandTool, "run", lambda b, log: world.fake_run(b, sources_from_game=True))
     with pytest.raises(merge.MergeError, match="does not match the packages"):
         merge.rebuild(world.profile, lambda s: None, loc=er())
     h = merge.health(world.profile, loc=er())
     assert h["state"] == "failed" and "does not match" in h["reasons"][0]
-    monkeypatch.setattr(backends.Tool, "run", lambda b, log: world.fake_run(b))
+    monkeypatch.setattr(backends.CommandTool, "run", lambda b, log: world.fake_run(b))
     merge.rebuild(world.profile, lambda s: None, loc=er())
     assert merge.health(world.profile, loc=er())["state"] == "current"  # a good run clears the failure
 
@@ -231,7 +231,7 @@ def test_a_rebuild_that_does_not_use_the_new_pack_fails_and_says_so(world, monke
 def test_a_merger_that_stops_leaves_the_profile_as_it_was(world, monkeypatch):
     world.pack("params")
     before = world.profile.read_text(encoding="utf-8")
-    monkeypatch.setattr(backends.Tool, "run", lambda b, log: world.fake_run(b, fail=True))
+    monkeypatch.setattr(backends.CommandTool, "run", lambda b, log: world.fake_run(b, fail=True))
     with pytest.raises(merge.MergeError, match="refused"):
         merge.rebuild(world.profile, lambda s: None, loc=er())
     assert (
@@ -265,7 +265,7 @@ def test_a_merger_that_changes_what_loads_keeps_its_version(world, monkeypatch):
         t = world.profile.read_text(encoding="utf-8")
         world.profile.write_text(t.replace('{ id = "parts"', '{ id = "parts", enabled = false', 1), encoding="utf-8")
 
-    monkeypatch.setattr(backends.Tool, "run", drops_a_pack)
+    monkeypatch.setattr(backends.CommandTool, "run", drops_a_pack)
     out = merge.rebuild(world.profile, lambda s: None, loc=er())  # still verified against what loads now
     assert "its version is kept" in out["profile_note"]
     assert "packages = [" in world.profile.read_text(encoding="utf-8")

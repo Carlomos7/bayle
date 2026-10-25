@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from bayle import overhauls
 from bayle.formats import me3_profile
 from bayle.game import catalog as games
-from bayle.mods import checks, history, library, naming, profile_edit
+from bayle.mods import checks, history, library, me3_text, naming, profile_edit
 from bayle.mods import order as mod_order
 from bayle.mods import profile as profile_tools
 from bayle.mods.models import ModError
@@ -504,9 +504,9 @@ class ProfileWriter:
         elif where is None:
             where = self._last_place(kind)
         if where is None:
-            self.text = profile_edit.append_entry(self.text, kind, row)
+            self.text = me3_text.append_entry(self.text, kind, row)
         else:
-            self.text = profile_edit.insert_entry(self.text, kind, row, where)
+            self.text = me3_text.insert_entry(self.text, kind, row, where)
         self.changes.append(Change("add", kind, path=row["path"], row=row, deepest=deepest))
         return row
 
@@ -522,28 +522,28 @@ class ProfileWriter:
         return self.add_entry("native", {"path": path, **opts}, before=before, after_last=after_last, deepest=deepest)
 
     def remove_entry(self, index: int) -> tuple[str, dict]:
-        """Take block `index` out with its own comments (profile_edit.remove_entry). Returns (the text taken out,
+        """Take block `index` out with its own comments (me3_text.remove_entry). Returns (the text taken out,
         where it was), what restore_entry needs to put it back."""
         o = self.options(index)
-        self.text, chunk, where = profile_edit.remove_entry(self.as_blocks(), index)
+        self.text, chunk, where = me3_text.remove_entry(self.as_blocks(), index)
         self.changes.append(Change("remove", o["kind"], index, o["path"], before=o))
         return chunk, where
 
     def restore_entry(self, chunk: str, where: dict) -> None:
-        """Put an entry taken out by remove_entry back where it was (profile_edit.restore_entry)."""
-        self.text = profile_edit.restore_entry(self.as_blocks(), chunk, where)
+        """Put an entry taken out by remove_entry back where it was (me3_text.restore_entry)."""
+        self.text = me3_text.restore_entry(self.as_blocks(), chunk, where)
         self.changes.append(Change("add", row={}))
 
     def set_options(self, index: int, opts: dict) -> None:
-        """Rewrite the option keys of one block (profile_edit.set_block_options); keys absent from opts stay."""
+        """Rewrite the option keys of one block (me3_text.set_block_options); keys absent from opts stay."""
         o = self.options(index)
-        self.text = profile_edit.set_block_options(self.as_blocks(), index, opts)
+        self.text = me3_text.set_block_options(self.as_blocks(), index, opts)
         self.changes.append(Change("options", o["kind"], index, o["path"], row=dict(opts), before=o))
 
     def set_path(self, index: int, path: str) -> None:
         """Point one entry at a new path (a string as the profile should hold it); everything else stays."""
         o = self.options(index)
-        self.text = profile_edit.set_block_path(self.as_blocks(), index, path)
+        self.text = me3_text.set_block_path(self.as_blocks(), index, path)
         self.changes.append(Change("options", o["kind"], index, o["path"], row={"path": path}, before=o))
 
     def replace_block(self, index: int, lines: list[str]) -> None:

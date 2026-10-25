@@ -32,7 +32,7 @@ from bayle.config.settings import LauncherSettings, data_dir, load_settings
 from bayle.game import catalog
 from bayle.game.locate import Locations
 from bayle.mods import rebuild as mod_rebuild
-from bayle.platform import cpu, data_folder, instance, paths
+from bayle.platform import cpu, data_folder, hashing, instance, paths
 from bayle.platform import logging as run_logging
 from bayle.services import startup_recovery
 from bayle.session.startup import StartupStep, recovery_steps
@@ -51,8 +51,8 @@ from bayle.work.jobs import JobManager
 _SLOTS: dict[str, tuple[Any, str]] = {
     "data_root": (data_folder, "_ROOT"),
     "instance_scope": (instance, "_SCOPE"),
-    "hash_store": (mod_rebuild, "_HASH_STORE"),
-    "hash_file_in_use": (mod_rebuild, "_HASH_FILE_IN_USE"),
+    "hash_store": (hashing, "_HASH_STORE"),
+    "hash_file_in_use": (hashing, "_HASH_FILE_IN_USE"),
     "run_store": (mod_rebuild, "_RUN_STORE"),
     "mirror": (mirror, "_CURRENT"),
     "cpu_backend": (cpu, "_backend"),

@@ -47,15 +47,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle import formats, overhauls
-from bayle.formats import FormatError
+from bayle.formats import FormatError, me3_profile
 from bayle.game import catalog as games
 from bayle.game import config as game_config
 from bayle.game import knowledge
 from bayle.game import oodle as game_oodle
-from bayle.mods import checks, operations, rebuild
-from bayle.mods import profile_edit as mod_manage
 from bayle.mods.models import EngineError
+from bayle.mods.tools import EngineHost
 from bayle.overhauls import hks_check, hooks, lua_check
+from bayle.platform import hashing
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
@@ -126,17 +126,17 @@ def match(setup: Path | None, among: list[dict] | None = None) -> tuple[dict | N
 
 
 # ----------------------------------------------------------------------------- the inputs
-def layers(profile: Path, target_folder: Path) -> list[Path]:
+def layers(profile: Path, target_folder: Path, host: EngineHost) -> list[Path]:
     """The enabled packages before the target, in the order its own installer merges them: file order, each moved
     after what it loads after (and before what it loads before), taking the first that can go next."""
 
     rows = [
         e
-        for e in mod_manage.entries(profile)
+        for e in me3_profile.entries(me3_profile.read_text(profile))
         if e["kind"] == "package"
         and e.get("enabled", True)
         and e.get("path")
-        and not checks.same_folder(mod_manage.resolve(profile, e["path"]), target_folder)
+        and not host.same_folder(me3_profile.resolve(profile, e["path"]), target_folder)
     ]
     ids = [(e.get("id") or Path(e["path"]).name) for e in rows]
     if len(set(ids)) != len(ids):
@@ -155,7 +155,7 @@ def layers(profile: Path, target_folder: Path) -> list[Path]:
         if i is None:
             raise EngineError("The profile's package load order loops.")
         done.add(ids[i])
-        out.append(mod_manage.resolve(profile, rows[i]["path"]))
+        out.append(me3_profile.resolve(profile, rows[i]["path"]))
     for p in out:
         if not p.is_dir():
             raise EngineError(f"An enabled package's folder is missing: {p}")
@@ -169,7 +169,7 @@ def unmet(profile: Path, recipe: dict) -> list[str]:
     requires = [overhauls.Requirement.model_validate(r) for r in recipe.get("requires") or []]
     if not requires:
         return []
-    found = overhauls.requirements.unmet(requires, mod_manage.entries(profile))
+    found = overhauls.requirements.unmet(requires, me3_profile.entries(me3_profile.read_text(profile)))
     return [overhauls.requirements.refusal(recipe["label"], req) for req, _state in found]
 
 
@@ -254,6 +254,7 @@ def build(
     game_dir: Path | None = None,
     *,
     loc: Locations,
+    host: EngineHost,
     swap: bool = True,
 ) -> dict:
     """Build the output of `recipe` for the package in target_folder (its mod folder) from the packages before it,
@@ -278,7 +279,7 @@ def build(
     refused = unmet(profile, recipe)
     if refused:
         raise EngineError(" ".join(refused))
-    inputs = layers(profile, target_folder)
+    inputs = layers(profile, target_folder, host)
     stage = own.parent / f".{own.name}.building-{int(started)}"
     if stage.exists():
         shutil.rmtree(stage)
@@ -370,7 +371,7 @@ def build(
             seconds = time.time() - started
             log(f"engine: {recipe['label']} built in {seconds:.0f}s, staged")
             return {"output": stage, "previous": None, "restore": None, "sources": sources, "seconds": seconds}
-        previous, restore = _swap(profile, own, stage, log)
+        previous, restore = _swap(profile, own, stage, log, host)
     except BaseException:
         shutil.rmtree(stage, ignore_errors=True)
         raise
@@ -633,7 +634,7 @@ def inputs_now(recipe: dict, game_dir: Path | None, loc: Locations, *, version: 
     from bayle.merging import record as merge_record
 
     files = (
-        merge_record.game_files(game_dir, loc.game.regulation, rebuild.sha256, version=version) if game_dir else None
+        merge_record.game_files(game_dir, loc.game.regulation, hashing.sha256, version=version) if game_dir else None
     )
     return merge_record.facts(loc.game.key, game_files=files, config_sha256=overhauls.recipe_sha256(recipe))
 
@@ -654,7 +655,7 @@ def input_reasons(manifest: dict, recipe: dict, loc: Locations) -> list[str]:
     return merge_record.reasons(recorded, loc.game.key, now=now, label=recipe["label"])
 
 
-def _swap(profile: Path, own: Path, stage: Path, log) -> tuple[Path | None, Path | None]:
+def _swap(profile: Path, own: Path, stage: Path, log, host: EngineHost) -> tuple[Path | None, Path | None]:
     """The live build goes to previous/ and the staged one takes its place, as one journaled operation: a kill
     between the two renames is undone at the next launcher start (operations.recover), so the mod folder is never
     left missing. The journal is dropped once both renames are done; without one, previous/ is never touched."""
@@ -665,12 +666,12 @@ def _swap(profile: Path, own: Path, stage: Path, log) -> tuple[Path | None, Path
     if previous.exists():
         shutil.rmtree(previous)  # the build before last: rebuildable from the download at any time
     had = own.exists()
-    op = operations.start(profile, f"rebuild of {own.name}")
+    op = host.start(profile, f"rebuild of {own.name}")
     if had:
         op.move_folder(own, previous)
     op.move_folder(stage, own)
     try:
-        operations.commit(op)  # an OSError undoes the applied steps: the old build is back
+        host.commit(op)  # an OSError undoes the applied steps: the old build is back
     except OSError as e:
         raise EngineError(
             f"The new build could not replace {own.name} ({e}). Something has the folder open (an editor, a file "

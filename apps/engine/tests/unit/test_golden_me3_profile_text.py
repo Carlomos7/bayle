@@ -2,7 +2,7 @@
 give exactly these bytes for fixed input. Later phases move both; the text must not change."""
 
 from bayle.formats import me3_profile
-from bayle.mods import profile_edit
+from bayle.mods import me3_text
 
 BASE = (
     'profileVersion = "v1"\n'
@@ -269,19 +269,19 @@ def test_the_block_shape_is_read_back_entry_by_entry():
 
 
 def test_option_and_path_edits_change_only_their_block():
-    assert profile_edit.set_block_options(BASE, 1, {"enabled": False, "load_before": ["x"]}) == EXPECTED_OPTIONS
-    assert profile_edit.set_block_options(BASE, 0, {"optional": True, "load_early": False}) == EXPECTED_NATIVE_OPTIONS
-    assert profile_edit.set_block_path(BASE, 2, "mod/flora2") == EXPECTED_PATH
+    assert me3_text.set_block_options(BASE, 1, {"enabled": False, "load_before": ["x"]}) == EXPECTED_OPTIONS
+    assert me3_text.set_block_options(BASE, 0, {"optional": True, "load_early": False}) == EXPECTED_NATIVE_OPTIONS
+    assert me3_text.set_block_path(BASE, 2, "mod/flora2") == EXPECTED_PATH
 
 
 def test_removing_an_entry_takes_its_note_and_restoring_gives_the_original_back():
-    text, chunk, where = profile_edit.remove_entry(BASE, 1)
+    text, chunk, where = me3_text.remove_entry(BASE, 1)
     assert text == EXPECTED_REMOVED and chunk == EXPECTED_CHUNK
-    assert profile_edit.restore_entry(text, chunk, where) == BASE
+    assert me3_text.restore_entry(text, chunk, where) == BASE
 
 
 def test_inserting_goes_above_the_note_and_appending_keeps_crlf():
     row = {"id": "new", "path": "mod/new", "load_after": ["flora"]}
-    assert profile_edit.insert_entry(BASE, "package", row, 1) == EXPECTED_INSERT
+    assert me3_text.insert_entry(BASE, "package", row, 1) == EXPECTED_INSERT
     native = {"path": "natives/x.dll", "optional": True, "initializer": {"delay": {"ms": 500}}}
-    assert profile_edit.append_entry(BASE.replace("\n", "\r\n"), "native", native) == EXPECTED_APPEND_CRLF
+    assert me3_text.append_entry(BASE.replace("\n", "\r\n"), "native", native) == EXPECTED_APPEND_CRLF

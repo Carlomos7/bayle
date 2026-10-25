@@ -8,8 +8,8 @@ files next to a package, never from a mod's name:
     declared          a rebuild.json the package (or the user, in Options) provides; see docs/Rebuild tools.md
     launcher_build    the launcher's own build of an overhaul it installed (mods.engine); nothing from a download runs
 
-A Tool wraps a Recipe with what merge.py uses: label, package, own_folders(), merges(), sources(), input_reasons(),
-report_time(), problem(), approval_key(), describe() and run(log).
+A CommandTool wraps a Recipe as the Tool contract (mods.tools) asks: label, package, own_folders(), merges(), sources(),
+input_reasons(), report_time(), problem(), approval_key(), describe() and run(log).
 """
 
 from __future__ import annotations
@@ -18,19 +18,15 @@ import hashlib
 import json
 import subprocess
 import time
-from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.mods.models import EngineError
+from bayle.mods.tools import BackendError, EngineHost, Recipe, Tool
 
 if TYPE_CHECKING:
     from bayle.game.locate import Locations
-
-
-class BackendError(RuntimeError):
-    pass
 
 
 def local_path(path: str | Path, profile: Path, game_dir: Path | None = None) -> Path:
@@ -108,26 +104,8 @@ def _file_sha256(path: str, size: int, mtime_ns: int) -> str:
     return digest.hexdigest()
 
 
-@dataclass
-class Recipe:
-    """How to run one rebuild tool and read what it did."""
-
-    label: str
-    package: dict  # the layer it writes into (see merge.layers)
-    profile: Path
-    command: list[str]
-    cwd: Path
-    sources_file: Path
-    merges: set[str] = field(default_factory=set)  # relative to the package, lower-case
-    own: list[Path] = field(default_factory=list)  # its own folders: sources there are not packages
-    approval: str = ""  # changes when the tool changes, so a new version is asked about again
-    problem: str | None = None  # why it cannot run on this PC now
-    timeout: int = 1800
-    engine: object = None  # the launcher builds it from a recipe instead (mods.engine): called with log
-
-
-class Tool:
-    """A rebuild tool as merge.py sees it."""
+class CommandTool:
+    """A rebuild tool: a Recipe's command run as a subprocess, or the launcher's own build."""
 
     def __init__(self, recipe: Recipe):
         self.recipe = recipe
@@ -242,27 +220,36 @@ def _adapters():
     return (declared, launcher_build)
 
 
-def detect(profile: Path, packs: list[dict], *, loc: Locations) -> Tool | None:
+def detect(profile: Path, packs: list[dict], *, loc: Locations, host: EngineHost) -> Tool | None:
     """The rebuild tool that writes into one of these packages (checked from the last), or None. loc: the game's
-    locations (a tool's command names the game and me3)."""
+    locations (a tool's command names the game and me3); host: what the launcher's own build needs from the workflow."""
     for layer in reversed(packs):
         for kind in _adapters():
-            recipe = kind.recipe(Path(profile), layer, loc=loc)
+            recipe = kind.recipe(Path(profile), layer, loc=loc, host=host)
             if recipe is not None:
-                return Tool(recipe)
+                return CommandTool(recipe)
     return None
 
 
-def detect_for(profile: Path, layer: dict, rebuild_file: Path | None = None, *, loc: Locations) -> Tool | None:
+def detect_for(
+    profile: Path, layer: dict, rebuild_file: Path | None = None, *, loc: Locations, host: EngineHost
+) -> Tool | None:
     """The rebuild tool of a package the user set as the parameter overlay: from the rebuild.json they picked, else
     the one found beside the package, or None."""
     from bayle.mods.backends import declared
 
     if rebuild_file is not None:
-        recipe = declared.recipe(Path(profile), layer, file=Path(rebuild_file), loc=loc)
-        return Tool(recipe) if recipe is not None else None
+        recipe = declared.recipe(Path(profile), layer, file=Path(rebuild_file), loc=loc, host=host)
+        return CommandTool(recipe) if recipe is not None else None
     for kind in _adapters():
-        recipe = kind.recipe(Path(profile), layer, loc=loc)
+        recipe = kind.recipe(Path(profile), layer, loc=loc, host=host)
         if recipe is not None:
-            return Tool(recipe)
+            return CommandTool(recipe)
     return None
+
+
+def combine():
+    """The launcher's own Combine (backends.builtin), for the workflows that look for it or read its files."""
+    from bayle.mods.backends import builtin
+
+    return builtin

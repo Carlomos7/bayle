@@ -15,7 +15,7 @@ import time
 import pytest
 from sqlalchemy import select
 
-from bayle.mods import rebuild
+from bayle.platform import hashing
 from bayle.platform import logging as rl
 from bayle.runtime import bootstrap
 from bayle.storage import activity as act
@@ -41,8 +41,8 @@ def database(data):
 
 @pytest.fixture(autouse=True)
 def fresh_hash_memory(monkeypatch):
-    monkeypatch.setattr(rebuild, "_HASHES", {})
-    monkeypatch.setattr(rebuild, "_HASHES_LOADED", False)
+    monkeypatch.setattr(hashing, "_HASHES", {})
+    monkeypatch.setattr(hashing, "_HASHES_LOADED", False)
 
 
 def _jobs_file():
@@ -101,14 +101,14 @@ def test_the_cache_switches_to_the_database_only_after_a_verified_import(data, d
     _hashes_json(data, {key: [st.st_size, st.st_mtime_ns, "from-the-old-file"]})
     cache = HashCache(database)
     bootstrap.bind(hash_store=cache)
-    assert not cache.active and rebuild.sha256(f) == "from-the-old-file"  # not verified yet: the old file, as before
+    assert not cache.active and hashing.sha256(f) == "from-the-old-file"  # not verified yet: the old file, as before
     assert cache.import_file(data / "cache" / "hashes.json") and cache.active
     before = (data / "cache" / "hashes.json").read_bytes()
-    rebuild._HASHES.clear()
-    assert rebuild.sha256(f) == "from-the-old-file"  # now from the database
+    hashing._HASHES.clear()
+    assert hashing.sha256(f) == "from-the-old-file"  # now from the database
     g = tmp_path / "b.bin"
     g.write_bytes(b"another")
-    assert rebuild.sha256(g) == hashlib.sha256(b"another").hexdigest()
+    assert hashing.sha256(g) == hashlib.sha256(b"another").hexdigest()
     assert (data / "cache" / "hashes.json").read_bytes() == before  # the old file is preserved, no longer written
     assert cache.get(os.path.normcase(str(g.resolve())), g.stat().st_size, g.stat().st_mtime_ns) is not None
 
@@ -134,18 +134,18 @@ def test_a_changed_file_is_hashed_again_and_a_failing_cache_is_a_miss(data, data
     bootstrap.bind(hash_store=cache)
     f = tmp_path / "a.bin"
     f.write_bytes(b"one")
-    assert rebuild.sha256(f) == hashlib.sha256(b"one").hexdigest()
+    assert hashing.sha256(f) == hashlib.sha256(b"one").hexdigest()
     f.write_bytes(b"two!")  # size and time change: the remembered hash no longer counts
-    rebuild._HASHES.clear()
-    assert rebuild.sha256(f) == hashlib.sha256(b"two!").hexdigest()
+    hashing._HASHES.clear()
+    assert hashing.sha256(f) == hashlib.sha256(b"two!").hexdigest()
 
     def broken():
         raise RuntimeError("database gone")
 
     monkeypatch.setattr(database, "unit_of_work", broken)
-    rebuild._HASHES.clear()
+    hashing._HASHES.clear()
     f.write_bytes(b"three")
-    assert rebuild.sha256(f) == hashlib.sha256(b"three").hexdigest()  # a miss: hashed, never a stale answer
+    assert hashing.sha256(f) == hashlib.sha256(b"three").hexdigest()  # a miss: hashed, never a stale answer
 
 
 def test_without_storage_the_cache_is_bypassed_and_its_file_left_alone(data, tmp_path):
@@ -154,7 +154,7 @@ def test_without_storage_the_cache_is_bypassed_and_its_file_left_alone(data, tmp
     bootstrap.bind(hash_store=None, hash_file_in_use=False)
     f = tmp_path / "a.bin"
     f.write_bytes(b"data")
-    assert rebuild.sha256(f) == hashlib.sha256(b"data").hexdigest()
+    assert hashing.sha256(f) == hashlib.sha256(b"data").hexdigest()
     assert (data / "cache" / "hashes.json").read_bytes() == before
 
 
@@ -174,7 +174,7 @@ def test_no_database_transaction_is_open_while_a_file_is_hashed(data, database, 
         return real_open(self, *a, **k)
 
     monkeypatch.setattr(type(f), "open", watched_open)
-    rebuild.sha256(f)
+    hashing.sha256(f)
     assert seen == [0]
 
 
@@ -345,5 +345,5 @@ def test_create_engine_without_storage_bypasses_the_cache_and_keeps_activity_in_
     assert "No storage" in _jobs_file().read_text(encoding="utf-8")
     f = tmp_path / "a.bin"
     f.write_bytes(b"z")
-    rebuild.sha256(f)
+    hashing.sha256(f)
     assert not (data / "cache" / "hashes.json").exists()

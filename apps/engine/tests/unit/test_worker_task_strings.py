@@ -19,7 +19,7 @@ KNOWN = {
     "bayle.platform.cpu:probe",
     "bayle.saves.caches:forget",
     "bayle.merging.rules.param:combine_job",
-    "bayle.mods.shared_mods:tree_hash_job",
+    "bayle.platform.tree_hash:tree_hash_job",
     "bayle.services.saves:save_info_job",
 }
 

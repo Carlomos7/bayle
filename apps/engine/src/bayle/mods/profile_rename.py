@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from bayle.config import settings as launcher_settings
 from bayle.merging import build
-from bayle.mods import history, kinds, library, migrate, naming, operations
+from bayle.mods import backends, history, kinds, library, migrate, naming, operations
 from bayle.mods import profile_settings as ps
 from bayle.mods.models import ModError, UndoError
 
@@ -363,7 +363,7 @@ def finish_state(op: build.Operation) -> list[str]:
 
 
 def _apply_state(info: dict, *, back: bool = False) -> list[str]:
-    from bayle.mods.backends import builtin
+    builtin = backends.combine()
     from bayle.mods.rebuild import _key
 
     old, new = Path(info["old_profile"]), Path(info["profile"])

@@ -125,22 +125,19 @@ uv run python scripts/build.py --identity test.json  # an isolated test build (o
 ## Project layout
 
 ```text
-apps/engine/src/bayle/        (the Qt window, pages and updater are in apps/qt-desktop/src/bayle_qt/)
-â”œâ”€â”€ ui/          Qt Quick shell, pages, presenters (Qt-free) and adapters
-â”œâ”€â”€ services/    what the pages call: launch, mods, saves, settings, transfers
-â”œâ”€â”€ mods/        profiles, the profile writer, install, library, rename, undo, operations
-â”œâ”€â”€ overhauls/   the overhaul config format, its writer and checks
-â”œâ”€â”€ merging/     the merger, per-format rules and the operation journal
-â”œâ”€â”€ formats/     DCX, BND4, PARAM, FMG, ESD, TAE, me3 profiles, config files
-â”œâ”€â”€ saves/       save parsing, checks, repairs, library and backups
-â”œâ”€â”€ game/        game catalog, locations, archives
-â”œâ”€â”€ storage/     the records database
-â”œâ”€â”€ updates/     update feed, signing and apply
-â””â”€â”€ platform/    paths, Steam, processes, logging, locks
+apps/engine/src/bayle/        the engine: no Qt (the window, pages and updater are apps/qt-desktop/src/bayle_qt/)
+├── modules/     the features: activity, coop, games, launch, mods, overhauls, saves, settings
+├── adapters/    infrastructure: formats, filesystem, persistence, games, saves, merging, overhauls,
+│                archives, integrations (Steam, me3), system
+├── work/        jobs, events, progress, cancellation, the CPU worker pool
+├── api/         the HTTP API (FastAPI), thin routers over the features
+├── runtime/     building the engine: composition, ports, start-up and shutdown
+└── resources/   shipped read-only data: game definitions, schemas, item lists
 ```
 
-Each package may import only from the packages below it; `lint-imports` enforces this in CI. Technical decisions are
-recorded in [docs/decisions](docs/decisions).
+Features reach the database, the settings file and other programs only through ports the runtime binds; adapters use
+the features' models and ports, never their workflows. `lint-imports` enforces this in CI; the reasons are in
+[docs/architecture.md](docs/architecture.md). Technical decisions are recorded in [docs/decisions](docs/decisions).
 
 ## Contributing
 

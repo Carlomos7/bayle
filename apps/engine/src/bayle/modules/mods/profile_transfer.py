@@ -46,7 +46,7 @@ from bayle.modules.mods import service as mod_service
 from bayle.modules.mods.models import ModError
 from bayle.modules.mods.profile_writer import ProfileWriter
 from bayle.modules.mods.transfer_resources import Resource, TransferResources
-from bayle.modules.settings.service import load_settings
+from bayle.modules.ports import load_settings
 from bayle.work.jobs import JobManager
 from bayle.work.runner import run_job_result
 

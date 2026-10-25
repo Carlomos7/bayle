@@ -260,10 +260,10 @@ def _imports(module: str) -> set[str]:
         ("bayle.modules.overhauls.config", ("bayle.modules.overhauls",)),
         (
             "bayle.adapters.overhauls.recipes",
-            ("bayle.modules.overhauls", "bayle.resources", "bayle.adapters.system"),
+            ("bayle.modules.overhauls", "bayle.resources", "bayle.adapters.filesystem.data_folder"),
         ),  # fmt: skip
         ("bayle.adapters.merging.record", ("bayle.modules.games", "bayle.adapters.formats", "bayle.adapters.games")),
-        ("bayle.adapters.games.archives", ("bayle.modules.games", "bayle.adapters.system")),
+        ("bayle.adapters.games.archives", ("bayle.modules.games", "bayle.adapters.filesystem.data_folder")),
         ("bayle.modules.mods.naming", ("bayle.modules.settings.layout",)),
         ("bayle.modules.mods.records", ("bayle.resources",)),
         (

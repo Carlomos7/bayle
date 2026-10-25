@@ -183,13 +183,12 @@ layers = [
     "bayle.modules.settings.models",
 ]
 ignore_imports = [
-    "bayle.modules.coop.service -> bayle.modules.mods.profile_edit",  # the Seamless Co-op option in the profile
+    "bayle.modules.coop.service -> bayle.modules.mods.profile_edit",  # moving Seamless Co-op into a profile
     "bayle.modules.coop.service -> bayle.modules.mods.profile_writer",
     "bayle.modules.mods.mod_configs -> bayle.modules.launch.game_checks",  # the checks before Play, on the Mods pages
     "bayle.modules.mods.profile_mods -> bayle.modules.launch.game_checks",
     "bayle.modules.mods.mods_page -> bayle.modules.launch.play",  # the setups the Mods page offers
     "bayle.modules.mods.service -> bayle.modules.launch.play",
-    "bayle.modules.mods.profile_transfer -> bayle.modules.settings.service",  # where a shared profile's save goes
     "bayle.modules.saves.saves_page -> bayle.modules.activity.service",  # undo after a save write
 ]
 

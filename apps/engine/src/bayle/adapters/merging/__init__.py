@@ -1,8 +1,8 @@
 """Merging what several mods ship into one result, against the game's own files.
 
 merger: one entry point that picks the rule for a file's format. rules: what a mod changed and how changes
-combine, per format (bnd4: archives, fmg: text tables, param: parameter tables, esd: talk scripts). build:
-staging, checking and activating a build. record: what a build was made from. changes: what a merge reports."""
+combine, per format (bnd4: archives, fmg: text tables, param: parameter tables, esd: talk scripts). record: what a
+build was made from. changes: what a merge reports. Staging and activating a build is adapters.filesystem.build."""
 
 from typing import TYPE_CHECKING
 

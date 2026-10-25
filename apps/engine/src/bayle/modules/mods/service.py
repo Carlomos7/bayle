@@ -246,7 +246,7 @@ def create_profile(name: str, copy_from=None, *, loc: Locations) -> Path:
 
 def create_first_profile(name: str, include_seamless: bool, *, loc: Locations, log=lambda s: None) -> Path:
     """The Play page's "Get started": a new profile for loc's game (create_profile), and, when asked and Seamless
-    Co-op sits in the game folder, Seamless Co-op moved into it (services.coop). Returns the profile."""
+    Co-op sits in the game folder, Seamless Co-op moved into it (modules.coop.service). Returns the profile."""
     from bayle.modules.coop import service as coop_service
     from bayle.modules.launch import play as play_service
 
@@ -525,7 +525,7 @@ def setup_is_editable(config) -> bool:
 
 
 def setup_file_rows(config, folder) -> list[dict]:
-    """The Files table of a setup in its starting state (services.mod_configs.file_rows)."""
+    """The Files table of a setup in its starting state (modules.mods.mod_configs.file_rows)."""
     from bayle.modules.mods import mod_configs
 
     return mod_configs.file_rows(config.basic, Path(folder), config.game) if config.basic is not None else []
@@ -582,7 +582,7 @@ def overhaul_setup_of(profile, *, loc: Locations) -> dict | None:
 def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -> Path:
     """Save the form: at the basic level the steps are derived again from the mod's files in folder (the download
     copy) first. A file changed since it was read (expect: its sha256 then) is not overwritten. Every profile using
-    it is rebuilt before its next Play. Raises overhauls.writer.WriteRefused or ValueError."""
+    it is rebuilt before its next Play. Raises adapters.overhauls.writer.WriteRefused or ValueError."""
     from bayle.adapters.overhauls import writer
 
     if folder is not None:

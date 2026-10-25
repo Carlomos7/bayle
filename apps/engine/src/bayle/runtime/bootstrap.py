@@ -1,13 +1,13 @@
 """The program's composition root: create_engine() puts one run together, and the Engine it returns is what every
 client (the window, --play, --check, --backend) is handed.
 
-create_engine() runs when the program starts (cli.main, or a test), never at import time. use_data_folder() runs
-first of all (the command line calls it before logging starts): the platform layer is told the data folder and the
-build's instance scope instead of reading the settings. Then the app data is migrated (migrate_data:
-storage.datamigrations, one-way, before anything reads it), which resolves the operations the last run left half done
-(services.startup_recovery, once per start), and the launcher's database (storage.db) is opened inside that, migrated
-first when needed; storage=False (--backend, beside a window that may hold it) opens none. When storage is refused for
-the run (storage.db.StorageUnavailable) the engine has no database and says why; when a migration fails,
+create_engine() runs when the program starts (cli.main, or a test), never at import time. use_data_folder() runs first
+of all (the command line calls it before logging starts): the platform layer is told the data folder and the build's
+instance scope instead of reading the settings. Then the app data is migrated (migrate_data: storage.datamigrations,
+one-way, before anything reads it), which resolves the operations the last run left half done (runtime.startup_recovery,
+once per start), and the launcher's database (adapters.persistence.db) is opened inside that, migrated first when
+needed; storage=False (--backend, beside a window that may hold it) opens none. When storage is refused for the run
+(adapters.persistence.db.StorageUnavailable) the engine has no database and says why; when a migration fails,
 MigrationFailed reaches the caller, which must not report the version ready. With a database, the hash cache and the
 activity log use it (once their old files' import is verified); without one, the hash cache is bypassed and activity
 records stay in logs/jobs.jsonl. start_imports() runs those imports once the caller has reported ready.
@@ -152,18 +152,18 @@ class Engine:
         return self._located(self.locations.with_profile_save_names(names))
 
     def startup(self, profile: Callable[[], Path | None] = lambda: None) -> list[StartupStep]:
-        """The steps that run once the client is up, in order, off its UI thread (session.startup.run_steps): unreported game
-        runs, the profile in use when the journal recovery did not cover it (profile: asked when the step runs), older
-        save folders."""
+        """The steps that run once the client is up, in order, off its UI thread (runtime.startup.run_steps): unreported
+        game runs, the profile in use when the journal recovery did not cover it (profile: asked when the step runs),
+        older save folders."""
         return recovery_steps(lambda: self.locations, profile, self.recovered)
 
     def use_cpu(self, backend: cpu.Backend, broadcast: cpu.Backend, ui_thread: int | None) -> None:
-        """CPU tasks go to the window's worker pool (platform/cpu_pool.py) until close(); ui_thread is the window's."""
+        """CPU tasks go to the window's worker pool (work/cpu_pool.py) until close(); ui_thread is the window's."""
         self._unbind.append(bind(cpu_backend=backend, cpu_broadcast=broadcast, ui_thread=ui_thread))
 
     def start_imports(self) -> threading.Thread | None:
-        """Import the old record files into the database in the background (storage.imports); call it only after
-        reporting ready. None without a database."""
+        """Import the old record files into the database in the background (adapters.persistence.imports); call it only
+        after reporting ready. None without a database."""
         if self.storage is None or self.hash_cache is None or self.activity is None:
             return None
         cache, activity, runs = self.hash_cache, self.activity, self.rebuild_runs
@@ -199,9 +199,9 @@ def use_data_folder() -> Path:
 
 def migrate_data(open_db=None, covered: set[str] | None = None):
     """The one place the app data is brought to this build's data version (storage.datamigrations), before anything
-    reads it; the journal recovery runs inside it (covered gets the profiles it looked at). open_db: the database
-    open, or None to open none. Raises datamigrations.MigrationError, a storage.db.MigrationFailed, when the folder is
-    refused or the migration failed; the caller must not report the version ready."""
+    reads it; the journal recovery runs inside it (covered gets the profiles it looked at). open_db: the database open,
+    or None to open none. Raises datamigrations.MigrationError, a adapters.persistence.db.MigrationFailed, when the
+    folder is refused or the migration failed; the caller must not report the version ready."""
     return datamigrations.migrate(
         data_folder.data_root(),
         __version__,

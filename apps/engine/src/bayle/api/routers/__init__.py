@@ -1,4 +1,4 @@
-"""The feature routers, one per engine feature interface (services.features); api.app mounts every one under /v1."""
+"""The feature routers, one per engine feature interface (runtime.features); api.app mounts every one under /v1."""
 
 from fastapi import APIRouter
 

@@ -1,5 +1,5 @@
-"""Installing, updating and removing a mod as one recoverable operation (merging.build.Operation), and taking one
-back.
+"""Installing, updating and removing a mod as one recoverable operation (adapters.filesystem.build.Operation), and
+taking one back.
 
     install   the files are staged beside their place and the new profile text worked out first; then the folder
               and the profile change under one journal, with the rebuild (when asked for) run before it counts as
@@ -70,8 +70,9 @@ def _active(profile: Path) -> list[build.Operation]:
 
 
 def recover(profile: Path, timeout: float = 30.0) -> list[str]:
-    """Finish or undo what an interrupted operation in this profile's folder left (see merging.build), wherever its
-    journal is. Raises merging.build.BuildError when another launcher process holds the folder past timeout."""
+    """Finish or undo what an interrupted operation in this profile's folder left (see adapters.filesystem.build),
+    wherever its journal is. Raises adapters.filesystem.build.BuildError when another launcher process holds the folder
+    past timeout."""
     kinds.ensure_loaded()
     said: list[str] = []
     for root in {b[0] for b in _bases(profile) if b[1] == build.LEGACY_OPS}:
@@ -112,7 +113,7 @@ def commit(op: build.Operation, then=None) -> None:
     _release_others(op)
 
 
-ENGINE_HOST = EngineHost(start, commit, same_folder)  # what mods.engine builds under (see mods.ports)
+ENGINE_HOST = EngineHost(start, commit, same_folder)  # what adapters.overhauls.engine builds under (see mods.ports)
 
 
 def _release_others(op: build.Operation) -> None:

@@ -57,7 +57,7 @@ def import_key(rec: dict) -> str:
 
 
 def to_row(rec: dict) -> dict:
-    """The columns for one record as platform.logging writes it (undo and undone are left to the file)."""
+    """The columns for one record as adapters.system.logging writes it (undo and undone are left to the file)."""
     started = (
         datetime.datetime.fromtimestamp(float(rec["t"]), datetime.UTC)
         if rec.get("t") not in (None, "")
@@ -89,7 +89,7 @@ def to_row(rec: dict) -> dict:
 
 
 def from_row(row: Job) -> dict:
-    """A row as the record platform.logging.read_jobs returns (without undo, which comes from the file)."""
+    """A row as the record adapters.system.logging.read_jobs returns (without undo, which comes from the file)."""
     start_local = row.started_at.astimezone().replace(tzinfo=None)
     rec = {
         "id": row.job_id or row.import_key,

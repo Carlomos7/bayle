@@ -1,5 +1,5 @@
 """The launcher settings: what the window remembers between runs, and the rules for the layout names in them. The
-file they live in is config.settings_file; the folder it is in, config.app_paths."""
+file they live in is adapters.persistence.settings_file; the folder it is in, adapters.system.app_paths."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ class LauncherSettings(BaseModel):
     shared_folder: str = DEFAULT_SHARED
     # Setups the Mods page stopped offering to adopt into the library (S7d): the setup folder's path
     adopt_dismissed: list[str] = Field(default_factory=list)
-    # What the last Play of each game saw (services.run_health): game key -> {"exe_build": the exe's build stamp}
+    # What the last Play of each game saw (modules.launch.run_health): game key -> {"exe_build": the exe's build stamp}
     run_state: dict[str, dict[str, Any]] = Field(default_factory=dict)
     play_backup_before: bool = False
     play_repair_after: bool = True  # Nightreign: re-sign the save's sections me3 can leave unsigned

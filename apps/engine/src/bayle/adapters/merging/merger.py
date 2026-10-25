@@ -53,11 +53,11 @@ def merge(
     name: str = "",
     lists: knowledge.Lists | None = None,
 ) -> Result:
-    """Merge the mods' copies of one file (as stored: DCX-compressed or not), in load order, against the game's own
-    copy (None when the game has no such file: the first mod's copy is then the base). name: the file's game path
+    """Merge the mods' copies of one file (as stored: DCX-compressed or not), in load order, against the game's own copy
+    (None when the game has no such file: the first mod's copy is then the base). name: the file's game path
     ("parts/bd_m_1000.partsbnd.dcx"); an archive's kind, which says how the game finds its inner files, comes from it.
-    lists: the installed game's exe-derived lists (game.knowledge.exe_lists); given, each mod's changed or added talk
-    script is checked against them and what the game doesn't have is a warning (none when None)."""
+    lists: the installed game's exe-derived lists (adapters.games.knowledge.exe_lists); given, each mod's changed or
+    added talk script is checked against them and what the game doesn't have is a warning (none when None)."""
     if not layers:
         raise ValueError("nothing to merge")
     if vanilla is None:

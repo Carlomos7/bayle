@@ -62,7 +62,7 @@ def _unique_id(route) -> str:
 def create_app(
     settings: ApiSettings | None = None, *, jobs: JobManager | None = None, services: Mapping[str, Any] | None = None
 ) -> FastAPI:
-    """jobs: the engine's JobManager; services: its feature interfaces by name (services.features.build(...)
+    """jobs: the engine's JobManager; services: its feature interfaces by name (runtime.features.build(...)
     .services()), which the feature routers hand their routes."""
     settings = settings or ApiSettings()  # type: ignore[call-arg]  # fails fast when the token is missing
 

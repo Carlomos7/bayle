@@ -9,9 +9,9 @@ natives/, builds/ and .roundtable/.
                                             A profile that can't be read counts as using everything. The other profiles
                                             are never changed. A path outside the folder stays pointing where it did.
 
-One merging.build.Operation, journaled in roundtable/<game>/profiles (so operations.recover finds it): the copies are
-staged and verified first, the sources go only as part of the commit (a rename for a moved folder; the .me3 and its
-records are removed by a journal step that keeps their bytes), and an interruption is undone as a whole. Undo
+One adapters.filesystem.build.Operation, journaled in roundtable/<game>/profiles (so operations.recover finds it): the
+copies are staged and verified first, the sources go only as part of the commit (a rename for a moved folder; the .me3
+and its records are removed by a journal step that keeps their bytes), and an interruption is undone as a whole. Undo
 (undo_move_in) puts everything back; what it leaves in the new folder (the copies) goes to the Recycle Bin. Same drive
 only: moving across drives would need a copy and a delete outside the journal, so it is refused.
 """

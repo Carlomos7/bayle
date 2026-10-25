@@ -1,5 +1,5 @@
-"""Where the launcher's game folder is: <Profiles folder>/<game_folder_pattern> (config.settings). The rest of the
-layout (profiles, packages, natives, builds, Shared mods) is mods.library's."""
+"""Where the launcher's game folder is: <Profiles folder>/<game_folder_pattern> (modules.settings.models). The rest of
+the layout (profiles, packages, natives, builds, Shared mods) is mods.library's."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Layout:
-    """The folder names Settings lets the player choose (config.settings: profiles_root, game_folder_pattern,
+    """The folder names Settings lets the player choose (modules.settings.models: profiles_root, game_folder_pattern,
     packages_folder, natives_folder, shared_folder)."""
 
     root: str | None = None

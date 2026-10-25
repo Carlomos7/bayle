@@ -3,7 +3,7 @@
 Never writes. The item check compares every held, stored and leftover item against the items the game defines: the
 bundled list (data/known_item_ids.txt) plus every item in the installed game's own regulation.bin, which also covers
 official content the list lacks, such as the Tarnished Edition pack. Anything outside both came from a mod; its name
-comes from the mod's own files when they can be read (saves/item_names.py).
+comes from the mod's own files when they can be read (adapters/saves/item_names.py).
 """
 
 from __future__ import annotations

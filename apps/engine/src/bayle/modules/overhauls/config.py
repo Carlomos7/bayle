@@ -8,15 +8,15 @@ An overhaul is a mod that must load after the others and ships merged copies of 
                 its installer's manifest in that folder, the profile entries that mean a setup includes it, and the
                 text that marks its profile entries (an offline launch can switch those off)
     builds      what the launcher can build itself, one per edition: how to recognise that edition's download and
-                which versions it was written for, and the steps that build its output from the packages before it
-                (the steps mods.engine runs, none of them a program of the mod's; docs/Overhaul configs.md); where
-                its download's files go in the launcher's layout (sources by role, runtime; overhauls.sources);
-                and, optionally, what installing that edition does to the me3 profile (install;
-                overhauls.install_plan works out the changes, nothing here writes a profile)
+                which versions it was written for, and the steps that build its output from the packages before it (the
+                steps adapters.overhauls.engine runs, none of them a program of the mod's; docs/Overhaul configs.md);
+                where its download's files go in the launcher's layout (sources by role, runtime; overhauls.sources);
+                and, optionally, what installing that edition does to the me3 profile (install; overhauls.install_plan
+                works out the changes, nothing here writes a profile)
 
 The shipped configs are in data/overhauls; a file in the local folder (overhauls/ in the launcher's data folder) with
 the same id replaces the shipped one, and one with a new id adds an overhaul. A file that does not read or does not
-fit the model is left out (overhauls.recipes reads them, and problems() says why).
+fit the model is left out (adapters.overhauls.recipes reads them, and problems() says why).
 """
 
 from __future__ import annotations
@@ -28,7 +28,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-RECIPE_VERSION = 2  # the step format mods.engine reads (1: the former data/recipes JSON, with the mod's tool)
+RECIPE_VERSION = 2  # the step format adapters.overhauls.engine reads (1: the former data/recipes JSON, with the mod's
+# tool)
 
 
 class _Strict(BaseModel):
@@ -127,9 +128,9 @@ class AddText(_Strict):
 
 
 class Hook(_Strict):
-    """A mod's script fragment added to the entry script (overhauls.hooks): the packages' own script folder copied
-    in load order, then the fragment appended to the entry file (the last package's copy, else the download's base).
-    Several hooks for one entry are appended in the order of the steps, each wrapping the one before."""
+    """A mod's script fragment added to the entry script (adapters.overhauls.hooks): the packages' own script folder
+    copied in load order, then the fragment appended to the entry file (the last package's copy, else the download's
+    base). Several hooks for one entry are appended in the order of the steps, each wrapping the one before."""
 
     do: Literal["hook"]
     folder: str  # the script folder, for example action/script
@@ -140,7 +141,7 @@ class Hook(_Strict):
     markers: list[str] = Field(default_factory=list)  # text meaning a script already contains the fragment
     refuse_text: str | None = None  # the refusal then
     # functions the mod's own DLL gives the script ("ExampleNative", or a prefix "Example*"): its calls of them are not
-    # reported as undefined (overhauls.hks_check); only a mod's own config names them
+    # reported as undefined (adapters.overhauls.hks_check); only a mod's own config names them
     natives: list[str] = Field(default_factory=list)
 
 
@@ -253,7 +254,7 @@ class Build(_Strict):
 
 # ----------------------------------------------------------------------------- health checks
 class Health(_Strict):
-    """A log the mod writes, read after a run (services.run_health): only the lines written since the launch, and
+    """A log the mod writes, read after a run (modules.launch.run_health): only the lines written since the launch, and
     only for what this entry names. A line matching a `fail` pattern is shown in Activity as a warning naming the mod."""
 
     log: str  # the log file, relative to the mod's own folder
@@ -326,7 +327,7 @@ class BasicText(_Strict):
 
 
 class Basic(_Strict):
-    """What the Overhaul setup form sets (overhauls.basic derives the rest of the config from it and the mod's
+    """What the Overhaul setup form sets (adapters.overhauls.basic derives the rest of the config from it and the mod's
     files). The config's recognise and builds are written beside it; it loads last whatever is set here."""
 
     version: str | None = None  # the label shown (from the archive's name or the form); nothing depends on it
@@ -368,7 +369,7 @@ class OverhaulConfig(_Strict):
     id: str
     label: str
     short_label: str  # where space is short (the Play page's summary)
-    game: str  # the game's key (data/games, game.catalog)
+    game: str  # the game's key (data/games, modules.games.catalog)
     recognise: Recognise
     builds: list[Build] = Field(default_factory=list)
     # Editions its installer knows that the launcher does not install, and why (edition -> reason).
@@ -379,8 +380,8 @@ class OverhaulConfig(_Strict):
     health: list[Health] = Field(default_factory=list)
 
     def recipe(self, build: Build) -> dict:
-        """One build in the shape mods.engine reads (the former data/recipes JSON). Only what the file sets is
-        included, so a build's key stays the same for the same file."""
+        """One build in the shape adapters.overhauls.engine reads (the former data/recipes JSON). Only what the file
+        sets is included, so a build's key stays the same for the same file."""
         steps = [s.model_dump(by_alias=True, exclude_unset=True) for s in build.steps]
         out = {
             "recipe": RECIPE_VERSION,
@@ -396,8 +397,9 @@ class OverhaulConfig(_Strict):
 
 
 def recipe_sha256(recipe: dict) -> str:
-    """What a build records of its overhaul's config: a sha256 of the build as mods.engine reads it (OverhaulConfig.
-    recipe), so a change to what the build does makes it out of date, and a comment or an install setting does not."""
+    """What a build records of its overhaul's config: a sha256 of the build as adapters.overhauls.engine reads it
+    (OverhaulConfig. recipe), so a change to what the build does makes it out of date, and a comment or an install
+    setting does not."""
     return hashlib.sha256(json.dumps(recipe, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 

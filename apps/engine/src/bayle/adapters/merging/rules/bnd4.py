@@ -1,9 +1,9 @@
-"""Archives (BND4): changes inner file by inner file, matched the way the game finds them: by entry ID in archives
-whose IDs are fixed role slots (part archives: 100 textures, 200 model...), by name (case and slashes aside) where
-the ID is only a position, and by name where the two always agree (animation archives), which a mod's copy is then
-checked for. The kind comes from the archive's file name and the game-model table (game.knowledge.binder_identity);
-a kind not in the table is decided from the game's own copy (IDs 0..n-1, or a per-type base plus a position, mean
-name; anything else means ID). A copy that repeats an ID cannot be matched by ID: names are used, and noted."""
+"""Archives (BND4): changes inner file by inner file, matched the way the game finds them: by entry ID in archives whose
+IDs are fixed role slots (part archives: 100 textures, 200 model...), by name (case and slashes aside) where the ID is
+only a position, and by name where the two always agree (animation archives), which a mod's copy is then checked for.
+The kind comes from the archive's file name and the game-model table (adapters.games.knowledge.binder_identity); a kind
+not in the table is decided from the game's own copy (IDs 0..n-1, or a per-type base plus a position, mean name;
+anything else means ID). A copy that repeats an ID cannot be matched by ID: names are used, and noted."""
 
 from __future__ import annotations
 

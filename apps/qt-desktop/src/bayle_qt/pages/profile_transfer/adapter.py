@@ -75,7 +75,7 @@ class ProfileTransferAdapter(QObject):
         self._working = False
         self._profile: Path | None = None
         # export
-        self._mods: list[Any] = []  # services.profile_transfer.ModRow
+        self._mods: list[Any] = []  # modules.mods.profile_transfer.ModRow
         self._picked: set[str] = set()
         self._ex: dict[str, Any] = {
             "kind": "list",

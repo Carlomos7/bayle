@@ -9,13 +9,13 @@ When a build is out of date (what play checks before starting the game):
                  modification time (a game update rewrites them; the archives themselves are too large to hash)
     config       an overhaul's build: the build in its config (data/overhauls) differs from the one it was made with
 The game's files and the config are recorded by game_files() and the overhaul's build (config_sha256 in facts());
-reasons() compares them with today's when it is given them. Combine (mods.backends.builtin) and the launcher's
-overhaul build (mods.engine) both take their facts from here.
-The me3 version is recorded but does not make a build out of date: the ordering model is what decides, and it is the
-same for every me3 version the launcher supports (mods.order.supported).
+reasons() compares them with today's when it is given them. Combine (adapters.overhauls.backends.builtin) and the
+launcher's overhaul build (adapters.overhauls.engine) both take their facts from here. The me3 version is recorded but
+does not make a build out of date: the ordering model is what decides, and it is the same for every me3 version the
+launcher supports (mods.order.supported).
 
-File hashes are remembered by path, size and modification time (platform.hashing.sha256): a file whose size or
-modification time changes is hashed again; one rewritten with the same size and time is not noticed.
+File hashes are remembered by path, size and modification time (adapters.filesystem.hashing.sha256): a file whose size
+or modification time changes is hashed again; one rewritten with the same size and time is not noticed.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from bayle.modules.games import config as game_config
 # state (2026-10-02). 4: animation events (TAE) merged animation by animation (2026-10-05). 5: an archive the game
 # lists by ID keeps that order with added inner files placed by ID, not appended (2026-10-06). 6: inner files of
 # archives the game reads by ID (part, character, texture archives...) are matched by ID, not by name
-# (game.knowledge.binder_identity; 2026-10-13).
+# (adapters.games.knowledge.binder_identity; 2026-10-13).
 MERGER_REVISION = 6
 ORDERING = "me3 sort_dependencies, me3 9b1e080 (me3 0.11.0 to 0.13.0)"
 # How an inner file that a mod's copy leaves out is treated. Until a policy is chosen (see docs/decisions), the rule
@@ -68,8 +68,8 @@ def facts(
 
 def game_files(game_dir: Path | None, regulation: str, sha256: Callable[[Path], str | None], *, version=False) -> dict:
     """The game's own files a build merges against: the archive indexes' fingerprint and the regulation's sha256
-    (sha256: the hasher, remembered by size and time in platform.hashing), with the version the regulation names when
-    asked (it is decrypted for that, so only when a build is made)."""
+    (sha256: the hasher, remembered by size and time in adapters.filesystem.hashing), with the version the regulation
+    names when asked (it is decrypted for that, so only when a build is made)."""
     reg = Path(game_dir) / regulation if game_dir else None
     out: dict = {
         "archives": game_archives.index_fingerprint(game_dir),

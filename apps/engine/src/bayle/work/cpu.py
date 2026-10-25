@@ -2,7 +2,7 @@
 
 A task is a top-level function named "package.module:function" that takes keyword arguments (JSON values; pass file
 paths, not bytes) and returns a JSON value. run_cpu(task, args) returns a Future. Without a backend (tests, the
-command line) the task runs at once on the calling thread; the window binds one (platform/cpu_pool.py) that sends the
+command line) the task runs at once on the calling thread; the window binds one (work/cpu_pool.py) that sends the
 task to a worker process: this program started again with --worker, speaking one JSON object per line on standard
 input and output (serve below). Calling .result() from a job's thread is the intended use; a task run from the
 window's own thread would deadlock a waiting caller, so the backend runs those inline.

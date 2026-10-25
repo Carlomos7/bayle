@@ -1,7 +1,7 @@
 """The Mods page's presenter (technical specification §8.10, Mods): the header strip, the two groups and their rows
 with the closed tag vocabulary, the not-loaded and loads-nothing lines, the Parameters card, the InfoBars, and the
 words of every confirmation and refusal the page shows. Plain Python, every string through tr(); it turns the
-facts the engine reads (services.mods_page.ModsPageState: PageFacts, a Load order scan, the rebuild tool's state)
+facts the engine reads (modules.mods.mods_page.ModsPageState: PageFacts, a Load order scan, the rebuild tool's state)
 and the facts its checks and "needs confirmation" errors carry into what the page shows. The adapter hands it to
 QML."""
 
@@ -1108,7 +1108,8 @@ class ModsPresenter:
         return None
 
     def rename_block(self, code: str | None, name: str, game_running: bool) -> str:
-        """Why the profile can't be renamed or copied now, in words; "" when it can (code: services.profile_rename.refusal)."""
+        """Why the profile can't be renamed or copied now, in words; "" when it can (code:
+        modules.mods.profile_rename_page.refusal)."""
         if code == profile_mods.DELETE_NO_PROFILE:
             return tr("Pick a profile first.")
         if code == profile_mods.DELETE_MANAGED:
@@ -1223,7 +1224,8 @@ class ModsPresenter:
 
     # ---- overhauls installed with the launcher (preview); the Widgets Overhaul button uses these words too
     def overhaul_menu(self, on: bool, has: dict | None, leftovers: bool) -> OverhaulMenu:
-        """on: services.mods.overhaul_preview_on; has: services.mods.profile_overhaul; leftovers: any to clean."""
+        """on: modules.mods.service.overhaul_preview_on; has: modules.mods.service.profile_overhaul; leftovers: any to
+        clean."""
         return OverhaulMenu(
             visible=on,
             install=tr("Install an overhaul with the launcher (preview)..."),

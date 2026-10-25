@@ -178,7 +178,7 @@ def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path 
 
 def approved(tool) -> bool:
     """Whether the user allowed this rebuild tool (this version of it) to run. The launcher's own combine, and its own
-    build of an overhaul (mods.engine: nothing of the mod's runs), need no permission."""
+    build of an overhaul (adapters.overhauls.engine: nothing of the mod's runs), need no permission."""
     from bayle.modules import ports
 
     if getattr(tool, "builtin", False) or getattr(getattr(tool, "recipe", None), "engine", None) is not None:
@@ -301,7 +301,8 @@ def _runs() -> dict:
 
 
 class RunStore(Protocol):
-    """The database's mirror of merges.json (storage.rebuild_runs.RebuildRuns); the file stays authoritative."""
+    """The database's mirror of merges.json (adapters.persistence.rebuild_runs.RebuildRuns); the file stays
+    authoritative."""
 
     def record(self, profile: str, entry: dict) -> None: ...
 

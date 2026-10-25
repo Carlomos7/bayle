@@ -10,10 +10,11 @@ relocate         moves every game folder to another Profiles folder. Same drive:
 rename_layout    renames the game folders, each profile's packages and natives folders and the shared folder.
 undo_layout      puts either back (a relocation is moved back the same way it went).
 
-Both rewrite the paths the .me3 files hold (a relative path is kept relative, so most need nothing) and, once the
-move is committed, the launcher's settings (config.settings: profiles_root and the folder names). The journal lives
+Both rewrite the paths the .me3 files hold (a relative path is kept relative, so most need nothing) and, once the move
+is committed, the launcher's settings (modules.settings.models: profiles_root and the folder names). The journal lives
 in the launcher's data folder (ops_root), so it is found again whatever happened to the Profiles folder. Built on
-mods.migrate's helpers and merging.build.Operation. preview_relocate / preview_rename give the confirm its numbers.
+mods.migrate's helpers and adapters.filesystem.build.Operation. preview_relocate / preview_rename give the confirm its
+numbers.
 """
 
 from __future__ import annotations

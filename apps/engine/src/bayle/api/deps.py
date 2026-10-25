@@ -37,7 +37,7 @@ JobsDep = Annotated[JobManager, Depends(get_jobs)]
 
 
 def service(name: str) -> Callable[[Request], Any]:
-    """A dependency handing a route the engine's feature interface `name` (services.features): one per feature
+    """A dependency handing a route the engine's feature interface `name` (runtime.features): one per feature
     router. Raises not_available when the app was built without it."""
 
     def get(request: Request) -> Any:

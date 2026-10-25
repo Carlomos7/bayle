@@ -2,12 +2,12 @@
 IDs the game doesn't handle, and numbers a float can't hold (backlog H3). Warnings only: nothing here refuses a build.
 
 A character script's calls resolve to (game-model/havok-script.md): the functions the game's exe gives it (shipped as
-data by the exe's version, game.knowledge), the four shared scripts the game always loads with it (read from the
-installed game's own bytecode, or a package's text copy when one ships it), the script itself, and functions a mod's
-DLL registers. The launcher cannot see the last kind: a hook step may name them (`natives`, from the mod's own
-config); otherwise the warning says a mod's DLL may provide them. A function the script tests before calling it
-(`type(F) == "function"`, `F == nil`, `F ~= nil`) is one it knows may be missing (another mod's, used when that mod is
-there): its calls are not reported.
+data by the exe's version, adapters.games.knowledge), the four shared scripts the game always loads with it (read from
+the installed game's own bytecode, or a package's text copy when one ships it), the script itself, and functions a mod's
+DLL registers. The launcher cannot see the last kind: a hook step may name them (`natives`, from the mod's own config);
+otherwise the warning says a mod's DLL may provide them. A function the script tests before calling it (`type(F) ==
+"function"`, `F == nil`, `F ~= nil`) is one it knows may be missing (another mod's, used when that mod is there): its
+calls are not reported.
 
 The composed text is compiled with Lua 5.1 (never run) and its bytecode read (formats.hks): which globals it calls and
 sets, and the constant first argument of env, isenv and act calls. A script Lua 5.1 can't compile (Havok-only syntax,

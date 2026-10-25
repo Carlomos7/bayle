@@ -10,8 +10,8 @@ from typing import Protocol
 
 
 class HashStore(Protocol):
-    """The persistent hash cache (storage.cache.HashCache): used once active; get() returns None on a miss or any
-    failure, put() never raises."""
+    """The persistent hash cache (adapters.persistence.cache.HashCache): used once active; get() returns None on a miss
+    or any failure, put() never raises."""
 
     active: bool
 

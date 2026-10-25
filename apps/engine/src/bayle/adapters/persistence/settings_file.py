@@ -1,5 +1,5 @@
-"""The launcher settings file: read it, and change it under a lock. The settings themselves are config.settings; the
-folder the file lives in is config.app_paths.data_dir."""
+"""The launcher settings file: read it, and change it under a lock. The settings themselves are modules.settings.models;
+the folder the file lives in is adapters.system.app_paths.data_dir."""
 
 from __future__ import annotations
 

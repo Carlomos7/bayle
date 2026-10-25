@@ -1,12 +1,15 @@
-"""me3 profiles and the mods they list.
+"""me3 profiles and the mods they list, as one feature: profiles, the load order, installs, deployments and their
+recovery import each other inside functions, so they are not separate packages (README.md).
 
-profile (reading a profile), profile_edit (editing its text), profile_writer (the one writer every change goes
-through, with its rules), order (me3's load order, and keeping the mod that must stay last after the others),
-install, extract, remove and checks (installing, unpacking, removing, and what is wrong with a profile's entries),
-conflicts (which file wins), rebuild (merged parameters and files), history and undo, configs (a DLL's settings
-files), profile_settings, models (the install plan's shape), naming (the launcher's folder names and the
-path-length limit), library (the launcher's own mod folder, rs-<game>: its layout and what it holds), records (its
-versioned records). engine and backends are the setup engines Phase 6 replaces."""
+profile (reading a profile), profile_edit (editing it; the text edits are adapters.formats.me3_text), profile_writer
+(the one writer every change goes through, with its rules), order (me3's load order, and keeping the mod that must
+stay last after the others), install, remove and checks (installing, removing, and what is wrong with a profile's
+entries), conflicts (which file wins), rebuild (merged parameters and files), operations (the journaled operation every
+change runs as), history and undo, configs (a DLL's settings files), profile_settings, models (the install plan's
+shape), naming (the launcher's folder names and the path-length limit), library (the launcher's own mod folder,
+rs-<game>: its layout and what it holds), records (its versioned records), ports (the tool backends' contract and the
+port to them). The Mods pages' typed interfaces: service, mods_page, mod_install, mod_configs, shared_mods_page,
+profile_mods, profile_rename_page, profile_transfer, transfer_resources."""
 
 from typing import TYPE_CHECKING
 

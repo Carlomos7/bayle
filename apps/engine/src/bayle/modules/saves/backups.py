@@ -163,10 +163,10 @@ class BackupsBusy(filelock.Busy):
 @contextmanager
 def account_lock(folder: Path, timeout: float | None = None) -> Iterator[None]:
     """Hold the lock on one account's backups folder (<folder>.lock beside it) while the block runs, shared by every
-    launcher process and thread (platform.filelock.exclusive). Every change to backups and their notes runs under
-    it: taking one, keep, prune, delete, adopting older folders. A call inside another on the same thread
-    (fix.backup pruning) just enters. Raises BackupsBusy when the lock isn't free within timeout (LOCK_TIMEOUT):
-    the block never runs without it."""
+    launcher process and thread (adapters.filesystem.filelock.exclusive). Every change to backups and their notes runs
+    under it: taking one, keep, prune, delete, adopting older folders. A call inside another on the same thread
+    (fix.backup pruning) just enters. Raises BackupsBusy when the lock isn't free within timeout (LOCK_TIMEOUT): the
+    block never runs without it."""
     message = f"Another Bayle window or Play is changing these backups ({folder}). Try again."
     with filelock.exclusive(Path(folder), LOCK_TIMEOUT if timeout is None else timeout, lambda: BackupsBusy(message)):
         _depth.n = getattr(_depth, "n", 0) + 1

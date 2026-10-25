@@ -10,8 +10,9 @@ Where lines go:
     logs/jobs/<...>.<name>.log
                            a job's attachments: another program's own output (me3's launch output)
     logs/jobs.jsonl        one line per job start and end: what it was, when, how long, how it ended, its files;
-                           once the launcher's database holds the activity log (bound by the runtime), only the records it
-                           could not take and those carrying undo, which stays in this file (see storage.activity)
+                           once the launcher's database holds the activity log (bound by the runtime), only the records
+                           it could not take and those carrying undo, which stays in this file (see
+                           adapters.persistence.activity)
     the window             the running job's lines, and warnings and errors from anywhere
 
 A job's file only gets lines logged while that job is the current one in the logging thread's context, so background
@@ -52,7 +53,8 @@ JOBS_DIR = "jobs"
 JOBS_INDEX = "jobs.jsonl"
 KEEP_JOBS = 50
 KEEP_DAYS = 14
-ACTIVITY_DAYS = 90  # completed job records are kept this long (in the database: storage.activity's retention)
+ACTIVITY_DAYS = 90  # completed job records are kept this long (in the database: adapters.persistence.activity's
+# retention)
 COMPLETED = ("done", "warnings", "failed", "stopped")
 OLD_DIR = "old"  # files older launcher versions wrote, kept for a while
 LEGACY_FILES = ("last_run.log", "me3_launch.log", "launcher-errors.log")
@@ -65,8 +67,8 @@ _lock = threading.RLock()
 
 
 class JobStore(Protocol):
-    """Where job records go besides jobs.jsonl (storage.activity.ActivityLog). save() returns False when the record
-    was not stored; records() returns None when the store can't be read."""
+    """Where job records go besides jobs.jsonl (adapters.persistence.activity.ActivityLog). save() returns False when
+    the record was not stored; records() returns None when the store can't be read."""
 
     def save(self, record: dict) -> bool: ...
 

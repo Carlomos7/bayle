@@ -116,8 +116,8 @@ class UndoPlan:
 
 
 class ActivityFacts(Protocol):
-    """What the presenter is told about the world (services.activity.ActivityService reads it from disk): the views
-    do no I/O of their own."""
+    """What the presenter is told about the world (modules.activity.service.ActivityService reads it from disk): the
+    views do no I/O of their own."""
 
     def jobs(self) -> list[dict]: ...
     def undo_available(self, undo: dict) -> bool: ...

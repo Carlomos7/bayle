@@ -81,7 +81,7 @@ def run(data_dir: Path, out: Callable[[str], None] = print, qt: Callable[[Report
 
 
 def _worker() -> str:
-    """The build starts itself again with --worker (platform/cpu.py) and gets an answer, without Qt in the worker."""
+    """The build starts itself again with --worker (work/cpu.py) and gets an answer, without Qt in the worker."""
     import subprocess
 
     request = json.dumps({"id": 1, "task": "bayle.work.cpu:probe", "args": {"value": 41}}) + "\n"

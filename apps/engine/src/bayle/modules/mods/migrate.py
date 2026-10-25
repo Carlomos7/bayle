@@ -13,12 +13,13 @@
                    another profile in the source folder also lists is copied, not moved.
     split          a folder inside roundtable/<game>/profiles that holds several .me3 files: one folder per profile.
 
-Each is one journaled operation (merging.build.Operation, journal in roundtable/<game>/profiles/.roundtable-ops): an interruption is
-undone as a whole by the next start. A mod folder several profiles use is copied for all but the last, which takes the
-original; every copy is checked file by file against its source before anything is committed, so no source is ever
-gone without a verified copy. The profile text is rewritten with the paths its entries now need. A clash with an
-existing folder takes <name>-2. Profiles elsewhere are never touched. Same drive only (it is all inside me3's
-profiles folder). Undo (undo_migration) puts everything back; the folders it made go to the Recycle Bin.
+Each is one journaled operation (adapters.filesystem.build.Operation, journal in
+roundtable/<game>/profiles/.roundtable-ops): an interruption is undone as a whole by the next start. A mod folder
+several profiles use is copied for all but the last, which takes the original; every copy is checked file by file
+against its source before anything is committed, so no source is ever gone without a verified copy. The profile text is
+rewritten with the paths its entries now need. A clash with an existing folder takes <name>-2. Profiles elsewhere are
+never touched. Same drive only (it is all inside me3's profiles folder). Undo (undo_migration) puts everything back; the
+folders it made go to the Recycle Bin.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """The Install mod dialog's words and state (technical specification §8.2 and "Dialogs kept"). Plain Python, every
-string through tr(): an InstallDraft holds the plan's facts the engine gave (services.mod_install.plan_facts) and what
-the player has changed in it, view() turns both into what the QML dialog shows, and choices() turns the edits back
+string through tr(): an InstallDraft holds the plan's facts the engine gave (modules.mods.mod_install.plan_facts) and
+what the player has changed in it, view() turns both into what the QML dialog shows, and choices() turns the edits back
 into the InstallChoices the engine installs with. The engine keeps nothing of the edits."""
 
 from __future__ import annotations
@@ -102,7 +102,7 @@ class InstallDraft:
     setup_edited: bool = False  # the player changed the DLL options, Files table or text tables: sent as the setup
     gen: int = 0  # counts the edits that ask for a new plan: a heavy read answers only for the one it started with
     texts: list[dict] = field(default_factory=list)  # the setup's texts entries: file, table, tables to choose from
-    files: list[dict] = field(default_factory=list)  # the setup's Files table (services.mod_configs.file_rows)
+    files: list[dict] = field(default_factory=list)  # the setup's Files table (modules.mods.mod_configs.file_rows)
     natives: list[dict] = field(default_factory=list)  # the setup's DLLs as set (Basic natives), shown for review
     busy: bool = False  # a replan or preview is running
     problem: str = ""  # why the last edit could not be planned (the last good plan stays)

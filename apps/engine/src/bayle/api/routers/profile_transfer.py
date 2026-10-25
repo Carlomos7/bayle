@@ -1,6 +1,6 @@
 """Export / Import profile over HTTP: the export listing, opening a file or a download's bundled profile (a backend
 resource with an id), previewing, discarding, and export / import as jobs with typed progress, each handed straight to
-the engine's ProfileTransferService (services.profile_transfer), with no wording. A plan is a check and a start:
+the engine's ProfileTransferService (modules.mods.profile_transfer), with no wording. A plan is a check and a start:
 check_export gives the size to confirm, export(expect=) starts it, stale when the mods changed since."""
 
 from __future__ import annotations

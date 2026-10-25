@@ -10,7 +10,7 @@ A version never changes: its files are read-only once the verified copy is made.
 reads every profile's entries. Only packages in a profile's own folder under the game root can be shared (a DLL mod's
 .ini sits beside it, so sharing it would share its settings).
 
-Each action is one merging.build.Operation, journaled in <game folder>/.roundtable-ops (so
+Each action is one adapters.filesystem.build.Operation, journaled in <game folder>/.roundtable-ops (so
 operations.recover finds it), taken under the profiles' locks and then the root lock:
 
     share        a Separate package becomes a version (an identical one is reused) and the entry links to it; the old

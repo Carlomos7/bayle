@@ -1,7 +1,7 @@
 """Remove dead eldenring.exe shells from the command line (the launcher's Clear button does the same).
 
-When Elden Ring exits it spawns a second copy of itself that dies at once, and on some machines that corpse stays in
-the process list (see platform/processes.py). This asks for elevation (one UAC prompt) and terminates only processes
+When Elden Ring exits it spawns a second copy of itself that dies at once, and on some machines that corpse stays in the
+process list (see adapters/system/processes.py). This asks for elevation (one UAC prompt) and terminates only processes
 that are provably dead. Its job log goes to the launcher's data folder like any other job's.
 
     uv run python scripts/clear_dead_shells.py [--dry-run]

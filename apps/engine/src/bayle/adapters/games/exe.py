@@ -1,5 +1,5 @@
 """The game's executable: its file version (from the version resource every Windows program carries) and its
-SHA-256, which pick the lists the launcher knows about that build (game.knowledge)."""
+SHA-256, which pick the lists the launcher knows about that build (adapters.games.knowledge)."""
 
 from __future__ import annotations
 

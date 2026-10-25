@@ -1,8 +1,8 @@
 """The Settings page's adapter: the thin QObject the QML page binds to (technical specification §8.10, Settings). It
-holds no decisions: the words and rules come from the presenter; its slots save through config.settings and tell the
-host (the Widgets launcher until the shell, S9) to follow; folder and file picks, jobs and the updater run through
-the host's existing paths. The page never calls the updater: Update now and Restart now are notice buttons, and the
-host runs them with its own checks (the game and jobs stopped, the program's identity, the prepared package)."""
+holds no decisions: the words and rules come from the presenter; its slots save through modules.settings.models and tell
+the host (the Widgets launcher until the shell, S9) to follow; folder and file picks, jobs and the updater run through
+the host's existing paths. The page never calls the updater: Update now and Restart now are notice buttons, and the host
+runs them with its own checks (the game and jobs stopped, the program's identity, the prepared package)."""
 
 from __future__ import annotations
 

@@ -87,7 +87,7 @@ class ModNode:
     loaded: bool
     target: Path | None
     files: tuple[ConfigFile, ...] = ()
-    setup: dict | None = None  # overhaul only: services.mods.overhaul_setup_of
+    setup: dict | None = None  # overhaul only: modules.mods.service.overhaul_setup_of
 
 
 def _kind(path: Path, seamless_ini: str | None) -> str:
@@ -655,7 +655,7 @@ class SetupValues:
 
 @dataclass(frozen=True)
 class FormFacts:
-    setup: dict[str, Any]  # services.mods.overhaul_setup_of (or the proposal for a new one)
+    setup: dict[str, Any]  # modules.mods.service.overhaul_setup_of (or the proposal for a new one)
     choices: dict[str, Any]
     values: dict[str, Any]  # the working values; patch_values edits them
     new: bool

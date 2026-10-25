@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
     from bayle.runtime.bootstrap import bind_ports
 
     bind_ports()  # every path below may run a workflow, with or without an engine
-    if "--worker" in argv:  # a CPU worker for the window (platform/cpu.py): before anything else starts
+    if "--worker" in argv:  # a CPU worker for the window (work/cpu.py): before anything else starts
         from bayle.work import cpu
 
         return cpu.worker_main()

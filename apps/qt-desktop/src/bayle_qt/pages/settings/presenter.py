@@ -1,6 +1,6 @@
 """The Settings page's presenter (technical specification §8.10, Settings): every word of the page and the rows it
-shows, made from what the engine's Settings interface (services.settings.SettingsService) returns. Plain Python, no
-Qt: the adapter (adapter.py) hands these to QML. The engine returns data and error codes; the switch titles, choice
+shows, made from what the engine's Settings interface (modules.settings.service.SettingsService) returns. Plain Python,
+no Qt: the adapter (adapter.py) hands these to QML. The engine returns data and error codes; the switch titles, choice
 labels, location words, "Location updated" sentences, the three confirms and the refusals are worded here. The update
 notices and the launcher status line stay in views.settings, which the shell uses too. Every string goes through
 tr()."""
@@ -262,7 +262,7 @@ class Me3Line:
 
 
 def me3_line(f: dict) -> Me3Line:
-    """The me3 line and the folders it can open, from services.mods.me3_facts."""
+    """The me3 line and the folders it can open, from modules.mods.service.me3_facts."""
     if f.get("error"):
         return Me3Line(f"me3: {f['error']}", "muted", "", "", "", "", True)
     v = f.get("version")

@@ -1,5 +1,6 @@
-"""The launcher settings and install facts the window reads and writes (the file itself: config.settings), and the
-rules for changing one: the schema of every setting, what values it takes, where it is stored (per game or global)."""
+"""The launcher settings and install facts the window reads and writes (the file itself: modules.settings.models), and
+the rules for changing one: the schema of every setting, what values it takes, where it is stored (per game or
+global)."""
 
 from __future__ import annotations
 
@@ -150,7 +151,7 @@ def store(spec: SettingSpec, value: bool | int | str, game) -> str:
 class Facts:
     """What the Settings page reads from the disk and the system, as plain data."""
 
-    settings: Any  # config.settings.LauncherSettings
+    settings: Any  # modules.settings.models.LauncherSettings
     detected: dict[str, str | None]  # location key -> the path found when it is left blank
     overhaul: str  # the overhaul switch's sentence ("" when the game has none)
     steam_target: str
@@ -283,7 +284,7 @@ class SettingsFacts:
     """The Settings page's data: what the disk and the system say, the game it is for, and the rules."""
 
     facts: Facts
-    game: Any  # game.catalog.Game
+    game: Any  # modules.games.catalog.Game
     layout: dict[str, str]  # the saved folder names, by draft field
     specs: dict[str, SettingSpec]
 
@@ -315,7 +316,7 @@ class SettingsService:
     """Settings for one engine: jobs is its JobManager (the writing job's gates; every layout change and the clean-up
     run on it), locations the current game's Locations (None: no game selected). Returns data and OperationError
     codes, never wording: the Qt page words them (ui/pages/settings/presenter.py). The settings file itself is
-    config.settings under the process's data folder."""
+    modules.settings.models under the process's data folder."""
 
     def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
         self._jobs, self._locations = jobs, locations

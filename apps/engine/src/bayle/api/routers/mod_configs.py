@@ -1,4 +1,4 @@
-"""Mod Configs over HTTP, each route handed straight to the engine's ModConfigsService (services.mod_configs): the
+"""Mod Configs over HTTP, each route handed straight to the engine's ModConfigsService (modules.mods.mod_configs): the
 page's tree, opening and saving a listed settings file by kind (text, form values, Seamless Co-op), the Overhaul setup
 (its form, save, apply to the profiles using it, install a new one, turn it off), sharing Seamless Co-op settings (the
 clipboard stays with the client: these take and give text) and the file stamp that tells a file changed under the
@@ -41,7 +41,7 @@ class OpenFileParams(FileParams):
 
 class ConfigFileRead(Result):
     """A file as read: the text exactly (line breaks as \\n) and what writing it back needs. The client builds the
-    form from the text (services.mod_configs.parse_doc)."""
+    form from the text (modules.mods.mod_configs.parse_doc)."""
 
     path: str
     text: str
@@ -103,9 +103,9 @@ class FormParams(ProfileParams):
 
 
 class OverhaulForm(Result):
-    setup: dict[str, Any]  # config, verified, level, folder, path, sha (services.mods.overhaul_setup_of)
+    setup: dict[str, Any]  # config, verified, level, folder, path, sha (modules.mods.service.overhaul_setup_of)
     choices: dict[str, Any]
-    values: dict[str, Any]  # the working values; services.mod_configs.patch_values edits them
+    values: dict[str, Any]  # the working values; modules.mods.mod_configs.patch_values edits them
     new: bool
 
 

@@ -17,11 +17,11 @@ was written for) and the steps that build its output folder from the packages be
                        mod's copy against the game's
     hook               a script fragment: the packages' own script folders copied in load order, then the mod's
                        fragment appended to the entry file (the last package's copy, or the download's base when no
-                       package has one), several in step order, each wrapping the one before (overhauls.hooks);
+                       package has one), several in step order, each wrapping the one before (adapters.overhauls.hooks);
                        refused when that already holds a fragment's markers or is compiled (bytecode), or when the
-                       result does not compile as Lua 5.1 (overhauls.lua_check; never run), and packages shipping
-                       different entry files are a clash, recorded; calls and env/act IDs the game can't resolve
-                       are warnings in the report (overhauls.hks_check)
+                       result does not compile as Lua 5.1 (adapters.overhauls.lua_check; never run), and packages
+                       shipping different entry files are a clash, recorded; calls and env/act IDs the game can't
+                       resolve are warnings in the report (adapters.overhauls.hks_check)
     remove             leftovers (a glob below the output's mod folder)
 
 `each` repeats a merge, text or params step per folder. Files a format rule does not cover (behaviour and animation

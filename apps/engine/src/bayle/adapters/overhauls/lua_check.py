@@ -1,4 +1,4 @@
-"""A syntax check of the scripts a hook composes (overhauls.hooks), so a broken composition is refused when the
+"""A syntax check of the scripts a hook composes (adapters.overhauls.hooks), so a broken composition is refused when the
 build is made instead of failing silently in the game.
 
 The game's character scripts (HKS) are Havok Script: Lua 5.1 with Havok's additions. The check compiles the text with

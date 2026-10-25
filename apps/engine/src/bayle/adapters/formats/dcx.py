@@ -1,9 +1,9 @@
 """DCX: the compressed wrapper around most game files. A 0x4C-byte header (kind, sizes, compression level) and the
 payload: KRAK (Oodle Kraken, with the game's own library), DFLT (zlib) or ZSTD.
 
-Kraken needs the game's Oodle library, which this module never looks for: callers pass its codecs in (game.oodle
-makes them; tests pass stand-ins). Anything with decompress(payload, size) or compress_kraken(body, level) will do;
-a ValueError from either becomes a FormatError here."""
+Kraken needs the game's Oodle library, which this module never looks for: callers pass its codecs in
+(adapters.games.oodle makes them; tests pass stand-ins). Anything with decompress(payload, size) or
+compress_kraken(body, level) will do; a ValueError from either becomes a FormatError here."""
 
 from __future__ import annotations
 

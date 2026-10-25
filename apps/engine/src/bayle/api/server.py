@@ -1,5 +1,5 @@
 """`bayle --backend`: bind 127.0.0.1:0, print one JSON handshake line when ready, stop when stdin reaches EOF. It
-serves the engine's feature interfaces (services.features) on the engine's jobs and activity log, as the window
+serves the engine's feature interfaces (runtime.features) on the engine's jobs and activity log, as the window
 uses them (runtime.bootstrap)."""
 
 from __future__ import annotations

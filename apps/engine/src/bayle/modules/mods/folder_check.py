@@ -1,7 +1,7 @@
 """A profile's folder inside the launcher's own profiles folder (library.game_root(...)/profiles) must be named after it
 and hold only it. check() says which of that is wrong; rename_folder() fixes a folder with the wrong name as one
-journaled operation (merging.build.Operation, journal beside the folder) with Undo; mods.folder_split does the other.
-Profiles anywhere else (a plain me3 setup) are never judged.
+journaled operation (adapters.filesystem.build.Operation, journal beside the folder) with Undo; mods.folder_split does
+the other. Profiles anywhere else (a plain me3 setup) are never judged.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """The Mods page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). It holds no
 decisions: what to show comes from the presenter, what a change does from the engine (host.features.mods, mod_library
-and mod_install: services/mods_page.py, shared_mods.py, mod_install.py), asked on the host's worker. A change that
+and mod_install: modules/mods/mods_page.py, shared_mods.py, mod_install.py), asked on the host's worker. A change that
 always asks is a check (the facts the presenter words and asks through the Notifier) and, on yes, a start with the
 stamp the check gave (asked once more when a file changed since); one that asks only sometimes raises "needs
 confirmation" with its facts and is called again confirmed. A job the engine starts is followed on the host. Only

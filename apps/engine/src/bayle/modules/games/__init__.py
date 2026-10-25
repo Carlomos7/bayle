@@ -1,6 +1,6 @@
-"""The installed game: which games the launcher knows (catalog), its configuration from data/games (config), its
-own packed archives (archives), its Oodle library (oodle), its executable's version (exe) and what the launcher knows
-about how it reads what it is given (knowledge)."""
+"""The games the launcher knows: which ones (catalog), each one's files from resources/games (config), where a game,
+its saves and me3 are once the Settings > Locations overrides apply (locate: the Locations value), and the port that
+finds them on this machine (ports; adapters.games implements it)."""
 
 from typing import TYPE_CHECKING
 

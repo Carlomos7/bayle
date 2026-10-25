@@ -205,7 +205,7 @@ class LibraryBusy(LibraryError):
 def library_lock(save_dir: Path) -> Iterator[None]:
     """Hold the lock on one account's library (<library>.lock beside its folder) for a whole change: the manifest
     is read after the lock is taken and written, with the copies it moves, before it is let go. Shared by every
-    launcher process and thread (platform.filelock.exclusive); a call inside another on the same thread
+    launcher process and thread (adapters.filesystem.filelock.exclusive); a call inside another on the same thread
     (swap_in adding the outgoing save) just enters. Raises LibraryBusy when it isn't free within
     save_backups.LOCK_TIMEOUT. Lock order: the library lock first, then the backups lock (swap_in backs up the live
     save inside it); taking the library lock while this thread holds a backups lock raises LockOrderError, since

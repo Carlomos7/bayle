@@ -1,7 +1,7 @@
 """The launcher's own build of an overhaul it installed: the manifest it keeps beside the package says so
 (INSTALLED_BY), the download copy is in the launcher's sources folder, and the launcher builds from it
-(mods.engine). A manifest written by another installer is not this adapter's: nothing of a download runs, and such a
-setup is left as it is."""
+(adapters.overhauls.engine). A manifest written by another installer is not this adapter's: nothing of a download runs,
+and such a setup is left as it is."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def _merges(recipe: dict | None) -> set[str]:
 
 
 class _Build:
-    """What CommandTool.run calls when the launcher builds the mod itself (mods.engine)."""
+    """What CommandTool.run calls when the launcher builds the mod itself (adapters.overhauls.engine)."""
 
     def __init__(
         self, profile: Path, layer: dict, setup: Path, recipe: dict, version: str, loc: Locations, host: EngineHost
@@ -109,7 +109,8 @@ class _Build:
         )
 
     def reasons(self, manifest: dict) -> list[str]:
-        """Why the build its manifest records is out of date beyond its sources (mods.engine.input_reasons)."""
+        """Why the build its manifest records is out of date beyond its sources
+        (adapters.overhauls.engine.input_reasons)."""
 
         return engine.input_reasons(manifest, self.recipe, self.loc)
 

@@ -4,9 +4,10 @@ me3 facts and the start-up sequence. No Qt: the window and the HTTP layer both d
 bus (`game.state`, `invalidated`, `notice`, `navigate`, `prompt` and the job events).
 
 Shell builds the program's one Session on the Engine's job manager, bus and plans (runtime.bootstrap), and sets the
-writes gate (a running game refuses writing jobs) and its bookkeeping on that manager. Activity (services.activity) runs
-on the same manager and the Engine's activity log. A test's light context provides the same parts. Who owns start-up: whoever hosts the Shell calls `startup()` once, which runs
-the Engine's start-up steps; nothing else recovers on its own."""
+writes gate (a running game refuses writing jobs) and its bookkeeping on that manager. Activity
+(modules.activity.service) runs on the same manager and the Engine's activity log. A test's light context provides the
+same parts. Who owns start-up: whoever hosts the Shell calls `startup()` once, which runs the Engine's start-up steps;
+nothing else recovers on its own."""
 
 from __future__ import annotations
 
@@ -393,8 +394,8 @@ class Shell:
 
     # ---------------------------------------------------------------- start-up
     def startup(self) -> None:
-        """The start-up sequence, once: the Engine's start-up steps (session.startup.run_steps), the game watch, me3 and update
-        checks. The steps run off the calling thread; what they put right is told as notices."""
+        """The start-up sequence, once: the Engine's start-up steps (runtime.startup.run_steps), the game watch, me3 and
+        update checks. The steps run off the calling thread; what they put right is told as notices."""
 
         def work(_progress) -> list[StepReport]:
             return run_steps(self._startup_steps)

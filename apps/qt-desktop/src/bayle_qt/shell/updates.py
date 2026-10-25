@@ -100,7 +100,7 @@ def check_say(check, channel: str = "stable") -> tuple[Say, str]:
 def can_apply(info: dict, frozen: bool | None = None) -> bool:
     """Whether Update now is offered: a packaged copy and a release with a signed feed. From source, or with an
     unsigned release, the only way is the releases page. frozen: whether this is a packaged build (default: it is
-    asked of config.settings)."""
+    asked of modules.settings.models)."""
     return bool((FROZEN if frozen is None else frozen) and updates.can_self_update(info))
 
 

@@ -1,4 +1,4 @@
-"""A pool of worker processes for CPU-bound work (platform/cpu.py says what a task is). No Qt.
+"""A pool of worker processes for CPU-bound work (work/cpu.py says what a task is). No Qt.
 
 Persistent workers (this program started again with --worker) are started when tasks need them. A task is written to
 an idle worker as one JSON line; a reader thread per worker completes that task's Future from the reply line, so
@@ -55,7 +55,7 @@ class CpuPool:
 
     # ------------------------------------------------------------------ any thread
     def submit(self, task: str, args: dict) -> Future:
-        """The backend platform.cpu.run_cpu uses (run_cpu has already dealt with the window's own thread)."""
+        """The backend work.cpu.run_cpu uses (run_cpu has already dealt with the window's own thread)."""
         future: Future = Future()
         with self._lock:
             if self._closed:

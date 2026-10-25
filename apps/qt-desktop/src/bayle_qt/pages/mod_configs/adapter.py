@@ -1,6 +1,6 @@
 """The Mod Configs page's adapter: the thin QObject the QML page binds to (technical specification §8.6 D5). What to
 show comes from the presenter, what a change does from the engine's Mod configs interface (host.features.mod_configs,
-services/mod_configs.py), called on the host's worker. The tree is read there; one file is read when it is picked
+modules/mods/mod_configs.py), called on the host's worker. The tree is read there; one file is read when it is picked
 (settings files are small). Edits wait in `pending` until Save, which writes only those values (refused as stale when
 the file changed on disk since it was read). Installing, turning off, applying and exporting are jobs the page
 follows; the plans are a check, the presenter's words asked through the Notifier, and a start with the stamp checked."""

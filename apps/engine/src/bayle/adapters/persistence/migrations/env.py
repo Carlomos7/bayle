@@ -1,6 +1,6 @@
-"""Alembic's environment for the launcher's database. storage.db runs it in code, handing over the connection it
-opened (config.attributes["connection"]); there is no alembic.ini and no command line. render_as_batch because
-SQLite cannot alter most columns in place."""
+"""Alembic's environment for the launcher's database. adapters.persistence.db runs it in code, handing over the
+connection it opened (config.attributes["connection"]); there is no alembic.ini and no command line. render_as_batch
+because SQLite cannot alter most columns in place."""
 
 from alembic import context
 

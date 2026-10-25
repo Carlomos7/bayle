@@ -1,6 +1,6 @@
 """Settings over HTTP: the page's facts, one change of a setting, the folder buttons, the folder-name check, and the
 three layout changes and the clean-up (each a check, then a start with what the client confirmed), each handed straight
-to the engine's SettingsService (services.settings). No wording here; the client words what it gets."""
+to the engine's SettingsService (modules.settings.service). No wording here; the client words what it gets."""
 
 from __future__ import annotations
 

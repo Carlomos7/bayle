@@ -1,6 +1,6 @@
 """The Mod Configs page's presenter (technical specification §8.10, Mod Configs): the tree of mods with settings
 files, the breadcrumb, the generated form's rows, the Seamless Co-op panel, and every word the page shows. Plain
-Python, every string through tr(); it turns services/mod_configs.py's facts into what the page shows.
+Python, every string through tr(); it turns modules/mods/mod_configs.py's facts into what the page shows.
 
 The Seamless Co-op words (each setting's name, one-line summary and explanation, the choice names, the section
 titles) live here, not in coop/ (spec table, S7): the Widgets Co-op page uses them from here until it goes (S9)."""
@@ -296,9 +296,9 @@ class ModConfigsPresenter:
         return f"{label} ({self.overhaul_status(verified)})"
 
     def overhaul(self, setup: dict, choices: dict, values: dict, steps: list[str], new: bool) -> dict[str, Any]:
-        """The Overhaul setup form: setup is services.mods.overhaul_setup_of (or the proposal for a new one); values
-        the working copy (natives, keep, off: the binders used whole). The basic level is generated rows (the page's
-        ConfigForm); the advanced level and a verified setup are shown read-only."""
+        """The Overhaul setup form: setup is modules.mods.service.overhaul_setup_of (or the proposal for a new one);
+        values the working copy (natives, keep, off: the binders used whole). The basic level is generated rows (the
+        page's ConfigForm); the advanced level and a verified setup are shown read-only."""
         config, verified = setup["config"], bool(setup.get("verified"))
         basic_level = setup["level"] == "basic" and config.basic is not None and not verified
         sections: list[dict] = []

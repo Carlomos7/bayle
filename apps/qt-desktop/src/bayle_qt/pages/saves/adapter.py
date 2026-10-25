@@ -1,5 +1,5 @@
 """The Saves page's adapter: the thin QObject the QML page binds to (technical specification §8.10, Saves). What to show
-comes from the presenter, what a change does from the engine (services/saves_page.py).
+comes from the presenter, what a change does from the engine (modules/saves/saves_page.py).
 
 Everything goes to the engine's SavesService on the host's worker. A write to a live save is a check (the facts the
 presenter words and asks through the Notifier) and, on yes, a start with the stamp the check gave: if a file changed

@@ -6,10 +6,11 @@ list of sources it used (path + sha256 of each input) and which folders are its 
 files next to a package, never from a mod's name:
 
     declared          a rebuild.json the package (or the user, in Options) provides; see docs/Rebuild tools.md
-    launcher_build    the launcher's own build of an overhaul it installed (mods.engine); nothing from a download runs
+    launcher_build    the launcher's own build of an overhaul it installed (adapters.overhauls.engine); nothing from a
+                      download runs
 
-A CommandTool wraps a Recipe as the Tool contract (mods.ports) asks: label, package, own_folders(), merges(), sources(),
-input_reasons(), report_time(), problem(), approval_key(), describe() and run(log).
+A CommandTool wraps a Recipe as the Tool contract (modules.mods.ports) asks: label, package, own_folders(), merges(),
+sources(), input_reasons(), report_time(), problem(), approval_key(), describe() and run(log).
 """
 
 from __future__ import annotations
@@ -112,7 +113,7 @@ class CommandTool:
 
     def input_reasons(self) -> list[str]:
         """Why the launcher's own build is out of date beyond its sources (the game updated, its config changed; see
-        mods.engine.input_reasons). Empty for a tool's own run."""
+        adapters.overhauls.engine.input_reasons). Empty for a tool's own run."""
         check = getattr(self.recipe.engine, "reasons", None)
         if check is None:
             return []

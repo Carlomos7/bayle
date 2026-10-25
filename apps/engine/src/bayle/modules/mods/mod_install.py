@@ -1,6 +1,6 @@
 """Installing mods into a profile and setting up overhauls: the engine interface the Mods page's install dialog, Take
-over and the overhaul menu call. The work itself lives in services.mods and services.profile_mods. Facts and actions
-only: the words (the dialog's, the confirms') are the client's.
+over and the overhaul menu call. The work itself lives in modules.mods.service and modules.mods.profile_mods. Facts and
+actions only: the words (the dialog's, the confirms') are the client's.
 
 shortcut: an open install nobody closes (a client that went away) keeps its unpacked copy until the engine ends; give
 them a time to live with the first remote client."""

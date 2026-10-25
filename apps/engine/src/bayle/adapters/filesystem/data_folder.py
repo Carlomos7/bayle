@@ -1,6 +1,6 @@
 """The launcher's own data folder (where settings, logs, backups and caches live): its root, the temp folder installs
 unpack into, and the deleted-profiles folder. The runtime sets the root when it starts (runtime.bootstrap.use_data_folder,
-from config.app_paths.data_dir)."""
+from adapters.system.app_paths.data_dir)."""
 
 from __future__ import annotations
 

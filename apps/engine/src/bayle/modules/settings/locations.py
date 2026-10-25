@@ -106,7 +106,7 @@ def plain_profiles(loc) -> list[Path]:
 
 
 def move_all(loc, profiles: list[Path]) -> int:
-    """Move each profile into Bayle's folder (services.mods.move_into_launcher_folder) and leave ONE Undo that
+    """Move each profile into Bayle's folder (modules.mods.service.move_into_launcher_folder) and leave ONE Undo that
     takes them all back, the last moved first. Returns how many moved."""
     from bayle.modules.mods import service as mod_service
     from bayle.modules.mods.shared_mods_page import chain

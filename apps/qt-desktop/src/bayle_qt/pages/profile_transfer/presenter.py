@@ -1,6 +1,6 @@
 """The Export / Import profile page's presenter (technical specification, "Export / Import profile"): every word the
 page shows and the plain-text form of the facts the engine's Profile transfer interface
-(services.profile_transfer.ProfileTransferService) returns. Plain Python, every string through tr()."""
+(modules.mods.profile_transfer.ProfileTransferService) returns. Plain Python, every string through tr()."""
 
 from __future__ import annotations
 

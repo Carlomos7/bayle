@@ -2,8 +2,8 @@
 
 dcx (the compressed wrapper), bnd4 (archives), fmg (text tables), param (parameter tables), regulation (regulation.bin:
 encrypted, compressed, a binder of tables), esd (talk scripts), tae (animation events), hks (character scripts as
-bytecode) and me3_profile (the entries of a me3 profile, read from its text). The caller passes native (Oodle) compression in (game.oodle makes the codecs); no
-module here knows about game folders, settings or the window.
+bytecode) and me3_profile (the entries of a me3 profile, read from its text). The caller passes native (Oodle)
+compression in (adapters.games.oodle makes the codecs); no module here knows about game folders, settings or the window.
 """
 
 

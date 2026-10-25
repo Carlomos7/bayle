@@ -1,5 +1,5 @@
 """Activity over HTTP: the jobs, a job's log and file, the unseen count, "seen", and Undo, each handed straight to the
-engine's ActivityService (services.activity). No wording here; the client words what it gets.
+engine's ActivityService (modules.activity.service). No wording here; the client words what it gets.
 
 The shape every feature router follows: GET /v1/<feature> is the page's facts; POST /v1/<feature>/<op> takes the
 op's params as its body and returns its result (a long write returns {"job_id"}, its end comes on /v1/events)."""
@@ -90,5 +90,6 @@ def mark_seen(a: Activity) -> Seen:
 
 @router.post("/undo", name="activity_undo")
 def undo(a: Activity, p: TakeBack) -> Started:
-    """Start taking a job back (its result: {"said": ...}); refusals are OperationError codes (services.activity)."""
+    """Start taking a job back (its result: {"said": ...}); refusals are OperationError codes
+    (modules.activity.service)."""
     return Started(job_id=a.undo(p.job_id, p.expect))

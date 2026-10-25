@@ -1,6 +1,7 @@
-"""Save files: parsing (layout, container, nightreign), read-only checks (analyze, item_names), named repairs
-(fix, loading, vanilla, regulation, repair), copies (transfer, library), backups and their retention
-(backups), and the report's shapes (models)."""
+"""Save files: read-only checks (analyze), named repairs (fix, loading, vanilla, regulation, repair, nightreign_repair),
+copies (transfer, library), backups and their retention (backups), what a worker forgets after a write (caches), the
+report's shapes (models) and the Saves page's typed interface (service, saves_page). Parsing and decrypting the files
+is adapters.saves."""
 
 from typing import TYPE_CHECKING
 

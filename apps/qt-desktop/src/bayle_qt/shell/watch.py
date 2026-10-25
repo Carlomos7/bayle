@@ -1,7 +1,7 @@
 """The game watch (technical specification §8.10: "the game watch drives the running state everywhere"): every few
-seconds, on a worker thread, whether the game runs, Steam's state and the leftover game processes; each answer is
-handed to the shell (on the background's thread). "Running" is decided by threads, not memory (platform/paths.py): a starting
-game is small, a dead shell has none.
+seconds, on a worker thread, whether the game runs, Steam's state and the leftover game processes; each answer is handed
+to the shell (on the background's thread). "Running" is decided by threads, not memory (adapters/games/paths.py): a
+starting game is small, a dead shell has none.
 
 Steam signed out: Steam running but not signed in for SIGN_IN_WAIT seconds is said (earlier it is just starting up)."""
 

@@ -1,6 +1,7 @@
-"""Overhaul mods: their configs (data/overhauls/*.toml), read as OverhaulConfig. One description of each overhaul,
-used to recognise it (Play-page detection, the offline launch's strip), to build it (mods.engine) and to place its
-download in the launcher's layout (sources)."""
+"""Overhaul mods: their configs (resources/overhauls/*.toml and the player's own), as OverhaulConfig. One description
+of each overhaul, used to recognise it (Play-page detection, the offline launch's strip), to build it
+(adapters.overhauls.engine) and to place its download in the launcher's layout (sources). Reading and writing the
+config files is adapters.overhauls.recipes and writer."""
 
 from bayle.modules.overhauls import requirements, sources
 from bayle.modules.overhauls.config import (

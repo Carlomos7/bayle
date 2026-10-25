@@ -1,7 +1,7 @@
 """Every DLL mod lives in a folder of its own (natives/<DLL name>/<DLL name>.dll). loose() finds the DLL entries that
 do not: the DLL sits directly in natives/ or in the profile's folder, or in a folder other entries' DLLs use too.
 preview() says what "Put in folders" would do and what stops it; move() does it as one journaled operation
-(merging.build) with Undo (undo_move).
+(adapters.filesystem.build) with Undo (undo_move).
 
 For each loose DLL a folder natives/<stem> is built beside the profile: the DLL and the files sharing its stem
 (UnlockTheFps.ini, UnlockTheFps.zh-CN.ini, ...) are copied there and read back; a folder named after the stem moves in

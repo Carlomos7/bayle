@@ -142,7 +142,7 @@ def install_import(i: Install, p: InstallRef) -> Handoff:
 
 
 class Choices(Params):
-    """What the player set in the dialog (services.mod_install.InstallChoices)."""
+    """What the player set in the dialog (modules.mods.mod_install.InstallChoices)."""
 
     name: str
     id: str = ""

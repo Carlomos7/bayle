@@ -70,7 +70,7 @@ class Job(Base):
     profile: Mapped[str] = mapped_column(Text, default="")
     started_at: Mapped[datetime.datetime] = mapped_column(UtcMillis, index=True)
     ended_at: Mapped[datetime.datetime | None] = mapped_column(UtcMillis)
-    outcome: Mapped[str] = mapped_column(String, default="running")  # platform.logging.OUTCOMES
+    outcome: Mapped[str] = mapped_column(String, default="running")  # adapters.system.logging.OUTCOMES
     warnings: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[int] = mapped_column(Integer, default=0)
     log_name: Mapped[str | None] = mapped_column(String)
@@ -95,8 +95,8 @@ class RebuildRun(Base):
 
 
 class RecordMirrorRow(Base):
-    """The database's copy of a record file that protects other files (storage.mirror): derived from the file, which
-    stays authoritative. fingerprint: SHA-256 of the file's bytes when the row was made."""
+    """The database's copy of a record file that protects other files (adapters.persistence.mirror): derived from the
+    file, which stays authoritative. fingerprint: SHA-256 of the file's bytes when the row was made."""
 
     __tablename__ = "record_mirror"
 

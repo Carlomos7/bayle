@@ -1,5 +1,5 @@
 """Forgetting what a process has remembered about the game and the installed mods: the item names of the mods, and the
-item IDs the game's regulation.bin defines. A worker process (platform/cpu.py) keeps these between tasks and is told
+item IDs the game's regulation.bin defines. A worker process (work/cpu.py) keeps these between tasks and is told
 to forget with cpu.invalidate(kind) when the main process learns they changed."""
 
 from __future__ import annotations

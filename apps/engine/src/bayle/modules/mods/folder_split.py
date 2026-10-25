@@ -1,5 +1,5 @@
 """Giving every profile of a crowded folder (several .me3 in one folder of the launcher's profiles folder) a folder of its
-own, as one journaled operation (merging.build.Operation, journal in the profiles folder) with Undo:
+own, as one journaled operation (adapters.filesystem.build.Operation, journal in the profiles folder) with Undo:
 
     <folder>/<a>.me3, <b>.me3   ->   <folder-or-new>/<a>/<a>.me3 and profiles/<b>/<b>.me3, each with its own mods
     a mod folder only one profile uses         moved to that profile's folder

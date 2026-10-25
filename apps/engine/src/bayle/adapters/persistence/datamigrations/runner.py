@@ -29,8 +29,8 @@ class MigrationError(storage_db.MigrationFailed):
 
 
 def write_json(path: Path, obj: Any) -> None:
-    """Write through platform.files.durable_write: a temp file in the same folder, fsynced, renamed into place, the
-    folder fsynced."""
+    """Write through adapters.filesystem.files.durable_write: a temp file in the same folder, fsynced, renamed into
+    place, the folder fsynced."""
     path.parent.mkdir(parents=True, exist_ok=True)
     # os.linesep keeps the bytes the old text-mode write gave (CRLF on Windows); json escapes newlines in values.
     files.durable_write(path, json.dumps(obj, indent=1).replace("\n", os.linesep))

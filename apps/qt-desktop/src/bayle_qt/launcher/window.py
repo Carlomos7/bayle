@@ -237,7 +237,7 @@ def main(engine, run: Callable[[], int] | None = None) -> int:
     threading.excepthook = lambda a: report_exception(
         a.exc_type, a.exc_value, a.exc_traceback, f"thread {a.thread.name}"
     )
-    pool = cpu_pool.CpuPool()  # CPU-bound work runs in worker processes (platform/cpu.py)
+    pool = cpu_pool.CpuPool()  # CPU-bound work runs in worker processes (work/cpu.py)
     engine.use_cpu(pool.submit, pool.broadcast, threading.get_ident())
     QGuiApplication.instance().aboutToQuit.connect(pool.shutdown)
     host = ShellHost(engine)

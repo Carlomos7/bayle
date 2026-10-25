@@ -1,8 +1,7 @@
-"""This machine: where things are (paths: the game, its saves, me3; data_folder: the launcher's own folder;
-steam), what runs (proc, processes), the play session's steps (session), logging and the jobs index
-(logging), single-instance and file locks (instance, filelock), files, trash, desktop, me3_info and
-steam_shortcuts. The bottom layer: nothing here imports the launcher's other packages; what it needs from
-them (the data folder, the build's instance scope) the app sets at startup."""
+"""This machine: processes under a name (proc), dead game shells (processes), the desktop's open handler (desktop),
+the install's facts (app_paths: frozen or not, the data and executable folders, Velopack and AppImage; identity: the
+build's identity), the run and job logs and the jobs index (logging) and the UI-thread guard (threads). What the
+launcher needs bound at startup (the data folder, the instance scope) the runtime sets."""
 
 from typing import TYPE_CHECKING
 

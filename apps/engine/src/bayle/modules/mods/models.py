@@ -42,7 +42,8 @@ class ModError(Exception):
 
 
 class EngineError(RuntimeError):
-    """The overhaul engine could not build or remove a change (mods.engine); the output in place is unchanged."""
+    """The overhaul engine could not build or remove a change (adapters.overhauls.engine); the output in place is
+    unchanged."""
 
 
 class UndoError(RuntimeError):

@@ -2,9 +2,9 @@
 steam.py and steam_paths.py, me3 in me3_paths.py, the process list in proc.py.
 
 These are the primitives: each takes what it looks for (an exe name, a save folder, an override). A game's own answers,
-with the Settings > Locations overrides applied, are game/locate.py's Locations. On Linux (desktop or Steam Deck) the
-game runs through Proton, so its saves live inside the game's Proton prefix and the game process is a Wine process
-whose command line names the game's exe. Nothing here writes to disk.
+with the Settings > Locations overrides applied, are modules/games/locate.py's Locations. On Linux (desktop or Steam
+Deck) the game runs through Proton, so its saves live inside the game's Proton prefix and the game process is a Wine
+process whose command line names the game's exe. Nothing here writes to disk.
 """
 
 import os

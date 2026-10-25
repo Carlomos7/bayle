@@ -7,8 +7,8 @@ the profile's path or name. A rename moves them together:
                       profile's entry in .roundtable/settings.json. Files are written under the new name and removed
                       from the old (their bytes are kept in the journal); then the profile's own folder
                       (profiles/<name>/, with its mods, builds and state) is moved to the new name as the last step
-                      (merging.build.Operation.move_folder: nothing is ever deleted by an older launcher's rollback).
-                      That journal is kept in the profiles folder, outside the folder that moves.
+                      (adapters.filesystem.build.Operation.move_folder: nothing is ever deleted by an older launcher's
+                      rollback). That journal is kept in the profiles folder, outside the folder that moves.
     after the commit  launcher_settings.json (the remembered profile of the game, the parameter overlay marks) and
                       the profile's history copies, which are copied, not moved. Re-keyed by a mapping that can be
                       applied twice (a recovery after an interruption does, finish_state), and mapped back by an undo.
@@ -288,7 +288,7 @@ def _move_folder(op: build.Operation, src: Path, dst: Path, case_only: bool) -> 
 # ----------------------------------------------------------------------------- apply
 def apply(p: ProfileRenamePreview, *, loc: Locations, log: Callable[[str], None] = lambda s: None) -> dict:
     """Rename as previewed, as one operation. Returns {operation, profile, name, new, notes}. Raises ProfileRenameError
-    (or merging.build.BuildError when something changed meanwhile) with nothing changed."""
+    (or adapters.filesystem.build.BuildError when something changed meanwhile) with nothing changed."""
     if not p.ok or p.new_profile is None:
         raise ProfileRenameError("; ".join(p.refusals) or "Nothing to rename.")
     old, new = p.profile, p.new_profile

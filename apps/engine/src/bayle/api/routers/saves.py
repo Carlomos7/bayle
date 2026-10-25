@@ -1,9 +1,9 @@
-"""Saves over HTTP: the page (live saves, Library, Backups), the reads (health report, character sheet, one Library copy),
-the Library's and Backups' upkeep, and every write to a live save, each handed straight to the engine's SavesService
-(services.saves_page), with no wording. A write to a live save is a check (the facts a client words, and the stamp of
-the files read) and a start (with what the client confirmed: refused as stale when a file changed since) that returns
-a job id; the job's result holds the facts and the Undo record. The game gate and the other-write gate are the job
-manager's. Errors are OperationError codes."""
+"""Saves over HTTP: the page (live saves, Library, Backups), the reads (health report, character sheet, one Library
+copy), the Library's and Backups' upkeep, and every write to a live save, each handed straight to the engine's
+SavesService (modules.saves.saves_page), with no wording. A write to a live save is a check (the facts a client words,
+and the stamp of the files read) and a start (with what the client confirmed: refused as stale when a file changed
+since) that returns a job id; the job's result holds the facts and the Undo record. The game gate and the other-write
+gate are the job manager's. Errors are OperationError codes."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ class SavesSaid(Result):
 
 
 class SavesSheet(Result):
-    data: dict[str, Any]  # services.saves.save_info: the save's facts; the client makes the sheet of a slot
+    data: dict[str, Any]  # modules.saves.service.save_info: the save's facts; the client makes the sheet of a slot
 
 
 class CopyEntry(Result):
@@ -130,7 +130,7 @@ class RemoveCopyParams(CopyRef):
 
 
 class CopyCheck(Result):
-    plan: dict[str, Any]  # services.saves_page.plan_character_copy: the character, what it replaces, the signing
+    plan: dict[str, Any]  # modules.saves.saves_page.plan_character_copy: the character, what it replaces, the signing
     source: str
     target: str
     same_file: bool
@@ -156,7 +156,7 @@ class RestoreCheck(Result):
 
 
 class RepairCheck(Result):
-    info: dict[str, Any]  # services.saves.save_info
+    info: dict[str, Any]  # modules.saves.service.save_info
     keys: list[list[str | int]]
     stamp: Stamp
 

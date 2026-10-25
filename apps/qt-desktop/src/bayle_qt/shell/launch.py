@@ -9,7 +9,7 @@ through `Ports.ask` with a few named choices, and carries on (or stops) from the
 the same flow runs under a window or under a test. A step that fails to be sure stops: the game never starts
 without its backup, with unrefreshed merged mods, or online with changed game data unless the player said so.
 
-`--play` from a Steam shortcut keeps services.play.play_headless: nothing can ask there."""
+`--play` from a Steam shortcut keeps modules.launch.play.play_headless: nothing can ask there."""
 
 from __future__ import annotations
 

@@ -64,7 +64,7 @@ class Recipe:
     approval: str = ""  # changes when the tool changes, so a new version is asked about again
     problem: str | None = None  # why it cannot run on this PC now
     timeout: int = 1800
-    engine: object = None  # the launcher builds it from a recipe instead (mods.engine): called with log
+    engine: object = None  # the launcher builds it from a recipe instead (adapters.overhauls.engine): called with log
 
 
 class Tool(Protocol):
@@ -96,8 +96,8 @@ class Tool(Protocol):
 
 @dataclass(frozen=True)
 class EngineHost:
-    """What the launcher's own build (mods.engine) needs from the workflow side, handed in by whoever starts it: the
-    journaled operation it swaps a build in under (start, commit) and the way folders are compared."""
+    """What the launcher's own build (adapters.overhauls.engine) needs from the workflow side, handed in by whoever
+    starts it: the journaled operation it swaps a build in under (start, commit) and the way folders are compared."""
 
     start: Callable[[Path, str], Any]
     commit: Callable[[Any], None]

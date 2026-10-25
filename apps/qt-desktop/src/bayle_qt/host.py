@@ -46,7 +46,7 @@ class Host(Protocol):
 
     @property
     def features(self) -> Features:
-        """The engine's feature interfaces (services.features), one per page; newer pages reach theirs here."""
+        """The engine's feature interfaces (runtime.features), one per page; newer pages reach theirs here."""
         ...
 
     @property

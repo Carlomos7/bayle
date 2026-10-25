@@ -3,7 +3,7 @@
 The folder (a package's, a native's) is renamed on its own drive, the profile's entry points at the new place (a
 package's id becomes the new name too, and the entries that load after or before it follow), and the launcher's own
 records that name the folder (the profile's settings.json, launcher_settings.json) follow. All of it is steps of one
-merging.build.Operation: every refusal is worked out first, nothing is written until commit, a failure or an
+adapters.filesystem.build.Operation: every refusal is worked out first, nothing is written until commit, a failure or an
 interruption puts everything back, and Undo takes it back (mods.operations.take_back). A native keeps its DLL's file
 name: that is its id in me3 and the key of its attached configs.
 

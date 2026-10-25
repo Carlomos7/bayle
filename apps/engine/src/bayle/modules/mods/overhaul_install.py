@@ -4,10 +4,10 @@ Nothing here knows a particular overhaul: everything comes from its config (over
 
     install   a download the launcher recognises (a config's build with an install description, at a listed version)
               goes in as one operation: a copy of the download's files its build reads, the launcher's build of it
-              (mods.engine, built against the profile as the install leaves it, the player's settings file kept),
-              the profile's changes (overhauls.install_plan, written by the profile writer, with paths relative to the
-              profile) and the launcher's records. A failure, or an interruption found on the next start, puts the
-              previous state back. Installing again is an update of the earlier install (the plan replaces its
+              (adapters.overhauls.engine, built against the profile as the install leaves it, the player's settings file
+              kept), the profile's changes (overhauls.install_plan, written by the profile writer, with paths relative
+              to the profile) and the launcher's records. A failure, or an interruption found on the next start, puts
+              the previous state back. Installing again is an update of the earlier install (the plan replaces its
               entries); a profile with another overhaul is refused (one overhaul per profile for now). A setup made by
               the overhaul's own installer is not rewritten: it is removed first (adopting one comes later).
     remove    the overhaul's own entries leave the profile; each change its install made to other entries or
@@ -242,7 +242,8 @@ def _needed(download: Path, build: Build, recipe: dict) -> list[str]:
         exact.add(build.match.version.file)
     globs: list[str] = []
     folders: list[str] = []
-    places = {"."}  # where licence and notice files are looked for (mods.engine._notices): the top, beside its DLLs
+    # where licence and notice files are looked for (adapters.overhauls.engine._notices): the top, beside its DLLs
+    places = {"."}
     for step in recipe["steps"]:
         for key in ("from", "patch", "base", "fragment"):
             value = step.get(key)
@@ -277,7 +278,7 @@ def _needed(download: Path, build: Build, recipe: dict) -> list[str]:
 
 def _notice(f: PurePosixPath, places: set[str]) -> bool:
     """A licence or notice file the build copies next to the DLLs (a file, or a file in a licences folder), from
-    the places mods.engine looks in."""
+    the places adapters.overhauls.engine looks in."""
     if str(f.parent).lower() in places and tool_ports.NOTICE_NAMES.match(f.name):
         return True
     parts = f.parts
@@ -868,7 +869,8 @@ def installer_made(profile: Path, *, loc: Locations, configs: Sequence[OverhaulC
 
 
 def _engine_previous(profile: Path, own: Path) -> Path | None:
-    """The launcher's previous build of the overhaul kept for Undo rebuild (mods.engine), when it is this one's."""
+    """The launcher's previous build of the overhaul kept for Undo rebuild (adapters.overhauls.engine), when it is this
+    one's."""
 
     work = Path(profile).parent / tool_ports.WORK
     try:

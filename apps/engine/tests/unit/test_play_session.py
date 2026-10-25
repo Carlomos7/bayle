@@ -7,7 +7,7 @@ import json
 import pytest
 from fakehost import STEAM_EXE, FakeHost, launch_profile_for
 
-from bayle.adapters.integrations.me3 import session
+from bayle.adapters.integrations.me3 import me3_info, session
 from bayle.adapters.system import logging as run_logging
 from bayle.modules.games import catalog as games
 from bayle.modules.games.locate import Locations
@@ -206,7 +206,7 @@ def play(monkeypatch, me3):
         "play_boot_boost": True,
     }
     monkeypatch.setattr(core, "play_options", lambda settings=None: opts)
-    monkeypatch.setattr(core.me3_info, "me3_version", lambda path: "0.13.0")
+    monkeypatch.setattr(me3_info, "me3_version", lambda path: "0.13.0")
     repaired = []
     monkeypatch.setattr(core.save_repair, "repair_all", lambda loc: repaired.append(loc.game.key))
     host = FakeHost(monkeypatch, steam_running=False, dead_shells=[301], me3="attached")
@@ -335,7 +335,7 @@ def test_play_online_with_changed_parameters_is_warned_about_before_launching(pl
 def test_after_play_me3s_failed_dlc_loading_is_said(play, lines, monkeypatch, tmp_path):
     log = tmp_path / "me3.log"
     log.write_text("trampoline returned null key=-----BEGIN RSA PUBLIC KEY-----", encoding="utf-8")
-    monkeypatch.setattr(core.me3_session, "me3_log_path", lambda: log)
+    monkeypatch.setattr(session, "me3_log_path", lambda: log)
     monkeypatch.setattr(core.game_checks, "me3_mount_failures", lambda text: [f"said about {len(text)} characters"])
     core._me3_said()
     assert "warning: said about 59 characters" in lines

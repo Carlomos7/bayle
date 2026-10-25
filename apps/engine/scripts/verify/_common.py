@@ -46,7 +46,9 @@ def game_dir(given: Path | None) -> Path:
     if game is None:
         from bayle.modules.games import catalog
         from bayle.modules.games.locate import Locations
+        from bayle.runtime.bootstrap import bind_ports
 
+        bind_ports()
         game = Locations(catalog.ELDEN_RING).game_dir()
     if game is None or not (Path(game) / "eldenring.exe").is_file():
         sys.exit(f"no eldenring.exe in {game}; pass --game or set game in {LOCAL.name}")
@@ -101,8 +103,9 @@ def sandbox_launcher(out: Path, game: Path):
     from bayle.adapters.games import paths
     from bayle.modules.games import catalog
     from bayle.modules.games.locate import Locations, Overrides
-    from bayle.runtime.bootstrap import use_data_folder
+    from bayle.runtime.bootstrap import bind_ports, use_data_folder
 
+    bind_ports()
     use_data_folder()  # app_paths.data_dir is the folder above
     paths.clear_detection_cache()
     return Locations(catalog.ELDEN_RING, Overrides(game_exe=str(game / catalog.ELDEN_RING.exe)))

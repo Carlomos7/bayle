@@ -2,11 +2,12 @@
 
 import pytest
 
+from bayle.adapters.integrations.me3 import me3_info
 from bayle.modules.launch import play as g
 from bayle.modules.settings.models import LauncherSettings
 
 P = g.profile_tools
-M = g.me3_info
+M = me3_info
 
 PROFILE = (
     '# my profile\r\nprofileVersion = "v1"\r\n\r\n# start_online = true\r\n\r\n[[packages]]\r\nid = "a"\r\npath = \'mods/a\'\r\n\r\n'

@@ -28,7 +28,10 @@ from typing import Any
 
 from bayle import __version__
 from bayle.adapters.filesystem import hashing
-from bayle.adapters.games import paths
+from bayle.adapters.games import discovery, paths
+from bayle.adapters.integrations.me3 import me3_info, me3_paths
+from bayle.adapters.integrations.me3 import session as me3_session
+from bayle.adapters.integrations.steam import steam
 from bayle.adapters.persistence import datamigrations
 from bayle.adapters.persistence import db as storage_db
 from bayle.adapters.persistence.activity import ActivityLog
@@ -37,11 +40,13 @@ from bayle.adapters.persistence.imports import run_imports
 from bayle.adapters.persistence.mirror import Mirror
 from bayle.adapters.persistence.rebuild_runs import RebuildRuns
 from bayle.adapters.persistence.settings_file import load_settings
-from bayle.adapters.system import data_folder, identity
+from bayle.adapters.system import data_folder, desktop, identity
 from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.app_paths import data_dir
 from bayle.modules.games import catalog
+from bayle.modules.games import ports as game_ports
 from bayle.modules.games.locate import Locations
+from bayle.modules.launch import ports as launch_ports
 from bayle.modules.mods import rebuild as mod_rebuild
 from bayle.modules.saves import ports as save_ports
 from bayle.modules.settings.models import LauncherSettings
@@ -65,6 +70,15 @@ _SLOTS: dict[str, tuple[Any, str]] = {
     "cpu_broadcast": (cpu, "_broadcast"),
     "ui_thread": (cpu, "_ui_thread"),
 }
+
+
+def bind_ports() -> None:
+    """Bind the ports the feature modules reach other programs and this machine through (modules/*/ports.py) to the
+    concrete adapters. They stay bound for the whole process, so this is not part of _SLOTS; calling it again changes
+    nothing. Every entry point that can run a module's workflow before an engine exists calls it first."""
+    game_ports._DISCOVERY, game_ports._PATHS = discovery, paths
+    launch_ports._ME3_INFO, launch_ports._ME3_PATHS, launch_ports._ME3_SESSION = me3_info, me3_paths, me3_session
+    launch_ports._STEAM, launch_ports._DESKTOP = steam, desktop
 
 
 def _after_job() -> None:
@@ -192,6 +206,7 @@ def migrate_data(open_db=None, covered: set[str] | None = None):
 def create_engine(start_game: catalog.Game | None = None, *, storage: bool = True) -> Engine:
     """The engine for one run: the game is start_game (--game), else the tab the window last showed. storage=False
     opens no database (the files alone work, as before it existed)."""
+    bind_ports()
     data = data_dir()
     unbind = [
         bind(

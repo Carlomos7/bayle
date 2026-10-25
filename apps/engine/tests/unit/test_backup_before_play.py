@@ -5,6 +5,8 @@ import uuid
 
 import pytest
 
+from bayle.adapters.integrations.me3 import me3_info
+from bayle.adapters.integrations.me3 import session as me3_session
 from bayle.adapters.system import logging as run_logging
 from bayle.modules.games.locate import Locations
 from bayle.modules.launch import play as core
@@ -31,10 +33,10 @@ def session(tmp_path, monkeypatch):
     launched = []
     opts = {k: False for k in core.PLAY_DEFAULTS} | {"play_backup_before": True}
     monkeypatch.setattr(core, "play_options", lambda settings=None: opts)
-    monkeypatch.setattr(core.me3_session, "ensure_steam", lambda *a: None)
-    monkeypatch.setattr(core.me3_session, "ensure_steam_running", lambda *a: None)
-    monkeypatch.setattr(core.me3_session, "launch", lambda *a, **k: launched.append(a[0]))
-    monkeypatch.setattr(core.me3_info, "me3_version", lambda *a: None)
+    monkeypatch.setattr(me3_session, "ensure_steam", lambda *a: None)
+    monkeypatch.setattr(me3_session, "ensure_steam_running", lambda *a: None)
+    monkeypatch.setattr(me3_session, "launch", lambda *a, **k: launched.append(a[0]))
+    monkeypatch.setattr(me3_info, "me3_version", lambda *a: None)
     monkeypatch.setattr(core.time, "sleep", lambda s: None)
     monkeypatch.setattr(core.run_logging, "start_log", lambda *a, **k: None)
     monkeypatch.setattr(core, "_after_play", lambda opts, loc, watched=(), notice=None: None)

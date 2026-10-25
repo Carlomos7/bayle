@@ -5,6 +5,8 @@ flow runs over fakes: no Qt, no game, no files."""
 from pathlib import Path
 from types import SimpleNamespace
 
+from bayle.adapters.integrations.me3 import session as me3_session
+from bayle.adapters.system import desktop
 from bayle.modules.games import catalog
 from bayle.modules.launch import play as core
 from bayle.modules.settings.models import LauncherSettings
@@ -199,12 +201,12 @@ def test_vanilla_starts_through_steam_without_me3_a_profile_or_the_save_repair(m
     )
     monkeypatch.setattr(core.run_logging, "start_log", lambda *a, **k: None)
     monkeypatch.setattr(core.run_logging, "log", lambda *a, **k: None)
-    monkeypatch.setattr(core.me3_session, "ensure_steam", lambda timeout: None)
-    monkeypatch.setattr(core.me3_session, "clear_dead_shells", lambda exe, when: None)
-    monkeypatch.setattr(core.me3_session, "wait_for_game", lambda exe, appear_timeout, quiet=False: True)
-    monkeypatch.setattr(core.desktop, "open_path", opened.append)
+    monkeypatch.setattr(me3_session, "ensure_steam", lambda timeout: None)
+    monkeypatch.setattr(me3_session, "clear_dead_shells", lambda exe, when: None)
+    monkeypatch.setattr(me3_session, "wait_for_game", lambda exe, appear_timeout, quiet=False: True)
+    monkeypatch.setattr(desktop, "open_path", opened.append)
     for name in ("launch",):
-        monkeypatch.setattr(core.me3_session, name, forbidden)
+        monkeypatch.setattr(me3_session, name, forbidden)
     monkeypatch.setattr(core.save_repair, "repair_all", forbidden)
     monkeypatch.setattr(core, "offline_profile_for", forbidden)
     monkeypatch.setattr(core, "_after_play", forbidden)

@@ -10,7 +10,7 @@ IS_WINDOWS = sys.platform == "win32"
 def open_path(target) -> None:
     """Open a folder, file or URL with the desktop's default handler."""
     target = str(target)
-    if IS_WINDOWS:
+    if sys.platform == "win32":  # not IS_WINDOWS: pyright narrows only a direct check
         os.startfile(target)
     elif sys.platform == "darwin":
         subprocess.Popen(["open", target])

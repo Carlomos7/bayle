@@ -19,6 +19,7 @@ LIVE_MIN_KB = 100_000
 
 def _windows_processes(name):
     """(pid, thread count) from a Toolhelp snapshot. A dead shell the game leaves behind is listed with 0 threads."""
+    assert sys.platform == "win32"  # also tells pyright on Linux that the rest is Windows-only
     import ctypes
     from ctypes import wintypes
 

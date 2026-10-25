@@ -58,7 +58,8 @@ class WindowChrome(QAbstractNativeEventFilter):
         self.hwnd = 0
         self.down = ""
         self._items: dict[str, QQuickItem | None] = {}
-        u = self.user32 = ctypes.WinDLL("user32", use_last_error=True)
+        # this module is imported only on Windows; pyright on Linux has no ctypes.WinDLL
+        u = self.user32 = ctypes.WinDLL("user32", use_last_error=True)  # pyright: ignore[reportAttributeAccessIssue]
         u.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, *[ctypes.c_int] * 4, wintypes.UINT]
         u.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
         u.ScreenToClient.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
@@ -77,7 +78,7 @@ class WindowChrome(QAbstractNativeEventFilter):
         self.hwnd = int(self.win.winId())
         app.installNativeEventFilter(self)
         margins = (ctypes.c_int * 4)(1, 1, 1, 1)  # a 1 px frame: the DWM shadow (and Windows 11's border) stay
-        dwm = ctypes.WinDLL("dwmapi")
+        dwm = ctypes.WinDLL("dwmapi")  # pyright: ignore[reportAttributeAccessIssue]
         dwm.DwmExtendFrameIntoClientArea.argtypes = [wintypes.HWND, ctypes.c_void_p]
         dwm.DwmExtendFrameIntoClientArea(self.hwnd, margins)
         # NOMOVE | NOSIZE | NOZORDER | NOACTIVATE | FRAMECHANGED: Windows asks WM_NCCALCSIZE again

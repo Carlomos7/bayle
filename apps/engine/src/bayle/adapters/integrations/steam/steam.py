@@ -27,7 +27,7 @@ def clear_cache() -> None:
 
 
 def _reg_value(subkey, name):
-    if not IS_WINDOWS:
+    if sys.platform != "win32":  # not IS_WINDOWS: pyright narrows only a direct check
         return None
     try:
         import winreg

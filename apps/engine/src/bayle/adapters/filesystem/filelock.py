@@ -117,6 +117,7 @@ class ReadWriteLock:
 @functools.cache
 def _win_lock_api():
     """LockFileEx / UnlockFileEx and their OVERLAPPED argument (Windows only)."""
+    assert sys.platform == "win32"  # also tells pyright on Linux that the rest is Windows-only
     import ctypes
     from ctypes import wintypes
 

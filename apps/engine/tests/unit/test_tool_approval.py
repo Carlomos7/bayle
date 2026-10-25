@@ -7,7 +7,7 @@ from pathlib import Path
 from bayle.adapters.overhauls.backends import CommandTool, program_fingerprint
 from bayle.adapters.persistence.settings_file import load_settings, save_settings
 from bayle.modules.mods import rebuild
-from bayle.modules.mods.tools import Recipe
+from bayle.modules.mods.ports import Recipe
 
 
 def tool(tmp_path: Path, program: str = "refresh.exe") -> CommandTool:

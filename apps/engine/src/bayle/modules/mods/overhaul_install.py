@@ -53,9 +53,10 @@ from typing import TYPE_CHECKING, Any
 
 from bayle.adapters.filesystem import files, trash
 from bayle.adapters.formats import me3_profile
-from bayle.adapters.overhauls import basic, engine, recipes
+from bayle.adapters.overhauls import basic, recipes
 from bayle.modules.games import catalog as games
 from bayle.modules.mods import installer_leftovers, kinds, library, operations, records
+from bayle.modules.mods import ports as tool_ports
 from bayle.modules.mods.checks import same_folder
 from bayle.modules.mods.library import ProfileFolder
 from bayle.modules.mods.models import ModError, UndoError
@@ -196,7 +197,7 @@ def find_download(folder: Path, game: str, configs: Sequence[OverhaulConfig] | N
     newer = None
     for place in tries:
         for config, build in ((c, b) for c in configs for b in c.builds):  # by config: two may share a build id
-            recipe, version, why = engine.match(place, [config.recipe(build)])
+            recipe, version, why = tool_ports.match(place, [config.recipe(build)])
             if recipe is None:
                 newer = newer or why
                 continue
@@ -268,21 +269,21 @@ def _needed(download: Path, build: Build, recipe: dict) -> list[str]:
             low in low_exact
             or any(low.startswith(d.lower().rstrip("/") + "/") for d in folders)
             or any(fnmatch.fnmatch(low, g.lower()) for g in globs)
-            or _notice(PurePosixPath(f), places, engine)
+            or _notice(PurePosixPath(f), places)
         ):
             out.append(f)
     return out
 
 
-def _notice(f: PurePosixPath, places: set[str], engine) -> bool:
+def _notice(f: PurePosixPath, places: set[str]) -> bool:
     """A licence or notice file the build copies next to the DLLs (a file, or a file in a licences folder), from
     the places mods.engine looks in."""
-    if str(f.parent).lower() in places and engine.NOTICE_NAMES.match(f.name):
+    if str(f.parent).lower() in places and tool_ports.NOTICE_NAMES.match(f.name):
         return True
     parts = f.parts
     for i in range(len(parts) - 1):
         here = str(PurePosixPath(*parts[:i])) if i else "."
-        if here.lower() in places and parts[i].lower() in engine.NOTICE_FOLDERS:
+        if here.lower() in places and parts[i].lower() in tool_ports.NOTICE_FOLDERS:
             return True
     return False
 
@@ -605,7 +606,7 @@ def install(
             op.replace_folder(where.sources, staged)
             # the build, against the profile as the install leaves it, staged beside the overhaul's folder
             temp.write_text(p.change.text, encoding="utf-8", newline="")
-            result = engine.build(
+            result = tool_ports.build(
                 temp,
                 p.own / build.output.mod,
                 staged,
@@ -869,7 +870,7 @@ def installer_made(profile: Path, *, loc: Locations, configs: Sequence[OverhaulC
 def _engine_previous(profile: Path, own: Path) -> Path | None:
     """The launcher's previous build of the overhaul kept for Undo rebuild (mods.engine), when it is this one's."""
 
-    work = Path(profile).parent / engine.WORK
+    work = Path(profile).parent / tool_ports.WORK
     try:
         data = json.loads((work / "restore.json").read_text(encoding="utf-8"))
     except OSError, ValueError:

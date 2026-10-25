@@ -5,8 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bayle.adapters.saves import nightreign as nightreign_repair
-from bayle.modules.saves import regulation
+from bayle.modules.saves import nightreign_repair, regulation
 from bayle.modules.saves import repair as after_play
 
 

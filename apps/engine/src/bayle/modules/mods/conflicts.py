@@ -23,11 +23,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.adapters.filesystem import hashing
-from bayle.adapters.overhauls.backends import builtin, local_path
 from bayle.modules.mods import checks
+from bayle.modules.mods import ports as tool_ports
 from bayle.modules.mods import profile as profile_tools
 from bayle.modules.mods import profile_edit as mod_manage
 from bayle.modules.mods import rebuild as merge
+from bayle.modules.mods.ports import local_path
 
 if TYPE_CHECKING:
     from bayle.modules.games.locate import Locations
@@ -59,7 +60,7 @@ def classify(profile: Path, scan: dict, *, loc: Locations) -> dict:
     if merge.is_elden_ring(profile):
         layers = merge.layers(profile)
         _target, tool, _by_hand = merge.overlay(profile, layers, loc=loc)
-        combine = builtin.find(profile, layers, loc=loc)
+        combine = tool_ports.combine().find(profile, layers, loc=loc)
         if tool is not None:
             tool_files = {f.lower() for f in tool.merges()} | merge.covered(tool)
             for s in tool.sources() or []:
@@ -98,11 +99,15 @@ def classify(profile: Path, scan: dict, *, loc: Locations) -> dict:
             if tool_dir is not None and winner_dir == tool_dir and low in tool_files:
                 if nearest:
                     outcome = used_by(tool_sources, copy)
-                elif low == builtin.REGULATION and comb_dir is not None:
+                elif low == tool_ports.combine().REGULATION and comb_dir is not None:
                     outcome = used_by(combined, copy)  # inside the combined file the tool takes
                 else:
                     outcome = "unreached"
-            elif comb_dir is not None and winner_dir == comb_dir and (low == builtin.REGULATION or low in merged_files):
+            elif (
+                comb_dir is not None
+                and winner_dir == comb_dir
+                and (low == tool_ports.combine().REGULATION or low in merged_files)
+            ):
                 outcome = used_by(combined, copy)
             judged.append({"id": loser["id"], "outcome": outcome})
             counts[outcome] += 1
@@ -131,7 +136,7 @@ def row_conflicts(profile: Path, *, loc: Locations) -> list[str]:
     profile = Path(profile)
     if not merge.is_elden_ring(profile):
         return []
-    combine = builtin.find(profile, merge.layers(profile), loc=loc)
+    combine = tool_ports.combine().find(profile, merge.layers(profile), loc=loc)
     if combine is None:
         return []
     lines = combine.record().get("report") or []

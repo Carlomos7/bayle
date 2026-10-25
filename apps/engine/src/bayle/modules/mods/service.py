@@ -12,9 +12,25 @@ from bayle.adapters.system import logging as run_logging
 from bayle.modules import ports
 from bayle.modules.games.locate import Locations
 from bayle.modules.launch import ports as launch_ports
-from bayle.modules.mods import install, models, profile_writer, remove, shared_mods
+from bayle.modules.mods import (
+    install,
+    installer_leftovers,
+    layout,
+    migrate,
+    models,
+    move_in,
+    naming,
+    operations,
+    overhaul_install,
+    overhaul_takeover,
+    profile_import,
+    profile_writer,
+    remove,
+    shared_mods,
+)
 from bayle.modules.mods import profile as profile_tools
 from bayle.modules.mods import profile_edit as mod_manage
+from bayle.modules.mods import rebuild as merge
 
 
 def _plain_line(line: str) -> str:
@@ -176,7 +192,6 @@ def replan_mod_install(profile, plan, name=None, pkg_id=None, variant=None, *, l
 def install_mod(profile, plan, overwrite=False, rebuild=False, *, loc: Locations) -> dict:
     """Install (or update) as one recoverable operation (mods.operations); with rebuild, the merged mods are rebuilt
     inside it, so a failed rebuild leaves the previous installation as it was."""
-    from bayle.modules.mods import rebuild as merge
 
     def then():
         merge.rebuild(Path(profile), run_logging.log, loc=loc)
@@ -192,7 +207,6 @@ def recover_interrupted(profile, timeout: float = 30.0) -> list[str]:
     """Finish or undo an install, update or removal in this profile's folder that was interrupted (the window or
     the PC closed during it). Returns what was done; [] when there was nothing, or the folder is busy."""
     from bayle.adapters.filesystem.build import BuildError
-    from bayle.modules.mods import operations
 
     try:
         said = operations.recover(Path(profile), timeout)
@@ -279,7 +293,6 @@ def migrate_profile_folders(loc: Locations) -> dict | None:
     """Move the profiles of the shared library (rs-<game>, 3.21 to 4.0.x) into folders of their own, once (mods.migrate):
     a logged job with an undo record (Undo move). None when there is nothing to move; raises mods.migrate.MigrateError
     (nothing changed) when it can't be done now. Call it at start, before the game's profiles are listed."""
-    from bayle.modules.mods import layout, migrate, move_in
 
     move_in.recover(loc)  # a move into Bayle's folder that was interrupted is undone first
     layout.finish_pending()  # likewise a move of the Profiles folder or a rename of the layout's folders
@@ -298,14 +311,12 @@ def migrate_profile_folders(loc: Locations) -> dict | None:
 
 def profile_outside(loc: Locations, profile) -> bool:
     """Whether the profile is outside Bayle's folder (it can be moved in: mods.move_in)."""
-    from bayle.modules.mods import move_in
 
     return move_in.outside(Path(profile), loc)
 
 
 def move_in_plan(loc: Locations, profile):
     """What Move into Bayle's folder does for the profile, nothing written (mods.move_in.MovePlan)."""
-    from bayle.modules.mods import move_in
 
     return move_in.plan(Path(profile), loc)
 
@@ -313,7 +324,6 @@ def move_in_plan(loc: Locations, profile):
 def move_into_launcher_folder(loc: Locations, profile) -> dict:
     """Move a profile outside Bayle's folder into it (mods.move_in), as a logged job with an undo record (Undo
     move). Raises mods.move_in.MoveInError, nothing changed, when it can't be done now."""
-    from bayle.modules.mods import move_in
 
     plan = move_in.plan(Path(profile), loc)
     if not plan.ok:
@@ -361,7 +371,6 @@ def overhaul_preview_on(loc: Locations) -> bool:
 def preview_overhaul_install(profile, download, *, loc: Locations):
     """What installing the download into the profile does (overhaul_install.InstallPreview: lines, notes,
     refusals). Raises overhaul_install.OverhaulError when the download is not one the launcher installs."""
-    from bayle.modules.mods import overhaul_install
 
     return overhaul_install.preview_install(Path(profile), Path(download), loc=loc)
 
@@ -369,7 +378,6 @@ def preview_overhaul_install(profile, download, *, loc: Locations):
 def install_overhaul(preview, *, loc: Locations) -> dict:
     """Install as previewed, as one operation, and leave its undo record (Undo install, or Roll back for an
     update)."""
-    from bayle.modules.mods import overhaul_install
 
     out = overhaul_install.install(preview, loc=loc, log=run_logging.log)
     run_logging.set_undo(
@@ -388,12 +396,9 @@ def profile_overhaul(profile, *, loc: Locations) -> dict | None:
     """The overhaul the profile has, for the Overhaul menu: {label, short_label, legacy} (legacy: its own installer
     set it up), or None."""
     from bayle.adapters.overhauls import recipes
-    from bayle.modules.mods import overhaul_install
 
     hit = overhaul_install.overhaul_in(Path(profile), recipes.load(loc.game.key))
     if hit is None:  # no config for it: a setup some installer made is still the launcher's to take over
-        from bayle.modules.mods import installer_leftovers
-
         setup = installer_leftovers.setup_of(Path(profile))
         if setup is None:
             return None
@@ -411,7 +416,6 @@ def profile_overhaul(profile, *, loc: Locations) -> dict | None:
 def legacy_overhaul_choices(profile, *, loc: Locations) -> list[tuple[str, object]]:
     """For a setup an overhaul's own installer made: the changes it made that can be put back, each (text, the
     change to pass to preview_overhaul_removal). Empty when there is nothing to compare with."""
-    from bayle.modules.mods import overhaul_install
 
     return [(overhaul_install.choice_text(e), e) for e in overhaul_install.legacy_effects(Path(profile), loc=loc)]
 
@@ -419,7 +423,6 @@ def legacy_overhaul_choices(profile, *, loc: Locations) -> list[tuple[str, objec
 def preview_overhaul_removal(profile, *, loc: Locations, revert_asked: bool = False, legacy_choices=()):
     """What Remove overhaul does (overhaul_install.RemovePreview: lines, asked, refusals). Raises
     overhaul_install.OverhaulError when the profile has no overhaul the launcher knows."""
-    from bayle.modules.mods import overhaul_install
 
     return overhaul_install.preview_remove(
         Path(profile), loc=loc, revert_asked=revert_asked, legacy_choices=list(legacy_choices)
@@ -428,7 +431,6 @@ def preview_overhaul_removal(profile, *, loc: Locations, revert_asked: bool = Fa
 
 def remove_overhaul(preview) -> dict:
     """Remove as previewed, as one operation, and leave its undo record (Restore)."""
-    from bayle.modules.mods import overhaul_install
 
     out = overhaul_install.remove(preview, log=run_logging.log)
     run_logging.set_undo(
@@ -447,14 +449,12 @@ def remove_overhaul(preview) -> dict:
 def take_over_choices(profile, *, loc: Locations) -> list:
     """For Take over: what the player may also choose (a SideEffect to put back, or the installer's backups folder, a
     Leftover), to pass to preview_take_over. Nothing is chosen by default."""
-    from bayle.modules.mods import overhaul_takeover
 
     return overhaul_takeover.choices(Path(profile), loc=loc)
 
 
 def choice_text(choice) -> str:
     """One Take over choice in words, for its tick list."""
-    from bayle.modules.mods import overhaul_install
 
     return choice.label if hasattr(choice, "label") else overhaul_install.choice_text(choice)
 
@@ -462,7 +462,6 @@ def choice_text(choice) -> str:
 def preview_take_over(profile, *, loc: Locations, chosen=(), revert_asked: bool = False):
     """What Take over does (overhaul_install.RemovePreview: lines, asked, refusals); run it with remove_overhaul, which
     leaves the same Undo. Raises overhaul_install.OverhaulError when the launcher made the setup or there is none."""
-    from bayle.modules.mods import overhaul_takeover
 
     return overhaul_takeover.preview(Path(profile), loc=loc, chosen=list(chosen), revert_asked=revert_asked)
 
@@ -470,14 +469,12 @@ def preview_take_over(profile, *, loc: Locations, chosen=(), revert_asked: bool 
 def overhaul_leftovers(profile, *, loc: Locations) -> list:
     """What overhauls' own installers left beside the profile that no profile there uses (overhaul_install.Leftover:
     path, size, label, backups), the installers' profile backups last."""
-    from bayle.modules.mods import overhaul_install
 
     return overhaul_install.leftovers(Path(profile), loc=loc)
 
 
 def remove_overhaul_leftovers(paths) -> list[dict]:
     """Send the chosen leftovers to the Recycle Bin (run inside a logged job)."""
-    from bayle.modules.mods import overhaul_install
 
     out = overhaul_install.remove_leftovers([Path(p) for p in paths], log=run_logging.log)
     run_logging.log(f"done: {len(out)} folder(s) moved to the Recycle Bin")
@@ -492,7 +489,6 @@ def propose_overhaul_setup(folder, name: str, *, loc: Locations, overhaul_id: st
     options, the settings files beside them kept. Returns an overhauls.OverhaulConfig; raises ValueError when the
     folder has nothing to set up."""
     from bayle.adapters.overhauls import basic, recipes
-    from bayle.modules.mods import naming
 
     ident = overhaul_id or naming.mod_id(name)
     game = loc.game.key
@@ -540,7 +536,6 @@ def preview_overhaul_setup(profile, folder, config, *, loc: Locations):
     """What installing the mod in folder as an overhaul with config (the form's, basic or advanced) would do
     (overhaul_install.InstallPreview: lines, notes, refusals); writes nothing. Raises overhaul_install.OverhaulError
     when it can't be set up."""
-    from bayle.modules.mods import overhaul_install
 
     return overhaul_install.preview_setup(Path(profile), Path(folder), config, loc=loc)
 
@@ -548,7 +543,6 @@ def preview_overhaul_setup(profile, folder, config, *, loc: Locations):
 def install_overhaul_setup(preview, *, loc: Locations) -> dict:
     """Install as previewed, its config written to the local overhauls folder in the same operation, and leave
     its undo record (Undo install takes the config back too)."""
-    from bayle.modules.mods import overhaul_install
 
     out = overhaul_install.install_setup(preview, loc=loc, log=run_logging.log)
     run_logging.set_undo(
@@ -568,7 +562,6 @@ def overhaul_setup_of(profile, *, loc: Locations) -> dict | None:
     as read, for save_overhaul_setup), verified, level ("basic" or "advanced"), folder (the launcher's copy of its
     download, the files the form lists; None when there is none)}; None without an overhaul."""
     from bayle.adapters.overhauls import basic, recipes, writer
-    from bayle.modules.mods import overhaul_install
 
     hit = overhaul_install.overhaul_in(Path(profile), recipes.load(loc.game.key))
     if hit is None:
@@ -592,7 +585,6 @@ def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -
     copy) first. A file changed since it was read (expect: its sha256 then) is not overwritten. Every profile using
     it is rebuilt before its next Play. Raises overhauls.writer.WriteRefused or ValueError."""
     from bayle.adapters.overhauls import writer
-    from bayle.modules.mods import overhaul_install
 
     if folder is not None:
         config = overhaul_install.setup_config(config, Path(folder))
@@ -608,7 +600,6 @@ def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list
     the download or has another overhaul is skipped and said. Returns the names of the profiles changed; raises
     OverhaulError when none was (the job must not look like a success)."""
     from bayle.adapters.overhauls import recipes
-    from bayle.modules.mods import overhaul_install
     from bayle.modules.overhauls import requirements
 
     config = next((c for c in recipes.load(loc.game.key) if c.id == overhaul_id), None)
@@ -664,14 +655,12 @@ def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list
 def preview_turn_off_overhaul(profile, *, loc: Locations):
     """What Turn off does to the profile's overhaul setup (overhaul_install.TurnOffPreview: lines, refusals).
     Raises overhaul_install.OverhaulError when the profile has no overhaul."""
-    from bayle.modules.mods import overhaul_install
 
     return overhaul_install.preview_turn_off(Path(profile), loc=loc)
 
 
 def turn_off_overhaul(preview) -> dict:
     """Turn it off as previewed, as one operation, and leave its undo record (Undo turn off)."""
-    from bayle.modules.mods import overhaul_install
 
     out = overhaul_install.turn_off(preview, log=run_logging.log)
     run_logging.set_undo(
@@ -694,7 +683,6 @@ def preview_profile_import(
     """What importing the .me3 a download ships (me3: its path in plan["unpacked"], one of plan["profiles_inside"])
     would do: into current, or into a new profile named new_name beside it (profile_import.ImportPreview: lines,
     renamed, skipped, refusals, clashes). choices: the player's pick per clashing mod. Raises ModError when it can't be read."""
-    from bayle.modules.mods import profile_import
 
     return profile_import.preview_import(
         Path(unpacked), me3, Path(current), loc=loc, new_name=new_name, choices=choices
@@ -703,7 +691,6 @@ def preview_profile_import(
 
 def import_profile(preview) -> dict:
     """Import as previewed, as one operation, and leave its undo record (Undo import)."""
-    from bayle.modules.mods import profile_import
 
     out = profile_import.apply_import(preview, log=run_logging.log)
     run_logging.set_undo(

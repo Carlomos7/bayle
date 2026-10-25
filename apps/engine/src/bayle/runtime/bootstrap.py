@@ -32,6 +32,8 @@ from bayle.adapters.games import discovery, paths
 from bayle.adapters.integrations.me3 import me3_info, me3_paths
 from bayle.adapters.integrations.me3 import session as me3_session
 from bayle.adapters.integrations.steam import steam
+from bayle.adapters.overhauls import backends as tool_backends
+from bayle.adapters.overhauls import engine as overhaul_engine
 from bayle.adapters.persistence import datamigrations, settings_file
 from bayle.adapters.persistence import db as storage_db
 from bayle.adapters.persistence.activity import ActivityLog
@@ -48,6 +50,7 @@ from bayle.modules.games import catalog
 from bayle.modules.games import ports as game_ports
 from bayle.modules.games.locate import Locations
 from bayle.modules.launch import ports as launch_ports
+from bayle.modules.mods import ports as mod_ports
 from bayle.modules.mods import rebuild as mod_rebuild
 from bayle.modules.saves import ports as save_ports
 from bayle.modules.settings.models import LauncherSettings
@@ -83,6 +86,7 @@ def bind_ports() -> None:
     ports._DATA_FOLDER = data_folder
     ports._SETTINGS_FILE = settings_file
     ports._APP_PATHS = app_paths
+    mod_ports._BACKENDS, mod_ports._ENGINE = tool_backends, overhaul_engine
 
 
 def _after_job() -> None:

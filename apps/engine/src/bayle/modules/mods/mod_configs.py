@@ -24,8 +24,9 @@ from bayle.modules.coop import ini as coop_ini
 from bayle.modules.coop import scaling as coop_scaling
 from bayle.modules.coop import share as coop_share
 from bayle.modules.launch import game_checks
-from bayle.modules.mods import configs, profile_edit
+from bayle.modules.mods import configs, library, profile_edit
 from bayle.modules.mods import service as mod_service
+from bayle.modules.mods.overhaul_install import OverhaulError
 from bayle.modules.mods.service import overhaul_setup_of, profile_entries
 from bayle.work.jobs import JobManager
 from bayle.work.runner import run_job_result, run_logged
@@ -149,7 +150,6 @@ def tree(profile, *, loc: Locations, settings: LauncherSettings) -> list[ModNode
 def _overhaul_node(profile: Path, loc: Locations) -> ModNode | None:
     """The profile's overhaul setup, when it has one: the setup itself, then the settings files its builds keep for
     the player (in the library's overhauls/<id>/)."""
-    from bayle.modules.mods import library
 
     try:
         setup = overhaul_setup_of(profile, loc=loc)
@@ -942,7 +942,6 @@ class ModConfigsService:
     def apply_setup(self, profile: str | Path, overhaul_id: str) -> str:
         """Install the saved setup again in every profile using it, as one job with one Undo; returns its id. The
         result is {"profiles": [names]}. Raises not_found, busy; the job fails with cannot_apply."""
-        from bayle.modules.mods.overhaul_install import OverhaulError
 
         prof = self._profile(profile)
 
@@ -987,7 +986,6 @@ class ModConfigsService:
     ) -> str:
         """Set the mod up as the profile's overhaul, as a job (one Undo); returns its id. expect: the stamp
         check_install_setup gave. The result is {"name"}. Raises stale, cannot_set_up (details: refusals), busy."""
-        from bayle.modules.mods.overhaul_install import OverhaulError
 
         prof = self._profile(profile)
         preview = self._install_preview(prof, form, folder, name, overhaul_id)
@@ -1024,7 +1022,6 @@ class ModConfigsService:
     def turn_off(self, profile: str | Path, expect: tuple[int, int] | None) -> str:
         """Turn the overhaul off as a job (one Undo); returns its id. expect: the stamp check_turn_off gave. The
         result is {"name"}. Raises stale, cannot_turn_off (details: refusals), busy."""
-        from bayle.modules.mods.overhaul_install import OverhaulError
 
         prof = self._profile(profile)
         preview = self._turn_off_preview(prof)

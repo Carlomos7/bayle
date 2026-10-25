@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from bayle.adapters.overhauls import engine
 from bayle.modules.mods.overhaul_manifest import LEGACY_MANIFEST, MANIFEST, find_setup, launcher_installed
-from bayle.modules.mods.tools import EngineHost, Recipe
+from bayle.modules.mods.ports import EngineHost, Recipe
 
 if TYPE_CHECKING:
     from bayle.modules.games.locate import Locations

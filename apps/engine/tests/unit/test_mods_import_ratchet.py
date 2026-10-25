@@ -7,7 +7,7 @@ import ast
 
 from bayle.resources import PACKAGE_DIR
 
-LIMIT = 59  # 21 between the mods modules, 38 more since the Mods page services moved into modules/mods (they imported the mods modules inside functions when they were a layer above)
+LIMIT = 20  # the mods modules' own cycles, plus the two the Mods page services keep (service -> mod_configs, transfer_resources -> profile_transfer)
 
 
 def _targets(node: ast.stmt, mods: set[str]) -> int:

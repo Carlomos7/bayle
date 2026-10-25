@@ -7,9 +7,9 @@ longer RSLT, copies that section from a healthy sibling save. (Moved from system
 
 import time
 
-from bayle.adapters.saves import nightreign as repair_nightreign
 from bayle.adapters.system.logging import fail, log
 from bayle.modules.games.locate import Locations
+from bayle.modules.saves import nightreign_repair
 from bayle.modules.saves import regulation as repair
 
 
@@ -49,7 +49,7 @@ def repair_all(loc: Locations):
         fixed = 0
         for save in saves:
             log(str(save))
-            fixed += repair_nightreign.repair(save, log=log)
+            fixed += nightreign_repair.repair(save, log=log)
         log(f"done: {fixed} repaired")
         return
     source = loc.regulation_bin()

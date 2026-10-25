@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from bayle.adapters.overhauls.backends import local_path
+from bayle.modules.mods.ports import local_path
 
 MANIFEST = "overhaul.json"  # what a config without a manifest name gets
 LEGACY_MANIFEST = "installation.json"  # read-only: another installer's manifest, or an older launcher build's

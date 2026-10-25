@@ -12,7 +12,8 @@ from bayle.adapters.games import discovery
 from bayle.adapters.games import paths as common
 from bayle.adapters.integrations.me3 import me3_paths
 from bayle.adapters.overhauls import backends
-from bayle.modules.mods import install, remove, tools
+from bayle.modules.mods import install, remove
+from bayle.modules.mods import ports as tool_ports
 from bayle.modules.mods import profile_edit as M
 from bayle.modules.mods import rebuild as merge
 from support import er
@@ -92,7 +93,7 @@ class World:
         own vanilla copy), its sources listed with sha256; and the profile rewritten without comments."""
         self.runs += 1
         if fail:
-            raise tools.BackendError("merge tool refused a file")
+            raise tool_ports.BackendError("merge tool refused a file")
         layers = merge.layers(self.profile)
         before = [l for l in layers if l["name"] != "last"]
         sources = []

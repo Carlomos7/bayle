@@ -30,9 +30,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from bayle.adapters.filesystem import build
-from bayle.adapters.overhauls import backends
 from bayle.modules import ports
 from bayle.modules.mods import history, kinds, library, migrate, naming, operations
+from bayle.modules.mods import ports as tool_ports
 from bayle.modules.mods import profile_settings as ps
 from bayle.modules.mods.models import ModError, UndoError
 from bayle.modules.settings import models as launcher_settings
@@ -365,7 +365,7 @@ def finish_state(op: build.Operation) -> list[str]:
 
 
 def _apply_state(info: dict, *, back: bool = False) -> list[str]:
-    builtin = backends.combine()
+    builtin = tool_ports.combine()
     from bayle.modules.mods.rebuild import _key
 
     old, new = Path(info["old_profile"]), Path(info["profile"])

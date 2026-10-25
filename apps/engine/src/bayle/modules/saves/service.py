@@ -23,7 +23,7 @@ from bayle.modules.saves import backups as save_backups
 from bayle.modules.saves import fix as save_fix
 from bayle.modules.saves import library as save_library
 from bayle.modules.saves import loading as save_loading
-from bayle.modules.saves import models
+from bayle.modules.saves import models, nightreign_repair
 from bayle.modules.saves import regulation as repair_regulation
 from bayle.modules.saves import repair as save_repair
 from bayle.modules.saves import vanilla as save_vanilla
@@ -574,7 +574,7 @@ def repair_save(path: Path, *, loc: Locations) -> bool:
     assert_writable(path, loc=loc)
     game = games.for_save(path) or loc.game
     if game.save_reader == "nightreign":
-        return bool(repair_nightreign.repair(path, log=run_logging.log))
+        return bool(nightreign_repair.repair(path, log=run_logging.log))
     source = loc.regulation_bin()
     if not source:
         raise RuntimeError("Could not find the game's regulation.bin through Steam.")

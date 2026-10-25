@@ -148,17 +148,17 @@ def create_profile(folder: Path, name: str, game: str = "eldenring", copy_from: 
 
 
 def delete_profile(path: Path) -> Path:
-    """Move the .me3 into the launcher's deleted profiles (data_folder.deleted_profiles), with a note of where it
+    """Move the .me3 into the launcher's deleted profiles (ports.deleted_profiles), with a note of where it
     lived. Mod folders are never touched; its .bak (in .roundtable/backups, or beside it from launchers before 3.23) and
     its offline copy are removed; the offline copy is regenerated when needed."""
     import json
 
-    from bayle.adapters.system import data_folder
+    from bayle.modules import ports
 
     path = Path(path)
     if not path.is_file():
         raise ModError(f"{path} is not a file")
-    trash = data_folder.deleted_profiles(path.parent)
+    trash = ports.deleted_profiles(path.parent)
     trash.mkdir(parents=True, exist_ok=True)
     dest = trash / f"{path.stem}.{time.strftime('%Y%m%d-%H%M%S')}.me3"
     shutil.move(str(path), str(dest))

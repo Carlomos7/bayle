@@ -35,7 +35,7 @@ from bayle.adapters.system import data_folder
 from bayle.modules.saves import backups as save_backups
 from bayle.runtime import bootstrap, instance
 
-bootstrap.bind_ports()  # the module ports stay bound for the whole session
+bootstrap.bind_ports()  # the ports are stateless forwarders: bound once for the whole session
 
 _WRITABLE: list[str] = []  # while a test runs: the folders it may write in; empty = not guarding
 _WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_TRUNC

@@ -53,9 +53,9 @@ STATE_TEXT = {
 
 # ----------------------------------------------------------------------------- layers
 def is_elden_ring(profile: Path) -> bool:
-    from bayle.modules.launch import ports
+    from bayle.modules.launch import ports as launch_ports
 
-    named = ports.profile_games(Path(profile))
+    named = launch_ports.profile_games(Path(profile))
     return games.ELDEN_RING.key in named if named else True  # a profile that names no game counts as Elden Ring's
 
 
@@ -105,20 +105,20 @@ def _key(profile: Path) -> str:
 
 def _legacy_mark(profile: Path):
     """What launchers before 3.10 kept in their own settings (per PC), or None."""
-    from bayle.adapters.persistence.settings_file import load_settings
+    from bayle.modules import ports
 
-    return load_settings().parameter_overlays.get(_key(profile))  # read fresh: Options just set it
+    return ports.load_settings().parameter_overlays.get(_key(profile))  # read fresh: Options just set it
 
 
 def _set_legacy_mark(profile: Path, value) -> None:
-    from bayle.adapters.persistence.settings_file import load_settings, save_settings
+    from bayle.modules import ports
 
-    marks = dict(load_settings().parameter_overlays)
+    marks = dict(ports.load_settings().parameter_overlays)
     if value is None:
         marks.pop(_key(profile), None)
     else:
         marks[_key(profile)] = value
-    save_settings(parameter_overlays=marks)
+    ports.save_settings(parameter_overlays=marks)
 
 
 def overlay_mark(profile: Path) -> dict | None:
@@ -179,11 +179,11 @@ def set_overlay_override(profile: Path, folder: Path | None, rebuild_file: Path 
 def approved(tool) -> bool:
     """Whether the user allowed this rebuild tool (this version of it) to run. The launcher's own combine, and its own
     build of an overhaul (mods.engine: nothing of the mod's runs), need no permission."""
-    from bayle.adapters.persistence.settings_file import load_settings
+    from bayle.modules import ports
 
     if getattr(tool, "builtin", False) or getattr(getattr(tool, "recipe", None), "engine", None) is not None:
         return True
-    keys = list(load_settings().rebuild_approved)
+    keys = list(ports.load_settings().rebuild_approved)
     if tool.approval_key() in keys:
         return True
     # Read-both: a permission kept before the key included the program's fingerprint counts once and is moved to the
@@ -196,17 +196,17 @@ def approved(tool) -> bool:
 
 
 def approve(tool) -> None:
-    from bayle.adapters.persistence.settings_file import load_settings
+    from bayle.modules import ports
 
-    keys = list(load_settings().rebuild_approved)
+    keys = list(ports.load_settings().rebuild_approved)
     if tool.approval_key() not in keys:
         _keep_approval(tool.approval_key(), keys)
 
 
 def _keep_approval(key: str, keys: list[str]) -> None:
-    from bayle.adapters.persistence.settings_file import save_settings
+    from bayle.modules import ports
 
-    save_settings(rebuild_approved=[*keys, key][-50:])
+    ports.save_settings(rebuild_approved=[*keys, key][-50:])
 
 
 def overlay(
@@ -288,9 +288,9 @@ def installer_made(folder: Path) -> bool:
 
 # ----------------------------------------------------------------------------- last runs
 def _runs_file() -> Path:
-    from bayle.adapters.system import data_folder
+    from bayle.modules import ports
 
-    return data_folder.data_root() / "merges.json"
+    return ports.data_root() / "merges.json"
 
 
 def _runs() -> dict:

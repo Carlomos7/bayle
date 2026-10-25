@@ -23,7 +23,9 @@ WORKER = textwrap.dedent(
     from pathlib import Path
     from bayle.adapters.system import data_folder
     from bayle.modules.saves import library as Lib
+    from bayle.runtime.bootstrap import bind_ports
 
+    bind_ports()
     root, save_dir, entry_id, tag, mode = sys.argv[1:6]
     data_folder.data_root = lambda: Path(root)  # the test's data folder, never the real one
     if mode == "rename":

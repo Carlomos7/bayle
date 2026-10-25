@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from bayle.adapters.filesystem import build
 from bayle.adapters.overhauls import backends
-from bayle.adapters.persistence import settings_file
+from bayle.modules import ports
 from bayle.modules.mods import history, kinds, library, migrate, naming, operations
 from bayle.modules.mods import profile_settings as ps
 from bayle.modules.mods.models import ModError, UndoError
@@ -388,7 +388,7 @@ def _apply_state(info: dict, *, back: bool = False) -> list[str]:
         return out
 
     try:
-        settings_file.change_settings(change)
+        ports.change_settings(change)
     except OSError as e:
         notes.append(f"The launcher's settings could not be updated ({e})")
     for src, dest in (

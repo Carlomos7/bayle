@@ -667,7 +667,7 @@ def _remap(value: str, pairs: list[tuple[Path, Path]]) -> str:
 
 
 def _apply_state(info: dict, *, back: bool = False) -> list[str]:
-    from bayle.adapters.persistence import settings_file
+    from bayle.modules import ports
     from bayle.modules.mods.rebuild import _key
     from bayle.modules.settings import models as launcher_settings
 
@@ -697,7 +697,7 @@ def _apply_state(info: dict, *, back: bool = False) -> list[str]:
         return out
 
     try:
-        settings_file.change_settings(change)
+        ports.change_settings(change)
     except OSError as e:
         notes.append(f"The launcher's settings could not be updated ({e})")
     if not back:

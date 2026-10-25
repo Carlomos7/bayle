@@ -8,10 +8,10 @@ import tomllib
 from pathlib import Path
 
 from bayle.adapters.formats import me3_profile
-from bayle.adapters.persistence.settings_file import load_settings, save_settings
 from bayle.adapters.system import logging as run_logging
+from bayle.modules import ports
 from bayle.modules.games.locate import Locations
-from bayle.modules.launch import ports
+from bayle.modules.launch import ports as launch_ports
 from bayle.modules.mods import install, models, profile_writer, remove, shared_mods
 from bayle.modules.mods import profile as profile_tools
 from bayle.modules.mods import profile_edit as mod_manage
@@ -86,30 +86,30 @@ def me3_facts(launch, loc: Locations) -> dict:
     me3 = launch.me3_path() if launch else loc.me3_exe()
     facts = {
         "path": str(me3) if me3 else "",
-        "version": ports.me3_version(me3),
-        "info": ports.me3_info(me3),
+        "version": launch_ports.me3_version(me3),
+        "info": launch_ports.me3_info(me3),
         "latest": None,
         "update": False,
         "reload": False,
     }
-    s = load_settings()
+    s = ports.load_settings()
     if facts["info"].get("profile_dir") or facts["info"].get("logs_dir"):
         cache = {k: facts["info"].get(k, "") for k in ("profile_dir", "logs_dir", "install_prefix")}
         if cache != s.me3_info_cache:
-            save_settings(me3_info_cache=cache)
+            ports.save_settings(me3_info_cache=cache)
             s.me3_info_cache = cache
         facts["reload"] = True
     if s.check_me3_updates:
         cached = s.me3_latest
         when = float(s.me3_latest_checked or 0)
         if not cached or time.time() - when > 86400:
-            rel = ports.latest_release()
+            rel = launch_ports.latest_release()
             if rel:
                 cached = rel
-                save_settings(me3_latest=rel, me3_latest_checked=time.time())
+                ports.save_settings(me3_latest=rel, me3_latest_checked=time.time())
         if isinstance(cached, dict):
             facts["latest"] = cached
-            facts["update"] = ports.update_available(facts["version"], cached.get("version"))
+            facts["update"] = launch_ports.update_available(facts["version"], cached.get("version"))
     return facts
 
 
@@ -355,7 +355,7 @@ def overhaul_button_tip(game: str) -> str:
 def overhaul_preview_on(loc: Locations) -> bool:
     """The Settings switch "Install overhauls with the launcher (preview)" is on. The generic setup needs no shipped
     config; installing a download that matches a config still needs that config (mods.install)."""
-    return bool(load_settings().overhaul_install)
+    return bool(ports.load_settings().overhaul_install)
 
 
 def preview_overhaul_install(profile, download, *, loc: Locations):

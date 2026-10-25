@@ -32,7 +32,7 @@ from bayle.adapters.games import discovery, paths
 from bayle.adapters.integrations.me3 import me3_info, me3_paths
 from bayle.adapters.integrations.me3 import session as me3_session
 from bayle.adapters.integrations.steam import steam
-from bayle.adapters.persistence import datamigrations
+from bayle.adapters.persistence import datamigrations, settings_file
 from bayle.adapters.persistence import db as storage_db
 from bayle.adapters.persistence.activity import ActivityLog
 from bayle.adapters.persistence.cache import HashCache
@@ -40,9 +40,10 @@ from bayle.adapters.persistence.imports import run_imports
 from bayle.adapters.persistence.mirror import Mirror
 from bayle.adapters.persistence.rebuild_runs import RebuildRuns
 from bayle.adapters.persistence.settings_file import load_settings
-from bayle.adapters.system import data_folder, desktop, identity
+from bayle.adapters.system import app_paths, data_folder, desktop, identity
 from bayle.adapters.system import logging as run_logging
 from bayle.adapters.system.app_paths import data_dir
+from bayle.modules import ports
 from bayle.modules.games import catalog
 from bayle.modules.games import ports as game_ports
 from bayle.modules.games.locate import Locations
@@ -73,12 +74,15 @@ _SLOTS: dict[str, tuple[Any, str]] = {
 
 
 def bind_ports() -> None:
-    """Bind the ports the feature modules reach other programs and this machine through (modules/*/ports.py) to the
-    concrete adapters. They stay bound for the whole process, so this is not part of _SLOTS; calling it again changes
-    nothing. Every entry point that can run a module's workflow before an engine exists calls it first."""
+    """Bind the ports the features reach stateful infrastructure through (modules/ports.py, modules/*/ports.py) to the
+    concrete adapters. Stateless forwarders: they stay bound for the whole process, so this is not part of _SLOTS, and
+    calling it again changes nothing. Every entry point that can run a workflow before an engine exists calls it."""
     game_ports._DISCOVERY, game_ports._PATHS = discovery, paths
     launch_ports._ME3_INFO, launch_ports._ME3_PATHS, launch_ports._ME3_SESSION = me3_info, me3_paths, me3_session
     launch_ports._STEAM, launch_ports._DESKTOP = steam, desktop
+    ports._DATA_FOLDER = data_folder
+    ports._SETTINGS_FILE = settings_file
+    ports._APP_PATHS = app_paths
 
 
 def _after_job() -> None:
@@ -185,6 +189,7 @@ class Engine:
 def use_data_folder() -> Path:
     """Tell the platform layer where the data folder is and scope the instance names to this build and folder. The
     command line calls it before logging starts; create_engine calls it again."""
+    bind_ports()
     data = data_dir()
     bind(data_root=data, instance_scope=instance.scope_name(identity.get().instance_prefix, data))
     return data

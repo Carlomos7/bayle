@@ -274,10 +274,10 @@ def plan_install(
     """Unpack (archives, into the launcher's temp folder) and describe what install() would do. The unpacked copy is
     kept in the plan ('unpacked'), so replan() can change the folder name, id or variant without unpacking again."""
     profile = Path(profile)
-    from bayle.adapters.system import data_folder
+    from bayle.modules import ports
 
-    data_folder.adopt_legacy_profile_folders(profile.parent)
-    staging_root = data_folder.temp("installing")
+    ports.adopt_legacy_profile_folders(profile.parent)
+    staging_root = ports.temp("installing")
     for old in staging_root.iterdir():  # a crash mid-install can leave a temp folder behind
         try:
             if old.is_dir() and time.time() - old.stat().st_mtime > 3600:

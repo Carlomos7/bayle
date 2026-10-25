@@ -29,8 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from bayle.adapters.filesystem import build
 from bayle.adapters.formats import me3_profile
-from bayle.adapters.persistence import settings_file
-from bayle.adapters.system import app_paths
+from bayle.modules import ports
 from bayle.modules.mods import kinds, library, migrate
 from bayle.modules.mods.models import UndoError
 from bayle.modules.mods.profile_writer import ProfileWriter
@@ -59,7 +58,7 @@ Progress = Callable[[int, int], None]  # bytes done, bytes in all
 
 
 def ops_root() -> Path:
-    root = app_paths.data_dir() / "layout-ops"
+    root = ports.data_dir() / "layout-ops"
     root.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -76,7 +75,7 @@ def _free(path: Path) -> int:  # likewise for the free space
 
 # ----------------------------------------------------------------------------- what is there
 def current_root(loc: Locations) -> Path | None:
-    s = settings_file.load_settings()
+    s = ports.load_settings()
     return Path(s.profiles_root) if s.profiles_root else loc.me3_profiles_dir()
 
 
@@ -189,7 +188,7 @@ def _cloud(p: Path) -> bool:
 def relocate_refusal(loc: Locations, new_root: Path, folders: list[tuple[str, Path]] | None = None) -> str | None:
     """Why the Profiles folder can't be moved to new_root now, in plain words, or None."""
     old = current_root(loc)
-    pattern = settings_file.load_settings().game_folder_pattern
+    pattern = ports.load_settings().game_folder_pattern
     if old is None:
         return "There is no Profiles folder to move."
     folders = game_folders(old, pattern) if folders is None else folders
@@ -228,7 +227,7 @@ def _existing(p: Path) -> Path:
 def preview_relocate(loc: Locations, new_root: Path) -> dict[str, Any]:
     """For the confirm: counts, size, whether the files are copied, warnings, and the refusal (None when it can go)."""
     old = current_root(loc)
-    pattern = settings_file.load_settings().game_folder_pattern
+    pattern = ports.load_settings().game_folder_pattern
     folders = game_folders(old, pattern) if old else []
     new_root = Path(os.path.abspath(new_root))
     inv = _inventory([f for _g, f in folders])
@@ -263,7 +262,7 @@ def relocate(
     if why := relocate_refusal(loc, new_root):
         raise LayoutError(why)
     assert old is not None
-    s = settings_file.load_settings()
+    s = ports.load_settings()
     return _move_root(
         loc, old, Path(os.path.abspath(new_root)), s.game_folder_pattern, s.profiles_root, _AUTO, progress, cancel
     )
@@ -386,7 +385,7 @@ def _finish(op: build.Operation) -> list[str]:
     else:
         changes = dict(info["set_to"])
     try:
-        settings_file.save_settings(**changes)
+        ports.save_settings(**changes)
     except OSError as e:
         notes.append(f"The launcher's settings could not be updated ({e})")
     for g in info["games"]:
@@ -436,7 +435,7 @@ class Names:
 
     @classmethod
     def now(cls) -> Names:
-        s = settings_file.load_settings()
+        s = ports.load_settings()
         return cls(s.game_folder_pattern, s.packages_folder, s.natives_folder, s.shared_folder)
 
     def fields(self) -> dict[str, str]:

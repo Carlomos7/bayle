@@ -10,21 +10,26 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from bayle.adapters.persistence.settings_file import load_settings, save_game_settings, save_settings
-from bayle.adapters.system import data_folder
-from bayle.adapters.system.app_paths import FROZEN, data_dir, exe_dir, launch_target
 from bayle.errors import OperationError
 from bayle.modules.games.catalog import ELDEN_RING
 from bayle.modules.games.locate import PATH_SETTINGS, Locations, saves_dir_problem
 from bayle.modules.launch import play as play_service
 from bayle.modules.mods import service as mod_service
+from bayle.modules.ports import (
+    data_dir,
+    data_root,
+    exe_dir,
+    launch_target,
+    load_settings,
+    save_game_settings,
+    save_settings,
+)
 from bayle.modules.settings import locations as layout_service
 from bayle.modules.settings.models import game_setting
 from bayle.work.jobs import JobContext, JobManager
 from bayle.work.runner import run_job_value
 
 __all__ = [
-    "FROZEN",
     "data_dir",
     "exe_dir",
     "game_setting",
@@ -156,7 +161,7 @@ class Facts:
 
 def backups_folder() -> Path:
     try:
-        return data_folder.data_root() / "saves"
+        return data_root() / "saves"
     except RuntimeError:  # the data folder is set when the program starts
         return data_dir() / "saves"
 

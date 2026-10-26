@@ -52,7 +52,8 @@ does it.
 
 1. Commits land on `main` by squash-merged pull requests.
 2. Each push to `main` opens or updates the **release pull request**: the next version (from the commit types), the
-   `CHANGELOG.md` entry, `pyproject.toml`, `src/bayle/__init__.py` and `uv.lock`.
+   `CHANGELOG.md` entry, both projects' `pyproject.toml` and `uv.lock`, and `apps/engine/src/bayle/__init__.py`
+   (one version for the product).
 3. Merging that pull request makes release-please tag `vX.Y.Z` and create a draft GitHub release holding the
    changelog entry. The same workflow then starts `release.yml` on the tag (a tag made by `GITHUB_TOKEN` does not
    trigger workflows by itself, so it is dispatched explicitly).
@@ -66,4 +67,4 @@ git commit --allow-empty -m "chore: release 4.1.0-rc.1" -m "Release-As: 4.1.0-rc
 ```
 
 The release pull request then proposes `4.1.0-rc.1`. After testing it, merge another `Release-As: 4.1.0` commit for the
-stable release. `scripts/bump_version.py` remains as a manual fallback.
+stable release. `apps/qt-desktop/scripts/bump_version.py` remains as a manual fallback.

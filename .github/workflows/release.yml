@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  VPK_VERSION: "1.2.161"  # = the velopack package pinned in pyproject.toml / uv.lock
+  VPK_VERSION: "1.2.161"  # = the velopack package pinned in apps/qt-desktop/pyproject.toml / uv.lock
   # uv's own Python builds, not the runner's preinstalled ones: the runner's python.org 3.14.7 carries SQLite 3.50.4,
   # below what the launcher's database needs; scripts/build.py refuses to package it (docs/decisions/0005-storage.md)
   UV_PYTHON_PREFERENCE: only-managed
@@ -38,7 +38,7 @@ jobs:
 
     - name: Tag matches the package version
       run: |
-        version=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+        version=$(sed -n 's/^version = "\(.*\)"/\1/p' apps/qt-desktop/pyproject.toml)
         [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME does not match version $version" >&2; exit 1; }
 
     # vX.Y.Z-rc.N (formerly -beta.N) is a pre-release; a plain vX.Y.Z is a stable release and must be newer than the current stable one.
@@ -61,15 +61,19 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       RS_UI_STALL_MS: 1500  # shared runners render in software and stall far more than a real PC
       GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        working-directory: apps/qt-desktop
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       with:
         enable-cache: true
+        cache-dependency-glob: apps/*/uv.lock  # the engine is an editable path dependency
 
     - name: Install dependencies (exactly as locked)
-      run: uv sync --locked --all-extras
+      run: uv sync --locked
 
     - name: Lint and type check
       # owner 2026-10-20: pre-releases (-rc.N, formerly -beta.N) skip this too (the Tests workflow already ran it on the commit); stable keeps it
@@ -86,6 +90,18 @@ jobs:
       # owner 2026-10-20: pre-releases (-rc.N, formerly -beta.N) skip this (the commit already passed the Tests workflow); the packaged self-test still runs
       if: ${{ !contains(github.ref_name, '-rc.') && !contains(github.ref_name, '-beta.') }}
       run: uv run pytest
+
+    - name: Engine lint, type check and tests
+      # same rule as the two steps above: stable only
+      if: ${{ !contains(github.ref_name, '-rc.') && !contains(github.ref_name, '-beta.') }}
+      working-directory: apps/engine
+      run: |
+        uv sync --locked
+        uv run ruff check .
+        uv run ruff format --check .
+        uv run pyright
+        uv run lint-imports --no-cache
+        uv run pytest
 
     - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
@@ -104,10 +120,12 @@ jobs:
       if: ${{ !startsWith(github.ref, 'refs/tags/') }}
       shell: bash
       run: |
-        latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+        # every published release, pre-releases too: vpk refuses a version equal to any of them, and `gh release view`
+        # gives only the latest stable one (a tree at a published -rc.N then packed a version vpk had seen)
+        tags=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' )
         current=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
-        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c, l = sys.argv[1], sys.argv[2]; m = key(l); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" "$latest")
-        echo "latest published: $latest; this tree: $current; this test build: $next"
+        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c = sys.argv[1]; m = max((key(t) for t in sys.argv[2:]), default=(0, 0, 0)); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" $tags)
+        echo "published: $tags; this tree: $current; this test build: $next"
         [ "$next" = "$current" ] || uv run python scripts/bump_version.py "$next"
 
     # vpk diffs against the previous release's full package to make a delta; none before the first Velopack release.
@@ -165,13 +183,22 @@ jobs:
       timeout-minutes: 20  # every wait in it is also bounded and reported (scripts/ci/velopack-update-test.py)
       run: uv run python scripts/ci/velopack-update-test.py
 
+    # The previous release updates to a broken build of this one (its window's QML removed, packed as a higher,
+    # never-published version, served only by the script's local feed from the runner's temp folder): the previous
+    # release's own watchdog must put it back, it must run again with the player's data intact and the broken
+    # version blocked. Nothing of it is uploaded.
+    - name: Rollback test (a broken update is undone by the previous release's watchdog)
+      if: steps.prev.outputs.found == 'true'
+      timeout-minutes: 25  # every wait in it is also bounded and reported
+      run: uv run python scripts/ci/velopack-update-test.py --broken
+
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: windows
         retention-days: 7
         path: |
-          dist/share/*
-          !dist/share/SHA256SUMS.txt
+          apps/qt-desktop/dist/share/*
+          !apps/qt-desktop/dist/share/SHA256SUMS.txt
 
   linux:
     needs: verify
@@ -182,18 +209,22 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       RS_UI_STALL_MS: 1500  # shared runners render in software and stall far more than a real PC
       GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        working-directory: apps/qt-desktop
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       with:
         enable-cache: true
+        cache-dependency-glob: apps/*/uv.lock  # the engine is an editable path dependency
 
     - name: Install Qt runtime libraries and FUSE (to run the AppImage)
       run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libglib2.0-0 libfuse2
 
     - name: Install dependencies (exactly as locked)
-      run: uv sync --locked --all-extras
+      run: uv sync --locked
 
     - name: Run tests
       # owner 2026-10-20: pre-releases (-rc.N, formerly -beta.N) skip this (the commit already passed the Tests workflow); the packaged self-test still runs
@@ -216,10 +247,12 @@ jobs:
       if: ${{ !startsWith(github.ref, 'refs/tags/') }}
       shell: bash
       run: |
-        latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+        # every published release, pre-releases too: vpk refuses a version equal to any of them, and `gh release view`
+        # gives only the latest stable one (a tree at a published -rc.N then packed a version vpk had seen)
+        tags=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' )
         current=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
-        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c, l = sys.argv[1], sys.argv[2]; m = key(l); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" "$latest")
-        echo "latest published: $latest; this tree: $current; this test build: $next"
+        next=$(uv run python -c 'import re,sys; key=lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3]); c = sys.argv[1]; m = max((key(t) for t in sys.argv[2:]), default=(0, 0, 0)); print(c if key(c) > m else f"{m[0]}.{m[1]}.{m[2] + 1}")' "$current" $tags)
+        echo "published: $tags; this tree: $current; this test build: $next"
         [ "$next" = "$current" ] || uv run python scripts/bump_version.py "$next"
 
     - name: Previous release, for a delta package
@@ -255,8 +288,8 @@ jobs:
         name: linux
         retention-days: 7
         path: |
-          dist/share/*
-          !dist/share/SHA256SUMS.txt
+          apps/qt-desktop/dist/share/*
+          !apps/qt-desktop/dist/share/SHA256SUMS.txt
 
   publish:
     needs: [verify, windows, linux]
@@ -266,14 +299,14 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      PUBLIC_KEY: repo/src/bayle/data/release-signing.pub
+      PUBLIC_KEY: repo/apps/qt-desktop/src/bayle_qt/updater/data/release-signing.pub
     steps:
     # Only the public key the launcher ships: every signature is checked against exactly what users verify with.
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         path: repo
         sparse-checkout: |
-          src/bayle/data/release-signing.pub
+          apps/qt-desktop/src/bayle_qt/updater/data/release-signing.pub
           CHANGELOG.md
         sparse-checkout-cone-mode: false
 

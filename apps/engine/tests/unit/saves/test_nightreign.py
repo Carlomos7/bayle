@@ -1,0 +1,175 @@
+"""Nightreign save crypto: checksum identity, encrypt round-trip, regulation restore. Never writes a live save."""
+
+from pathlib import Path
+
+import pytest
+
+from bayle.adapters.games import paths as common
+from bayle.adapters.saves import container
+from bayle.adapters.saves import nightreign as nr
+from bayle.modules.saves import nightreign_repair
+from bayle.modules.saves import service as saves
+from support import er
+
+LIVE_NR = Path.home() / "AppData" / "Roaming" / "Nightreign"
+
+
+def _payloads(reg=b"RSLT" + bytes(12)):
+    return [(reg if i == 12 else bytes([i]) + bytes(15)) for i in range(14)]
+
+
+def _ivs():
+    return [bytes([i, *range(1, 16)]) for i in range(14)]
+
+
+def _live_nr_save() -> Path | None:
+    if not LIVE_NR.is_dir():
+        return None
+    for p in LIVE_NR.rglob("NR0000.co2"):
+        if p.is_file():
+            return p
+    return None
+
+
+def test_encrypt_round_trip_and_checksum_identity():
+    payload = b"RSLT" + bytes(12)
+    iv = bytes(range(16))
+    dec = nr.wrap_plaintext(payload)
+    assert nr.checksum_ok(dec) and nr.padding_ok(dec) and nr.rslt_payload(dec)
+    blob = nr.encrypt_entry(iv, dec)
+    iv2, dec2 = nr.decrypt_entry(blob)
+    assert iv2 == iv and dec2 == dec
+    patched = bytearray(dec2)
+    nr.patch_checksum(patched)
+    assert bytes(patched) == dec
+    assert nr.encrypt_entry(iv, patched) == blob
+
+
+def test_packed_save_is_healthy_and_rewrite_is_identity():
+    data = nr.pack_save(_payloads(), ivs=_ivs())
+    st = nr.inspect(data)
+    assert st["checksum_all_ok"] and st["rslt"] and st["healthy"]
+    assert nr.rewrite(data) == data
+
+
+def test_stale_checksum_is_restored_without_changing_payload(tmp_path, monkeypatch):
+    monkeypatch.setattr(common, "exe_running", lambda _exe: False)
+    data = bytearray(nr.pack_save(_payloads(), ivs=_ivs()))
+    orig = bytes(data)
+    sec = container.sections(orig)[0]
+    iv, dec = nr.decrypt_entry(orig[sec.offset : sec.offset + sec.size])
+    dec = bytearray(dec)
+    dec[nr.checksum_offset(dec)] ^= 0xFF
+    data[sec.offset : sec.offset + sec.size] = nr.encrypt_entry(iv, dec)
+    dirty = bytes(data)
+    assert not nr.inspect(dirty)["checksum_all_ok"]
+    assert nr.payload_of(nr.decrypt_entry(dirty[sec.offset : sec.offset + sec.size])[1]) == nr.payload_of(
+        nr.decrypt_entry(orig[sec.offset : sec.offset + sec.size])[1]
+    )
+    p = tmp_path / "NR0000.co2"
+    p.write_bytes(dirty)
+    assert nightreign_repair.repair(p, log=lambda *_: None)
+    assert p.read_bytes() == orig
+    assert nr.inspect(p.read_bytes())["healthy"]
+
+
+def test_garbled_regulation_is_restored_from_sibling(tmp_path, monkeypatch):
+    monkeypatch.setattr(common, "exe_running", lambda _exe: False)
+    ivs = _ivs()
+    healthy = nr.pack_save(_payloads(), ivs=ivs)
+    garbled = nr.pack_save(_payloads(reg=b"XXXX" + bytes(12)), ivs=ivs)
+    assert not nr.inspect(garbled)["rslt"]
+    dest = tmp_path / "NR0000.co2"
+    dest.write_bytes(garbled)
+    (tmp_path / "NR0000.co2.bak").write_bytes(healthy)
+    assert nightreign_repair.repair(dest, log=lambda *_: None)
+    out = dest.read_bytes()
+    assert nr.inspect(out)["healthy"]
+    sec12 = container.sections(out)[12]
+    assert nr.payload_of(nr.decrypt_entry(out[sec12.offset : sec12.offset + sec12.size])[1]).startswith(b"RSLT")
+
+
+def test_healthy_save_repair_does_not_write(tmp_path, monkeypatch):
+    monkeypatch.setattr(common, "exe_running", lambda _exe: False)
+    p = tmp_path / "NR0000.sl2"
+    p.write_bytes(nr.pack_save(_payloads(), ivs=_ivs()))
+    before = p.read_bytes()
+    assert nightreign_repair.repair(p, log=lambda *_: None) is False
+    assert p.read_bytes() == before
+    from bayle.modules.saves import backups as save_backups
+
+    assert not save_backups.backups(tmp_path).exists()
+
+
+def test_save_info_flags_stale_checksum(tmp_path):
+    data = bytearray(nr.pack_save(_payloads(), ivs=_ivs()))
+    sec = container.sections(bytes(data))[3]
+    iv, dec = nr.decrypt_entry(bytes(data)[sec.offset : sec.offset + sec.size])
+    dec = bytearray(dec)
+    dec[nr.checksum_offset(dec)] ^= 1
+    data[sec.offset : sec.offset + sec.size] = nr.encrypt_entry(iv, dec)
+    p = tmp_path / "NR0000.co2"
+    p.write_bytes(data)
+    info = saves.save_info(p, loc=er())
+    assert info["needs_repair"] and saves.repair_available(info)
+    assert [f["code"] for f in info["findings"]] == ["layout", "checksum", "regulation"]
+    assert info["findings"][1]["level"] == "warn"
+
+
+def test_live_unmodified_save_checksums_and_rewrite_identity():
+    src = _live_nr_save()
+    if src is None:
+        pytest.skip("no Nightreign NR0000.co2 on this PC")
+    data = src.read_bytes()
+    st = nr.inspect(data)
+    assert st["checksum_all_ok"] and st["padding_ok"] and all(st["padding_ok"])
+    assert st["rslt"] and st["healthy"]
+    assert nr.rewrite(data) == data
+    assert src.read_bytes() == data  # live file was only read
+
+
+def _stale(data: bytes) -> bytes:
+    out = bytearray(data)
+    sec = container.sections(data)[3]
+    iv, dec = nr.decrypt_entry(data[sec.offset : sec.offset + sec.size])
+    dec = bytearray(dec)
+    dec[nr.checksum_offset(dec)] ^= 1
+    out[sec.offset : sec.offset + sec.size] = nr.encrypt_entry(iv, dec)
+    return bytes(out)
+
+
+def test_library_copy_and_swap_work_on_whole_nightreign_files(tmp_path):
+    from bayle.modules.games import catalog as games
+    from bayle.modules.saves import library
+
+    good = nr.pack_save(_payloads(), ivs=_ivs())
+    live = tmp_path / "NR0000.co2"
+    live.write_bytes(good)
+    e = library.add(tmp_path, live, "run one", games.NIGHTREIGN)
+    assert e["characters"] == [] and e["format"] == "co2"
+    with pytest.raises(library.LibraryError):
+        (tmp_path / "junk.co2").write_bytes(b"BND4" + bytes(100))
+        library.add(tmp_path, tmp_path / "junk.co2", "junk", games.NIGHTREIGN)
+    live.write_bytes(_stale(good))
+    out = library.swap_in(tmp_path, e["id"], live, "run two", games.NIGHTREIGN)
+    assert live.read_bytes() == good and out["backup"].is_file() and not out["signed"]
+
+
+def test_service_repair_backs_up_then_undo_restores(tmp_path, monkeypatch):
+    from bayle.modules.games import catalog as games
+    from bayle.modules.games.locate import Locations
+    from bayle.modules.saves import repair as save_repair
+
+    monkeypatch.setattr(Locations, "game_running", lambda self: False)
+    monkeypatch.setattr(saves, "SETTLE_SECONDS", 0)
+    monkeypatch.setattr(save_repair, "wait_for_save_flush", lambda paths, timeout=30: True)
+    good = nr.pack_save(_payloads(), ivs=_ivs())
+    p = tmp_path / "NR0000.co2"
+    p.write_bytes(_stale(good))
+    stale = p.read_bytes()
+    assert saves.repair_save(p, loc=Locations(games.NIGHTREIGN)) is True
+    assert p.read_bytes() == good
+    (bak,) = [b for b in saves.list_backups(p, loc=Locations(games.NIGHTREIGN))]
+    assert bak["path"].read_bytes() == stale
+    saves.restore_backup(bak["path"], p, loc=Locations(games.NIGHTREIGN))
+    assert p.read_bytes() == stale

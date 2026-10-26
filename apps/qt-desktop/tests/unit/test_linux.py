@@ -1,0 +1,114 @@
+"""Linux and Steam Deck detection, exercised on fake home folders so it runs on any OS."""
+
+from bayle.adapters.games import me3_paths
+from bayle.adapters.games import paths as common
+from bayle.adapters.integrations.steam import steam as steam_detect
+from bayle.adapters.system import proc as process_list
+from bayle.modules.games import catalog
+from bayle.modules.games.locate import Locations
+
+from bayle_qt.updater import apply as updates
+
+
+def linux(monkeypatch, home):
+    for module in (common, steam_detect, process_list):  # each keeps its own copy of the platform flags
+        monkeypatch.setattr(module, "IS_WINDOWS", False)
+        monkeypatch.setattr(module, "IS_LINUX", True)
+    monkeypatch.setattr(me3_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(me3_paths.Path, "home", classmethod(lambda cls: home))
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setattr(me3_paths.shutil, "which", lambda name: None)
+
+
+def fake_proc(root, pid, argv, comm, rss_kb):
+    d = root / str(pid)
+    d.mkdir(parents=True)
+    (d / "cmdline").write_bytes(b"\0".join(a.encode() for a in argv) + b"\0")
+    (d / "comm").write_text(comm + "\n")
+    (d / "status").write_text(f"Name:\t{comm}\nVmRSS:\t {rss_kb} kB\nThreads:\t8\n")
+
+
+def test_proton_game_and_steam_are_found_in_proc(tmp_path):
+    proc = tmp_path / "proc"
+    fake_proc(
+        proc,
+        100,
+        ["Z:\\home\\deck\\.steam\\steam\\steamapps\\common\\ELDEN RING\\Game\\eldenring.exe"],
+        "eldenring.exe",
+        5_000_000,
+    )
+    fake_proc(proc, 101, ["/home/deck/.local/share/Steam/ubuntu12_32/steam", "-silent"], "steam", 300_000)
+    fake_proc(proc, 102, ["/usr/bin/python3"], "python3", 10_000)
+    (proc / "self").mkdir()
+    assert process_list._linux_processes("eldenring.exe", proc) == [(100, 8)]
+    assert process_list._linux_processes("steam", proc) == [(101, 8)]
+    assert process_list._linux_processes("missing.exe", proc) == []
+
+
+def test_steam_library_saves_and_sign_in(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    linux(monkeypatch, home)
+    steam = home / ".local" / "share" / "Steam"
+    (steam / "steamapps" / "common" / "ELDEN RING" / "Game").mkdir(parents=True)
+    (steam / "steamapps" / "common" / "ELDEN RING" / "Game" / "eldenring.exe").write_bytes(b"x")
+    sd = tmp_path / "sdcard"
+    (steam / "steamapps" / "libraryfolders.vdf").write_text(
+        f'"libraryfolders"\n{{\n "1"\n {{\n  "path"\t\t"{sd.as_posix()}"\n }}\n}}\n'
+    )
+    saves = (
+        sd
+        / "steamapps"
+        / "compatdata"
+        / "1245620"
+        / "pfx"
+        / "drive_c"
+        / "users"
+        / "steamuser"
+        / "AppData"
+        / "Roaming"
+        / "EldenRing"
+        / "76561190000000000"
+    )
+    saves.mkdir(parents=True)
+    (saves / "ER0000.sl2").write_bytes(b"s")
+    (saves / "ER0000.co2").write_bytes(b"c")
+    assert steam_detect.steam_root() == steam.resolve()
+    er = Locations(catalog.ELDEN_RING)
+    assert er.game_dir() == steam / "steamapps" / "common" / "ELDEN RING" / "Game"
+    assert [p.name for p in er.save_files()] == ["ER0000.sl2", "ER0000.co2"]  # the prefix on the SD card
+    assert not steam_detect.steam_logged_in()
+    (home / ".steam").mkdir()
+    (home / ".steam" / "registry.vdf").write_text('"Registry"\n{\n "ActiveProcess"\n {\n  "ActiveUser"\t\t"0"\n }\n}\n')
+    assert not steam_detect.steam_logged_in()
+    (home / ".steam" / "registry.vdf").write_text('"ActiveUser"\t\t"123456"\n')
+    assert steam_detect.steam_logged_in()
+    assert er.dead_game_shells() == []  # a Windows-only problem
+
+
+def test_me3_paths_follow_its_linux_layout(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    linux(monkeypatch, home)
+    assert me3_paths.me3_profiles_dir() == home / ".config" / "me3" / "profiles"
+    assert me3_paths.me3_exe() is None
+    (home / ".local" / "bin").mkdir(parents=True)
+    (home / ".local" / "bin" / "me3").write_bytes(b"#!/bin/sh\n")
+    common.clear_detection_cache()  # detection is cached per session; the app clears it on every game switch
+    assert me3_paths.me3_exe() == home / ".local" / "bin" / "me3"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    assert me3_paths.me3_profiles_dir() == tmp_path / "cfg" / "me3" / "profiles"
+
+
+def test_linux_updates_use_the_linux_feed(monkeypatch):
+    """Velopack's packages for Linux come from releases.linux.json (signed for 'linux'), not the Windows feed."""
+    import importlib
+    import sys as _sys
+
+    monkeypatch.setattr(_sys, "platform", "linux")
+    try:
+        mod = importlib.reload(updates)
+        assert mod.OS_CHANNEL == "linux" and mod.FEED_NAME == "releases.linux.json"
+        assert mod.SIGNATURE_NAME == "releases.linux.json.minisig"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(updates)

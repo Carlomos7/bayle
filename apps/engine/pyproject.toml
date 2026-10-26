@@ -1,0 +1,230 @@
+[project]
+name = "bayle-engine"
+version = "4.6.0-rc.3"
+description = "The Bayle engine: mods, profiles, saves, merging and the game's files, as typed Python interfaces. No UI."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "Carlos Ray Segarra" }]
+requires-python = ">=3.14"
+dependencies = [
+    "pydantic>=2.13.5",
+    "py7zr>=1.1.3",
+    "cryptography>=50.0.1",
+    "constrata>=1.3.3",
+    "sqlalchemy>=2.1.3,<3",  # 2.x: typed DeclarativeBase, Mapped[], mapped_column (storage/)
+    "alembic>=1.20.0",  # adapters/persistence/migrations, run in code at start-up
+    "lupa>=2.8,<3",  # Lua 5.1 compiler: composed character scripts are checked before a build is used (decision 0006)
+    "tomlkit==0.15.1",
+]
+
+[project.scripts]
+bayle-engine = "bayle.cli:main"  # the headless modes; the desktop program is bayle-qt's `bayle`
+
+[project.optional-dependencies]
+api = ["fastapi>=0.159.1", "uvicorn>=0.54.0", "pydantic-settings>=2.16.1"]
+
+[dependency-groups]
+dev = [
+    "bayle-engine[api]",
+    "pytest>=9.0.2",
+    "httpx>=0.28.1",
+    "coverage>=7.13.0",
+    "ruff>=0.16.9",
+    "pyright>=1.1.414",
+    "import-linter>=2.15",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "bayle"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+# A passing test's tmp_path goes at teardown: the saves tests write full-size saves and backups (about 10 GB kept
+# otherwise, past what a Linux runner's /tmp allows); a failing test's stays for a look
+tmp_path_retention_policy = "failed"
+# importlib mode puts no test folder on sys.path, so the shared helpers (support, fakegame...) come from here
+pythonpath = ["tests", "tests/unit"]
+markers = [
+    "integration: needs a real Elden Ring save named by ROUNDTABLE_TEST_SAVE (skipped otherwise)",
+    "real_recycle_bin: sends to the real Windows Recycle Bin; runs last",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/bayle"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "E731", "E741", "B008", "B905"]
+
+[tool.pyright]
+include = ["src", "scripts", "tests"]
+extraPaths = ["tests", "tests/unit"]  # what pytest's pythonpath puts on sys.path
+pythonVersion = "3.14"
+typeCheckingMode = "standard"
+# The dict-shaped save data trips these without pointing at bugs; they stay visible as warnings.
+reportAttributeAccessIssue = "warning"
+reportArgumentType = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalSubscript = "warning"
+reportOptionalIterable = "error"
+reportGeneralTypeIssues = "warning"
+reportIndexIssue = "error"
+reportCallIssue = "warning"
+reportOperatorIssue = "warning"
+
+# Production source is held to the strict setting; tests and scripts keep the warning above.
+[[tool.pyright.executionEnvironments]]
+root = "src"
+reportAttributeAccessIssue = "error"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+
+# The engine's boundaries (docs/architecture.md). modules/ are the features, adapters/ the concrete infrastructure,
+# runtime/ composes them. Run: uv run lint-imports --no-cache
+[tool.importlinter]
+root_package = "bayle"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The engine has no Qt and knows no app"
+type = "forbidden"
+source_modules = ["bayle"]
+forbidden_modules = ["PySide6", "shiboken6", "bayle_qt", "velopack"]
+
+# Adapters implement the features' ports and use their models and value types; they never call a workflow or the
+# composition above them. The models a feature shares are named here, so a new one is a reviewed decision.
+[[tool.importlinter.contracts]]
+name = "Adapters use the features' models and ports, never their workflows"
+type = "forbidden"
+source_modules = ["bayle.adapters"]
+forbidden_modules = ["bayle.modules", "bayle.runtime", "bayle.api", "bayle.cli"]
+allow_indirect_imports = true
+ignore_imports = [
+    "bayle.adapters.** -> bayle.modules.ports",
+    "bayle.adapters.** -> bayle.modules.*.ports",
+    "bayle.adapters.** -> bayle.modules.*.models",
+    "bayle.adapters.** -> bayle.modules.games.catalog",  # the games the launcher knows
+    "bayle.adapters.** -> bayle.modules.games.config",  # a game's files, from resources/games
+    "bayle.adapters.** -> bayle.modules.games.locate",  # the Locations value
+    "bayle.adapters.** -> bayle.modules.overhauls",  # the overhaul recipe models and their pure rules
+    "bayle.adapters.** -> bayle.modules.overhauls.config",
+    "bayle.adapters.** -> bayle.modules.settings.layout",  # the game folder's name pattern
+    "bayle.adapters.** -> bayle.modules.mods.overhaul_manifest",  # the manifest names an overhaul setup leaves
+]
+
+# The database, the settings file, other programs, this machine and the tool backends are reached through the ports
+# the runtime binds (modules/ports.py, modules/*/ports.py). Called directly, as documented exceptions: file formats,
+# the game's own files, merging, the filesystem primitives every save and profile write goes through
+# (adapters/filesystem), and the job log (adapters/system/logging) and the UI-thread guard (adapters/system/threads).
+[[tool.importlinter.contracts]]
+name = "Features reach stateful infrastructure only through ports"
+type = "forbidden"
+source_modules = ["bayle.modules"]
+forbidden_modules = [
+    "bayle.adapters.persistence",
+    "bayle.adapters.integrations",
+    "bayle.adapters.system",
+    "bayle.adapters.games.discovery",
+    "bayle.adapters.games.paths",
+    "bayle.adapters.games.session",
+    "bayle.adapters.games.me3_paths",
+    "bayle.adapters.games.steam_paths",
+    "bayle.adapters.overhauls.backends",
+    "bayle.adapters.overhauls.engine",
+    "bayle.runtime",
+    "bayle.api",
+    "bayle.cli",
+    "sqlalchemy",
+    "alembic",
+    "fastapi",
+    "uvicorn",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "bayle.modules.** -> bayle.adapters.system.logging",
+    "bayle.modules.** -> bayle.adapters.system.threads",
+]
+
+# The features, top to bottom. The Settings page and the settings model sit at opposite ends: the page composes other
+# features, the model is what they read. The back-edges below are known coupling between page services (each is one
+# feature's page offering another feature's action); a new one breaks this contract.
+[[tool.importlinter.contracts]]
+name = "Features are layered"
+type = "layers"
+exhaustive = false
+layers = [
+    "bayle.modules.activity",
+    "bayle.modules.settings.service : bayle.modules.settings.locations",
+    "bayle.modules.launch",
+    "bayle.modules.saves",
+    "bayle.modules.mods",
+    "bayle.modules.coop",
+    "bayle.modules.games",
+    "bayle.modules.overhauls",
+    "bayle.modules.settings.layout",
+    "bayle.modules.ports",
+    "bayle.modules.settings.models",
+]
+ignore_imports = [
+    "bayle.modules.coop.service -> bayle.modules.mods.profile_edit",  # moving Seamless Co-op into a profile
+    "bayle.modules.coop.service -> bayle.modules.mods.profile_writer",
+    "bayle.modules.mods.mod_configs -> bayle.modules.launch.game_checks",  # the checks before Play, on the Mods pages
+    "bayle.modules.mods.profile_mods -> bayle.modules.launch.game_checks",
+    "bayle.modules.mods.mods_page -> bayle.modules.launch.play",  # the setups the Mods page offers
+    "bayle.modules.mods.service -> bayle.modules.launch.play",
+    "bayle.modules.saves.saves_page -> bayle.modules.activity.service",  # undo after a save write
+]
+
+[[tool.importlinter.contracts]]
+name = "Work is generic job infrastructure"
+type = "forbidden"
+source_modules = ["bayle.work"]
+forbidden_modules = [
+    "bayle.modules",
+    "bayle.runtime",
+    "bayle.api",
+    "bayle.cli",
+    "bayle.adapters.archives",
+    "bayle.adapters.filesystem",
+    "bayle.adapters.formats",
+    "bayle.adapters.games",
+    "bayle.adapters.integrations",
+    "bayle.adapters.merging",
+    "bayle.adapters.overhauls",
+    "bayle.adapters.persistence",
+    "bayle.adapters.saves",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The API translates HTTP to the features"
+type = "forbidden"
+source_modules = ["bayle.api"]
+forbidden_modules = ["bayle.adapters", "bayle.cli", "sqlalchemy", "alembic"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Adapter areas form no cycles"
+type = "acyclic_siblings"
+ancestors = ["bayle.adapters"]
+depth = 0

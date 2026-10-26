@@ -20,7 +20,14 @@ repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.12.19
     hooks:
+      - id: uv-lock  # two independent projects, each with its own lock
+        name: uv-lock (engine)
+        args: ["--project", "apps/engine"]
+        files: ^apps/engine/(pyproject\.toml|uv\.lock)$
       - id: uv-lock
+        name: uv-lock (qt-desktop)
+        args: ["--project", "apps/qt-desktop"]
+        files: ^apps/(qt-desktop/(pyproject\.toml|uv\.lock)|engine/pyproject\.toml)$
   # Commit messages follow Conventional Commits (CONTRIBUTING.md); release-please reads them to version and write the changelog.
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0

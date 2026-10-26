@@ -1,0 +1,158 @@
+# An invented overhaul for the tests: one build of each kind of step the launcher knows.
+
+overhaul = 1
+id = "example-overhaul"
+label = "Example Overhaul"
+short_label = "Example"
+game = "eldenring"
+install_unsupported = { STANDALONE = "Installs into a folder of its own; not described here.", CONVERGENCE = "Patches two other profiles; not described here.", REFORGED = "Rewrites another mod's own profile; not described here." }
+
+[recognise]
+folder = "ExampleOverhaul"
+manifest = "installation.json"
+mod_ids = ["example-overhaul", "exampleprototype.dll"]
+profile_marks = ["example-overhaul", "exampleprototype", "examplehud", "exampleerss", "exinitialize", "exhud"]
+installer_folders = [".example-overhaul-setup"]
+installer_backups = "Example Backups"
+
+[[builds]]
+id = "example-overhaul-lite"
+
+[builds.match]
+files = ["edition.json", "payload/ExamplePrototype.dll"]
+json = [{ file = "edition.json", key = "edition", equals = "LITE" }]
+version = { file = "edition.json", key = "version" }
+versions = ["0.1.33-rc3"]
+
+[builds.sources]
+"payload/mod/**" = "merge/**"
+"payload/mod/**/*.manifest.json" = ""
+"payload/mod/action/script/c0000.hks" = "base/action/script/c0000.hks"
+"payload/settings/m00_00_00_00.talkesdbnd.dcx" = "merge/script/talk/m00_00_00_00.talkesdbnd.dcx"
+"payload/settings/*.json" = "text/*.json"
+"payload/settings/vanilla/**" = ""
+"installer/example.hks" = "hooks/example.hks"
+
+[builds.runtime]
+"payload/*.dll" = "*.dll"
+"payload/ExamplePrototype.ini" = "ExamplePrototype.ini"
+"payload/ui/**" = "ui/**"
+"payload/audio/**" = "audio/**"
+
+[builds.output]
+mod = "mod"
+report = "merge-report.txt"
+manifest = "installation.json"
+
+[[builds.steps]]
+do = "copy_tree"
+from = "payload/audio"
+to = "audio"
+
+[[builds.steps]]
+do = "copy_tree"
+from = "payload/ui"
+to = "ui"
+
+[[builds.steps]]
+do = "copy"
+from = "payload/ExamplePrototype.dll"
+to = "ExamplePrototype.dll"
+
+[[builds.steps]]
+do = "copy"
+from = "payload/ExampleHudBootstrap.dll"
+to = "ExampleHudBootstrap.dll"
+
+[[builds.steps]]
+do = "config"
+from = "payload/ExamplePrototype.ini"
+to = "ExamplePrototype.ini"
+
+[[builds.steps]]
+do = "params"
+file = "regulation.bin"
+patch = "payload/mod/regulation.bin"
+
+[[builds.steps]]
+do = "merge"
+file = "chr/c0000.anibnd.dcx"
+patch = "payload/mod/chr/c0000.anibnd.dcx"
+
+[[builds.steps]]
+do = "merge"
+file = "chr/c0000.behbnd.dcx"
+patch = "payload/mod/chr/c0000.behbnd.dcx"
+
+[[builds.steps]]
+do = "merge"
+file = "chr/c0000_a00_hi.anibnd.dcx"
+patch = "payload/mod/chr/c0000_a00_hi.anibnd.dcx"
+
+[[builds.steps]]
+do = "merge"
+file = "chr/c0000_a00_md.anibnd.dcx"
+patch = "payload/mod/chr/c0000_a00_md.anibnd.dcx"
+
+[[builds.steps]]
+do = "merge"
+file = "chr/c0000_a00_lo.anibnd.dcx"
+patch = "payload/mod/chr/c0000_a00_lo.anibnd.dcx"
+
+[[builds.steps]]
+do = "merge"
+file = "sfx/sfxbnd_commoneffects.ffxbnd.dcx"
+patch = "payload/mod/sfx/sfxbnd_commoneffects.ffxbnd.dcx"
+
+[[builds.steps]]
+do = "merge"
+file = "script/talk/m00_00_00_00.talkesdbnd.dcx"
+patch = "payload/settings/m00_00_00_00.talkesdbnd.dcx"
+
+[[builds.steps]]
+do = "text"
+each = { game = "languages" }
+file = "msg/{each}/menu_dlc02.msgbnd.dcx"
+table = "eventtextfortalk.fmg"
+texts = { rusru = "payload/settings/rusru.json", "*" = "payload/settings/engus.json" }
+
+[[builds.steps]]
+do = "hook"
+folder = "action/script"
+entry = "c0000.hks"
+base = "payload/mod/action/script/c0000.hks"
+base_until = "-- Wrap the current mod's Update;"
+fragment = "installer/example.hks"
+markers = ["local ExOriginalUpdate = Update", "-- Example Overhaul deferred adapter"]
+refuse_text = "A mod before it already contains Example Overhaul's script; keep only the original mod in the profile."
+natives = ["ExNative"]
+
+[[builds.steps]]
+do = "remove"
+glob = "**/*.graph-work"
+
+[builds.install]
+profile_settings = { profileVersion = "v1", start_online = false }
+owned_package_ids = ["example-overhaul", "zz_ExampleOverhaul"]
+owned_dlls = ["exampleprototype.dll", "examplehudbootstrap.dll", "exampleoverhaul.dll"]
+required_files = ["ExamplePrototype.dll", "ExampleHudBootstrap.dll", "mod/chr/c0000.behbnd.dcx", "mod/regulation.bin", "mod/action/script/c0000.hks", "mod/sfx/sfxbnd_commoneffects.ffxbnd.dcx"]
+required_folders = ["ui"]
+
+[[builds.install.set_initializers]]
+name_prefix = "nightreignmovement"
+function = "NrmInitialize"
+
+[[builds.install.natives]]
+file = "ExampleHudBootstrap.dll"
+load_early = true
+initializer = { function = "ExHudBootstrapInitialize" }
+
+[[builds.install.natives]]
+file = "ExamplePrototype.dll"
+initializer = { function = "ExInitialize" }
+after_enabled_natives = true
+
+[builds.install.package]
+id = "example-overhaul"
+folder = "mod"
+after_enabled_packages = true

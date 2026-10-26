@@ -9,7 +9,7 @@ particular overhaul is in the launcher's code.
 The launcher ships no config. To add one, make it with **Set up as an overhaul** on the Mods page, or put a file in the
 `overhauls` folder of the launcher's data folder. A config shown as "your config" is one of these; a config from the
 launcher's own `data/overhauls` folder (none today) would be shown as verified. A file that does not read, or does not fit the format, is left out and the
-others still load. Editors can check a file against `src/bayle/data/schemas/overhaul.schema.json`.
+others still load. Editors can check a file against `apps/engine/src/bayle/data/schemas/overhaul.schema.json`.
 
 ```toml
 overhaul = 1                     # the version of this format

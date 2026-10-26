@@ -1,0 +1,1076 @@
+{
+ "$defs": {
+  "AddText": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "text",
+     "title": "Do",
+     "type": "string"
+    },
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "table": {
+     "title": "Table",
+     "type": "string"
+    },
+    "texts": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Texts",
+     "type": "object"
+    },
+    "each": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Each"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    }
+   },
+   "required": [
+    "do",
+    "file",
+    "table",
+    "texts"
+   ],
+   "title": "AddText",
+   "type": "object"
+  },
+  "Basic": {
+   "additionalProperties": false,
+   "description": "What the Overhaul setup form sets (adapters.overhauls.basic derives the rest of the config from it and the mod's\nfiles). The config's recognise and builds are written beside it; it loads last whatever is set here.",
+   "properties": {
+    "version": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Version"
+    },
+    "natives": {
+     "items": {
+      "$ref": "#/$defs/BasicNative"
+     },
+     "title": "Natives",
+     "type": "array"
+    },
+    "keep": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Keep",
+     "type": "array"
+    },
+    "not_merged": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Not Merged",
+     "type": "array"
+    },
+    "place": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Place",
+     "type": "object"
+    },
+    "texts": {
+     "items": {
+      "$ref": "#/$defs/BasicText"
+     },
+     "title": "Texts",
+     "type": "array"
+    },
+    "skip": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Skip",
+     "type": "array"
+    },
+    "files": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Files",
+     "type": "object"
+    },
+    "health": {
+     "items": {
+      "$ref": "#/$defs/Health"
+     },
+     "title": "Health",
+     "type": "array"
+    }
+   },
+   "title": "Basic",
+   "type": "object"
+  },
+  "BasicNative": {
+   "additionalProperties": false,
+   "description": "One of the mod's DLLs, as the Overhaul setup form sets it.",
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "load_early": {
+     "default": false,
+     "title": "Load Early",
+     "type": "boolean"
+    },
+    "initializer": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Initializer"
+    },
+    "after_others": {
+     "default": true,
+     "title": "After Others",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "file"
+   ],
+   "title": "BasicNative",
+   "type": "object"
+  },
+  "BasicText": {
+   "additionalProperties": false,
+   "description": "Strings of a JSON file (text ID to string) set in a table of a message binder, merged on top of the packages\nbefore it: becomes a \"text\" step.",
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "table": {
+     "default": "",
+     "title": "Table",
+     "type": "string"
+    },
+    "texts": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Texts",
+     "type": "object"
+    }
+   },
+   "required": [
+    "file",
+    "texts"
+   ],
+   "title": "BasicText",
+   "type": "object"
+  },
+  "Build": {
+   "additionalProperties": false,
+   "description": "One edition the launcher builds itself.",
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "match": {
+     "$ref": "#/$defs/Match"
+    },
+    "output": {
+     "$ref": "#/$defs/Output"
+    },
+    "steps": {
+     "items": {
+      "discriminator": {
+       "mapping": {
+        "config": "#/$defs/KeepConfig",
+        "copy": "#/$defs/Copy",
+        "copy_tree": "#/$defs/CopyTree",
+        "hook": "#/$defs/Hook",
+        "merge": "#/$defs/Merge",
+        "params": "#/$defs/Params",
+        "remove": "#/$defs/Remove",
+        "text": "#/$defs/AddText"
+       },
+       "propertyName": "do"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/CopyTree"
+       },
+       {
+        "$ref": "#/$defs/Copy"
+       },
+       {
+        "$ref": "#/$defs/KeepConfig"
+       },
+       {
+        "$ref": "#/$defs/Params"
+       },
+       {
+        "$ref": "#/$defs/Merge"
+       },
+       {
+        "$ref": "#/$defs/AddText"
+       },
+       {
+        "$ref": "#/$defs/Hook"
+       },
+       {
+        "$ref": "#/$defs/Remove"
+       }
+      ]
+     },
+     "title": "Steps",
+     "type": "array"
+    },
+    "requires": {
+     "items": {
+      "$ref": "#/$defs/Requirement"
+     },
+     "title": "Requires",
+     "type": "array"
+    },
+    "install": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Install"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "sources": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Sources",
+     "type": "object"
+    },
+    "runtime": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Runtime",
+     "type": "object"
+    }
+   },
+   "required": [
+    "id",
+    "match",
+    "output",
+    "steps"
+   ],
+   "title": "Build",
+   "type": "object"
+  },
+  "Copy": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "copy",
+     "title": "Do",
+     "type": "string"
+    },
+    "from": {
+     "title": "From",
+     "type": "string"
+    },
+    "to": {
+     "title": "To",
+     "type": "string"
+    }
+   },
+   "required": [
+    "do",
+    "from",
+    "to"
+   ],
+   "title": "Copy",
+   "type": "object"
+  },
+  "CopyTree": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "copy_tree",
+     "title": "Do",
+     "type": "string"
+    },
+    "from": {
+     "title": "From",
+     "type": "string"
+    },
+    "to": {
+     "title": "To",
+     "type": "string"
+    }
+   },
+   "required": [
+    "do",
+    "from",
+    "to"
+   ],
+   "title": "CopyTree",
+   "type": "object"
+  },
+  "Each": {
+   "additionalProperties": false,
+   "properties": {
+    "folders_in": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Folders In"
+    },
+    "game": {
+     "anyOf": [
+      {
+       "const": "languages",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Game"
+    },
+    "except": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Except",
+     "type": "array"
+    }
+   },
+   "title": "Each",
+   "type": "object"
+  },
+  "Health": {
+   "additionalProperties": false,
+   "description": "A log the mod writes, read after a run (modules.launch.run_health): only the lines written since the launch, and\nonly for what this entry names. A line matching a `fail` pattern is shown in Activity as a warning naming the mod.",
+   "properties": {
+    "log": {
+     "title": "Log",
+     "type": "string"
+    },
+    "fail": {
+     "items": {
+      "type": "string"
+     },
+     "minItems": 1,
+     "title": "Fail",
+     "type": "array"
+    },
+    "ok": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Ok"
+    }
+   },
+   "required": [
+    "log",
+    "fail"
+   ],
+   "title": "Health",
+   "type": "object"
+  },
+  "Hook": {
+   "additionalProperties": false,
+   "description": "A mod's script fragment added to the entry script (adapters.overhauls.hooks): the packages' own script folder\ncopied in load order, then the fragment appended to the entry file (the last package's copy, else the download's\nbase). Several hooks for one entry are appended in the order of the steps, each wrapping the one before.",
+   "properties": {
+    "do": {
+     "const": "hook",
+     "title": "Do",
+     "type": "string"
+    },
+    "folder": {
+     "title": "Folder",
+     "type": "string"
+    },
+    "entry": {
+     "title": "Entry",
+     "type": "string"
+    },
+    "base": {
+     "title": "Base",
+     "type": "string"
+    },
+    "base_until": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Base Until"
+    },
+    "fragment": {
+     "title": "Fragment",
+     "type": "string"
+    },
+    "markers": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Markers",
+     "type": "array"
+    },
+    "refuse_text": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Refuse Text"
+    },
+    "natives": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Natives",
+     "type": "array"
+    }
+   },
+   "required": [
+    "do",
+    "folder",
+    "entry",
+    "base",
+    "fragment"
+   ],
+   "title": "Hook",
+   "type": "object"
+  },
+  "Initializer": {
+   "additionalProperties": false,
+   "properties": {
+    "function": {
+     "title": "Function",
+     "type": "string"
+    }
+   },
+   "required": [
+    "function"
+   ],
+   "title": "Initializer",
+   "type": "object"
+  },
+  "Install": {
+   "additionalProperties": false,
+   "description": "What installing one edition does to the me3 profile it is installed into (its own folder beside it).",
+   "properties": {
+    "profile_settings": {
+     "additionalProperties": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "boolean"
+       }
+      ]
+     },
+     "title": "Profile Settings",
+     "type": "object"
+    },
+    "owned_package_ids": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Owned Package Ids",
+     "type": "array"
+    },
+    "owned_dlls": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Owned Dlls",
+     "type": "array"
+    },
+    "set_initializers": {
+     "items": {
+      "$ref": "#/$defs/SetInitializer"
+     },
+     "title": "Set Initializers",
+     "type": "array"
+    },
+    "natives": {
+     "items": {
+      "$ref": "#/$defs/InstallNative"
+     },
+     "title": "Natives",
+     "type": "array"
+    },
+    "package": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/InstallPackage"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "required_files": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Required Files",
+     "type": "array"
+    },
+    "required_folders": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Required Folders",
+     "type": "array"
+    }
+   },
+   "title": "Install",
+   "type": "object"
+  },
+  "InstallNative": {
+   "additionalProperties": false,
+   "description": "A DLL entry the install adds, with its load settings exactly as the overhaul's installer writes them.",
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "load_early": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Load Early"
+    },
+    "initializer": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Initializer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "after_enabled_natives": {
+     "default": false,
+     "title": "After Enabled Natives",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "file"
+   ],
+   "title": "InstallNative",
+   "type": "object"
+  },
+  "InstallPackage": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "folder": {
+     "default": "mod",
+     "title": "Folder",
+     "type": "string"
+    },
+    "after_enabled_packages": {
+     "default": false,
+     "title": "After Enabled Packages",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "title": "InstallPackage",
+   "type": "object"
+  },
+  "JsonEquals": {
+   "additionalProperties": false,
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "key": {
+     "title": "Key",
+     "type": "string"
+    },
+    "equals": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "integer"
+      },
+      {
+       "type": "boolean"
+      }
+     ],
+     "title": "Equals"
+    }
+   },
+   "required": [
+    "file",
+    "key",
+    "equals"
+   ],
+   "title": "JsonEquals",
+   "type": "object"
+  },
+  "KeepConfig": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "config",
+     "title": "Do",
+     "type": "string"
+    },
+    "from": {
+     "title": "From",
+     "type": "string"
+    },
+    "to": {
+     "title": "To",
+     "type": "string"
+    }
+   },
+   "required": [
+    "do",
+    "from",
+    "to"
+   ],
+   "title": "KeepConfig",
+   "type": "object"
+  },
+  "Match": {
+   "additionalProperties": false,
+   "properties": {
+    "files": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Files",
+     "type": "array"
+    },
+    "json": {
+     "items": {
+      "$ref": "#/$defs/JsonEquals"
+     },
+     "title": "Json",
+     "type": "array"
+    },
+    "version": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/VersionKey"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "versions": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Versions",
+     "type": "array"
+    }
+   },
+   "title": "Match",
+   "type": "object"
+  },
+  "Merge": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "merge",
+     "title": "Do",
+     "type": "string"
+    },
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "patch": {
+     "title": "Patch",
+     "type": "string"
+    },
+    "each": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Each"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    }
+   },
+   "required": [
+    "do",
+    "file",
+    "patch"
+   ],
+   "title": "Merge",
+   "type": "object"
+  },
+  "Output": {
+   "additionalProperties": false,
+   "properties": {
+    "mod": {
+     "default": "mod",
+     "title": "Mod",
+     "type": "string"
+    },
+    "report": {
+     "default": "merge-report.txt",
+     "title": "Report",
+     "type": "string"
+    },
+    "manifest": {
+     "default": "overhaul.json",
+     "title": "Manifest",
+     "type": "string"
+    }
+   },
+   "title": "Output",
+   "type": "object"
+  },
+  "Params": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "params",
+     "title": "Do",
+     "type": "string"
+    },
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "patch": {
+     "title": "Patch",
+     "type": "string"
+    },
+    "each": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Each"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    }
+   },
+   "required": [
+    "do",
+    "file",
+    "patch"
+   ],
+   "title": "Params",
+   "type": "object"
+  },
+  "Recognise": {
+   "additionalProperties": false,
+   "properties": {
+    "folder": {
+     "title": "Folder",
+     "type": "string"
+    },
+    "manifest": {
+     "title": "Manifest",
+     "type": "string"
+    },
+    "mod_ids": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Mod Ids",
+     "type": "array"
+    },
+    "profile_marks": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Profile Marks",
+     "type": "array"
+    },
+    "installer_folders": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Installer Folders",
+     "type": "array"
+    },
+    "installer_backups": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Installer Backups"
+    }
+   },
+   "required": [
+    "folder",
+    "manifest"
+   ],
+   "title": "Recognise",
+   "type": "object"
+  },
+  "Remove": {
+   "additionalProperties": false,
+   "properties": {
+    "do": {
+     "const": "remove",
+     "title": "Do",
+     "type": "string"
+    },
+    "glob": {
+     "title": "Glob",
+     "type": "string"
+    }
+   },
+   "required": [
+    "do",
+    "glob"
+   ],
+   "title": "Remove",
+   "type": "object"
+  },
+  "Requirement": {
+   "additionalProperties": false,
+   "description": "Another mod the overhaul needs in the profile, present and switched on: a DLL (native, its file name) or a\npackage (its id). The build is refused without it; an install switches it on when it is there but off and\nenable_if_off allows it, else adds the first of candidates that exists, else stops.",
+   "properties": {
+    "native": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Native"
+    },
+    "package": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Package"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    },
+    "enable_if_off": {
+     "default": false,
+     "title": "Enable If Off",
+     "type": "boolean"
+    },
+    "candidates": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Candidates",
+     "type": "array"
+    }
+   },
+   "title": "Requirement",
+   "type": "object"
+  },
+  "SetInitializer": {
+   "additionalProperties": false,
+   "description": "An initializer the install gives other mods' DLLs that have none (a companion mod the overhaul knows).",
+   "properties": {
+    "name_prefix": {
+     "title": "Name Prefix",
+     "type": "string"
+    },
+    "function": {
+     "title": "Function",
+     "type": "string"
+    }
+   },
+   "required": [
+    "name_prefix",
+    "function"
+   ],
+   "title": "SetInitializer",
+   "type": "object"
+  },
+  "VersionKey": {
+   "additionalProperties": false,
+   "properties": {
+    "file": {
+     "title": "File",
+     "type": "string"
+    },
+    "key": {
+     "title": "Key",
+     "type": "string"
+    }
+   },
+   "required": [
+    "file",
+    "key"
+   ],
+   "title": "VersionKey",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "overhaul": {
+   "const": 1,
+   "title": "Overhaul",
+   "type": "integer"
+  },
+  "id": {
+   "title": "Id",
+   "type": "string"
+  },
+  "label": {
+   "title": "Label",
+   "type": "string"
+  },
+  "short_label": {
+   "title": "Short Label",
+   "type": "string"
+  },
+  "game": {
+   "title": "Game",
+   "type": "string"
+  },
+  "recognise": {
+   "$ref": "#/$defs/Recognise"
+  },
+  "builds": {
+   "items": {
+    "$ref": "#/$defs/Build"
+   },
+   "title": "Builds",
+   "type": "array"
+  },
+  "install_unsupported": {
+   "additionalProperties": {
+    "type": "string"
+   },
+   "title": "Install Unsupported",
+   "type": "object"
+  },
+  "basic": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Basic"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
+  },
+  "health": {
+   "items": {
+    "$ref": "#/$defs/Health"
+   },
+   "title": "Health",
+   "type": "array"
+  }
+ },
+ "required": [
+  "overhaul",
+  "id",
+  "label",
+  "short_label",
+  "game",
+  "recognise"
+ ],
+ "title": "OverhaulConfig",
+ "type": "object"
+}

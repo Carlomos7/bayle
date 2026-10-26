@@ -8,7 +8,7 @@ those authors, and each part keeps its own license.
 - [SoulsFormatsNEXT](https://github.com/soulsmods/SoulsFormatsNEXT), after TKGP's SoulsFormats. The layouts of the
   game's archives (BHD5/BDT, BND4), compressed files (DCX, and the Oodle settings the game needs) and text tables (FMG)
   that the file merger reads and writes were learned from it; the launcher's code is its own.
-- The reader and writer of Elden Ring TAE (animation event) files, `src/bayle/formats/tae.py`, are ported
+- The reader and writer of Elden Ring TAE (animation event) files, `src/bayle/adapters/formats/tae.py`, are ported
   from its `SoulsFormats/Formats/TAE/` (`TAE.cs`, `Animation.cs`, `Event.cs`, `EventGroup.cs`) at commit
   `ee1dd61958f60bdc51ce3da548e9a90a8ab39905` (the TAE code last changed in `d0caa7ab7749e1a575fb3056b9b65020e81de826`).
   That code is by TKGP and the SoulsFormatsNEXT contributors, originally sourced from SoulsAssetPipeline by
@@ -18,7 +18,7 @@ those authors, and each part keeps its own license.
 ## Soulstruct (GPL-3.0-or-later)
 
 - [Soulstruct](https://github.com/Grimrukh/soulstruct) by Scott Mooney (Grimrukh). The reader and writer of ESD
-  (EzState) files in `src/bayle/formats/esd/` are adapted from its `base/ezstate/esd` modules at
+  (EzState) files in `src/bayle/adapters/formats/esd/` are adapted from its `base/ezstate/esd` modules at
   commit `12b69189a2ccebbc623a1b6565be89a18d6c9958` (version 2.6.0). Each adapted file names its source and lists
   what was changed and when. Soulstruct itself is not a dependency of the launcher; the real-data checks can use it,
   optionally, as an independent reader.
@@ -64,7 +64,7 @@ SOFTWARE.
 ## me3 (MIT OR Apache-2.0, used under MIT)
 
 - [me3](https://github.com/garyttierney/me3) by the me3 contributors. The load order the launcher predicts
-  (`src/bayle/mods/order.py`) is a port of me3's `sort_dependencies` and of how its profile loader applies
+  (`src/bayle/modules/mods/order.py`) is a port of me3's `sort_dependencies` and of how its profile loader applies
   it, at commit `9b1e080bcf691608021e7bd8a4447198a2dcb94c` (the same ordering as me3 0.11.0 to 0.13.0). me3 is offered
   under either license; this port uses MIT.
 
@@ -153,7 +153,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## Fonts (SIL OFL 1.1)
 
-Three font families ship with the program (`src/bayle/ui/assets/fonts/`): Cormorant Garamond and
+Three font families ship with the program (`src/bayle_qt/assets/fonts/`): Cormorant Garamond and
 EB Garamond for titles and names, Inter for controls and small text. All three are licensed under the SIL Open Font
 License, Version 1.1; each family's licence file ships beside its `.ttf` files, as the licence requires. The fonts
 are not sold on their own, and no Reserved Font Name is used in a renamed form.
@@ -254,7 +254,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 ## Fluent UI System Icons (MIT)
 
 - [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) by Microsoft: the interface icons
-  (`src/bayle/ui/assets/icons/*.svg`, about fifty of them) are its SVG files with their embedded
+  (`src/bayle_qt/assets/icons/*.svg`, about fifty of them) are its SVG files with their embedded
   metadata removed, tinted at run time. An asset, not a dependency.
 
 ```
@@ -285,7 +285,7 @@ SOFTWARE.
 
 - [tomlkit](https://github.com/python-poetry/tomlkit) by Sébastien Eustace, a style-preserving TOML library. A
   dependency (version 0.15.1), used by the Mod Configs form to read and write a mod's TOML settings file with every
-  comment, blank line and spacing kept (`src/bayle/formats/config_model.py`).
+  comment, blank line and spacing kept (`src/bayle/adapters/formats/config_model.py`).
 
 ```
 Copyright (c) 2018 Sébastien Eustace
@@ -313,7 +313,7 @@ SOFTWARE.
 
 - [lupa](https://github.com/scoder/lupa) by Stefan Behnel, with the Lua 5.1 sources by Lua.org, PUC-Rio, that its
   `lua51` module is built from. A dependency (version 2.8 or later), used only to check that a character script an
-  overhaul build composes compiles as Lua 5.1 (`src/bayle/overhauls/lua_check.py`); the script is loaded,
+  overhaul build composes compiles as Lua 5.1 (`src/bayle/adapters/overhauls/lua_check.py`); the script is loaded,
   never run. Chosen by testing candidates on real scripts: [docs/decisions/0006-lua-parser.md](docs/decisions/0006-lua-parser.md).
 
 ```

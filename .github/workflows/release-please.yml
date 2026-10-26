@@ -34,3 +34,24 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         TAG: ${{ steps.rp.outputs.tag_name }}
       run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+
+    # release-please's toml updater matches nothing for the uv.lock filter paths ("No entries modified"), and uv writes
+    # the PEP 440 form (5.0.0rc3, not 5.0.0-rc.3), so uv regenerates the locks. Without this, release.yml's
+    # `uv sync --locked` fails on the merged PR. A GITHUB_TOKEN push does not start test.yml on the PR.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      if: ${{ steps.rp.outputs.prs_created == 'true' }}
+      with:
+        ref: ${{ fromJSON(steps.rp.outputs.pr).headBranchName }}
+
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      if: ${{ steps.rp.outputs.prs_created == 'true' }}
+
+    - name: Re-lock the release PR branch
+      if: ${{ steps.rp.outputs.prs_created == 'true' }}
+      run: |
+        for app in engine qt-desktop; do (cd "apps/$app" && uv lock); done
+        git diff --quiet && exit 0
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git commit -am "chore: re-lock uv.lock for the release version"
+        git push

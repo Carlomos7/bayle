@@ -1,6 +1,6 @@
 [project]
 name = "bayle-qt"
-version = "4.6.0-rc.3"
+version = "5.0.0-rc.3"
 description = "Bayle Modding Suite, the desktop program: the Qt Quick window, its controller and the updater, on the Bayle engine."
 readme = "README.md"
 license = "GPL-3.0-or-later"

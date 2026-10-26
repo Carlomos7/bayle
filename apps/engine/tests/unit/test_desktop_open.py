@@ -9,7 +9,7 @@ from bayle.adapters.system import desktop
 
 def test_windows_uses_startfile(monkeypatch, tmp_path):
     opened = []
-    monkeypatch.setattr(desktop, "IS_WINDOWS", True)
+    monkeypatch.setattr(desktop.sys, "platform", "win32")
     monkeypatch.setattr(desktop.os, "startfile", opened.append, raising=False)
     desktop.open_path(tmp_path / "folder")
     assert opened == [str(tmp_path / "folder")]
@@ -18,7 +18,6 @@ def test_windows_uses_startfile(monkeypatch, tmp_path):
 @pytest.mark.parametrize(("platform", "command"), [("darwin", "open"), ("linux", "xdg-open")])
 def test_other_systems_run_the_platform_opener(monkeypatch, platform, command):
     calls = []
-    monkeypatch.setattr(desktop, "IS_WINDOWS", False)
     monkeypatch.setattr(desktop.sys, "platform", platform)
     monkeypatch.setattr(desktop.subprocess, "Popen", lambda args, **kw: calls.append((args, kw)))
     desktop.open_path("https://example.invalid/page")
@@ -29,7 +28,6 @@ def test_other_systems_run_the_platform_opener(monkeypatch, platform, command):
 
 def test_path_objects_are_passed_as_text(monkeypatch):
     calls = []
-    monkeypatch.setattr(desktop, "IS_WINDOWS", False)
     monkeypatch.setattr(desktop.sys, "platform", "darwin")
     monkeypatch.setattr(desktop.subprocess, "Popen", lambda args, **kw: calls.append(args))
     desktop.open_path(Path("x") / "y")

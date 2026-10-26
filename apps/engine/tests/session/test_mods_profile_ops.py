@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from bayle.adapters.games import me3_paths
 from bayle.adapters.system.app_paths import data_dir
 from bayle.modules.mods import profile_mods
 from bayle.modules.mods.service import profile_entries, read_profile_settings
@@ -195,7 +196,9 @@ def test_copying_the_profile_asks_only_when_its_packages_could_be_shared(profile
     assert job(s, s.run("mods.duplicate_profile", {**ref, "share": False})).state == "done"
 
 
-def test_moving_a_profile_into_bayles_folder_is_checked_and_a_stale_stamp_moves_nothing(profile):
+def test_moving_a_profile_into_bayles_folder_is_checked_and_a_stale_stamp_moves_nothing(profile, tmp_path, monkeypatch):
+    # me3's folder beside the profile, not this machine's (on another filesystem it refuses before the stamp check)
+    monkeypatch.setattr(me3_paths, "me3_config_dir", lambda: tmp_path / "me3")
     s, ref = make(), {"profile": str(profile)}
     plan = s.run("mods.check_move_in", ref)
     assert plan.stamp is not None

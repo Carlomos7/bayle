@@ -27,8 +27,9 @@ def clear_cache() -> None:
 
 
 def _reg_value(subkey, name):
-    if sys.platform != "win32":  # not IS_WINDOWS: pyright narrows only a direct check
+    if not IS_WINDOWS:
         return None
+    assert sys.platform == "win32"  # tells pyright on Linux that the rest is Windows-only
     try:
         import winreg
 

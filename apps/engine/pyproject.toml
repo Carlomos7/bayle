@@ -45,6 +45,9 @@ module-name = "bayle"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib"
+# A passing test's tmp_path goes at teardown: the saves tests write full-size saves and backups (about 10 GB kept
+# otherwise, past what a Linux runner's /tmp allows); a failing test's stays for a look
+tmp_path_retention_policy = "failed"
 # importlib mode puts no test folder on sys.path, so the shared helpers (support, fakegame...) come from here
 pythonpath = ["tests", "tests/unit"]
 markers = [

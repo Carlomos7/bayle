@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.3](https://github.com/Carlomos7/bayle/compare/v5.0.2...v5.0.3) (2026-10-27)
+
+
+### Fixed
+
+* the backend exits cleanly when its parent leaves early, explains a bad token, and refuses a data folder in use ([#27](https://github.com/Carlomos7/bayle/issues/27)) ([54643bc](https://github.com/Carlomos7/bayle/commit/54643bc5b1c25b30759ee446853970e37f85c068))
+
 ## [5.0.2](https://github.com/Carlomos7/bayle/compare/v5.0.1...v5.0.2) (2026-10-27)
 
 

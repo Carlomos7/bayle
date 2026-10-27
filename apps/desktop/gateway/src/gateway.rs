@@ -14,7 +14,7 @@ use tokio::sync::{broadcast, watch};
 use url::Url;
 
 use crate::{
-    contract::{build_url, operation},
+    contract::{Operation, build_url, operation},
     engine::{self, EngineCommand, Tree},
     error::GatewayError,
 };
@@ -41,7 +41,34 @@ pub struct Status {
     pub generation: u64,
     pub state: EngineState,
     pub engine_version: Option<String>,
+    /// The contract the engine's handshake announced (when ready).
+    pub contract: Option<String>,
     pub message: Option<String>,
+    /// Why it is Failed: `contract_mismatch`, `engine_refused` or `crash_loop`.
+    pub code: Option<String>,
+}
+
+impl Status {
+    fn new(generation: u64, state: EngineState) -> Self {
+        Status {
+            generation,
+            state,
+            engine_version: None,
+            contract: None,
+            message: None,
+            code: None,
+        }
+    }
+
+    fn with_message(mut self, message: impl Into<String>) -> Self {
+        self.message = Some(message.into());
+        self
+    }
+
+    fn with_code(mut self, code: &str) -> Self {
+        self.code = Some(code.to_owned());
+        self
+    }
 }
 
 /// What the web view receives on its event channel.
@@ -87,6 +114,9 @@ pub struct Gateway {
 impl Gateway {
     /// Starts supervising the engine in the background (call from inside a Tokio runtime) and returns at once.
     pub fn start(command: EngineCommand) -> Self {
+        // reqwest is built without a TLS provider when another crate in the app (Tauri's updater) asks for
+        // `rustls-no-provider`, and creating the client then panics; install one process-wide, once
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let (events, _) = broadcast::channel(1024);
         let inner = Arc::new(Inner {
             command,
@@ -96,12 +126,7 @@ impl Gateway {
                 .expect("an HTTP client"),
             conn: Mutex::new(None),
             tree: Mutex::new(None),
-            status: Mutex::new(Status {
-                generation: 0,
-                state: EngineState::Starting,
-                engine_version: None,
-                message: None,
-            }),
+            status: Mutex::new(Status::new(0, EngineState::Starting)),
             events,
             stop: watch::channel(false).0,
         });
@@ -182,6 +207,18 @@ impl Gateway {
         }
     }
 
+    /// Like `call`, with one flat object of parameters split by the contract: names the operation lists as path or
+    /// query parameters go there, the rest is the JSON body (refused when the operation takes none).
+    pub async fn call_params(
+        &self,
+        operation_id: &str,
+        params: Map<String, Value>,
+    ) -> Result<Value, GatewayError> {
+        let op = operation(operation_id)?;
+        let (path, query, body) = split_params(op, params)?;
+        self.call(operation_id, path, query, body).await
+    }
+
     /// Ends the running engine's whole process tree, as a crash would (development and tests: the restart path).
     pub fn kill_engine(&self) {
         if let Some(tree) = self.inner.tree.lock().unwrap().clone() {
@@ -221,21 +258,35 @@ impl Gateway {
     }
 }
 
-fn set_status(
-    inner: &Inner,
-    generation: u64,
-    state: EngineState,
-    version: Option<String>,
-    message: Option<String>,
-) {
-    let status = Status {
-        generation,
-        state,
-        engine_version: version,
-        message,
-    };
+fn set_status(inner: &Inner, status: Status) {
     *inner.status.lock().unwrap() = status.clone();
     let _ = inner.events.send(GatewayEvent::Engine(status));
+}
+
+type Split = (Map<String, Value>, Map<String, Value>, Option<Value>);
+
+fn split_params(op: &Operation, params: Map<String, Value>) -> Result<Split, GatewayError> {
+    let (mut path, mut query, mut rest) = (Map::new(), Map::new(), Map::new());
+    for (name, value) in params {
+        let target = if op.path_params.contains(&name.as_str()) {
+            &mut path
+        } else if op.query_params.contains(&name.as_str()) {
+            &mut query
+        } else {
+            &mut rest
+        };
+        target.insert(name, value);
+    }
+    if !op.has_body {
+        if let Some(name) = rest.keys().next() {
+            return Err(GatewayError::bad_parameter(
+                name,
+                "not a parameter of this operation",
+            ));
+        }
+        return Ok((path, query, None));
+    }
+    Ok((path, query, Some(Value::Object(rest))))
 }
 
 async fn supervise(inner: Arc<Inner>) {
@@ -248,7 +299,7 @@ async fn supervise(inner: Arc<Inner>) {
             break;
         }
         generation += 1;
-        set_status(&inner, generation, EngineState::Starting, None, None);
+        set_status(&inner, Status::new(generation, EngineState::Starting));
         match engine::start(&inner.command).await {
             Ok(mut running) => {
                 let base =
@@ -261,10 +312,11 @@ async fn supervise(inner: Arc<Inner>) {
                 *inner.tree.lock().unwrap() = Some(running.tree.clone());
                 set_status(
                     &inner,
-                    generation,
-                    EngineState::Ready,
-                    Some(running.handshake.version.clone()),
-                    None,
+                    Status {
+                        engine_version: Some(running.handshake.version.clone()),
+                        contract: Some(running.handshake.contract.clone()),
+                        ..Status::new(generation, EngineState::Ready)
+                    },
                 );
                 let (relay_stop, relay_rx) = watch::channel(false);
                 let conn = inner.conn.lock().unwrap().clone().unwrap();
@@ -298,30 +350,29 @@ async fn supervise(inner: Arc<Inner>) {
                 if quick_exits > QUICK_EXITS_ALLOWED {
                     set_status(
                         &inner,
-                        generation,
-                        EngineState::Failed,
-                        None,
-                        Some(format!("The engine keeps stopping (last exit {exit:?}).")),
+                        Status::new(generation, EngineState::Failed)
+                            .with_message(format!(
+                                "The engine keeps stopping (last exit {exit:?})."
+                            ))
+                            .with_code("crash_loop"),
                     );
                     return;
                 }
                 set_status(
                     &inner,
-                    generation,
-                    EngineState::Restarting,
-                    None,
-                    Some(format!("The engine stopped (exit {exit:?}).")),
+                    Status::new(generation, EngineState::Restarting)
+                        .with_message(format!("The engine stopped (exit {exit:?}).")),
                 );
             }
             Err(e)
                 if e.code == "gateway.engine_refused" || e.code == "gateway.contract_mismatch" =>
             {
+                let code = e.code.trim_start_matches("gateway.").to_owned();
                 set_status(
                     &inner,
-                    generation,
-                    EngineState::Failed,
-                    None,
-                    Some(e.message),
+                    Status::new(generation, EngineState::Failed)
+                        .with_message(e.message)
+                        .with_code(&code),
                 ); // a restart cannot fix it
                 return;
             }
@@ -330,19 +381,15 @@ async fn supervise(inner: Arc<Inner>) {
                 if quick_exits > QUICK_EXITS_ALLOWED {
                     set_status(
                         &inner,
-                        generation,
-                        EngineState::Failed,
-                        None,
-                        Some(e.message),
+                        Status::new(generation, EngineState::Failed)
+                            .with_message(e.message)
+                            .with_code("crash_loop"),
                     );
                     return;
                 }
                 set_status(
                     &inner,
-                    generation,
-                    EngineState::Restarting,
-                    None,
-                    Some(e.message),
+                    Status::new(generation, EngineState::Restarting).with_message(e.message),
                 );
             }
         }
@@ -352,7 +399,7 @@ async fn supervise(inner: Arc<Inner>) {
         }
         backoff = (backoff * 2).min(BACKOFF_MAX);
     }
-    set_status(&inner, generation, EngineState::Stopped, None, None);
+    set_status(&inner, Status::new(generation, EngineState::Stopped));
 }
 
 /// One SSE connection to `/v1/events` for one engine generation, forwarded in order. A dropped stream reconnects with
@@ -397,5 +444,55 @@ async fn relay(inner: Arc<Inner>, conn: Conn, mut stop: watch::Receiver<bool>) {
             _ = stop.changed() => return,
             _ = tokio::time::sleep(Duration::from_millis(250)) => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn split(id: &str, params: Value) -> Result<Split, GatewayError> {
+        split_params(operation(id).unwrap(), params.as_object().unwrap().clone())
+    }
+
+    #[test]
+    fn params_split_into_path_and_body_by_the_contract() {
+        let (path, query, body) = split("get_job", json!({ "job_id": "a" })).unwrap();
+        assert_eq!(
+            (path["job_id"].clone(), query.len(), body),
+            (json!("a"), 0, None)
+        );
+        let (_, _, body) = split("saves_back_up", json!({ "everything": true })).unwrap();
+        assert_eq!(body, Some(json!({ "everything": true })));
+        // a body operation with nothing to send still gets an object
+        let (_, _, body) = split("saves_back_up", json!({})).unwrap();
+        assert_eq!(body, Some(json!({})));
+    }
+
+    #[test]
+    fn query_names_go_to_the_query() {
+        let op = Operation {
+            id: "x",
+            method: "GET",
+            path: "/v1/x/{id}",
+            path_params: &["id"],
+            query_params: &["limit"],
+            has_body: false,
+        };
+        let params = json!({ "id": "a", "limit": 5 })
+            .as_object()
+            .unwrap()
+            .clone();
+        let (path, query, body) = split_params(&op, params).unwrap();
+        assert_eq!(
+            (path.len(), query["limit"].clone(), body),
+            (1, json!(5), None)
+        );
+    }
+
+    #[test]
+    fn leftovers_with_no_body_are_a_bad_parameter() {
+        let err = split("get_job", json!({ "job_id": "a", "extra": 1 })).unwrap_err();
+        assert_eq!(err.code, "gateway.bad_parameter");
     }
 }

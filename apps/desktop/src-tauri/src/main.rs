@@ -2,15 +2,23 @@
 //! engine only through these commands; updates are the shell's and work with the engine down.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{path::PathBuf, sync::Mutex, time::Duration};
+mod ui;
 
-use bayle_gateway::{EngineCommand, Gateway, GatewayError, GatewayEvent, Status};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+
+use bayle_gateway::{EngineCommand, Gateway};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Manager, RunEvent, State, ipc::Channel};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
 use tokio::sync::broadcast::error::RecvError;
+use ui::{EngineStatus, Redact, UiError, UiMessage};
 
 const ISSUES_URL: &str = "https://github.com/Carlomos7/bayle/issues/new";
 /// Where the channel manifests live (`<base>/<channel>.json`). shortcut: a local server for the installer spike;
@@ -25,7 +33,12 @@ struct Shell {
     state_dir: PathBuf,
     channel: String,
     pending: Mutex<Option<Update>>,
+    redact: Arc<Redact>,
 }
+
+/// The forwarding task of each open event channel, by channel id, so `engine_unsubscribe` can end it.
+#[derive(Default, Clone)]
+struct Subscriptions(Arc<Mutex<HashMap<u32, tauri::async_runtime::JoinHandle<()>>>>);
 
 #[derive(Serialize)]
 struct UpdateInfo {
@@ -38,46 +51,69 @@ struct UpdateInfo {
 async fn engine_call(
     gateway: State<'_, Gateway>,
     operation: String,
-    path: Option<Map<String, Value>>,
-    query: Option<Map<String, Value>>,
-    body: Option<Value>,
-) -> Result<Value, GatewayError> {
-    gateway
-        .call(
-            &operation,
-            path.unwrap_or_default(),
-            query.unwrap_or_default(),
-            body,
-        )
-        .await
+    params: Option<Map<String, Value>>,
+    epoch: Option<u64>,
+) -> Result<Value, UiError> {
+    if epoch.is_some_and(|e| e != gateway.status().generation) {
+        return Err(UiError::new(
+            "stale_epoch",
+            "That was for an engine that has since restarted.",
+        ));
+    }
+    Ok(gateway
+        .call_params(&operation, params.unwrap_or_default())
+        .await?)
 }
 
 #[tauri::command]
-fn engine_status(gateway: State<'_, Gateway>) -> Status {
-    gateway.status()
+fn engine_status(gateway: State<'_, Gateway>, shell: State<'_, Shell>) -> EngineStatus {
+    ui::engine_status(&gateway.status(), &shell.redact)
 }
 
-/// Every gateway event from now on, in order, on the page's channel.
+/// The current status, then every gateway event from now on, in order, on the page's channel.
 #[tauri::command]
-fn engine_events(gateway: State<'_, Gateway>, channel: Channel<GatewayEvent>) {
-    let mut events = gateway.subscribe();
-    tauri::async_runtime::spawn(async move {
-        loop {
-            let event = match events.recv().await {
-                Ok(event) => event,
-                Err(RecvError::Lagged(missed)) => GatewayEvent::Lagged { missed },
-                Err(RecvError::Closed) => break,
-            };
-            if channel.send(event).is_err() {
-                break; // the page went away
+fn engine_subscribe(
+    gateway: State<'_, Gateway>,
+    shell: State<'_, Shell>,
+    subs: State<'_, Subscriptions>,
+    channel: Channel<UiMessage>,
+) {
+    let mut events = gateway.subscribe(); // before the status, so no change falls between them
+    let gateway = gateway.inner().clone();
+    let id = channel.id();
+    let map = subs.inner().clone();
+    let redact = shell.redact.clone();
+    let handle = tauri::async_runtime::spawn(async move {
+        let current = |gateway: &Gateway| UiMessage::Status {
+            status: ui::engine_status(&gateway.status(), &redact),
+        };
+        if channel.send(current(&gateway)).is_ok() {
+            loop {
+                let message = match events.recv().await {
+                    Ok(event) => ui::message(event, &redact),
+                    Err(RecvError::Lagged(_)) => Some(current(&gateway)),
+                    Err(RecvError::Closed) => break,
+                };
+                if message.is_some_and(|m| channel.send(m).is_err()) {
+                    break; // the page went away
+                }
             }
         }
+        map.0.lock().unwrap().remove(&id);
     });
+    subs.0.lock().unwrap().insert(id, handle);
+}
+
+#[tauri::command]
+fn engine_unsubscribe(subs: State<'_, Subscriptions>, channel_id: u32) {
+    if let Some(handle) = subs.0.lock().unwrap().remove(&channel_id) {
+        handle.abort();
+    }
 }
 
 /// The recovery screen's Retry.
 #[tauri::command]
-async fn engine_restart(gateway: State<'_, Gateway>) -> Result<(), ()> {
+async fn engine_restart(gateway: State<'_, Gateway>) -> Result<(), UiError> {
     gateway.restart();
     Ok(())
 }
@@ -93,7 +129,7 @@ fn dev_kill_engine(gateway: State<'_, Gateway>) {
 
 /// The recovery screen's Open logs: the engine writes its logs in the state folder.
 #[tauri::command]
-fn open_logs(app: AppHandle, shell: State<'_, Shell>) -> Result<(), String> {
+fn app_open_logs(app: AppHandle, shell: State<'_, Shell>) -> Result<(), UiError> {
     let logs = shell.state_dir.join("logs");
     let target = if logs.is_dir() {
         logs
@@ -102,31 +138,46 @@ fn open_logs(app: AppHandle, shell: State<'_, Shell>) -> Result<(), String> {
     };
     app.opener()
         .open_path(target.to_string_lossy(), None::<&str>)
-        .map_err(|e| e.to_string())
+        .map_err(UiError::gateway)
 }
 
 /// The recovery screen's Report issue.
 #[tauri::command]
-fn report_issue(app: AppHandle) -> Result<(), String> {
+fn app_report_issue(app: AppHandle) -> Result<(), UiError> {
     app.opener()
         .open_url(ISSUES_URL, None::<&str>)
-        .map_err(|e| e.to_string())
+        .map_err(UiError::gateway)
+}
+
+/// Opens a link in the browser: https only.
+#[tauri::command]
+fn app_open_url(app: AppHandle, url: String) -> Result<(), UiError> {
+    let ok = tauri::Url::parse(&url).is_ok_and(|u| u.scheme() == "https" && u.host().is_some());
+    if !ok {
+        return Err(UiError::new(
+            "bad_parameter",
+            "Parameter url: only https links open.",
+        ));
+    }
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(UiError::gateway)
 }
 
 /// Checks this channel's signed manifest. Only a higher version is offered (no downgrades).
 #[tauri::command]
-async fn update_check(
+async fn app_update_check(
     app: AppHandle,
     shell: State<'_, Shell>,
-) -> Result<Option<UpdateInfo>, String> {
+) -> Result<Option<UpdateInfo>, UiError> {
     let url = format!("{UPDATE_BASE}/{}.json", shell.channel);
     let updater = app
         .updater_builder()
-        .endpoints(vec![url.parse().map_err(|e| format!("{e}"))?])
-        .map_err(|e| e.to_string())?
+        .endpoints(vec![url.parse().map_err(UiError::gateway)?])
+        .map_err(UiError::gateway)?
         .build()
-        .map_err(|e| e.to_string())?;
-    let update = updater.check().await.map_err(|e| e.to_string())?;
+        .map_err(UiError::gateway)?;
+    let update = updater.check().await.map_err(UiError::gateway)?;
     let info = update.as_ref().map(|u| UpdateInfo {
         version: u.version.clone(),
         current: u.current_version.clone(),
@@ -136,29 +187,29 @@ async fn update_check(
     Ok(info)
 }
 
-/// Installs the update found by update_check: the engine is stopped first, then the signed installer runs (the
+/// Installs the update found by app_update_check: the engine is stopped first, then the signed installer runs (the
 /// signature is verified before anything is installed) and the app restarts on the new version.
 #[tauri::command]
-async fn update_install(
+async fn app_update_install(
     app: AppHandle,
     gateway: State<'_, Gateway>,
     shell: State<'_, Shell>,
-) -> Result<(), String> {
+) -> Result<(), UiError> {
     let update = shell
         .pending
         .lock()
         .unwrap()
         .take()
-        .ok_or("Check for updates first.")?;
+        .ok_or_else(|| UiError::gateway("Check for updates first."))?;
     // download and verify first: a refused update never takes the engine down
     let bytes = update
         .download(|_, _| {}, || {})
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(UiError::gateway)?;
     gateway.shutdown(Duration::from_secs(10)).await;
     if let Err(e) = update.install(bytes) {
         gateway.restart(); // nothing was installed: bring the engine back
-        return Err(e.to_string());
+        return Err(UiError::gateway(e));
     }
     app.restart();
 }
@@ -239,14 +290,13 @@ fn engine_setup(app: &AppHandle) -> (EngineCommand, PathBuf) {
 }
 
 fn main() {
-    // one TLS provider for every HTTP client in the app: the updater plugin's reqwest is built without one, and Cargo
-    // unifies that onto the gateway's client, which then panics on creation
-    let _ = rustls::crypto::ring::default_provider().install_default();
     // a broken engine must fail quietly into the recovery screen, never as Windows' own error boxes: the engine
     // inherits this error mode, so a damaged DLL or a crash no longer opens a modal dialog per restart
     #[cfg(windows)]
     unsafe {
-        use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SEM_NOGPFAULTERRORBOX, SetErrorMode};
+        use windows_sys::Win32::System::Diagnostics::Debug::{
+            SEM_FAILCRITICALERRORS, SEM_NOGPFAULTERRORBOX, SetErrorMode,
+        };
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     }
     let app = tauri::Builder::default()
@@ -258,23 +308,41 @@ fn main() {
             app.manage(gateway);
             let channel =
                 std::env::var("BAYLE_UPDATE_CHANNEL").unwrap_or_else(|_| "beta".to_owned());
+            let home = std::env::var("USERPROFILE")
+                .or_else(|_| std::env::var("HOME"))
+                .unwrap_or_default();
+            let install = app
+                .path()
+                .resource_dir()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            // most specific first: the install and data folders may sit under the home folder
+            let redact = Redact(vec![
+                (install, "the install folder"),
+                (state_dir.to_string_lossy().into_owned(), "the data folder"),
+                (home, "~"),
+            ]);
+            app.manage(Subscriptions::default());
             app.manage(Shell {
                 state_dir,
                 channel,
                 pending: Mutex::new(None),
+                redact: Arc::new(redact),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             engine_call,
             engine_status,
-            engine_events,
+            engine_subscribe,
+            engine_unsubscribe,
             engine_restart,
             dev_kill_engine,
-            open_logs,
-            report_issue,
-            update_check,
-            update_install
+            app_open_logs,
+            app_report_issue,
+            app_open_url,
+            app_update_check,
+            app_update_install
         ])
         .build(tauri::generate_context!())
         .expect("the Tauri app");

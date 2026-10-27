@@ -5,7 +5,8 @@
   "identifier": "io.github.carlomos7.bayle.dev",
   "version": "6.0.0-beta.1",
   "build": {
-    "frontendDist": "../dev-ui"
+    "frontendDist": "../../../../bayle-ui/dist",
+    "devUrl": "http://localhost:5173"
   },
   "app": {
     "withGlobalTauri": true,

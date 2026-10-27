@@ -12,3 +12,7 @@ cancel_job
 # Phase 0: the Activity page and one job that is harmless on an empty data folder
 activity
 saves_back_up
+
+# the Activity page and prompts (the React front end)
+activity_log
+answer_prompt

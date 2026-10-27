@@ -245,7 +245,6 @@ name = "bayle-desktop"
 version = "0.1.0"
 dependencies = [
  "bayle-gateway",
- "rustls",
  "serde",
  "serde_json",
  "tauri",
@@ -265,6 +264,7 @@ dependencies = [
  "getrandom 0.4.3",
  "libc",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "tokio",

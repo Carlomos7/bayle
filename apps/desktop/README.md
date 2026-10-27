@@ -5,8 +5,10 @@ Not shipped. The Qt app in `apps/qt-desktop` is still the product.
 - `gateway/`: the Rust gateway of [ADR 0015](../../docs/decisions/0015-rust-gateway.md). It starts and supervises the engine,
   holds its port and token, forwards only operations listed in `gateway/allowlist.txt` (checked against
   `docs/api/openapi.json` at build time), and relays the engine's events in order.
-- `src-tauri/`: the Tauri shell. For now it serves `dev-ui/`, a throwaway page that drives the gateway; the React UI
-  replaces it.
+- `src-tauri/`: the Tauri shell. It serves the React UI built in the sibling `bayle-ui` repo (`../../../../bayle-ui/dist`;
+  `devUrl` is `http://localhost:5173` for its dev server) and implements its gateway commands (`engine_*`, `app_*`).
+  `dev-ui/` is a throwaway page that drives the same commands; run it with
+  `cargo run -p bayle-desktop -- --config '{"build":{"frontendDist":"../dev-ui"}}'`.
 
 Run (needs Rust and `uv`): `cargo run -p bayle-desktop` from this folder. The engine runs from source with a scratch
 data folder (`%TEMP%\bayle-gateway-dev`, or `BAYLE_GATEWAY_DATA`), never the real one.

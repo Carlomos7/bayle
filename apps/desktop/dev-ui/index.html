@@ -7,12 +7,22 @@
     body { font: 14px system-ui, sans-serif; margin: 16px; background: #15130f; color: #e8e2d6; }
     button { margin: 0 6px 6px 0; padding: 6px 10px; }
     #status { font-weight: 600; margin-bottom: 10px; }
+    #recovery { border: 1px solid #b4533c; padding: 8px 12px; margin-bottom: 10px; }
     pre { background: #221f19; padding: 10px; height: 460px; overflow: auto; white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <p>Throwaway page for ADR 0015's Phase 0 checks. The real UI is the React project; this page only drives the gateway.</p>
+  <div id="version">app: …</div>
   <div id="status">engine: …</div>
+  <div id="recovery" hidden>
+    <p><strong>Bayle's engine is not running.</strong> <span id="recovery-why"></span></p>
+    <button id="retry">Retry</button>
+    <button id="check">Check for updates</button>
+    <button id="install" hidden>Install update</button>
+    <button id="logs">Open logs</button>
+    <button id="report">Report issue</button>
+  </div>
   <div>
     <button id="health">1. Health</button>
     <button id="activity">2. Activity</button>
@@ -21,6 +31,8 @@
     <button id="kill">4. Kill the engine</button>
     <button id="refused">5. Call an operation off the allowlist</button>
     <button id="escape">5. Job id "../health"</button>
+    <button id="check2">Check for updates</button>
+    <button id="install2" hidden>Install update</button>
   </div>
   <pre id="log"></pre>
   <script src="app.js"></script>

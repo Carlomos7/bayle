@@ -18,6 +18,9 @@ let lastJob = null;
 let generation = 0;
 const showStatus = (s) => {
   generation = s.generation;
+  const down = s.state === "failed" || s.state === "stopped" || (s.state === "restarting" && s.generation > 2);
+  document.getElementById("recovery").hidden = !down;
+  document.getElementById("recovery-why").textContent = s.message || s.state;
   document.getElementById("status").textContent =
     `engine: ${s.state}, generation ${s.generation}${s.engine_version ? `, version ${s.engine_version}` : ""}` +
     (s.message ? ` (${s.message})` : "");
@@ -51,3 +54,23 @@ document.getElementById("cancel").onclick = () =>
 document.getElementById("kill").onclick = () => invoke("dev_kill_engine").then(() => log("kill", "asked"));
 document.getElementById("refused").onclick = () => call("mods_delete_profile", { body: {} });
 document.getElementById("escape").onclick = () => call("get_job", { path: { job_id: "../health" } });
+
+// Recovery screen (ADR 0016): served by the shell, so it works with the engine down.
+window.__TAURI__.app.getVersion().then((v) => (document.getElementById("version").textContent = `app: ${v}`));
+const checkUpdates = async () => {
+  try {
+    const found = await invoke("update_check");
+    log("update check", found ?? "up to date");
+    for (const id of ["install", "install2"]) document.getElementById(id).hidden = !found;
+  } catch (error) {
+    log("update check error", error);
+  }
+};
+document.getElementById("retry").onclick = () => invoke("engine_restart").then(() => log("retry", "asked"));
+document.getElementById("check").onclick = checkUpdates;
+document.getElementById("check2").onclick = checkUpdates;
+const install = () => invoke("update_install").catch((error) => log("update install error", error));
+document.getElementById("install").onclick = install;
+document.getElementById("install2").onclick = install;
+document.getElementById("logs").onclick = () => invoke("open_logs").catch((error) => log("open logs error", error));
+document.getElementById("report").onclick = () => invoke("report_issue").catch((error) => log("report error", error));

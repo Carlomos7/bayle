@@ -24,6 +24,7 @@ const BACKOFF_FIRST: Duration = Duration::from_millis(500);
 const BACKOFF_MAX: Duration = Duration::from_secs(30);
 const QUICK_EXIT: Duration = Duration::from_secs(10); // an engine that dies this soon counts towards giving up
 const QUICK_EXITS_ALLOWED: u32 = 5;
+const STOP_GRACE: Duration = Duration::from_secs(5); // how long a stopping engine gets before its tree is ended
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -188,10 +189,35 @@ impl Gateway {
         }
     }
 
-    /// Stops supervising and ends the engine.
-    pub fn shutdown(&self) {
-        let _ = self.inner.stop.send(true);
-        self.kill_engine();
+    /// Stops supervising: the engine is asked to stop (stdin closed), then its process tree is ended after a grace
+    /// period. Returns once it is stopped, or after `wait`.
+    pub async fn shutdown(&self, wait: Duration) {
+        self.inner.stop.send_replace(true);
+        let mut events = self.subscribe();
+        let deadline = tokio::time::Instant::now() + wait;
+        while self.status().state != EngineState::Stopped
+            && self.status().state != EngineState::Failed
+        {
+            if tokio::time::timeout_at(deadline, events.recv())
+                .await
+                .is_err()
+            {
+                self.kill_engine();
+                break;
+            }
+        }
+    }
+
+    /// Starts the engine again (the recovery screen's Retry): a new supervisor after one that gave up or was stopped,
+    /// or a fresh process when one is running.
+    pub fn restart(&self) {
+        match self.status().state {
+            EngineState::Failed | EngineState::Stopped => {
+                self.inner.stop.send_replace(false); // send() fails, unchanged, once the old supervisor has gone
+                tokio::spawn(supervise(self.inner.clone()));
+            }
+            _ => self.kill_engine(),
+        }
     }
 }
 
@@ -214,7 +240,7 @@ fn set_status(
 
 async fn supervise(inner: Arc<Inner>) {
     let mut stop = inner.stop.subscribe();
-    let mut generation = 0;
+    let mut generation = inner.status.lock().unwrap().generation; // a restarted supervisor keeps counting
     let mut backoff = BACKOFF_FIRST;
     let mut quick_exits = 0;
     loop {
@@ -246,7 +272,14 @@ async fn supervise(inner: Arc<Inner>) {
                 let since = Instant::now();
                 let exit = tokio::select! {
                     exit = running.child.wait() => exit.ok().and_then(|s| s.code()),
-                    _ = stop.changed() => { running.tree.kill(); let _ = running.child.wait().await; None }
+                    _ = stop.changed() => {
+                        running.close_stdin(); // graceful first; the tree is ended if it is not gone in time
+                        if tokio::time::timeout(STOP_GRACE, running.child.wait()).await.is_err() {
+                            running.tree.kill();
+                            let _ = running.child.wait().await;
+                        }
+                        None
+                    }
                 };
                 let _ = relay_stop.send(true);
                 *inner.conn.lock().unwrap() = None; // calls from here on fail; calls in flight fail with the socket

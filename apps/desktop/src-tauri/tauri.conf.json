@@ -1,17 +1,58 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Bayle Gateway Dev",
+  "productName": "Bayle Dev",
+  "mainBinaryName": "Bayle",
   "identifier": "io.github.carlomos7.bayle.dev",
-  "version": "0.1.0",
+  "version": "6.0.0-beta.1",
   "build": {
     "frontendDist": "../dev-ui"
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{ "title": "Bayle gateway (Phase 0 development page)", "width": 980, "height": 760 }],
+    "windows": [
+      {
+        "title": "Bayle Dev (installer spike)",
+        "width": 980,
+        "height": 760
+      }
+    ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost"
     }
   },
-  "bundle": { "active": false, "icon": ["icons/icon.ico"] }
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "appimage"
+    ],
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../target/engine-dist/bayle-engine/": "engine/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "installer-hooks.nsh"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA5M0ZDNjRDQUEyQjU4MUUKUldRZVdDdXFUTVkvQ2FVU1ZQK0hHV0I3VDViZEp0VEhJWHVzVU1SeEVVVUp4S3ZCL3JjVmh2cE8K",
+      "endpoints": [
+        "http://127.0.0.1:8765/beta.json"
+      ],
+      "dangerousInsecureTransportProtocol": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

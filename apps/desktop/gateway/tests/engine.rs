@@ -225,7 +225,18 @@ async fn phase_0_checks_against_the_real_engine() {
         "a restarted engine does not know the old job: {old}"
     );
 
-    gateway.shutdown();
+    // the recovery screen's Retry after the engine was stopped: a new supervisor, a new generation
+    gateway.shutdown(Duration::from_secs(15)).await;
+    assert_eq!(gateway.status().state, EngineState::Stopped);
+    let stopped = gateway.status().generation;
+    gateway.restart();
+    wait_for(&mut rx, "the engine after Retry", ready(stopped + 1)).await;
+    gateway
+        .call("health", Map::new(), Map::new(), None)
+        .await
+        .unwrap();
+
+    gateway.shutdown(Duration::from_secs(15)).await;
     wait_for(
         &mut rx,
         "the gateway to stop",

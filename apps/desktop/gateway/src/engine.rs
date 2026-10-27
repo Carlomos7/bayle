@@ -42,7 +42,14 @@ pub(crate) struct Running {
     pub token: String,
     pub child: Child,
     pub tree: Arc<Tree>,
-    _stdin: ChildStdin, // held open: its end of file is the engine's signal to stop (ADR 0012)
+    stdin: Option<ChildStdin>, // held open: its end of file is the engine's signal to stop (ADR 0012)
+}
+
+impl Running {
+    /// Asks the engine to stop the way a closing parent does (ADR 0012's stdin watchdog).
+    pub fn close_stdin(&mut self) {
+        self.stdin = None;
+    }
 }
 
 /// Exit codes the engine uses before its handshake for problems a restart cannot fix (server.py).
@@ -167,7 +174,7 @@ pub(crate) async fn start(cmd: &EngineCommand) -> Result<Running, GatewayError> 
         token,
         child,
         tree,
-        _stdin: stdin,
+        stdin: Some(stdin),
     })
 }
 

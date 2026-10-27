@@ -30,10 +30,7 @@ def read_fmg(body: bytes) -> Fmg:
         for k, text_id in enumerate(range(first, last + 1)):
             at = struct.unpack_from("<q", body, offsets_at + (index + k) * 8)[0]
             if at > 0:
-                end = at
-                while body[end : end + 2] != b"\0\0":
-                    end += 2
-                entries[text_id] = body[at:end].decode("utf-16-le")
+                entries[text_id] = _utf16z(body, at)
             else:
                 entries[text_id] = None
     return Fmg(bytes(body[:0x28]), entries)

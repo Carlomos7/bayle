@@ -104,10 +104,7 @@ def read_bnd4(body: bytes) -> Bnd4:
         if fmt & (NAMES1 | NAMES2):
             name_at = struct.unpack_from("<I", body, at)[0]
             if unicode:
-                end = name_at
-                while body[end : end + 2] != b"\0\0":
-                    end += 2
-                name = body[name_at:end].decode("utf-16-le")
+                name = _utf16z(body, name_at)
             else:
                 end = body.index(b"\0", name_at)
                 name = body[name_at:end].decode("shift_jis", errors="replace")
@@ -218,8 +215,11 @@ def write_bnd4(b: Bnd4) -> bytes:
 
 
 def _utf16z(data: bytes, offset: int) -> str:
+    """The NUL-terminated UTF-16 string at `offset`. FormatError when the file ends before its terminator."""
     end = offset
     while data[end : end + 2] != b"\0\0":
+        if end + 2 > len(data):  # past the end the slice is empty, so without this the loop never stops
+            raise FormatError(f"a text at {offset:#x} has no end")
         end += 2
     return data[offset:end].decode("utf-16-le")
 

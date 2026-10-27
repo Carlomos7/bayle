@@ -58,7 +58,7 @@ wheels = [
 
 [[package]]
 name = "bayle-engine"
-version = "5.0.2"
+version = "5.0.3"
 source = { editable = "../engine" }
 dependencies = [
     { name = "alembic" },
@@ -107,7 +107,7 @@ dev = [
 
 [[package]]
 name = "bayle-qt"
-version = "5.0.2"
+version = "5.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "bayle-engine" },

@@ -34,7 +34,15 @@ per-launch token → the Python engine (FastAPI). The Qt app keeps calling the e
   the web view, and the web view cannot set headers.
 - An operation is callable only if it is on an allowlist checked into the repository. The list grows page by page as
   screens move to React. An id that is not on it is refused with `gateway.not_allowed` and never reaches the engine.
-- The gateway checks the parameter names against the contract; the engine validates the values.
+- The gateway checks the parameter names against the contract and builds the URL itself; the engine validates the
+  values. Building the URL is the gateway's job, not the engine's, because a value must never change which route is
+  called:
+  - each path parameter fills exactly one path segment and is percent-encoded as one (`/`, `?`, `#`, `%` and `\`
+    included); an empty value, `.` or `..` is refused with `gateway.bad_parameter`;
+  - query parameters are encoded as query pairs by a URL library, never joined as text;
+  - a parameter the contract does not list for that operation is refused, not dropped;
+  - the scheme, host, port, `/v1` prefix and every header are fixed by the gateway; the body is sent as JSON.
+  Tests cover values that try to escape their segment (`../health`, `a/b`, `%2e%2e`, `?x=1`, `#`, an encoded slash).
 - The Rust operation table and the TypeScript request and response types are generated from, or mechanically checked
   against, the same `openapi.json` snapshot that CI already checks (`apps/engine/scripts/export_openapi.py --check`).
   A contract change that the gateway or the front end does not match fails CI.
@@ -43,23 +51,30 @@ per-launch token → the Python engine (FastAPI). The Qt app keeps calling the e
 
 - The gateway holds one SSE connection to `GET /v1/events` and forwards each envelope `{seq, job_id, type, data}`
   unchanged over a Tauri Channel, in the order received.
-- It adds the engine generation (below) to what it forwards, and on reconnect to the same engine sends `Last-Event-ID`
-  so the engine's ring buffer replays what was missed.
-- Job ids are the engine's. `GET /v1/jobs/{id}` is the snapshot the front end uses to recover a job whose events it
-  missed.
+- It adds the engine generation (below) to what it forwards, and on reconnect to the same engine process sends
+  `Last-Event-ID` so the engine's ring buffer replays what was missed. The ring buffer lives in that process's memory,
+  so replay never crosses a restart: after one, the gateway starts the stream fresh.
+- Job ids are the engine's. While the same engine process runs, `GET /v1/jobs/{id}` is the snapshot the front end uses
+  to recover a job whose events it missed.
 
 **Cancellation:** `cancel_job` is an allowlisted operation like any other. The front end shows the engine's answer.
 If the connection breaks before an answer, the outcome is reported as unknown, never as cancelled.
 
 **Errors:** engine errors pass through unchanged, with their HTTP status and the engine's `Problem` body
-(`code`, `message`, `details`). The gateway's own errors use the same shape with `gateway.*` codes: `engine_unavailable`, `not_allowed`, `timeout`,
-`contract_mismatch`. The engine's start-up exits 2 (bad settings) and 3 (data folder in use) are shown as they are and
+(`code`, `message`, `details`). The gateway's own errors use the same shape with `gateway.*` codes: `engine_unavailable`, `not_allowed`, `bad_parameter`,
+`timeout`, `contract_mismatch`. The engine's start-up exits 2 (bad settings) and 3 (data folder in use) are shown as they are and
 not retried.
 
 **Restarts:** each engine start has a generation number, raised by the gateway. When the engine exits, every pending
 call fails with `gateway.engine_unavailable`, the gateway restarts it with backoff, and it tells the front end the new
-generation. The front end then drops events of the old generation and reloads the state it shows, including running
-jobs from their snapshots.
+generation. The front end then drops events of the old generation and reloads the state it shows.
+
+What a restart does not recover: the engine's `JobManager` keeps live job snapshots in memory only
+(`work/jobs.py`, `_records`), so after a restart the old job ids are unknown and `get_job` answers 404. A job that was
+running is shown as interrupted by the restart, with its outcome unknown, never as finished or resumed. Its effects on
+disk are whatever the engine's staged writes left: a build that did not commit leaves the previous output in place.
+Recovering or resuming interrupted jobs needs persisted job state and its own tests; that is later work under decision 4
+(jobs), not something this gateway provides.
 
 **Libraries and code generation** are chosen in Phase 0 on these criteria: maintained, works on Windows and Linux,
 licence compatible with GPL-3.0, small surface. Candidates to evaluate: `tokio`, `reqwest` and an SSE client crate for
@@ -72,8 +87,10 @@ the gateway; `openapi-typescript` or the existing Hey API setup for TypeScript t
 2. Activity data: the Activity page renders `activity` through the gateway.
 3. Job progress: a job started through the gateway reports ordered progress events and a final event; cancel is
    answered by the engine.
-4. Recovery: killing the engine fails the pending call, the gateway restarts it, and the page recovers.
-5. Isolation: the web view has neither the port nor the token, and a call outside the allowlist is refused.
+4. Restart: killing the engine fails the pending call with `gateway.engine_unavailable`, the gateway restarts it, the
+   page reloads its state, and a job that was running shows as interrupted, not finished.
+5. Isolation: the web view has neither the port nor the token, a call outside the allowlist is refused, and parameter
+   values cannot change the route called.
 
 ## Why
 

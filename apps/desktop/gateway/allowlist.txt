@@ -1,0 +1,14 @@
+# Engine operations the web view may call through the gateway (ADR 0015), one OpenAPI operationId per line.
+# The build reads them from docs/api/openapi.json and fails on an id the contract does not have. Add a screen's
+# operations here when the screen moves to the React front end; nothing else is callable.
+
+# the gateway itself
+health
+
+# jobs
+get_job
+cancel_job
+
+# Phase 0: the Activity page and one job that is harmless on an empty data folder
+activity
+saves_back_up

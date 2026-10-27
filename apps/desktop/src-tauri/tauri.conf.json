@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Bayle Gateway Dev",
+  "identifier": "dev.bayle.gateway",
+  "version": "0.1.0",
+  "build": {
+    "frontendDist": "../dev-ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{ "title": "Bayle gateway (Phase 0 development page)", "width": 980, "height": 760 }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico"] }
+}

@@ -51,3 +51,7 @@ apps/engine/scripts/verify/local.toml
 
 # a test build's identity override (scripts/build.py --identity); never committed
 **/data/build-identity.json
+
+# Rust (apps/desktop)
+apps/desktop/target/
+apps/desktop/src-tauri/gen/

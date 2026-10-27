@@ -117,3 +117,20 @@ def test_entries_are_found_by_file_name_ignoring_case_and_folders():
 
 def test_the_archive_hash_is_the_games():
     assert formats.bnd4.path_hash(GAMEPARAM + "merged\\DLC02\\ActionButtonParam.param") == 2001576758
+
+
+def test_a_name_without_its_end_is_refused_instead_of_read_forever():
+    body = bytearray(formats.bnd4.write_bnd4(binder({"A.param": b"a" * 40})))
+    struct.pack_into("<I", body, 0x40 + 32, len(body) - 4)  # the name now starts in the data, which has no "\0\0"
+    with pytest.raises(formats.FormatError):
+        formats.bnd4.read_bnd4(bytes(body))
+
+
+def test_a_text_without_its_end_is_refused_instead_of_read_forever():
+    from fakegame import fmg
+
+    body = fmg({1: "no end"})
+    text = "no end".encode("utf-16-le")
+    cut = body[: body.index(text) + len(text)]  # the text is the last thing in the table: drop its "\0\0" and padding
+    with pytest.raises(formats.FormatError):
+        formats.fmg.read_fmg(cut)

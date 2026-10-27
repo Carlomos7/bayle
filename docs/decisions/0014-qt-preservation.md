@@ -93,10 +93,12 @@ deleted, because updates and deltas download from them.
 **Cutover criteria** (all must hold before the removal pull request):
 
 1. The Tauri app covers every Qt feature, or each gap is accepted in writing.
-2. The installer route (decision 6) is chosen and tested: clean install, update from an installed Qt release, a failed
-   update that recovers, and clean uninstall, on Windows and Linux.
-3. User data carries over: the same data folder, migrations forward-only, and the "newer data than this program" guard
-   lets an older build refuse safely.
+2. The installer and updater of [0016](0016-identity-and-updater.md) pass its spike criteria on Windows and Linux:
+   clean install, a signed Tauri-to-Tauri update, forward recovery from a release with a broken engine, and an
+   uninstall that keeps the state folder. (Amended by 0016: no in-place update from an installed Qt release is required; the Tauri app is a new
+   install under its own identity.)
+3. The Tauri app's data is safe on its own: its own state folder, migrations forward-only, and the "newer data than
+   this program" guard lets an older build refuse safely. It never writes into the Qt app's data folder.
 4. At least one Tauri release has shipped to Beta with no data-loss or update reports.
 5. `legacy/qt-desktop` and `qt-final-vX.Y.Z` exist, are protected, and point at a commit whose tests and build pass.
 

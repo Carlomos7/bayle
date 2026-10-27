@@ -1,6 +1,6 @@
 [project]
 name = "bayle-engine"
-version = "5.0.2"
+version = "5.0.3"
 description = "The Bayle engine: mods, profiles, saves, merging and the game's files, as typed Python interfaces. No UI."
 readme = "README.md"
 license = "GPL-3.0-or-later"

@@ -9,7 +9,8 @@ import sys
 import threading
 import time
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from pathlib import Path
 
 from PySide6.QtCore import QAbstractEventDispatcher, QThread
 
@@ -21,10 +22,11 @@ LOG_MS = 200  # the app logs stalls longer than this, at most once a minute
 class StallWatch(QThread):
     """on_stall(ms, stack_text) is called on the UI thread when a turn ends that ran longer than threshold_ms."""
 
-    def __init__(self, threshold_ms: float, on_stall: Callable[[float, str], None], only_in: str = ""):
-        """only_in: report a stall only when the code running at the sample is in a file whose path contains this (a
-        test's own steps between event-loop spins look like stalls and are not the app's)."""
-        self._only_in = only_in
+    def __init__(self, threshold_ms: float, on_stall: Callable[[float, str], None], only_in: Iterable[str | Path] = ()):
+        """only_in: report a stall only when the code running at the sample is in a file inside one of these folders (a
+        test's own steps between event-loop spins look like stalls and are not the app's). Folders, not a name to look
+        for in the path: the checkout itself can carry the package's name (CI checks out into ...\\bayle\\bayle\\)."""
+        self._only_in = tuple(Path(p).resolve() for p in only_in)
         super().__init__()
         self.threshold = threshold_ms / 1000
         self._on_stall = on_stall
@@ -64,8 +66,11 @@ class StallWatch(QThread):
     def _counts(self, stack: str) -> bool:
         if not self._only_in:
             return True
-        files = [ln for ln in stack.splitlines() if ln.lstrip().startswith("File ")]
-        return bool(files) and self._only_in in files[-1]
+        files = [ln for ln in stack.splitlines() if ln.lstrip().startswith('File "')]
+        if not files:
+            return False
+        innermost = Path(files[-1].split('"')[1]).resolve()
+        return any(innermost.is_relative_to(folder) for folder in self._only_in)
 
     def run(self) -> None:  # the monitor: takes the stack once a turn has run past the threshold
         step = min(0.025, self.threshold / 4)

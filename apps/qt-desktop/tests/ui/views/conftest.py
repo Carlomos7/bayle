@@ -13,16 +13,19 @@ import pytest
 os.environ["QT_QPA_PLATFORM"] = "offscreen"  # always: these tests must never open a window on screen
 
 pytest.importorskip("PySide6.QtQuick")
+import bayle
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
+import bayle_qt  # noqa: E402
 from bayle_qt.pages.activity.adapter import ActivityAdapter  # noqa: E402
 from bayle_qt.pages.registry import QmlPage  # noqa: E402
 from support import FakeActivityFacts  # noqa: E402
 
 NOW = datetime.datetime(2026, 10, 9, 12, 0)
+APP_CODE = (Path(bayle.__file__).parent, Path(bayle_qt.__file__).parent)  # the stall guard counts only these packages
 
 JOBS = [
     {
@@ -123,7 +126,7 @@ def _ui_stall_guard(request, qt_app):
         yield
         return
     request.node.ui_stalls = found = []
-    watch = stall.StallWatch(limit, lambda ms, stack: found.append((ms, stack)), only_in="bayle")
+    watch = stall.StallWatch(limit, lambda ms, stack: found.append((ms, stack)), only_in=APP_CODE)
     watch.begin()
     yield
     watch.end()

@@ -31,3 +31,16 @@ def test_a_slow_turn_is_reported_with_its_stack(qt_app):
 @pytest.mark.ui_stall_ok
 def test_the_marker_lets_a_test_block(qt_app):
     time.sleep(0.01)
+
+
+@pytest.mark.ui_stall_ok
+def test_only_code_inside_the_app_folders_counts_even_when_the_checkout_has_their_name(qt_app, tmp_path):
+    # CI checks out into ...\bayle\bayle\, so a name found in the path would count the tests' own code too
+    app_code = tmp_path / "bayle" / "src" / "bayle_qt"
+    watch = stall.StallWatch(100, lambda ms, stack: None, only_in=[app_code])
+
+    def stack(path):
+        return f'  File "{path}", line 1, in f\n    pass\n'
+
+    assert watch._counts(stack(app_code / "pages" / "view.py"))
+    assert not watch._counts(stack(tmp_path / "bayle" / "tests" / "page_window.py"))

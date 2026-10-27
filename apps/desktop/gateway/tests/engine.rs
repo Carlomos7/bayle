@@ -40,7 +40,7 @@ fn command(scratch: &std::path::Path) -> EngineCommand {
         cwd: Some(engine),
         // never the real data folder: the engine moves and migrates files in it at start
         env: vec![
-            ("ROUNDTABLE_SOULS_DATA".into(), s("data")),
+            ("BAYLE_DATA".into(), s("data")),
             ("LOCALAPPDATA".into(), s("local")),
             ("APPDATA".into(), s("roaming")),
             ("USERPROFILE".into(), s("home")),

@@ -88,7 +88,7 @@ fn engine_command() -> EngineCommand {
         cwd: Some(engine),
         // never the real data folder in Phase 0: the engine moves and migrates files in it at start
         env: vec![
-            ("ROUNDTABLE_SOULS_DATA".into(), dir("data")),
+            ("BAYLE_DATA".into(), dir("data")),
             ("LOCALAPPDATA".into(), dir("local")),
             ("APPDATA".into(), dir("roaming")),
             ("USERPROFILE".into(), dir("home")),

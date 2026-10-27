@@ -8,6 +8,7 @@ window."""
 
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -48,10 +49,17 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
     if "--backend" in argv:  # the HTTP API for the web front end (decision 0012): no Qt, no window
         from bayle.adapters.persistence.db import MigrationFailed
         from bayle.adapters.persistence.settings_file import load_settings
+        from bayle.adapters.system import app_paths
         from bayle.adapters.system import logging as run_logging
         from bayle.api.server import main as backend_main
         from bayle.runtime.bootstrap import create_engine, use_data_folder
 
+        try:
+            data = app_paths.backend_data_dir()  # explicit, before anything creates or moves a folder
+        except ValueError as e:
+            print(f"bayle --backend: {e}", file=sys.stderr)
+            return 2
+        os.environ[app_paths.DATA_ENV] = str(data)  # the rest of the start-up reads it there, as --self-test's does
         use_data_folder()  # the same start-up as the window, minus Qt
         run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO", console=False)
         try:

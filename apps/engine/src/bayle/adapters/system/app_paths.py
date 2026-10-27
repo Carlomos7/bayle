@@ -24,6 +24,7 @@ FROZEN = bool(getattr(sys, "frozen", False))
 APP_DIR_NAME = identity.get().data_dir_name
 LEGACY_APP_DIR_NAMES = ("Roundtable",)
 DATA_ENV = "ROUNDTABLE_SOULS_DATA"
+BACKEND_DATA_ENV = "BAYLE_DATA"  # the desktop shell's data folder for --backend (decision 0016); required there
 
 
 def exe_dir() -> Path:
@@ -107,6 +108,24 @@ def _per_user_root() -> Path:
     if sys.platform == "win32":
         return Path(os.environ.get("LOCALAPPDATA") or Path.home())
     return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+
+
+def backend_data_dir() -> Path:
+    """The data folder `--backend` runs on: BAYLE_DATA, which the desktop shell always sets. It is never guessed the
+    way data_dir() guesses for the window, because those guesses are the program's own folder (replaced by updates and
+    uninstall), the repository, or the Qt app's data folder. ValueError says which rule a value broke."""
+    value = os.environ.get(BACKEND_DATA_ENV, "").strip()
+    if not value:
+        raise ValueError(f"{BACKEND_DATA_ENV} is not set; the desktop app sets it to its data folder")
+    folder = Path(value).expanduser().resolve()
+    # frozen, the engine sits in a folder of the shell's install (resources), so the install is one level up
+    program = exe_dir().parent if FROZEN else exe_dir()
+    if folder.is_relative_to(program):
+        raise ValueError(f"{BACKEND_DATA_ENV} ({folder}) is inside the program folder {program}")
+    qt_data = (_per_user_root() / APP_DIR_NAME).resolve()
+    if folder.is_relative_to(qt_data):
+        raise ValueError(f"{BACKEND_DATA_ENV} ({folder}) is the Qt app's data folder {qt_data}")
+    return folder
 
 
 def data_dir() -> Path:

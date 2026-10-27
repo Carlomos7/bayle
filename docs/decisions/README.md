@@ -19,3 +19,4 @@ records are not rewritten afterwards.
 | 0011 | [The interface talks to the backend over loopback HTTP and server-sent events](0011-transport.md) | proposed |
 | 0012 | [The backend process dies with the app: onedir, stdin watchdog, Job Object, startup sweep](0012-process-lifecycle.md) | proposed |
 | 0013 | [Velopack stays the updater; the desktop app and the API package live in this repository](0013-updater-and-repo-layout.md) | proposed |
+| 0014 | [The Qt app is kept on `legacy/qt-desktop` and a `qt-final-v*` tag before it leaves `main`](0014-qt-preservation.md) | proposed |

@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.1](https://github.com/Carlomos7/bayle/compare/v5.0.0...v5.0.1) (2026-10-27)
+
+
+### Fixed
+
+* a BND4 name or FMG text without its end is refused instead of hanging the engine ([#23](https://github.com/Carlomos7/bayle/issues/23)) ([793acd8](https://github.com/Carlomos7/bayle/commit/793acd81e53586564979ed39d912aa7d44460901))
+
 ## [5.0.0](https://github.com/Carlomos7/roundtable-souls/compare/v5.0.0-rc.3...v5.0.0) (2026-10-26)
 
 

@@ -147,10 +147,34 @@ def test_backend_handshake_and_stdin_eof_exit(tmp_path):
             f.close()
 
 
-def test_backend_without_token_fails_fast(tmp_path):
-    proc = _spawn({}, tmp_path)
-    out, _ = proc.communicate(timeout=30)
-    assert proc.returncode != 0 and out == b""
+@pytest.mark.parametrize("token", [None, "short"], ids=["missing", "under-16-characters"])
+def test_backend_with_a_bad_token_says_so_and_exits_2(tmp_path, token):
+    proc = _spawn({} if token is None else {"BAYLE_API_TOKEN": token}, tmp_path)
+    out, err = proc.communicate(timeout=30)
+    assert proc.returncode == 2 and out == b""
+    assert b"BAYLE_API_TOKEN" in err and b"Traceback" not in err
+
+
+def test_backend_whose_parent_closed_stdin_before_it_was_ready_exits_quietly(tmp_path):
+    proc = _spawn({"BAYLE_API_TOKEN": TOKEN}, tmp_path)
+    out, err = proc.communicate(input=b"", timeout=30)  # stdin closed at once, as by a parent that left
+    assert proc.returncode == 0 and out == b""
+    assert b"Traceback" not in err
+
+
+def test_a_second_backend_on_the_same_data_folder_is_refused(tmp_path):
+    first = _spawn({"BAYLE_API_TOKEN": TOKEN}, tmp_path)
+    try:
+        assert json.loads(first.stdout.readline())["port"] > 0
+        second = _spawn({"BAYLE_API_TOKEN": TOKEN}, tmp_path)
+        out, err = second.communicate(timeout=30)
+        assert second.returncode == 3 and out == b""
+        assert b"in use" in err
+    finally:
+        first.stdin.close()
+        first.wait(timeout=15)
+        for f in (first.stdout, first.stderr):
+            f.close()
 
 
 def test_api_imports_no_qt():

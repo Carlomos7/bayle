@@ -125,3 +125,21 @@ profile_transfer_open_bundled
 profile_transfer_preview
 profile_transfer_import
 profile_transfer_discard
+
+# the Overhaul sheet (setups and overhaul installs)
+mod_configs_setup_candidates
+mod_configs_overhaul_form
+mod_configs_save_setup
+mod_configs_apply_setup
+mod_configs_check_install_setup
+mod_configs_install_setup
+mod_configs_check_turn_off
+mod_configs_turn_off
+mod_install_preview
+mod_install_check_overhaul_install
+mod_install_overhaul_install
+mod_install_overhaul_remove_choices
+mod_install_check_overhaul_remove
+mod_install_overhaul_remove
+mod_install_leftovers
+mod_install_leftovers_clean

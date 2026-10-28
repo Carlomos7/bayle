@@ -1,0 +1,63 @@
+# Builds Bayle's Windows installer exactly as a release would (the official identity, signed with the release update
+# key) and checks the signature against the release public key, the way the updater will. Publishes nothing: no
+# release, no tag, no manifest, no uploaded installer. ADR 0016.
+name: Desktop release build
+
+on:
+  push:
+    branches: [ "feat/react-ui-integration" ]
+    paths: [ "apps/desktop/**", "apps/engine/src/**", "apps/engine/uv.lock", ".github/workflows/desktop-release-build.yml" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+        cache-dependency-glob: apps/engine/uv.lock
+
+    # pnpm's version comes from "packageManager" in apps/desktop/ui/package.json
+    - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      with:
+        package_json_file: apps/desktop/ui/package.json
+
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        cache: pnpm
+        cache-dependency-path: apps/desktop/ui/pnpm-lock.yaml
+
+    - name: UI dependencies (exactly as locked)
+      run: pnpm install --frozen-lockfile
+      working-directory: apps/desktop/ui
+
+    - name: Freeze the engine
+      run: uv run --locked --project ../engine python scripts/build_engine.py
+
+    - name: Build and sign the installer (official identity)
+      working-directory: apps/desktop/src-tauri
+      env:
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      run: npx --yes @tauri-apps/cli@2.12.4 build --ci --config tauri.release.conf.json
+
+    - name: The signature verifies against the release key
+      shell: bash
+      run: |
+        exe=$(ls target/release/bundle/nsis/Bayle_*_x64-setup.exe)
+        echo "built: $exe ($(stat -c %s "$exe") bytes)"
+        BAYLE_SIGNED_FILE="$PWD/$exe" cargo test --locked -p bayle-desktop --test release_signature -- --ignored

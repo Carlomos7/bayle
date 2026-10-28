@@ -68,7 +68,8 @@ export function MergePage() {
   return (
     <Page className={b && (b.state === 'stale' || b.pending.length) ? 'pb-6' : undefined}>
       <PageHeader eyebrow={<>Merge · {game.name}</>} title={profile.name} subtitle="Where your mods change the same things, and who wins." />
-      {!b ? <div className="py-10 text-center text-ui text-t3">Reading the build…</div>
+      {build.isError ? <EmptyState title="Merge can't be shown yet.">{(build.error as Error).message}</EmptyState>
+        : !b ? <div className="py-10 text-center text-ui text-t3">Reading the build…</div>
         : b.state === 'none' ? (
           <EmptyState title="Nothing to merge. That's good.">
             None of your mods change the same file, so there is nothing that could fight. When two do, this page shows who wins and lets you change it.

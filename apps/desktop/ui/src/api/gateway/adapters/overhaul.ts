@@ -29,6 +29,7 @@ const OP = {
   candidates: 'mod_configs_setup_candidates',
   form: 'mod_configs_overhaul_form',
   saveSetup: 'mod_configs_save_setup',
+  setupUsers: 'mod_configs_setup_users',
   applySetup: 'mod_configs_apply_setup',
   checkInstallSetup: 'mod_configs_check_install_setup',
   installSetup: 'mod_configs_install_setup',
@@ -165,9 +166,13 @@ export function overhaulApi(gateway: Gateway, downloads: Map<string, Held>): Par
       return ofForm(id, profileId, f, { edit: { path, sha, overhaulId: config.id } }, config.label);
     },
 
-    // shortcut: no engine route lists the profiles that use a setup (apply_setup names them only afterwards), so the sheet shows none; upgrade when the engine adds one.
-    async setupUsers() {
-      throw new GatewayError({ code: 'not_wired', message: "This part of Bayle isn't connected to the engine yet (setupUsers)." });
+    // Only a saved setup (opened to edit) has users; a download or a mod being set up has none yet.
+    // shortcut: `running` is always false; the engine's refusal while the game runs still stops the save.
+    async setupUsers(id) {
+      const ctx = read.get(id);
+      if (!ctx?.edit) return [];
+      const { profiles } = await call<{ profiles: string[] }>(OP.setupUsers, { profile: ctx.profile, overhaul_id: ctx.edit.overhaulId });
+      return profiles.map((p) => ({ profileId: p, name: baseName(p).replace(/\.me3$/i, ''), running: false }));
     },
 
     async saveSetup(setup) {

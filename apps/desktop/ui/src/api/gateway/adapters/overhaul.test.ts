@@ -77,6 +77,18 @@ describe('overhaul adapter: the profile\'s own setup', () => {
     await expect(api.saveSetup(edited)).rejects.toMatchObject({ code: 'stale' });
   });
 
+  it('lists the profiles that use an opened setup, and none for a setup never opened', async () => {
+    const CO = 'C:\\Profiles\\Co-op\\Co-op.me3';
+    const { api, asked } = await engine({
+      mod_configs_overhaul_form: () => form(),
+      mod_configs_setup_users: () => ({ profiles: [PROFILE, CO] }),
+    });
+    await api.getSetup('conv', PROFILE);
+    expect(await api.setupUsers('conv')).toEqual([{ profileId: PROFILE, name: 'Main', running: false }, { profileId: CO, name: 'Co-op', running: false }]);
+    expect(asked().at(-1)).toEqual(['mod_configs_setup_users', { profile: PROFILE, overhaul_id: 'conv' }]);
+    expect(await api.setupUsers('never')).toEqual([]);
+  });
+
   it('passes the engine\'s stale refusal on, and refuses a setup written by hand or never opened', async () => {
     const { api, asked } = await engine({
       mod_configs_overhaul_form: (p) => form(p?.profile === 'hand' ? { level: 'advanced' } : {}),
@@ -87,7 +99,6 @@ describe('overhaul adapter: the profile\'s own setup', () => {
     expect(asked().filter((c) => c[0] === 'mod_configs_apply_setup')).toEqual([]);
     await expect(api.getSetup('conv', 'hand')).rejects.toMatchObject({ code: 'advanced_setup' });
     await expect(api.saveSetup({ ...s, id: 'never' })).rejects.toMatchObject({ code: 'stale' });
-    await expect(api.setupUsers('conv')).rejects.toMatchObject({ code: 'not_wired' });
   });
 });
 

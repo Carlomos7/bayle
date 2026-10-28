@@ -6945,6 +6945,22 @@
         "title": "SetupSaved",
         "type": "object"
       },
+      "SetupUsers": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profiles"
+        ],
+        "title": "SetupUsers",
+        "type": "object"
+      },
       "SharePlan": {
         "properties": {
           "name": {
@@ -9465,6 +9481,53 @@
           }
         ],
         "summary": "Mod Configs Setup Candidates",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/mod_configs/setup_users": {
+      "post": {
+        "description": "The profiles a saved setup would be applied to; nothing is written.",
+        "operationId": "mod_configs_setup_users",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupUsers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mod Configs Setup Users",
         "tags": [
           "mod_configs"
         ]

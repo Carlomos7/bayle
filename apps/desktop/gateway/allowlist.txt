@@ -154,3 +154,6 @@ settings_me3
 
 # the Mods page: the Files tab
 mods_files
+
+# the Overhaul sheet: which profiles a saved setup reaches
+mod_configs_setup_users

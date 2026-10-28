@@ -939,6 +939,14 @@ class ModConfigsService:
         loc = self._loc()
         return self._jobs.start(lambda _ctx: logged(log_title, loc, lambda: work(loc)), title=title, quiet=True)
 
+    def setup_users(self, profile: str | Path, overhaul_id: str) -> list[Path]:
+        """The profiles apply_setup would change: every profile using the saved setup, the given one first. Reads
+        only. Raises not_found, cannot_apply (no such setup, or the profile does not use it)."""
+        try:
+            return mod_service.overhaul_setup_users(self._profile(profile), overhaul_id, loc=self._loc())
+        except OverhaulError as e:
+            raise OperationError("cannot_apply", str(e), {"overhaul_id": overhaul_id}) from e
+
     def apply_setup(self, profile: str | Path, overhaul_id: str) -> str:
         """Install the saved setup again in every profile using it, as one job with one Undo; returns its id. The
         result is {"profiles": [names]}. Raises not_found, busy; the job fails with cannot_apply."""

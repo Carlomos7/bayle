@@ -178,7 +178,6 @@ jobs:
     env:
       # Compile against the throwaway dev page, which every branch has; the React UI is built and checked on its own.
       TAURI_CONFIG: '{"build":{"frontendDist":"../dev-ui"}}'
-      BAYLE_GATEWAY_DATA: ${{ runner.temp }}\bayle-gateway-dev
     defaults:
       run:
         working-directory: apps/desktop
@@ -198,6 +197,8 @@ jobs:
 
     - name: Gateway tests (with the real engine)
       run: cargo test --locked -p bayle-gateway
+      env:
+        BAYLE_GATEWAY_DATA: ${{ runner.temp }}\bayle-gateway-dev  # the runner context exists only inside steps
 
   # The one check main requires: passes when the tests passed, or were skipped because only docs changed.
   tests-passed:

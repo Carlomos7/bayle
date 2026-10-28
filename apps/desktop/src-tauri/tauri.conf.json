@@ -12,9 +12,12 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Bayle Dev (installer spike)",
-        "width": 980,
-        "height": 760
+        "title": "Bayle Dev",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 390,
+        "minHeight": 560,
+        "decorations": false
       }
     ],
     "security": {

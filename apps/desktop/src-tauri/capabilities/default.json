@@ -1,7 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window: core IPC only. Engine access goes through the gateway's commands (ADR 0015).",
+  "description": "The main window: core IPC, and dragging the frameless window by its title bar (data-tauri-drag-region). Engine access goes through the gateway's commands (ADR 0015).",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
 }

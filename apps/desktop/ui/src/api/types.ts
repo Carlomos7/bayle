@@ -525,6 +525,8 @@ export interface BuildReport {
   kept: { family: FileFamily; count: number; unit: string }[];
   /** Full merge report, one line each. */
   reportLines: string[];
+  /** The packages the build merges, when the engine says; the build's own package is not one of them. */
+  mods?: ModId[];
   /** false: the engine merges in load order only, so no picks, rules, suggestions or piece search are offered. Absent: all offered. */
   choices?: false;
 }

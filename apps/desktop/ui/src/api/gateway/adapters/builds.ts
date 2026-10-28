@@ -64,7 +64,7 @@ function droppedOf(d: EngineDropped, id: ModId): DroppedChange {
   switch (d.kind) {
     case 'whole_copy': return { ...base, what: `its copy of ${d.file}`, reason: `Bayle can't merge this file${d.detail ? ` (${d.detail})` : ''}, so the mod that loads later is used whole.` };
     case 'left_out': return { ...base, what: `${d.count} ${d.count === 1 ? 'part' : 'parts'} of ${d.file} that its copy leaves out`, reason: "Its copy leaves them out, so they are left out of the build too." };
-    default: return { ...base, what: `inner files of ${d.file} the game has`, reason: d.detail };
+    default: return { ...base, what: `missing inner files of ${d.file}`, reason: d.detail };
   }
 }
 
@@ -117,7 +117,7 @@ export function toBuildReport(profileId: string, e: EngineBuild, idOf: (index: n
 
   const dropped = e.dropped.flatMap((d) => { const m = id(d.mod); return m ? [droppedOf(d, m)] : []; });
   return {
-    profileId, state,
+    profileId, state, mods: mods(e.mods.map((m) => m.index)),
     // shortcut: the record names no game version; "the game" until it does.
     baseline: { game: 'the game', exceptions: [] },
     builtOn: builtOn(e.built_on),
@@ -133,6 +133,7 @@ export function toBuildReport(profileId: string, e: EngineBuild, idOf: (index: n
 export function toBuildPlan(p: EnginePreview): BuildPlan {
   const steps: BuildPlan['steps'] = [];
   const list = (xs: string[]) => xs.slice(0, 3).join(', ') + (xs.length > 3 ? ` and ${xs.length - 3} more` : '');
+  if (p.state === 'current' && !p.blocked) steps.push({ title: 'Nothing changed since the last build', detail: 'Rebuilding makes the same result again.' });
   if (p.blocked === 'rebuild_game_running') steps.push({ title: 'Close the game first', detail: 'It has the files a rebuild replaces open.' });
   else if (p.blocked === 'rebuild_blocked') steps.push({ title: "A rebuild can't start", detail: p.detail });
   else if (p.blocked === 'nothing_to_rebuild') steps.push({ title: 'Nothing to rebuild', detail: 'No packages share a file or parameters that could be combined.' });

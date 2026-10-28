@@ -66,6 +66,15 @@ describe('builds adapter: the report', () => {
     expect(r.dropped).toEqual([expect.objectContaining({ id: 'd1', modId: B, family: 'animations', accepted: false })]);
   });
 
+  it('names the mods the build merges, which leaves out its own package', () => {
+    expect(report({ ...built, mods: [{ index: 0, name: 'a' }, { index: 2, name: 'c' }] }).mods).toEqual([A, C]);
+  });
+
+  it('words inner files a copy lacks as missing from it', () => {
+    const r = report({ ...built, dropped: [{ id: 'd2', mod: 2, file: 'menu/x.sblytbnd.dcx', family: 'other', kind: 'lacks', detail: 'c lacks 2 inner files', count: 0, accepted: false }] });
+    expect(r.dropped[0]).toMatchObject({ what: 'missing inner files of menu/x.sblytbnd.dcx', reason: 'c lacks 2 inner files' });
+  });
+
   it('is stale with the engine reasons, and none when nothing applies', () => {
     const stale = report({ ...built, state: 'stale', reasons: ['the game was updated since the last build'] });
     expect(stale.state).toBe('stale');
@@ -95,6 +104,9 @@ describe('builds adapter: the plan', () => {
     const p = toBuildPlan(base);
     expect(p.estimateSec).toBeUndefined();
     expect(p.steps.map((s) => s.title)).toEqual(['Combine the parameters of 2 packs', 'Merge 2 game files that more than one mod ships', 'Check the result, then put it in place']);
+  });
+  it('says first that nothing changed when the build is current', () => {
+    expect(toBuildPlan({ ...base, state: 'current' }).steps[0]!.title).toBe('Nothing changed since the last build');
   });
   it('says what blocks it and that a tool needs allowing', () => {
     expect(toBuildPlan({ ...base, blocked: 'rebuild_game_running', files: [], packs: [] }).steps.map((s) => s.title)).toEqual(['Close the game first']);

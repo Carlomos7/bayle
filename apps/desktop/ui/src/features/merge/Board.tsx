@@ -30,7 +30,7 @@ function Chip({ outcome, count, active, onClick }: { outcome: Outcome; count: nu
  * one mod touches. Each cell says what happened to that mod's changes there.
  */
 export function Board({ profile, build, filter, onFilter, onOpenMod }: { profile: Profile; build: BuildReport; filter: BoardFilter; onFilter: (f: BoardFilter) => void; onOpenMod: (id: string) => void }) {
-  const packages = profile.mods.filter((m) => m.kind === 'package' && (m.enabled || m.missing));
+  const packages = profile.mods.filter((m) => m.kind === 'package' && (m.enabled || m.missing) && (m.missing || !build.mods || build.mods.includes(m.id)));
   const fams = build.families;
   const cellsFor = (m: Mod, f: FileFamily) => build.cells.filter((c) => c.modId === m.id && c.family === f);
   const toggle = (modId: string, family: FileFamily) => onFilter(filter.modId === modId && filter.family === family ? {} : { modId, family });

@@ -30,7 +30,8 @@ export function Overlaps({ profile: p, build: b, openKind, openPiece, onOpenKind
   const kinds = overlapKinds(b);
   const fixed = b.choices === false;
   const involved = new Set(b.clashes.flatMap((c) => c.sides.map((s) => s.modId)));
-  const others = p.mods.filter((m) => m.kind === 'package' && m.enabled && !m.missing && !involved.has(m.id)).length;
+  // Before a first build nothing is known to overlap, so nothing is said to be used as it is.
+  const others = !b.builtOn ? 0 : p.mods.filter((m) => m.kind === 'package' && m.enabled && !m.missing && !involved.has(m.id) && (!b.mods || b.mods.includes(m.id))).length;
 
   return (
     <section aria-label="Where your mods overlap" className="flex flex-col gap-2">

@@ -40,13 +40,13 @@ export function ClashesTab({ mod: m }: { mod: Mod }) {
       {clashes.length > 0 && (
         <ul className="m-0 list-none divide-y divide-line overflow-hidden rounded-lg border border-line2 p-0">
           {clashes.map((x) => {
-            const other = x.sides.find((s) => s.modId !== m.id);
+            const others = x.sides.filter((s) => s.modId !== m.id).map((s) => name(s.modId)).join(', ');
             const winner = x.winnerId;
             const why = x.reason === 'pick' ? 'your pick' : x.reason === 'rule' || x.reason === 'coupled' ? 'your rule' : 'loads later';
-            const mine = x.reason === 'both' ? 'both kept' : winner === m.id ? `yours, ${why}` : `lost to ${name(other?.modId ?? '')}, ${why}`;
+            const mine = x.reason === 'both' ? 'both kept' : winner === m.id ? `yours, ${why}` : `lost to ${name(winner ?? '')}, ${why}`;
             return (
               <li key={x.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-ui">
-                <div className="min-w-0"><div className="truncate">{x.piece}</div><div className="truncate text-xs text-t3">{x.file} · with {name(other?.modId ?? '')}</div></div>
+                <div className="min-w-0"><div className="truncate">{x.piece}</div><div className="truncate text-xs text-t3">{x.file} · with {others}</div></div>
                 <span className={cn('text-xs', winner === m.id || x.reason === 'both' ? 'text-ok' : 'text-warn')}>{mine}{x.needsReview ? ' · check' : ''}</span>
               </li>
             );

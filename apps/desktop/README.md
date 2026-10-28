@@ -15,7 +15,8 @@ Not shipped. The Qt app in `apps/qt-desktop` is still the product.
   `cargo run -p bayle-desktop -- --config '{"build":{"frontendDist":"../dev-ui"}}'`.
 
 Run (needs Rust, `uv` and `pnpm`): `cargo tauri dev` from this folder (or `cargo run -p bayle-desktop` with `pnpm dev` already running in `ui/`). The engine runs from source with a scratch
-data folder (`%TEMP%\bayle-gateway-dev`, or `BAYLE_GATEWAY_DATA`), never the real one.
+data folder (`%TEMP%\bayle-gateway-dev`, or `BAYLE_GATEWAY_DATA`), never the real one. A release build bundles the
+frozen engine: run `uv run --project apps/engine python apps/desktop/scripts/build_engine.py` from the repo root first.
 
 Test: `cargo test -p bayle-gateway`. The engine test starts the real engine on a temporary folder and runs ADR 0015's
 Phase 0 checks: health, Activity data, a job's ordered events and cancel, restart after a kill, and isolation.

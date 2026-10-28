@@ -4,10 +4,10 @@ Status: frontend preparation done; nothing has run against a real Rust gateway y
 The gateway contract below is a **proposal** for the Tauri/Rust workstream.
 
 ```text
-React + TypeScript (this repo)
+React + TypeScript (apps/desktop/ui)
    │  typed Tauri commands + one ordered Channel         ← src/api/gateway/tauri.ts is the only Tauri import
    ▼
-Tauri 2 / Rust gateway (not in this repo)
+Tauri 2 / Rust gateway (apps/desktop/src-tauri, apps/desktop/gateway)
    │  authenticated loopback HTTP + SSE                  ← port, token, URLs, lifecycle: Rust only
    ▼
 Bayle Python engine (FastAPI, apps/engine in roundtable-souls)
@@ -96,7 +96,7 @@ While not ready, TanStack Query is offline (queries pause and resume) and every 
 
 ## 3. Gateway contract (agreed)
 
-Implemented by the Rust gateway in `Carlomos7/bayle` `apps/desktop` (branch `feat/tauri-foundation`): `engine_status`,
+Implemented by the Rust gateway in `apps/desktop/gateway` and `apps/desktop/src-tauri`: `engine_status`,
 `engine_restart`, `engine_subscribe`, `engine_unsubscribe`, `engine_call` and the `app_*` commands below. For
 `engine_call`, Rust splits `params` into path, query and body from the OpenAPI contract, and answers `stale_epoch`
 when `epoch` is old. Recovery is forward-only (decision 0016): update or reinstall, never roll back.
@@ -208,7 +208,7 @@ interface EngineStatus {
 
 To bring up the first end-to-end slice:
 
-1. Create the Tauri 2 app with this repo's `pnpm build` output (`dist/`) as `frontendDist` and `pnpm dev`
+1. Create the Tauri 2 app with `ui/`'s `pnpm build` output (`ui/dist`) as `frontendDist` and `pnpm dev`
    (`http://localhost:5173`) as `devUrl`. In `tauri dev` the frontend detects Tauri and uses the gateway, not the mock.
 2. Spawn the engine (`bayle --backend`, onedir sidecar): token in an env var, read the one-line JSON handshake
    (`port`, `version`, `contract`), poll `/v1/health`, emit `starting` → `ready` (or `incompatible` if the contract

@@ -55,3 +55,8 @@ apps/engine/scripts/verify/local.toml
 # Rust (apps/desktop)
 apps/desktop/target/
 apps/desktop/src-tauri/gen/
+
+# React UI (apps/desktop/ui)
+node_modules/
+apps/desktop/ui/dist/
+dist-demo/

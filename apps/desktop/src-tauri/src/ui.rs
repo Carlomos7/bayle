@@ -1,4 +1,4 @@
-//! The shapes the React UI receives (bayle-ui `src/api/gateway/protocol.ts`): the gateway's status and events in the
+//! The shapes the React UI receives (`apps/desktop/ui/src/api/gateway/protocol.ts`): the gateway's status and events in the
 //! UI's words, and errors as `{code, message, details}`. Pure mapping, no Tauri types, so it is unit-tested here.
 
 use bayle_gateway::{EngineState, GatewayError, GatewayEvent, Status};

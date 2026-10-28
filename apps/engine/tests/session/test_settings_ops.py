@@ -36,7 +36,11 @@ def code(call) -> str:
 
 def _tree():
     root = data_dir()
-    return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for p in [root, *root.rglob("*")]}
+    return {
+        str(p): (p.stat().st_mtime_ns, p.stat().st_size)
+        for p in [root, *root.rglob("*")]
+        if "node_modules" not in p.parts
+    }
 
 
 def test_reading_the_page_writes_nothing():

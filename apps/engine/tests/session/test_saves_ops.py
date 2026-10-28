@@ -60,7 +60,12 @@ def finished(session: Direct, job_id: str):
 
 # ---------------------------------------------------------------------------------------------------- reads
 def _tree(*roots):
-    return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for r in roots for p in [r, *r.rglob("*")]}
+    return {
+        str(p): (p.stat().st_mtime_ns, p.stat().st_size)
+        for r in roots
+        for p in [r, *r.rglob("*")]
+        if "node_modules" not in p.parts
+    }
 
 
 def test_reading_the_page_writes_nothing(world, monkeypatch):

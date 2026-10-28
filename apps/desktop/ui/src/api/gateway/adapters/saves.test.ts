@@ -171,6 +171,15 @@ describe('saves adapter: writes with a stamp', () => {
     expect(asked()[1]![1]).toMatchObject({ source: file });
   });
 
+  it("copies a character out of a backup through the backup's path", async () => {
+    const { api, asked } = await engine({
+      saves_check_copy_character: () => ({ stamp }),
+      saves_copy_character: { job: 'j6b', title: 'Copying a character...', result: { character: 'Ash', slot: 1, file: 'f' } },
+    });
+    await api.copyCharacter({ copyId: BAK, n: 3 }, { saveId: SAVE, n: 1 });
+    expect(asked()[0]).toEqual(['saves_check_copy_character', { source: BAK, src_slot: 3, target: SAVE, dst_slot: 1 }]);
+  });
+
   it('keeps a copy, imports a file and backs up everything as jobs', async () => {
     const { api, asked } = await engine({
       saves_save_copy: { job: 'j7', title: 'Saving a copy...', result: { source: SAVE, entry_id: 'e', name: 'Mine' } },
@@ -229,7 +238,6 @@ describe('saves adapter: left not connected', () => {
     const { api, asked } = await engine({});
     await expect(api.deleteCharacter(SAVE, 1)).rejects.toMatchObject({ code: 'not_wired' });
     await expect(api.renameCopy(BAK, 'n')).rejects.toMatchObject({ code: 'not_wired' });
-    await expect(api.copyCharacter({ copyId: BAK, n: 1 }, { saveId: SAVE, n: 1 })).rejects.toMatchObject({ code: 'not_wired' });
     expect(asked()).toEqual([]);
   });
 });

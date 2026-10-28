@@ -410,6 +410,16 @@ def test_repair_copy_character_and_post_session_repair_over_http(env, monkeypatc
     ]
 
 
+def test_a_character_may_be_copied_out_of_a_backup(env, monkeypatch):
+    plan = {"character": {"name": "Ann", "level": 10}, "replaces": None, "steam_id_changes": False}
+    seen = []
+    monkeypatch.setattr(save_transfer, "plan_character_copy", lambda src, *a: seen.append(src) or plan)
+    bak = env.backup()
+    ref = {"source": str(bak), "src_slot": 1, "target": str(env.save), "dst_slot": 2}
+    checked = env.post("saves.check_copy_character", ref)
+    assert checked.status_code == 200 and checked.json()["same_file"] is False and seen == [bak]
+
+
 def test_a_write_over_a_changed_file_is_stale_409_and_writes_nothing(env):
     bak = env.backup()
     ref = {"backup": str(bak), "target": str(env.save)}

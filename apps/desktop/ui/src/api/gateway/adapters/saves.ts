@@ -239,16 +239,15 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
       if ('saveId' in from) source = from.saveId;
       else {
         const id = parseCopyId(from.copyId);
-        // shortcut: the engine copies a character only out of a live save or a Library copy, not out of a backup; upgrade with a route that takes a backup.
-        if ('backup' in id) throw notWired('copy a character out of a backup');
-        source = await copyFile(id.library.folder, id.library.entryId);
+        // A backup is a file the engine reads as it is; a Library copy is asked for its file.
+        source = 'backup' in id ? id.backup : await copyFile(id.library.folder, id.library.entryId);
       }
       const { result, entry } = await checked<{ stamp: Stamp }>(OP.checkCopyCharacter, OP.copyCharacter, { source, src_slot: from.n, target: to.saveId, dst_slot: to.n });
       const r = result as WriteResult;
       return { entry, message: `${r.character} is in slot ${r.slot} of ${r.file}`, detail: 'The save was backed up first.' };
     },
 
-    // shortcut: the engine has no delete-a-slot operation, upgrade when it gains one.
+    // shortcut: the engine has no delete-a-slot operation (it needs a save-format write: clear the slot's active flag and re-sign the file); upgrade when saves_page gains one.
     async deleteCharacter() { throw notWired('deleteCharacter'); },
 
     async restoreCopy(copyId, saveId) {
@@ -262,7 +261,7 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
 
     async renameCopy(copyId, name) {
       const id = parseCopyId(copyId);
-      // shortcut: backups are named by their file; only Library copies can be renamed. Upgrade if the engine renames backups.
+      // shortcut: a backup has no name of its own (the page shows its time), so renaming one needs a label in its notes file; upgrade when the engine stores one.
       if ('backup' in id) throw notWired('rename a backup');
       const { text } = await call<{ text: string }>(OP.renameCopy, { folder: id.library.folder, entry_id: id.library.entryId, name });
       return { message: `Renamed to ${text}` };

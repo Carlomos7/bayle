@@ -667,10 +667,14 @@ class SavesService:
 
     # ---- the writes to live saves: each a check (facts and stamp) and a start (refused as stale), then a writing job
     def _source(self, path: str | Path) -> Path:
-        """path, when it is a live save or the file of a listed Library copy (a character may come from either).
-        Raises not_found."""
+        """path, when it is a live save, a listed backup or the file of a listed Library copy (a character may come
+        from any of them; it is only read). Raises not_found."""
         try:
             return self._live(path)
+        except OperationError:
+            pass
+        try:
+            return Path(self._backup(path)["path"])
         except OperationError:
             pass
         want = os.path.normcase(str(Path(path)))

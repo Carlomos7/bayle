@@ -278,7 +278,8 @@ export interface ActivityEntry {
 
 /** What every change returns, so the UI can toast it and offer Undo. */
 export interface ActionResult {
-  entry: ActivityEntry;
+  /** The Activity entry the change made. Absent for changes the engine applies without one (no Undo). */
+  entry?: ActivityEntry;
   /** Short line for the toast. */
   message: string;
   detail?: string;

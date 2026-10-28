@@ -79,7 +79,7 @@ export function useAction() {
           kind: 'success',
           title: opts.title ?? r.message,
           detail: r.detail,
-          action: r.entry.undoable ? { label: r.entry.undoLabel ?? 'Undo', run: () => void undo(r.entry.id) } : undefined,
+          action: r.entry?.undoable ? { label: r.entry.undoLabel ?? 'Undo', run: () => void undo(r.entry!.id) } : undefined,
         });
       }
       return r;

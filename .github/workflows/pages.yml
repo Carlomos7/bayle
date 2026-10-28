@@ -1,0 +1,44 @@
+# Publishes Bayle's update manifests: site/ becomes https://carlomos7.github.io/bayle/,
+# so the channels are /updates/stable.json and /updates/beta.json.
+# A manifest is added here only for a signed, verified build the owner approved.
+name: Update manifests
+
+on:
+  push:
+    branches: [ "updates" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the manifests
+        # Each manifest must point at a signed Windows build on this repo's GitHub releases.
+        run: |
+          for f in site/updates/*.json; do
+            [ -e "$f" ] || continue
+            jq -e --arg pre "https://github.com/${{ github.repository }}/releases/download/" '
+              (.version | type == "string" and length > 0)
+              and (.platforms["windows-x86_64"].url | startswith($pre))
+              and (.platforms["windows-x86_64"].signature | type == "string" and length > 0)
+            ' "$f" > /dev/null || { echo "::error file=$f::not a valid update manifest"; exit 1; }
+          done
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

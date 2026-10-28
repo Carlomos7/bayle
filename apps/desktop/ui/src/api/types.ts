@@ -185,6 +185,8 @@ export interface ModFile {
 export interface InstallSource {
   /** Absolute path to a .zip/.7z/.rar, a .dll, or a folder. */
   path: string;
+  /** The profile it goes into: the engine plans an install against one. */
+  profileId?: ProfileId;
 }
 
 export interface InstallPreview {

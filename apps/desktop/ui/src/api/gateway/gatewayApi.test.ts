@@ -7,7 +7,7 @@ describe('production adapter', () => {
   it('refuses methods that are not wired yet instead of inventing data', async () => {
     const api = createGatewayApi(createGateway(fakeTransport({ state: 'ready', epoch: 1 })));
     await expect(api.getAppInfo()).rejects.toMatchObject({ code: 'not_wired' });
-    await expect(api.rebuildMerged('p1')).rejects.toMatchObject({ code: 'not_wired' });
+    await expect(api.searchPieces('p1', 'dash')).rejects.toMatchObject({ code: 'not_wired' });
   });
 
   it('reads Activity through the gateway by operation id, never by URL', async () => {

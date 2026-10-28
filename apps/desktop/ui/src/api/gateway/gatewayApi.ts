@@ -18,6 +18,7 @@ import { GatewayError } from './transport';
 import { configsApi } from './adapters/configs';
 import { savesApi } from './adapters/saves';
 import { shellApi } from './adapters/shell';
+import { modsApi } from './adapters/mods';
 
 /* ------------------------------------------------------------------ activity (provisional mapping) */
 
@@ -111,11 +112,13 @@ export function toBackendEvents(e: EngineEvent): BackendEvent[] {
 const notWired = (method: string) => new GatewayError({ code: 'not_wired', message: `This part of Bayle isn't connected to the engine yet (${method}).` });
 
 export function createGatewayApi(gateway: Gateway): BayleApi {
+  // Adapters that need another member (the pickers) reach it through the finished api, once it exists.
   const wired: Partial<BayleApi> = {
     ...settingsAdapter(gateway),
     ...configsApi(gateway),
     ...savesApi(gateway),
     ...shellApi(gateway),
+    ...modsApi(gateway, { pickFile: (o) => api.pickFile(o), pickFolder: (o) => api.pickFolder(o) }),
     async getStatus(): Promise<AppStatus> {
       const s = gateway.current();
       return s?.state === 'ready' ? { state: 'ready', text: 'Ready to launch' } : { state: 'warn', text: "Bayle's engine isn't ready" };
@@ -137,11 +140,12 @@ export function createGatewayApi(gateway: Gateway): BayleApi {
       await gateway.app.openUrl(url);
     },
   };
-  return new Proxy(wired as BayleApi, {
+  const api: BayleApi = new Proxy(wired as BayleApi, {
     get(target, prop) {
       if (typeof prop !== 'string' || prop === 'then') return undefined;
       const own = (target as unknown as Record<string, unknown>)[prop];
       return own ?? (() => Promise.reject(notWired(prop)));
     },
   });
+  return api;
 }

@@ -30,7 +30,7 @@ export function InstallDialog({ path }: { path?: string }) {
       : a.pickFolder({ title: 'Install a mod folder' }))));
     if (!src) return;
     setLoading(true);
-    const p = await call((a) => a.previewInstall({ path: src }));
+    const p = await call((a) => a.previewInstall({ path: src, profileId: profile?.id }));
     setLoading(false);
     if (p) setPreview(p);
   };
@@ -41,8 +41,8 @@ export function InstallDialog({ path }: { path?: string }) {
     if (!path || started.current) return;
     started.current = true;
     setLoading(true);
-    void call((a) => a.previewInstall({ path })).then((p) => { setLoading(false); if (p) setPreview(p); });
-  }, [path, call]);
+    void call((a) => a.previewInstall({ path, profileId: profile?.id })).then((p) => { setLoading(false); if (p) setPreview(p); });
+  }, [path, call, profile?.id]);
 
   const install = () => {
     if (!profile || !preview) return;

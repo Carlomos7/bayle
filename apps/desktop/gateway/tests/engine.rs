@@ -109,7 +109,7 @@ async fn phase_0_checks_against_the_real_engine() {
     // 5. isolation: off the allowlist, and a value that tries to reach another route
     let refused = gateway
         .call(
-            "mods_delete_profile",
+            "mods_rename_folder",
             Map::new(),
             Map::new(),
             Some(json!({})),

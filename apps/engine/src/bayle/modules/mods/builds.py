@@ -245,6 +245,7 @@ def _files(record: dict, layers: list[dict], by_name: dict[str, int]) -> tuple[l
         for om in entry.get("omissions") or []:
             notice = str(om.get("notice") or "")
             name = next((n for n in by_name if notice.startswith(f"{n} lacks")), None)
-            if name is not None:  # a notice that names no mod is not attributed to one
+            # a notice that names no mod is not attributed to one; one whose left-out parts are counted above is the same fact
+            if name is not None and name not in left:
                 dropped.append(drop(name, by_name[name], str(om.get("path") or rel), "lacks", detail=notice))
     return out, dropped

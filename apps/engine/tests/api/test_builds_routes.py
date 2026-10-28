@@ -112,3 +112,24 @@ def test_a_profile_that_is_not_there_is_not_found(client, tmp_path):
         client.post("/v1/builds/preview", json={"profile": str(tmp_path / "x.me3")}),
     ):
         assert got.status_code == 404 and got.json()["code"] == "not_found"
+
+
+def test_a_copy_that_leaves_parts_out_is_one_dropped_change_not_two(tmp_path):
+    from bayle.modules.mods.builds import _files
+
+    layers = [{"name": n, "index": i, "folder": str(tmp_path / n)} for i, n in enumerate(["a", "b"])]
+    rel = "menu/hi/01_common.sblytbnd.dcx"
+    record = {
+        "files": {
+            rel: {
+                "rel": rel,
+                "output": "x",
+                "parts": 3,
+                "sources": [{"path": str(tmp_path / n / rel)} for n in ("a", "b")],
+                "removed": {"p1": ["b"], "p2": ["b"]},
+                "omissions": [{"path": rel, "notice": "b lacks 2 inner files the game has"}],
+            }
+        }
+    }
+    _, dropped = _files(record, layers, {"a": 0, "b": 1})
+    assert [(d.mod, d.kind, d.count) for d in dropped] == [(1, "left_out", 2)]

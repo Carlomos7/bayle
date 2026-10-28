@@ -75,11 +75,12 @@ export function useAction() {
     try {
       const r = await fn(api);
       if (!opts.quiet) {
+        const entry = r.entry;
         toast({
           kind: 'success',
           title: opts.title ?? r.message,
           detail: r.detail,
-          action: r.entry?.undoable ? { label: r.entry.undoLabel ?? 'Undo', run: () => void undo(r.entry!.id) } : undefined,
+          action: entry?.undoable ? { label: entry.undoLabel ?? 'Undo', run: () => void undo(entry.id) } : undefined,
         });
       }
       return r;

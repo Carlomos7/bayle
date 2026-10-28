@@ -226,6 +226,15 @@ fn app_open_path(app: AppHandle, path: String) -> Result<(), UiError> {
     .map_err(UiError::gateway)
 }
 
+/// Whether the main window is maximized, so the title bar shows Restore instead of Maximize.
+#[tauri::command]
+fn app_window_maximized(app: AppHandle) -> Result<bool, UiError> {
+    app.get_webview_window("main")
+        .ok_or_else(|| UiError::gateway("There is no main window."))?
+        .is_maximized()
+        .map_err(UiError::gateway)
+}
+
 /// The window buttons of the main window: `minimize`, `toggle_maximize` or `close`.
 #[tauri::command]
 fn app_window(app: AppHandle, action: String) -> Result<(), UiError> {
@@ -462,6 +471,7 @@ fn main() {
             app_pick_folder,
             app_open_path,
             app_window,
+            app_window_maximized,
             app_save_support_logs,
             app_update_check,
             app_update_install

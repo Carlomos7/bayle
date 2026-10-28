@@ -26,7 +26,7 @@ from bayle.runtime import features, instance
 
 
 async def serve(engine, settings: ApiSettings) -> None:
-    services = features.build(engine.jobs, engine.activity, lambda: engine.locations).services()
+    services = features.build(engine.jobs, engine.activity, lambda: engine.locations, engine.select_game).services()
     app = create_app(settings, jobs=engine.jobs, services=services)
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))

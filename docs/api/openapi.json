@@ -844,6 +844,20 @@
         "title": "CopyRef",
         "type": "object"
       },
+      "CreateProfileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateProfileParams",
+        "type": "object"
+      },
       "DeleteBackupParams": {
         "additionalProperties": false,
         "properties": {
@@ -1565,6 +1579,70 @@
         "title": "FormParams",
         "type": "object"
       },
+      "GameItem": {
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_run_build": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Build"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "ready",
+          "installed",
+          "current",
+          "profile",
+          "last_run_build"
+        ],
+        "title": "GameItem",
+        "type": "object"
+      },
       "GameStateData": {
         "properties": {
           "dead_shells": {
@@ -1625,6 +1703,22 @@
           "data"
         ],
         "title": "GameStateEvent",
+        "type": "object"
+      },
+      "GamesPage": {
+        "properties": {
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/GameItem"
+            },
+            "title": "Games",
+            "type": "array"
+          }
+        },
+        "required": [
+          "games"
+        ],
+        "title": "GamesPage",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2107,6 +2201,178 @@
           "kind"
         ],
         "title": "KindParams",
+        "type": "object"
+      },
+      "LaunchCheckParams": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "profile",
+              "offline",
+              "vanilla"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "LaunchCheckParams",
+        "type": "object"
+      },
+      "LaunchChecked": {
+        "properties": {
+          "busy": {
+            "title": "Busy",
+            "type": "boolean"
+          },
+          "game_running": {
+            "title": "Game Running",
+            "type": "boolean"
+          },
+          "installed": {
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProblem"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "problems",
+          "warnings",
+          "game_running",
+          "busy",
+          "installed"
+        ],
+        "title": "LaunchChecked",
+        "type": "object"
+      },
+      "LaunchPlayParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_without_backup": {
+            "default": false,
+            "title": "Allow Without Backup",
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "profile",
+              "offline",
+              "vanilla"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "LaunchPlayParams",
+        "type": "object"
+      },
+      "LaunchProblem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "LaunchProblem",
+        "type": "object"
+      },
+      "LaunchProfile": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "kind",
+          "source",
+          "name",
+          "active",
+          "problems"
+        ],
+        "title": "LaunchProfile",
+        "type": "object"
+      },
+      "LaunchProfiles": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProfile"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profiles"
+        ],
+        "title": "LaunchProfiles",
         "type": "object"
       },
       "LaunchRef": {
@@ -4169,6 +4435,19 @@
         "title": "ProfileBlock",
         "type": "object"
       },
+      "ProfileCreated": {
+        "properties": {
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ProfileCreated",
+        "type": "object"
+      },
       "ProfileParams": {
         "additionalProperties": false,
         "properties": {
@@ -5852,6 +6131,20 @@
         "title": "Seen",
         "type": "object"
       },
+      "SelectGameParams": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "SelectGameParams",
+        "type": "object"
+      },
       "SetParams": {
         "additionalProperties": false,
         "properties": {
@@ -5879,6 +6172,20 @@
           "value"
         ],
         "title": "SetParams",
+        "type": "object"
+      },
+      "SetProfileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "SetProfileParams",
         "type": "object"
       },
       "SettingChanged": {
@@ -6058,6 +6365,20 @@
           "kind"
         ],
         "title": "SettingSpec",
+        "type": "object"
+      },
+      "SettingsDefaults": {
+        "properties": {
+          "settings": {
+            "additionalProperties": true,
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "SettingsDefaults",
         "type": "object"
       },
       "SettingsFolderParams": {
@@ -7568,6 +7889,79 @@
         "summary": "Events"
       }
     },
+    "/v1/games": {
+      "get": {
+        "operationId": "games",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamesPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Games",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/v1/games/select": {
+      "post": {
+        "description": "Make the game current (and the one the next start opens on). Errors: unknown_game, busy.",
+        "operationId": "games_select",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectGameParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamesPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Games Select",
+        "tags": [
+          "games"
+        ]
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health",
@@ -7678,6 +8072,220 @@
           }
         ],
         "summary": "Cancel Job"
+      }
+    },
+    "/v1/launch/check": {
+      "post": {
+        "description": "What would stop Play now, read fresh from the disk. Error: not_found.",
+        "operationId": "launch_check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchCheckParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchChecked"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Check",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/create_profile": {
+      "post": {
+        "description": "An empty profile for the current game in me3's folder. Errors: invalid_value, create_failed, busy.",
+        "operationId": "launch_create_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Create Profile",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/play": {
+      "post": {
+        "description": "Start Play as a job; its result is {\"mode\"} (offline when the player chose it at the online question). Prompts\n(question codes backup_failed, stale_blocked, stale_rebuild, rebuild_failed, online_risk, offline_confirm) go\nout as prompt events; the answer key `cancel` ends the job as cancelled. Errors: not_found, cannot_launch\n(details.reason game_unsupported | not_installed | game_running | problems), busy.",
+        "operationId": "launch_play",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchPlayParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Play",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/profiles": {
+      "get": {
+        "operationId": "launch_profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchProfiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Profiles",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/set_profile": {
+      "post": {
+        "description": "Remember the profile Play uses next for the current game. Error: not_found.",
+        "operationId": "launch_set_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchProfiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Set Profile",
+        "tags": [
+          "launch"
+        ]
       }
     },
     "/v1/mod_configs": {
@@ -13833,6 +14441,33 @@
           }
         ],
         "summary": "Settings Clear Leftovers",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/settings/defaults": {
+      "get": {
+        "description": "The value each setting has in a fresh settings file (for Reset).",
+        "operationId": "settings_defaults",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsDefaults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Settings Defaults",
         "tags": [
           "settings"
         ]

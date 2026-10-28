@@ -95,6 +95,11 @@ def test_no_settings_route_carries_wording():
     from bayle.api.routers import settings as router
 
     routes = router.router.routes
-    assert len(routes) == 11
+    assert len(routes) == 12
     for r in routes:
         assert "said" not in r.response_model.model_fields, r.path
+
+
+def test_the_defaults_are_a_fresh_settings_file(client):
+    got = client.get("/v1/settings/defaults").json()["settings"]
+    assert got["play_boot_boost"] is True and got["backups_keep"] == 20 and got["me3_path"] == ""

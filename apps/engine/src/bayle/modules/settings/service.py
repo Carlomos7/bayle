@@ -26,7 +26,7 @@ from bayle.modules.ports import (
     save_settings,
 )
 from bayle.modules.settings import locations as layout_service
-from bayle.modules.settings.models import game_setting
+from bayle.modules.settings.models import LauncherSettings, game_setting
 from bayle.work.jobs import JobContext, JobManager
 from bayle.work.runner import run_job_value
 
@@ -320,6 +320,10 @@ class SettingsService:
 
     def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
         self._jobs, self._locations = jobs, locations
+
+    def defaults(self) -> dict[str, Any]:
+        """Every setting as a fresh settings file has it."""
+        return LauncherSettings().model_dump(mode="json")
 
     def _where(self) -> tuple[Any, Locations | None]:
         try:

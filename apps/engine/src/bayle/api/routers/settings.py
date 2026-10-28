@@ -116,6 +116,16 @@ def page(s: Settings, _q: Annotated[NoParams, Query()]) -> SettingsPage:
     )
 
 
+class SettingsDefaults(Result):
+    settings: dict[str, Any]  # every key of the settings file with its default value
+
+
+@router.get("/defaults", name="settings_defaults")
+def defaults(s: Settings, _q: Annotated[NoParams, Query()]) -> SettingsDefaults:
+    """The value each setting has in a fresh settings file (for Reset)."""
+    return SettingsDefaults(settings=s.defaults())
+
+
 @router.post("/set", name="settings_set")
 def set_setting(s: Settings, p: SetParams) -> SettingChanged:
     got = s.set(p.key, p.value)

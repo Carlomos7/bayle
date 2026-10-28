@@ -19,7 +19,7 @@ from bayle.adapters.system import logging as run_logging
 from bayle.errors import Busy, Cancelled, ErrorInfo, OperationError
 from bayle.work import runner as service_jobs
 from bayle.work.events import EventBus
-from bayle.work.prompts import Choose, PromptBroker
+from bayle.work.prompts import Choose, PromptBroker, Question
 from bayle.work.runner import Event as RunnerEvent
 from bayle.work.runner import JobResult, Located
 
@@ -83,7 +83,7 @@ class JobContext:
         """Tell the client something mid-job that wants no answer (never dropped)."""
         self._report("prompt", dict(data))
 
-    def ask(self, words: Choose, timeout: float | None = None, default: str = "cancel") -> str:
+    def ask(self, words: Choose | Question, timeout: float | None = None, default: str = "cancel") -> str:
         """Ask the client which way to go and wait for the key it answers with (JobManager.prompts.answer, or
         POST /v1/prompts/{id}). `default` when the timeout passes or the job is cancelled meanwhile."""
         if self._prompts is None:

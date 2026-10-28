@@ -168,9 +168,37 @@ jobs:
         path: apps/qt-desktop/htmlcov/
         retention-days: 14
 
+  # The React desktop UI: typecheck, lint, production build and its Vitest suite.
+  ui:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/ui
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    # pnpm's version comes from "packageManager" in apps/desktop/ui/package.json
+    - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      with:
+        package_json_file: apps/desktop/ui/package.json
+
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        cache: pnpm
+        cache-dependency-path: apps/desktop/ui/pnpm-lock.yaml
+
+    - name: Install dependencies (exactly as locked)
+      run: pnpm install --frozen-lockfile
+
+    - name: Typecheck, lint, build and test
+      run: pnpm verify
+
   # The one check main requires: passes when the tests passed, or were skipped because only docs changed.
   tests-passed:
-    needs: [changes, engine, test]
+    needs: [changes, engine, test, ui]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -179,8 +207,10 @@ jobs:
         CHANGES: ${{ needs.changes.result }}
         ENGINE: ${{ needs.engine.result }}
         TESTS: ${{ needs.test.result }}
+        UI: ${{ needs.ui.result }}
       run: |
-        echo "changes: $CHANGES, engine: $ENGINE, tests: $TESTS"
+        echo "changes: $CHANGES, engine: $ENGINE, tests: $TESTS, ui: $UI"
         [ "$CHANGES" = "success" ] || exit 1
         [ "$TESTS" = "success" ] || [ "$TESTS" = "skipped" ] || exit 1
         [ "$ENGINE" = "success" ] || [ "$ENGINE" = "skipped" ] || exit 1
+        [ "$UI" = "success" ] || [ "$UI" = "skipped" ] || exit 1

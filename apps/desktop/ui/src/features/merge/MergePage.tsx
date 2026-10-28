@@ -28,7 +28,7 @@ import { PlanDialog, ReportSheet, StatusTools } from './Status';
  * rebuilding would change.
  */
 export function MergePage() {
-  const { game, profile } = useCurrent();
+  const { game, profile, loading } = useCurrent();
   const build = useBuild(profile?.id);
   const go = useGo();
   const navigate = useNavigate();
@@ -54,7 +54,10 @@ export function MergePage() {
     document.querySelector(`[data-piece="${id}"], [data-kind="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [openPiece, openKind]);
 
-  if (!game || !profile) return <Page><PageHeader eyebrow="Merge" title="Loading…" /></Page>;
+  if (!game || !profile) {
+    if (loading) return <Page><PageHeader eyebrow="Merge" title="Loading…" /></Page>;
+    return <Page><PageHeader eyebrow="Merge" title="Merge" /><EmptyState title="No profile for this game yet">Create one from the profile menu in the top bar, then come back to see how its mods merge.</EmptyState></Page>;
+  }
   const b = build.data;
   // The engine merges in load order only: nothing here offers a pick, a rule, a suggestion or a search that could not work.
   const choices = b?.choices !== false;

@@ -153,12 +153,14 @@ export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
           await set('game_exe', v);
         } else if (g === 'paths' && f in PATH_KEYS) await set(PATH_KEYS[f as keyof typeof PATH_KEYS], v);
         else if (KEYS[g as Group]?.[f]) await set(KEYS[g as Group][f]!, v);
+        // shortcut: moving the profiles folder is the engine's check_relocate + relocate job (moves every profile and mod, so it needs a confirm
+        // step with size and free space that the Settings row does not have); shared mods is the layout rename; backups, logs and the settings file are fixed.
         else throw notWired(`${g}.${f}`); // profiles, shared mods, backups, logs, settings file
       }
       return (await read()).settings;
     },
 
-    // shortcut: the engine has no route to clear the boot boost cache; wire it when it does.
+    // shortcut: the cache is me3's own and the engine neither knows where me3 keeps it nor has a route to clear it; needs that read of me3 first.
     async clearBootBoostCache() { throw notWired('clearBootBoostCache'); },
 
     /** activity_undo takes the entry's whole `undo` record as `expect`; the engine refuses it as stale when it changed meanwhile. */

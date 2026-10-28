@@ -9,8 +9,7 @@ import type { GatewayTransport } from '../transport';
 afterEach(() => resetEngineState());
 
 function setup(app: GatewayTransport['app'], me3: string | null = '1.2.3') {
-  const t = fakeTransport({ state: 'ready', epoch: 1 });
-  t.app = app;
+  const t = Object.assign(fakeTransport({ state: 'ready', epoch: 1 }), app ? { app } : {});
   const call = t.call.bind(t);
   t.call = (async (op: string, params?: Record<string, unknown>, o?: { epoch?: number }) => {
     if (op === 'settings_me3') return { version: me3 };
@@ -22,7 +21,7 @@ function setup(app: GatewayTransport['app'], me3: string | null = '1.2.3') {
   return flush().then(() => createGatewayApi(g));
 }
 
-const shell = { version: '0.1.0', channel: 'beta', dataFolder: 'C:\data', platform: 'windows' };
+const shell = { version: '0.1.0', channel: 'beta', dataFolder: 'C:\\data', platform: 'windows' };
 const desktop = (found: { version: string; current: string } | null): NonNullable<GatewayTransport['app']> => ({
   info: async () => shell, checkUpdate: async () => found, installUpdate: async () => {}, openLogs: async () => {}, reportIssue: async () => {}, openUrl: async () => {},
 });
@@ -30,7 +29,7 @@ const desktop = (found: { version: string; current: string } | null): NonNullabl
 describe('app info and updates', () => {
   it('reads the build from Rust and me3 from the engine', async () => {
     const api = await setup(desktop(null));
-    expect(await api.getAppInfo()).toEqual({ version: '0.1.0', me3Version: '1.2.3', platform: 'Windows', dataFolder: 'C:\data' });
+    expect(await api.getAppInfo()).toEqual({ version: '0.1.0', me3Version: '1.2.3', platform: 'Windows', dataFolder: 'C:\\data' });
   });
 
   it('shows an empty me3 version when me3 is not found, and the engine version without Rust', async () => {

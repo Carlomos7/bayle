@@ -66,8 +66,8 @@ describe('profiles', () => {
   });
 
   it("counts each profile's mods, and shows 0 for one that can't be read", async () => {
-    const entry = (index: number, enabled: boolean) => ({ kind: 'package', path: `mods\M${index}`, id: `m${index}`, enabled, optional: false, load_early: false, initializer: null, finalizer: '', load_after: [], load_before: [], index, name: `m${index}` });
-    const OTHER = 'C:\me3\profiles\Other.me3';
+    const entry = (index: number, enabled: boolean) => ({ kind: 'package', path: `mods\\M${index}`, id: `m${index}`, enabled, optional: false, load_early: false, initializer: null, finalizer: '', load_after: [], load_before: [], index, name: `m${index}` });
+    const OTHER = 'C:\\me3\\profiles\\Other.me3';
     const facts = { profile: ME3, entries: [entry(0, true), entry(1, false)], display: { package: [0, 1] }, problems: {}, loads_nothing: [], stays_last: [], missing: [], configs: {} };
     const { api } = await engine({
       launch_profiles: () => ({ profiles: [profile(), profile({ profile: OTHER, source: OTHER, name: 'Other' })] }),

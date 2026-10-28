@@ -16,3 +16,47 @@ saves_back_up
 # the Activity page and prompts (the React front end)
 activity_log
 answer_prompt
+
+# Activity undo and the Settings page
+activity_undo
+settings
+settings_set
+settings_folder
+
+# the Saves page
+saves
+saves_health_report
+saves_sheet
+saves_folder
+saves_default_name
+saves_save_copy
+saves_keep_as
+saves_keep_backup
+saves_rename_copy
+saves_check_remove_copy
+saves_remove_copy
+saves_check_delete_backup
+saves_delete_backup
+saves_import_files
+saves_check_copy_character
+saves_copy_character
+saves_check_replace_from_library
+saves_replace_from_library
+saves_check_restore_backup
+saves_restore_backup
+saves_check_repair
+saves_repair
+saves_undo_change
+saves_copy_entry
+
+# the Mod Configs page
+mod_configs
+mod_configs_open
+mod_configs_stamp
+mod_configs_save
+mod_configs_attach
+mod_configs_detach
+mod_configs_share
+mod_configs_export_share
+mod_configs_check_paste
+mod_configs_paste

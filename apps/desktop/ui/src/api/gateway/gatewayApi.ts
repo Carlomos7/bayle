@@ -19,6 +19,7 @@ import { configsApi } from './adapters/configs';
 import { savesApi } from './adapters/saves';
 import { shellApi } from './adapters/shell';
 import { modsApi } from './adapters/mods';
+import { buildsApi } from './adapters/builds';
 
 /* ------------------------------------------------------------------ activity (provisional mapping) */
 
@@ -119,6 +120,8 @@ export function createGatewayApi(gateway: Gateway): BayleApi {
     ...savesApi(gateway),
     ...shellApi(gateway),
     ...modsApi(gateway, { pickFile: (o) => api.pickFile(o), pickFolder: (o) => api.pickFolder(o) }),
+    // shortcut: the Merge page is file-level (last in load order wins); resolveClash, setRule, confirmRule, discardPending, searchPieces and suggestOrder stay not_wired. Upgrade in Phase 2 (merger applies choices, per-piece record).
+    ...buildsApi(gateway),
     async getStatus(): Promise<AppStatus> {
       const s = gateway.current();
       return s?.state === 'ready' ? { state: 'ready', text: 'Ready to launch' } : { state: 'warn', text: "Bayle's engine isn't ready" };

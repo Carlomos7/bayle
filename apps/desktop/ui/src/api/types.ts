@@ -525,6 +525,8 @@ export interface BuildReport {
   kept: { family: FileFamily; count: number; unit: string }[];
   /** Full merge report, one line each. */
   reportLines: string[];
+  /** false: the engine merges in load order only, so no picks, rules, suggestions or piece search are offered. Absent: all offered. */
+  choices?: false;
 }
 
 /** One piece of the game and who last changed it, for "why is my game doing X". */
@@ -615,7 +617,8 @@ export interface ManifestDifference {
 /** What a rebuild would do, before anything is written. */
 export interface BuildPlan {
   steps: { title: string; detail?: string }[];
-  estimateSec: number;
+  /** Absent when the engine has no estimate. */
+  estimateSec?: number;
 }
 
 /* ------------------------------------------------------------------ settings */

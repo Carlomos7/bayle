@@ -19,7 +19,7 @@ export function PlanDialog({ profile, open, onOpenChange }: { profile: Profile; 
   const plan = useBuildPlan(open ? profile.id : undefined);
   const { run, pending } = useAction();
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} width={560} title="What a rebuild would do" description={plan.data ? `Read only: nothing is written until you press Rebuild, and the old build is kept for Undo. About ${plan.data.estimateSec} s.` : 'Working it out…'}
+    <Dialog open={open} onOpenChange={onOpenChange} width={560} title="What a rebuild would do" description={plan.data ? `Read only: nothing is written until you press Rebuild, and the old build is kept for Undo.${plan.data.estimateSec ? ` About ${plan.data.estimateSec} s.` : ''}` : 'Working it out…'}
       footer={<><Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button><Button variant="primary" icon={<RefreshCw />} disabled={pending || !plan.data} onClick={() => { onOpenChange(false); void run((a) => a.rebuildMerged(profile.id)); }}>Rebuild now</Button></>}>
       {plan.data && (
         <ol className="m-0 flex list-none flex-col p-0">

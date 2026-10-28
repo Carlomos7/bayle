@@ -65,6 +65,15 @@ describe('profiles', () => {
     expect(asked('launch_set_profile')).toEqual([{ source: ME3 }]);
   });
 
+  it('reads a profile with its mods and the current game', async () => {
+    const entry = { kind: 'package', path: 'mods\\A', id: 'A', enabled: true, optional: false, load_early: false, initializer: null, finalizer: '', load_after: [], load_before: [], index: 0, name: 'A' };
+    const facts = { profile: ME3, entries: [entry], display: { package: [0] }, problems: {}, loads_nothing: [], stays_last: [], missing: [], configs: {} };
+    const { api } = await engine({ launch_profiles: listed, games: () => ({ games: [engineGame()] }), mods: () => ({ profile: ME3, has_profile: true, facts }) });
+    const p = await api.getProfile(ME3);
+    expect(p).toMatchObject({ id: ME3, gameId: 'eldenring', name: 'Mine', modCount: 1, enabledCount: 1, merge: 'none' });
+    expect(p.mods).toHaveLength(1);
+  });
+
   it('creates an empty profile and answers its path as the id', async () => {
     const { api, asked } = await engine({ launch_create_profile: () => ({ profile: 'C:\\p\\New.me3' }) });
     expect(await api.createProfile('eldenring', 'New')).toMatchObject({ profileId: 'C:\\p\\New.me3', message: 'Created New' });

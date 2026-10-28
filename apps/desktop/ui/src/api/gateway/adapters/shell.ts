@@ -15,9 +15,10 @@
  */
 import { awaitJob, useLaunchJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';
-import type { ActivityEntry, Game, LaunchMode, ProfileSummary } from '../../types';
+import type { ActivityEntry, Game, LaunchMode, Profile, ProfileSummary } from '../../types';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
+import { readMods } from './modsCommon';
 
 // Operation ids stay local so the wiring batches don't all edit OPERATIONS in protocol.ts.
 const OP = {
@@ -145,6 +146,15 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
     async listProfiles(gameId) {
       // shortcut: mod counts need one mods read per profile (the Mods wiring); shown as 0 until then, and the menus hide them.
       return (await profileList()).map((p): ProfileSummary => ({ id: p.source, gameId, name: p.name, modCount: 0, enabledCount: 0 }));
+    },
+
+    async getProfile(profileId) {
+      const p = (await profileList()).find((x) => x.source === profileId);
+      if (!p) throw problem('not_found', "That profile isn't there any more.");
+      const [mods, { games }] = await Promise.all([readMods(gateway, profileId), call<{ games: EngineGame[] }>(OP.games)]);
+      const enabled = mods.filter((m) => m.enabled).length;
+      // shortcut: the mods page has no merge state, save, online consent or installer footprint; upgrade with engine routes for them.
+      return { id: p.source, gameId: games.find((g) => g.current)?.key ?? '', name: p.name, modCount: mods.length, enabledCount: enabled, merge: 'none', onlineAccepted: false, mods } satisfies Profile;
     },
 
     async setActiveProfile(_gameId, profileId) {

@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn an_operation_off_the_allowlist_is_refused() {
-        let err = operation("mods_delete_profile").unwrap_err();
+        let err = operation("mods_rename_folder").unwrap_err();
         assert_eq!(
             (err.status, err.code.as_str()),
             (403, "gateway.not_allowed")

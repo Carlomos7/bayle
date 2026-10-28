@@ -28,13 +28,15 @@ const SOURCE = { rule: 'by your rule', coupled: 'kept together by your rule', or
 export function Overlaps({ profile: p, build: b, openKind, openPiece, onOpenKind, onOpenPiece, onChangeRule }: OverlapsProps) {
   const { run, pending } = useAction();
   const kinds = overlapKinds(b);
+  const fixed = b.choices === false;
   const involved = new Set(b.clashes.flatMap((c) => c.sides.map((s) => s.modId)));
   const others = p.mods.filter((m) => m.kind === 'package' && m.enabled && !m.missing && !involved.has(m.id)).length;
 
   return (
     <section aria-label="Where your mods overlap" className="flex flex-col gap-2">
       <h2 className="m-0 text-section font-semibold">Where your mods overlap</h2>
-      <div className="overflow-hidden rounded-lg border border-line2 bg-panel">
+      {fixed && <p className="m-0 text-xs text-t3">Bayle merges in load order: the mod lower in the list wins. Choosing winners per file is coming.</p>}
+      {(kinds.length > 0 || !fixed) && <div className="overflow-hidden rounded-lg border border-line2 bg-panel">
         {kinds.map((f) => {
           const k = kindOrder(p, b, f);
           const pieces = b.clashes.filter((c) => c.family === f);
@@ -60,7 +62,7 @@ export function Overlaps({ profile: p, build: b, openKind, openPiece, onOpenKind
                     </span>
                   </span>
                 </button>
-                <Button size="sm" onClick={() => onChangeRule(f)}>Change</Button>
+                {!fixed && <Button size="sm" onClick={() => onChangeRule(f)}>Change</Button>}
               </div>
               {open && (
                 <ul className="m-0 list-none border-t border-line p-0">
@@ -84,7 +86,7 @@ export function Overlaps({ profile: p, build: b, openKind, openPiece, onOpenKind
             </div>
           );
         })}
-      </div>
+      </div>}
       {others > 0 && <p className="m-0 text-xs text-t3">{others} other mod{others === 1 ? '' : 's'} {others === 1 ? "doesn't" : "don't"} overlap with anything, so {others === 1 ? 'it is' : 'they are'} used as {others === 1 ? 'it is' : 'they are'}.</p>}
     </section>
   );

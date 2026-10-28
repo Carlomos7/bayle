@@ -17,6 +17,7 @@ export function PieceStack({ clash: c, build: b, profile: p, pending, onResolve,
   const [confirmBoth, setConfirmBoth] = useState(false);
   const pos = (id: string) => p.mods.findIndex((m) => m.id === id);
   const both = c.reason === 'both';
+  const fixed = b.choices === false; // load order decides; there is nothing to choose
   const rows = [...c.sides].sort((x, y) => (x.modId === c.winnerId ? -1 : y.modId === c.winnerId ? 1 : pos(y.modId) - pos(x.modId)));
   const r = ruleFor(b, c.family);
   const fallback = r ? 'Follow your rule' : 'Follow load order';
@@ -55,14 +56,14 @@ export function PieceStack({ clash: c, build: b, profile: p, pending, onResolve,
           {modName(p, c.rebase.modId)} was made when the game had {c.rebase.wasVanilla} here; {b.baseline.game} has {c.rebase.nowVanilla}. Its value may not mean what its author meant.</p>
       )}
       {c.unsupported && <p className="m-0 text-xs text-t3">This kind of file is not merged: one mod's whole file is used. Whether the two work together is not known.</p>}
-      <div className={cn('flex flex-col gap-1.5', pending && 'pointer-events-none opacity-60')}>
+      {!fixed && <div className={cn('flex flex-col gap-1.5', pending && 'pointer-events-none opacity-60')}>
         <span id={`pick-${c.id}`} className="text-caption font-medium text-t3">Which one does the game get?</span>
         <ToggleGroup type="single" value={value} onValueChange={choose} aria-labelledby={`pick-${c.id}`} className="max-w-full flex-wrap">
           {!c.unresolved && <ToggleGroupItem value="order">{fallback}</ToggleGroupItem>}
           {c.sides.map((s) => <ToggleGroupItem key={s.modId} value={`pick:${s.modId}`}>{modName(p, s.modId)}</ToggleGroupItem>)}
           {c.canKeepBoth && !c.unsupported && <ToggleGroupItem value="both">Keep both…</ToggleGroupItem>}
         </ToggleGroup>
-      </div>
+      </div>}
       {footer}
       <ConfirmDialog open={confirmBoth} onOpenChange={setConfirmBoth} confirmLabel="Keep both, I understand" title={`Keep both versions of ${c.piece}?`}
         description={`${modName(p, later)}'s row moves to the next free id, and the references to it that Bayle knows about are rewritten. Any reference it does not know about would point at nothing. This is not checked in game. Undo in Activity puts it back.`}

@@ -56,6 +56,8 @@ export function MergePage() {
 
   if (!game || !profile) return <Page><PageHeader eyebrow="Merge" title="Loading…" /></Page>;
   const b = build.data;
+  // The engine merges in load order only: nothing here offers a pick, a rule, a suggestion or a search that could not work.
+  const choices = b?.choices !== false;
   const openClash = (c: Clash) => {
     // A whole-file kind coupled to a rule shows inside that rule's row.
     const host = b?.rules.find((r) => !r.dormant && r.coupled?.includes(c.family))?.family;
@@ -84,19 +86,19 @@ export function MergePage() {
                 Bayle combines your mods on its own and Launch redoes it when something changes. Come here when something looks wrong in game, or when the chip next to Launch sends you.
               </FirstVisit>
             )}
-            <PieceSearch profile={profile} onOpenMod={go.openMod} onOpenClash={(id) => { const c = b.clashes.find((x) => x.id === id); if (c) openClash(c); }} />
+            {choices && <PieceSearch profile={profile} onOpenMod={go.openMod} onOpenClash={(id) => { const c = b.clashes.find((x) => x.id === id); if (c) openClash(c); }} />}
             <Overlaps profile={profile} build={b} openKind={openKind} openPiece={openPiece} onOpenKind={setOpenKind} onOpenPiece={setOpenPiece} onChangeRule={setRuleFor} />
-            <Survival profile={profile} build={b} onOpenMod={go.openMod} onSuggest={() => setSuggest(true)} />
+            {choices && <Survival profile={profile} build={b} onOpenMod={go.openMod} onSuggest={() => setSuggest(true)} />}
             <NotMerged profile={profile} build={b} />
-            <RulesList profile={profile} build={b} onOpenPiece={openClash} />
+            {choices && <RulesList profile={profile} build={b} onOpenPiece={openClash} />}
             <Advanced id="advanced" label="the load-order board, what a rebuild would do, the full report" defaultOpen={!!(search.mod || search.family)}>
               <StatusTools onPlan={() => setPlan(true)} onReport={() => setReport(true)} />
               <Board profile={profile} build={b} filter={filter} onFilter={setFilter} onOpenMod={go.openMod} />
             </Advanced>
             <RebuildDock profile={profile} build={b} />
-            {ruleFor && <RuleDialog key={ruleFor} profile={profile} build={b} family={ruleFor} open onOpenChange={(o) => !o && setRuleFor(undefined)} />}
+            {choices && ruleFor && <RuleDialog key={ruleFor} profile={profile} build={b} family={ruleFor} open onOpenChange={(o) => !o && setRuleFor(undefined)} />}
             <PlanDialog profile={profile} open={plan} onOpenChange={setPlan} />
-            <SuggestWinnersDialog profile={profile} open={suggest} onOpenChange={setSuggest} />
+            {choices && <SuggestWinnersDialog profile={profile} open={suggest} onOpenChange={setSuggest} />}
             <ReportSheet build={b} open={report} onOpenChange={setReport} />
           </>
         )}

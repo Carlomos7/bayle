@@ -53,7 +53,7 @@ export function ClashesTab({ mod: m }: { mod: Mod }) {
           })}
         </ul>
       )}
-      <div><Button size="sm" icon={<GitMerge />} onClick={() => c.openMerge(m.id)}>Settle on Merge</Button></div>
+      <div><Button size="sm" icon={<GitMerge />} onClick={() => c.openMerge(m.id)}>{b.choices === false ? 'Open Merge' : 'Settle on Merge'}</Button></div>
     </div>
   );
 }

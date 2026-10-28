@@ -194,7 +194,7 @@ function ModsView({ game, loaded }: { game: NonNullable<ReturnType<typeof useCur
             { value: 'issue', label: 'Issues', count: counts.issue, hot: counts.issue > 0 },
           ]} />
           <span className="flex-1" />
-          {build.data && build.data.state !== 'none' && <Button icon={<Wand2 />} onClick={() => setSuggest(true)} title="Bayle compares what each mod changes and suggests who should win. Nothing changes until you apply.">Suggest who wins</Button>}
+          {build.data && build.data.state !== 'none' && build.data.choices !== false && <Button icon={<Wand2 />} onClick={() => setSuggest(true)} title="Bayle compares what each mod changes and suggests who should win. Nothing changes until you apply.">Suggest who wins</Button>}
           <Button variant="primary" icon={<Download />} onClick={() => show({ id: 'install' })}>Install mod</Button>
           <DropdownMenu align="end" items={[
             item('Add a folder that is not loaded…', () => void addFolder(), { icon: <FolderPlus /> }),

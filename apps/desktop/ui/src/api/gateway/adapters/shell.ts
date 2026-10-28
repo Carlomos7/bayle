@@ -11,7 +11,7 @@
  * (prompt events, answered by LaunchPrompt through `answer_prompt`) and ends when Play is done; Stop is `cancel_job`
  * (the top bar). The job ref is kept in useLaunchJob so the UI can find it, because the engine marks Play quiet.
  *
- * Not connected (reject with not_wired): takeOverInstaller, and the profile list's mod counts.
+ * Not connected (reject with not_wired): takeOverInstaller.
  */
 import { awaitJob, useLaunchJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';
@@ -146,8 +146,11 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
 
     // shortcut: the engine lists the current game's profiles only; the UI asks for the current game's, so gameId is not checked.
     async listProfiles(gameId) {
-      // shortcut: mod counts need one mods read per profile (the Mods wiring); shown as 0 until then, and the menus hide them.
-      return (await profileList()).map((p): ProfileSummary => ({ id: p.source, gameId, name: shown(p.name), modCount: 0, enabledCount: 0 }));
+      // One mods read per profile (the same count getProfile gives); a profile that can't be read shows 0.
+      return Promise.all((await profileList()).map(async (p): Promise<ProfileSummary> => {
+        const mods = await readMods(gateway, p.source).catch(() => []);
+        return { id: p.source, gameId, name: shown(p.name), modCount: mods.length, enabledCount: mods.filter((m) => m.enabled).length };
+      }));
     },
 
     async getProfile(profileId) {

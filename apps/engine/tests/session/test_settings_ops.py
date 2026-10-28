@@ -17,7 +17,7 @@ from bayle.modules.settings import locations as layout_service
 from bayle.modules.settings.service import SettingsService, load_settings
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from support import er
+from support import er, tree_state
 
 
 def inline(run, name=None):
@@ -35,12 +35,7 @@ def code(call) -> str:
 
 
 def _tree():
-    root = data_dir()
-    return {
-        str(p): (p.stat().st_mtime_ns, p.stat().st_size)
-        for p in [root, *root.rglob("*")]
-        if "node_modules" not in p.parts
-    }
+    return tree_state(data_dir())
 
 
 def test_reading_the_page_writes_nothing():

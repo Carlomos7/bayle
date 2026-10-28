@@ -115,8 +115,15 @@ def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
 
 
 def tree_state(*roots: Path) -> dict:
-    """(mtime, size) of every file and folder under the roots: a read must leave it as it was."""
-    return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for r in roots for p in [r, *r.rglob("*")]}
+    """(mtime, size) of every file and folder under the roots: a read must leave it as it was. From source the data
+    folder is the repository, so node_modules (pnpm paths too long to stat on Windows) is left out."""
+    out: dict = {}
+    for r in roots:
+        for here, dirs, names in os.walk(r):
+            dirs[:] = [d for d in dirs if d != "node_modules"]
+            for p in [Path(here), *(Path(here) / n for n in [*dirs, *names])]:
+                out[str(p)] = (p.stat().st_mtime_ns, p.stat().st_size)
+    return out
 
 
 class FakeShellContext:

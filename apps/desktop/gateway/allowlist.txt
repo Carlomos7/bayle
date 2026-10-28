@@ -60,3 +60,13 @@ mod_configs_share
 mod_configs_export_share
 mod_configs_check_paste
 mod_configs_paste
+
+# games, profiles and Launch (the top bar and the Play button), and the Settings defaults
+games
+games_select
+launch_profiles
+launch_set_profile
+launch_create_profile
+launch_check
+launch_play
+settings_defaults

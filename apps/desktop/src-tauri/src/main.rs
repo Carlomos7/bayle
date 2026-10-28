@@ -2,6 +2,7 @@
 //! engine only through these commands; updates are the shell's and work with the engine down.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod files;
 mod ui;
 
 use std::{
@@ -12,9 +13,11 @@ use std::{
 };
 
 use bayle_gateway::{EngineCommand, Gateway};
-use serde::Serialize;
+use files::{Shown, WindowAction};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Manager, RunEvent, State, ipc::Channel};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
 use tokio::sync::broadcast::error::RecvError;
@@ -164,6 +167,117 @@ fn app_open_url(app: AppHandle, url: String) -> Result<(), UiError> {
         .map_err(UiError::gateway)
 }
 
+/// One row of a file picker's type list: `{name: "Mods", extensions: ["zip", "7z"]}`.
+#[derive(Deserialize)]
+struct PickFilter {
+    name: String,
+    extensions: Vec<String>,
+}
+
+/// A path chosen in a dialog, as text; None when the dialog was closed without choosing.
+fn chosen(path: Option<tauri_plugin_dialog::FilePath>) -> Result<Option<String>, UiError> {
+    path.map(|p| {
+        p.into_path()
+            .map(|p| p.to_string_lossy().into_owned())
+            .map_err(UiError::gateway)
+    })
+    .transpose()
+}
+
+/// Asks for one file. The chosen path, or null when the dialog was cancelled.
+#[tauri::command]
+async fn app_pick_file(
+    app: AppHandle,
+    title: Option<String>,
+    filters: Option<Vec<PickFilter>>,
+) -> Result<Option<String>, UiError> {
+    let mut dialog = app.dialog().file();
+    if let Some(title) = title {
+        dialog = dialog.set_title(title);
+    }
+    for f in filters.unwrap_or_default() {
+        let extensions: Vec<&str> = f.extensions.iter().map(String::as_str).collect();
+        dialog = dialog.add_filter(f.name, &extensions);
+    }
+    chosen(dialog.blocking_pick_file())
+}
+
+/// Asks for one folder. The chosen path, or null when the dialog was cancelled.
+#[tauri::command]
+async fn app_pick_folder(app: AppHandle, title: Option<String>) -> Result<Option<String>, UiError> {
+    let mut dialog = app.dialog().file();
+    if let Some(title) = title {
+        dialog = dialog.set_title(title);
+    }
+    chosen(dialog.blocking_pick_folder())
+}
+
+/// Shows a path in the file manager: a folder is opened, a file is only selected in its folder. Never opens a file
+/// (so the web view cannot run a program), whatever it asks for.
+#[tauri::command]
+fn app_open_path(app: AppHandle, path: String) -> Result<(), UiError> {
+    let shown = files::classify(&path).map_err(|why| UiError::new("bad_parameter", why))?;
+    match shown {
+        Shown::Folder(folder) => app
+            .opener()
+            .open_path(folder.to_string_lossy(), None::<&str>),
+        Shown::File(file) => app.opener().reveal_item_in_dir(file),
+    }
+    .map_err(UiError::gateway)
+}
+
+/// The window buttons of the main window: `minimize`, `toggle_maximize` or `close`.
+#[tauri::command]
+fn app_window(app: AppHandle, action: String) -> Result<(), UiError> {
+    let action = files::window_action(&action).ok_or_else(|| {
+        UiError::new(
+            "bad_parameter",
+            "Parameter action: minimize, toggle_maximize or close.",
+        )
+    })?;
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| UiError::gateway("There is no main window."))?;
+    match action {
+        WindowAction::Minimize => window.minimize(),
+        WindowAction::ToggleMaximize if window.is_maximized().map_err(UiError::gateway)? => {
+            window.unmaximize()
+        }
+        WindowAction::ToggleMaximize => window.maximize(),
+        WindowAction::Close => window.close(),
+    }
+    .map_err(UiError::gateway)
+}
+
+/// Zips the state folder's logs (only them: never the saves or the settings) where the user picks. The chosen path,
+/// or null when the dialog was cancelled.
+#[tauri::command]
+async fn app_save_support_logs(
+    app: AppHandle,
+    shell: State<'_, Shell>,
+) -> Result<Option<String>, UiError> {
+    let logs = shell.state_dir.join("logs");
+    if !logs.is_dir() {
+        return Err(UiError::new("not_found", "There are no logs yet."));
+    }
+    let picked = app
+        .dialog()
+        .file()
+        .set_title("Save the support logs")
+        .set_file_name("bayle-support-logs.zip")
+        .add_filter("Zip archive", &["zip"])
+        .blocking_save_file();
+    let Some(dest) = chosen(picked)? else {
+        return Ok(None);
+    };
+    let to = PathBuf::from(&dest);
+    tauri::async_runtime::spawn_blocking(move || files::zip_logs(&logs, &to))
+        .await
+        .map_err(UiError::gateway)?
+        .map_err(UiError::gateway)?;
+    Ok(Some(dest))
+}
+
 /// Checks this channel's signed manifest. Only a higher version is offered (no downgrades).
 #[tauri::command]
 async fn app_update_check(
@@ -300,6 +414,7 @@ fn main() {
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     }
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
@@ -341,6 +456,11 @@ fn main() {
             app_open_logs,
             app_report_issue,
             app_open_url,
+            app_pick_file,
+            app_pick_folder,
+            app_open_path,
+            app_window,
+            app_save_support_logs,
             app_update_check,
             app_update_install
         ])

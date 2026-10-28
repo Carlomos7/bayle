@@ -33,10 +33,14 @@ export const useDefaultSettings = () => { const api = useApi(); return useQuery(
 export function useCurrent(): { game: Game | undefined; profile: Profile | undefined; loading: boolean } {
   const gameId = useUi((s) => s.gameId);
   const games = useGames();
-  const game = games.data?.find((g) => g.id === gameId) ?? games.data?.[0];
+  // The engine says which game it works on; the app's own choice only counts when it does not.
+  const game = games.data?.find((g) => g.current) ?? games.data?.find((g) => g.id === gameId) ?? games.data?.[0];
   const prof = useProfile(game?.supported ? game.activeProfileId : undefined);
   return { game, profile: prof.data, loading: games.isLoading || prof.isLoading };
 }
+
+/** "3 of 5 mods on" for a profile menu; nothing when the backend reports no counts. */
+export const modsHint = (p: { modCount: number; enabledCount: number }) => (p.modCount ? `${p.enabledCount} of ${p.modCount} mods on` : undefined);
 
 /* ------------------------------------------------------------------ writes */
 
@@ -96,6 +100,13 @@ export function useAction() {
   }, [api, qc, undo]);
 
   return { run, undo, pending: pending > 0 };
+}
+
+/** Switch the game: the app follows at once, the backend is told, and everything is read again. */
+export function useSelectGame() {
+  const call = useCall();
+  const setGame = useUi((s) => s.setGame);
+  return useCallback((id: string) => { setGame(id); return call((a) => a.selectGame(id)); }, [call, setGame]);
 }
 
 /**

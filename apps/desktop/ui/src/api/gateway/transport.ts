@@ -1,4 +1,4 @@
-import type { AppUpdate, EngineStatus, GatewayMessage, Problem } from './protocol';
+import type { AppUpdate, EngineStatus, GatewayMessage, Problem, WindowAction } from './protocol';
 
 /**
  * What the desktop app does on its own, without the engine (decision 0016): updates, logs, bug reports, links.
@@ -10,6 +10,12 @@ export interface DesktopActions {
   openLogs(): Promise<void>;
   reportIssue(): Promise<void>;
   openUrl(url: string): Promise<void>;
+  /* Optional so a test transport can leave them out; the adapter then says "not connected yet". */
+  pickFile?(opts: { title?: string; filters?: { name: string; extensions: string[] }[] }): Promise<string | null>;
+  pickFolder?(opts: { title?: string }): Promise<string | null>;
+  openPath?(path: string): Promise<void>;
+  windowAction?(action: WindowAction): Promise<void>;
+  saveSupportLogs?(): Promise<string | null>;
 }
 
 /**

@@ -101,9 +101,12 @@ describe('settings over the engine', () => {
   });
 
   it('answers the defaults from the engine defaults', async () => {
-    const { api, off } = setup({ settings: page });
+    // A fresh settings file, as settings_defaults reports it (not the page's own, changed values).
+    const fresh: EngineSettings = { ...engineSettings, launcher_channel: 'stable', overhaul_install: false, play_backup_before: false, play_clear_after: true, check_me3_updates: true, backups_keep: 20, game_exe: '' };
+    const { t, api, off } = setup({ settings: page, settings_defaults: { settings: fresh } });
     await settle();
     const d = await api.getDefaultSettings();
+    expect(asked(t, 'settings_defaults')).toEqual([undefined]);
     expect(d.launch.installOverhauls).toBe(false);
     expect(d.saves).toMatchObject({ keepCopies: 20, repairAfterQuit: { eldenring: false } });
     expect(d.updates.channel).toBe('stable');

@@ -26,6 +26,8 @@ export interface BayleApi {
 
   /* games + profiles */
   getGames(): Promise<Game[]>;
+  /** Make a game the one the app works on (the engine acts on one game at a time). */
+  selectGame(gameId: GameId): Promise<void>;
   setActiveProfile(gameId: GameId, profileId: ProfileId): Promise<void>;
   listProfiles(gameId: GameId): Promise<ProfileSummary[]>;
   getProfile(profileId: ProfileId): Promise<Profile>;
@@ -126,7 +128,8 @@ export interface BayleApi {
   getDefaultSettings(): Promise<Settings>;
   updateSettings(patch: SettingsPatch): Promise<Settings>;
   clearBootBoostCache(): Promise<void>;
-  saveSupportLogs(): Promise<string>;
+  /** Zip the logs where the user picks. Returns the path, or null when they cancel. */
+  saveSupportLogs(): Promise<string | null>;
   checkForUpdates(): Promise<AppInfo>;
 
   /* desktop */

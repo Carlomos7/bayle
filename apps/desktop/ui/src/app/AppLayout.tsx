@@ -11,6 +11,7 @@ import { TopBar } from './shell/TopBar';
 import { Rail } from './shell/Rail';
 import { CommandPalette } from './shell/CommandPalette';
 import { GlobalDialogs } from './shell/GlobalDialogs';
+import { LaunchPrompt } from './shell/LaunchPrompt';
 import { HealthSheet } from './shell/HealthSheet';
 import { Glossary, Welcome } from './shell/Welcome';
 import { UnsupportedPage } from './UnsupportedPage';
@@ -66,6 +67,7 @@ export function AppLayout() {
       </div>
       <CommandPalette />
       <GlobalDialogs />
+      <LaunchPrompt />
       <HealthSheet />
       <Welcome />
       <Glossary />

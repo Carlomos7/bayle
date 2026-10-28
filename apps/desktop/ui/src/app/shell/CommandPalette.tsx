@@ -3,7 +3,7 @@ import { Box, Cpu, Download, Gamepad2, GitMerge, History, Layers, Moon, Play, Re
 import { useQueryClient } from '@tanstack/react-query';
 import { useUi } from '@/state/ui';
 import { useDialogs } from '@/state/dialogs';
-import { useCall, useCurrent, useGames, useProfiles } from '@/data/hooks';
+import { modsHint, useCall, useCurrent, useGames, useProfiles, useSelectGame } from '@/data/hooks';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut } from '@/components/ui/command';
 import { useLaunch } from '../useLaunch';
 import { useGo, type PageId } from '../nav';
@@ -14,7 +14,7 @@ interface Cmd { label: string; hint?: string; icon: ReactNode; run: () => void; 
 export function CommandPalette() {
   const open = useUi((s) => s.commandOpen);
   const setOpen = useUi((s) => s.setCommandOpen);
-  const setGame = useUi((s) => s.setGame);
+  const selectGame = useSelectGame();
   const show = useDialogs((s) => s.show);
   const go = useGo();
   const { game, profile } = useCurrent();
@@ -34,8 +34,8 @@ export function CommandPalette() {
     ]],
     ['Pages', [page('mods', 'Mods', <Layers />), page('saves', 'Saves', <Save />), page('merge', 'Merge', <GitMerge />), page('configs', 'Mod Configs', <SlidersHorizontal />), page('activity', 'Activity', <History />), page('settings', 'Settings', <Settings />)]],
     [`Mods in ${profile?.name ?? 'this profile'}`, (profile?.mods ?? []).map((m) => ({ label: m.name, hint: m.kind === 'package' ? `Package · ${m.enabled ? 'on' : 'off'}` : `Native${m.file && m.file !== m.name ? ` · ${m.file}` : ''} · ${m.enabled ? 'on' : 'off'}`, keywords: [m.file, m.packageId].filter((x): x is string => !!x), icon: m.kind === 'package' ? <Box /> : <Cpu />, run: () => go.openMod(m.id) }))],
-    ['Switch profile', (profiles.data ?? []).filter((p) => p.id !== profile?.id).map((p) => ({ label: p.name, hint: `${p.enabledCount} of ${p.modCount} mods on`, icon: <Users />, run: () => { if (game) void call((a) => a.setActiveProfile(game.id, p.id), { title: `Switched to ${p.name}` }); } }))],
-    ['Switch game', (games.data ?? []).filter((g) => g.id !== game?.id).map((g) => ({ label: g.name, hint: g.supported ? undefined : 'not supported yet', icon: <Gamepad2 />, run: () => setGame(g.id) }))],
+    ['Switch profile', (profiles.data ?? []).filter((p) => p.id !== profile?.id).map((p) => ({ label: p.name, hint: modsHint(p), icon: <Users />, run: () => { if (game) void call((a) => a.setActiveProfile(game.id, p.id), { title: `Switched to ${p.name}` }); } }))],
+    ['Switch game', (games.data ?? []).filter((g) => g.id !== game?.id).map((g) => ({ label: g.name, hint: g.supported ? undefined : 'not supported yet', icon: <Gamepad2 />, run: () => void selectGame(g.id) }))],
     ['Settings', [
       { label: 'Theme', icon: <Moon />, run: () => go.openSettings('appearance'), keywords: ['dark', 'light', 'bayle', 'appearance'] },
       { label: 'Rebuild merged mods before launch', icon: <Settings />, run: () => go.openSettings('launch') },

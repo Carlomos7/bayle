@@ -17,6 +17,7 @@ import { settingsAdapter } from './adapters/settings';
 import { GatewayError } from './transport';
 import { configsApi } from './adapters/configs';
 import { savesApi } from './adapters/saves';
+import { shellApi } from './adapters/shell';
 
 /* ------------------------------------------------------------------ activity (provisional mapping) */
 
@@ -82,11 +83,15 @@ export function toActivityEntry(r: EngineActivityRecord, now = new Date()): Acti
 
 /* ------------------------------------------------------------------ events */
 
-/** What the engine's `invalidated.what` names → the UI's cache scopes. PROVISIONAL: the engine's names follow its Qt pages. */
-const INVALIDATES: Record<string, Extract<BackendEvent, { type: 'changed' }>['scope'][]> = {
+/**
+ * What the engine's `invalidated.what` names (api/models.py InvalidatedData: shell | pages | updates | game) → the UI's
+ * cache scopes. The one table: shell is the top bar (games, profiles, settings), pages every page's data, updates the
+ * update state in Settings, game a change of the current game (its profiles, saves and the paths in Settings).
+ */
+export const INVALIDATES: Record<string, Extract<BackendEvent, { type: 'changed' }>['scope'][]> = {
   shell: ['profiles', 'settings'],
   pages: ['profiles', 'saves', 'configs', 'activity'],
-  game: ['profiles', 'saves'],
+  game: ['profiles', 'saves', 'settings'],
   updates: ['settings'],
 };
 
@@ -110,6 +115,7 @@ export function createGatewayApi(gateway: Gateway): BayleApi {
     ...settingsAdapter(gateway),
     ...configsApi(gateway),
     ...savesApi(gateway),
+    ...shellApi(gateway),
     async getStatus(): Promise<AppStatus> {
       const s = gateway.current();
       return s?.state === 'ready' ? { state: 'ready', text: 'Ready to launch' } : { state: 'warn', text: "Bayle's engine isn't ready" };

@@ -2,7 +2,7 @@ import { useRuntime } from '@/data/ApiProvider';
 import { Copy, Download, FileUp, FolderOpen, Info, LogOut, Minus, PenLine, Plus, RefreshCw, Save, Search, Square, Trash2, X, BookOpen, Sparkles } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/data/ApiProvider';
-import { useAction, useAppInfo, useCall, useCurrent, useGames, useProfiles, useSettings } from '@/data/hooks';
+import { useAction, useAppInfo, useCall, useCurrent, useGames, useProfiles, useSelectGame, useSettings } from '@/data/hooks';
 import { useUi } from '@/state/ui';
 import { useGo, type PageId } from '@/app/nav';
 import { useDialogs } from '@/state/dialogs';
@@ -10,6 +10,7 @@ import { DropdownMenu, header, item, sep, sub, type MenuEntry } from '@/componen
 import { LogoMark } from '@/components/bayle/layout';
 import type { ThemeName } from '@/api';
 import { cn } from '@/lib/utils';
+import { toast } from '@/state/toasts';
 
 const PAGES: { id: PageId; label: string; kbd: string }[] = [
   { id: 'mods', label: 'Mods', kbd: 'Ctrl 1' },
@@ -42,7 +43,7 @@ export function MenuBar() {
   const settings = useSettings();
   const go = useGo();
   const setPage = go.page;
-  const setGame = useUi((s) => s.setGame);
+  const selectGame = useSelectGame();
   const openPalette = useUi((s) => s.setCommandOpen);
   const show = useDialogs((s) => s.show);
   const supported = !!game?.supported;
@@ -69,7 +70,7 @@ export function MenuBar() {
   ];
   const gameMenu: MenuEntry[] = [
     header('Games'),
-    ...(games.data ?? []).map((g): MenuEntry => item(g.name, () => setGame(g.id), { checked: g.id === game?.id, hint: g.supported ? `build ${g.build}` : 'not supported yet' })),
+    ...(games.data ?? []).map((g): MenuEntry => item(g.name, () => void selectGame(g.id), { checked: g.id === game?.id, hint: g.supported ? (g.build ? `build ${g.build}` : undefined) : 'not supported yet' })),
     sep,
     item('Rescan mods and saves', () => void qc.invalidateQueries(), { icon: <RefreshCw />, kbd: 'F5' }),
   ];
@@ -92,14 +93,15 @@ export function MenuBar() {
     item('Words Bayle uses', () => show({ id: 'glossary' }), { icon: <BookOpen /> }),
     sep,
     item('Check for updates', () => show({ id: 'updates' }), { icon: <RefreshCw /> }),
-    item('Save logs for support…', () => void call((a) => a.saveSupportLogs(), { title: 'Logs saved for support', detail: 'bayle-support.zip is on your Desktop.' }), { icon: <Save /> }),
+    item('Save logs for support…', () => void call(async (a) => { const path = await a.saveSupportLogs(); if (path) toast({ kind: 'info', title: 'Logs saved for support', detail: path }); }), { icon: <Save /> }),
     item('Open logs folder', () => void call(async (a) => { const s = await a.getSettings(); await a.openPath(s.paths.logs); }), { icon: <FolderOpen /> }),
     sep,
     item('About Bayle', () => show({ id: 'about' }), { icon: <Info /> }),
   ];
 
   return (
-    <div role="menubar" aria-label="Application" className="relative col-span-full flex min-w-0 items-center gap-0.5 overflow-hidden bg-side pl-4 max-[480px]:pl-2 shadow-[inset_0_-1px_0_var(--line)] select-none">
+    // data-tauri-drag-region: the window moves by its empty area (double-click maximises); buttons and menus are their own targets.
+    <div role="menubar" aria-label="Application" data-tauri-drag-region className="relative col-span-full flex min-w-0 items-center gap-0.5 overflow-hidden bg-side pl-4 max-[480px]:pl-2 shadow-[inset_0_-1px_0_var(--line)] select-none">
       <LogoMark size={18} className="mr-2 [[data-theme=bayle]_&]:drop-shadow-[0_0_6px_rgb(217_59_59/.45)]" />
       <MenuButton label="File" items={file} />
       <MenuButton label="Profile" items={profileMenu} />
@@ -111,7 +113,7 @@ export function MenuBar() {
         Bayle <span className="ml-1 tabular-nums text-t4">{info.data?.version}</span>
         {mode === 'preview' && <span data-preview className="ml-2 rounded-xs border border-line2 px-1.5 py-px text-tag tracking-wide text-t3 uppercase" title="No engine: this preview runs on made-up data">Preview data</span>}
       </div>
-      <span className="flex-1" />
+      <span data-tauri-drag-region className="flex-1 self-stretch" />
       <div className="flex h-full shrink-0">
         {([['minimize', <Minus key="m" />, 'Minimise'], ['maximize', <Square key="s" className="size-3!" />, 'Maximise'], ['close', <X key="x" />, 'Close']] as const).map(([a, icon, label]) => (
           <button key={a} type="button" aria-label={label} title={label} onClick={() => void api.windowControl(a)}

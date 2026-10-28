@@ -2,11 +2,11 @@ import { ChevronDown, CircleHelp, Gamepad2, Moon, Play, Plus, Search, Sun } from
 import type { LaunchMode } from '@/api';
 import { Link } from '@tanstack/react-router';
 import { useRuntime, useStatus } from '@/data/ApiProvider';
-import { cancelJob, useActiveJobs } from '@/data/engine';
+import { cancelJob, useActiveJobs, useJob, useLaunchJob } from '@/data/engine';
 import type { JobView } from '@/data/jobState';
 import { toast } from '@/state/toasts';
 import { useLaunch } from '../useLaunch';
-import { useBuild, useCall, useCurrent, useGames, useProfiles, useSettings } from '@/data/hooks';
+import { modsHint, useBuild, useCall, useCurrent, useGames, useProfiles, useSelectGame, useSettings } from '@/data/hooks';
 import { profileHealth } from '@/features/mods/health';
 import { useUi } from '@/state/ui';
 import { useDialogs } from '@/state/dialogs';
@@ -74,10 +74,13 @@ function JobStatus({ job, more }: { job: JobView; more: number }) {
 function StatusLine() {
   const status = useStatus();
   const jobs = useActiveJobs();
+  const play = useJob(useLaunchJob((s) => s.ref));
   const { game, profile } = useCurrent();
   const build = useBuild(profile?.id);
   const health = profileHealth(game, profile, build.data);
   const show = useDialogs((s) => s.show);
+  // Play is a quiet job (the engine words its ending), so it is looked up by itself, to show what it does and Stop.
+  if (play?.phase === 'running') return <JobStatus job={play} more={jobs.length} />;
   if (jobs.length) return <JobStatus job={jobs[jobs.length - 1]!} more={jobs.length - 1} />;
   if (status.state !== 'ready') {
     const dot = { ready: 'bg-ok', busy: 'bg-accent animate-pulse', running: 'bg-info animate-pulse', warn: 'bg-warn' }[status.state];
@@ -107,10 +110,10 @@ function Abbr({ text, className }: { text: string; className?: string }) {
 function GamePicker() {
   const games = useGames();
   const { game } = useCurrent();
-  const setGame = useUi((s) => s.setGame);
+  const selectGame = useSelectGame();
   return (
     <DropdownMenu
-      items={[header('Games'), ...(games.data ?? []).map((g): MenuEntry => item(g.name, () => setGame(g.id), { checked: g.id === game?.id, hint: g.supported ? g.lastPlayed : 'not supported yet' }))]}
+      items={[header('Games'), ...(games.data ?? []).map((g): MenuEntry => item(g.name, () => void selectGame(g.id), { checked: g.id === game?.id, hint: g.supported ? g.lastPlayed : 'not supported yet' }))]}
       trigger={
         <button type="button" className="flex h-8 w-[168px] items-center gap-2 rounded-sm border border-line2 bg-panel px-2 text-body hover:bg-hover max-[900px]:w-auto" aria-label={`Game: ${game?.name ?? 'none'}`}>
           {game ? <Abbr text={game.abbr} /> : <Gamepad2 className="size-4" />}
@@ -131,7 +134,7 @@ function ProfilePicker() {
     <DropdownMenu
       items={[
         header(`Profiles for ${game.name}`),
-        ...(profiles.data ?? []).map((p): MenuEntry => item(p.name, () => void call((api) => api.setActiveProfile(game.id, p.id), { title: `Switched to ${p.name}`, detail: `${p.enabledCount} of ${p.modCount} mods on` }), { checked: p.id === profile?.id, hint: `${p.enabledCount} of ${p.modCount} mods on` })),
+        ...(profiles.data ?? []).map((p): MenuEntry => item(p.name, () => void call((api) => api.setActiveProfile(game.id, p.id), { title: `Switched to ${p.name}`, detail: modsHint(p) }), { checked: p.id === profile?.id, hint: modsHint(p) })),
         sep,
         item('New profile…', () => show({ id: 'newProfile' }), { icon: <Plus />, kbd: 'Ctrl N' }),
       ]}

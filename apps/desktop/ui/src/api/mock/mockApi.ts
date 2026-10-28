@@ -137,6 +137,7 @@ export function createMockApi(engine?: MockEngine): BayleApi {
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
 
     async getGames() { await latency(); return clone(db.games); },
+    async selectGame() { await latency(); },
     async setActiveProfile(gameId, profileId) { await latency(); const g = db.games.find((x) => x.id === gameId); if (g) g.activeProfileId = profileId; emit({ type: 'changed', scope: 'profiles' }); },
     async listProfiles(gameId) { await latency(); return db.profiles.filter((p) => p.gameId === gameId).map(({ id: pid, gameId: gid, name, modCount, enabledCount }) => ({ id: pid, gameId: gid, name, modCount, enabledCount })); },
     async getProfile(pid) { await latency(); return clone(profile(pid)); },

@@ -44,6 +44,11 @@ export function tauriTransport(): GatewayTransport {
       openLogs: () => call<void>(COMMANDS.openLogs),
       reportIssue: () => call<void>(COMMANDS.reportIssue),
       openUrl: (url: string) => call<void>(COMMANDS.openUrl, { url }),
+      pickFile: ({ title, filters }) => call<string | null>(COMMANDS.pickFile, { title, filters }),
+      pickFolder: ({ title }) => call<string | null>(COMMANDS.pickFolder, { title }),
+      openPath: (path: string) => call<void>(COMMANDS.openPath, { path }),
+      windowAction: (action) => call<void>(COMMANDS.window, { action }),
+      saveSupportLogs: () => call<string | null>(COMMANDS.saveSupportLogs),
     },
   };
 }

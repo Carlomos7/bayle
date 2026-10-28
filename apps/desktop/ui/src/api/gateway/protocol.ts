@@ -163,7 +163,19 @@ export const COMMANDS = {
   reportIssue: 'app_report_issue',
   /** ({ url }) → void. Opens an https link in the browser; anything else is refused. */
   openUrl: 'app_open_url',
+  /** ({ title?, filters? }) → path | null. The native file dialog. */
+  pickFile: 'app_pick_file',
+  /** ({ title? }) → path | null */
+  pickFolder: 'app_pick_folder',
+  /** ({ path }) → void. A folder opens; a file is shown in its folder. Never runs a file. */
+  openPath: 'app_open_path',
+  /** ({ action }) → void. minimize | toggle_maximize | close, on the main window. */
+  window: 'app_window',
+  /** () → zip path | null (null: the save dialog was cancelled). */
+  saveSupportLogs: 'app_save_support_logs',
 } as const;
+
+export type WindowAction = 'minimize' | 'toggle_maximize' | 'close';
 
 /** An update Rust found (decision 0016): signed, and only ever a newer version. */
 export interface AppUpdate {

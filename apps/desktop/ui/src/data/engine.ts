@@ -16,6 +16,8 @@ import { applyEvent, applySnapshot, applyStatus, EMPTY, keyOf, LOST, markCancelR
 /** everReady: the engine has been ready at least once this session (so a later outage is a banner, not a start screen). */
 export const useEngine = create<{ status: EngineStatus; everReady: boolean; readyEpoch: number }>(() => ({ status: { state: 'starting', epoch: 0 }, everReady: false, readyEpoch: 0 }));
 export const useJobStore = create<JobsState>(() => EMPTY);
+/** The Play job in flight. The engine words Play's ending itself (quiet), so it is not among the active jobs; the top bar finds it here for Stop. */
+export const useLaunchJob = create<{ ref?: JobRef }>(() => ({}));
 
 export const useEngineStatus = () => useEngine((s) => s.status);
 export const useEngineReady = () => useEngine((s) => s.status.state === 'ready');
@@ -120,6 +122,7 @@ export function awaitJob(ref: JobRef, signal?: AbortSignal): Promise<JobView> {
 export function resetEngineState() {
   useEngine.setState({ status: { state: 'starting', epoch: 0 }, everReady: false, readyEpoch: 0 });
   useJobStore.setState(EMPTY);
+  useLaunchJob.setState({ ref: undefined });
   fetching.clear();
   onlineManager.setOnline(true);
 }

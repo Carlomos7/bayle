@@ -1,10 +1,10 @@
 /**
  * The Settings page and Activity Undo over the engine: getSettings, getDefaultSettings, updateSettings
- * (settings, settings_set, settings_folder) and undo (activity_undo, a job).
+ * (settings, settings_defaults, settings_set, settings_folder) and undo (activity_undo, a job).
  *
  * Not connected (they reject with not_wired): changing the Profiles folder, Shared mods, Backups folder, Logs folder
  * and Settings file (the engine's relocate / rename-layout operations are not on the gateway allowlist yet),
- * clearBootBoostCache (no engine route), saveSupportLogs and checkForUpdates (Rust, not this adapter).
+ * clearBootBoostCache (no engine route) and checkForUpdates (Rust, not this adapter).
  */
 import { awaitJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';
@@ -14,7 +14,7 @@ import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 
 // Operation ids stay local so three wiring batches don't all edit OPERATIONS in protocol.ts.
-const OP = { activity: 'activity', undo: 'activity_undo', settings: 'settings', set: 'settings_set', folder: 'settings_folder' } as const;
+const OP = { activity: 'activity', undo: 'activity_undo', settings: 'settings', set: 'settings_set', folder: 'settings_folder', defaults: 'settings_defaults' } as const;
 
 const notWired = (what: string) => new GatewayError({ code: 'not_wired', message: `This part of Bayle isn't connected to the engine yet (${what}).` });
 
@@ -58,17 +58,6 @@ const KEYS: { [G in Group]: Record<string, keyof EngineSettings> } = {
 };
 /** The one location the engine saves and the UI shows by itself (LOCATIONS in service.py); the game folder is handled per game below. */
 const PATH_KEYS = { me3: 'me3_path' } as const;
-
-/** Defaults of modules/settings/models.py LauncherSettings. shortcut: copied by hand, replace when the engine exposes its defaults. */
-const ENGINE_DEFAULTS = {
-  theme: 'dark', effects: 'full', launcher_channel: 'stable',
-  play_update_merge: true, overhaul_install: false, play_boot_boost: true, play_show_logos: false, play_diagnostics: false,
-  play_clear_before: true, play_clear_after: true, warn_dead_shells: true,
-  offline_strip_overhaul: false, offline_start_steam: true, offline_skip_confirm: false,
-  play_backup_before: false, check_launcher_updates: true, check_me3_updates: true, backups_keep: 20,
-  play_repair_after: true, play_repair_after_eldenring: false,
-  me3_path: '', game_exe: '', me3_profile_dir: '', profiles_root: null,
-} satisfies Partial<EngineSettings>;
 
 /** The after-quit repair is per game: Elden Ring has its own key and is off by default (modules/launch/play.py repair_key). */
 const repairKey = (game: string) => (game === 'eldenring' ? 'play_repair_after_eldenring' : 'play_repair_after');
@@ -135,8 +124,8 @@ export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
     async getSettings() { return (await read()).settings; },
 
     async getDefaultSettings() {
-      const p = await gateway.call<EngineSettingsPage>(OP.settings);
-      return toSettings({ ...p, settings: { ...p.settings, ...ENGINE_DEFAULTS }, detected: {} }, null, LOCAL_DEFAULTS);
+      const [p, d] = await Promise.all([gateway.call<EngineSettingsPage>(OP.settings), gateway.call<{ settings: EngineSettings }>(OP.defaults)]);
+      return toSettings({ ...p, settings: d.settings, detected: {} }, null, LOCAL_DEFAULTS);
     },
 
     // One engine call per changed setting; values equal to the current ones are skipped, so "reset all" sends only what differs.

@@ -57,8 +57,9 @@ function PathControls({ row }: { row: RowDef }) {
   const p = row.paths[0]!;
   const current = String(getValue(settings, p) ?? '');
   const pick = row.kind.type === 'path' ? row.kind.pick : 'none';
+  const filters = row.kind.type === 'path' ? row.kind.filters : undefined;
   const change = async () => {
-    const chosen = await call((a) => (pick === 'file' ? a.pickFile({ title: `Choose ${row.label}` }) : a.pickFolder({ title: `Choose ${row.label}` })));
+    const chosen = await call((a) => (pick === 'file' ? a.pickFile({ title: `Choose ${row.label}`, filters }) : a.pickFolder({ title: `Choose ${row.label}` })));
     if (chosen) set(p, chosen);
   };
   return <>

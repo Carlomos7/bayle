@@ -41,6 +41,8 @@ export interface Game {
   /** e.g. "last played today, 00:38" */
   lastPlayed?: string;
   installFolder?: string;
+  /** The game the engine is working on, when the backend says so (the app follows it over its own choice). */
+  current?: boolean;
   /** Character slots per save file (Elden Ring: 10). */
   slotsPerSave: number;
 }

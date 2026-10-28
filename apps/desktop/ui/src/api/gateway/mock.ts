@@ -126,6 +126,12 @@ export function createMockEngine(opts: { scenario?: MockScenario; bootMs?: numbe
       openLogs: async () => {},
       reportIssue: async () => { window.open('https://github.com/Carlomos7/bayle/issues/new', '_blank', 'noopener'); },
       openUrl: async (url: string) => { window.open(url, '_blank', 'noopener'); },
+      // A browser tab has no native dialogs, file manager, window or log folder to offer.
+      pickFile: async () => null,
+      pickFolder: async () => null,
+      openPath: async () => {},
+      windowAction: async () => {},
+      saveSupportLogs: async () => null,
     },
 
     runJob(title, o = {}) {

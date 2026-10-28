@@ -28,8 +28,9 @@ export function Welcome() {
   const folderOf = (id: string) => settings.data?.paths.games[id];
 
   const finish = (then?: () => void) => { setOnboarded(true); close(); setStep(0); then?.(); };
-  const pickFolder = async (gameId: string, name: string) => {
-    const p = await call((a) => a.pickFolder({ title: `Where is ${name} installed?` }));
+  // The engine wants the game's program, not its folder.
+  const pickGame = async (gameId: string, name: string) => {
+    const p = await call((a) => a.pickFile({ title: `Where is ${name} installed?`, filters: [{ name: 'Game program', extensions: ['exe'] }] }));
     if (p) await call((a) => a.updateSettings({ paths: { games: { [gameId]: p } } } as never), { title: `${name} folder set` });
   };
 
@@ -45,9 +46,9 @@ export function Welcome() {
                 {f ? <CheckCircle2 className="size-4 shrink-0 text-ok" /> : <FolderOpen className="size-4 shrink-0 text-warn" />}
                 <div className="min-w-0 flex-1">
                   <div className="text-body font-medium">{g.name}{f ? ' found' : ''}</div>
-                  <div className="truncate font-mono text-xs text-t3">{f ?? 'Not found. Pick its folder, the one with the game\'s .exe in it.'}</div>
+                  <div className="truncate font-mono text-xs text-t3">{f ?? 'Not found. Pick the game\'s .exe.'}</div>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => void pickFolder(g.id, g.name)}>{f ? 'Change' : 'Pick folder'}</Button>
+                <Button size="sm" variant="ghost" onClick={() => void pickGame(g.id, g.name)}>{f ? 'Change' : 'Pick game'}</Button>
               </li>
             );
           })}

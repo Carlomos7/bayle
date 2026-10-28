@@ -15,7 +15,7 @@ export type RowKind =
   | { type: 'switch' }
   | { type: 'segmented'; options: { value: string; label: string }[]; numeric?: boolean }
   | { type: 'theme' }
-  | { type: 'path'; pick: 'folder' | 'file' | 'none' }
+  | { type: 'path'; pick: 'folder' | 'file' | 'none'; /** For a file pick: what the dialog offers. */ filters?: { name: string; extensions: string[] }[] }
   | { type: 'perGame' }
   | { type: 'units'; units: string[] }
   | { type: 'action' }
@@ -66,7 +66,7 @@ const key = (id: string, group: string, label: string, keys: string[]): RowDef =
 export function buildSchema(games: Game[]): RowDef[] {
   const playable = games.filter((g) => g.supported);
   return [
-    ...playable.map((g): RowDef => ({ id: `game-${g.id}`, section: 'locations', label: g.name, kind: { type: 'path', pick: 'folder' }, paths: [['paths', 'games', g.id]], noDefault: true, help: g.build ? `Found in the Steam library · build ${g.build}` : undefined, keywords: 'game folder steam' })),
+    ...playable.map((g): RowDef => ({ id: `game-${g.id}`, section: 'locations', label: g.name, kind: { type: 'path', pick: 'file', filters: [{ name: 'Game program', extensions: ['exe'] }] }, paths: [['paths', 'games', g.id]], noDefault: true, help: g.build ? `Found in the Steam library · build ${g.build}` : undefined, keywords: 'game folder steam exe' })),
     { id: 'me3', section: 'locations', label: 'me3', kind: { type: 'path', pick: 'file' }, paths: [['paths', 'me3']], noDefault: true, keywords: 'mod engine loader', help: 'Bayle never replaces me3 itself.' },
     { id: 'profiles', section: 'locations', label: 'Profiles folder', kind: { type: 'path', pick: 'folder' }, paths: [['paths', 'profiles']], noDefault: true },
     { id: 'sharedMods', section: 'locations', label: 'Shared mods', kind: { type: 'path', pick: 'folder' }, paths: [['paths', 'sharedMods']], noDefault: true, help: 'One folder of mods that every profile can use.', keywords: 'library' },

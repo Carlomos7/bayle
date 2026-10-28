@@ -33,4 +33,3 @@ export function MarkdownView({ text }: { text: string }) {
   flush();
   return <div className="rounded-lg border border-line2 bg-panel px-5 py-4">{out}</div>;
 }
-

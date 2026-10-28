@@ -181,4 +181,3 @@ export function liveHelp(row: RowDef, me3Version?: string): string | undefined {
   if (row.id === 'installed') return 'Checked a few minutes ago. Bayle checks again on the next start.';
   return row.help;
 }
-

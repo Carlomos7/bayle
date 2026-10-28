@@ -37,7 +37,7 @@ function Steps({ step, onStep }: { step: number; onStep: (i: number) => void }) 
 
 /** How Bayle installs an overhaul: the plan first, its natives to confirm, and the file-by-file recipe under Advanced. */
 export function OverhaulSheet({ setupId, profileId, mode, open, onOpenChange }: OverhaulSheetProps) {
-  const setup = useSetup(open ? setupId : undefined);
+  const setup = useSetup(open ? setupId : undefined, profileId);
   const users = useSetupUsers(open && mode === 'edit' ? setupId : undefined);
   const { profile } = useCurrent();
   const { run, pending } = useAction();

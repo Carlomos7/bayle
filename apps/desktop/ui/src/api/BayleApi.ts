@@ -1,7 +1,7 @@
 import type {
   ActionResult, ActivityEntry, ActivityId, AppInfo, AppStatus, BackendEvent, BuildPlan, BuildReport, ClashResolution, ConfigFile, FileFamily, ManifestDifference, OrderSuggestion, PieceHit, SetupManifest, ConfigFileId, ConfigFileRef,
   ConfigValue, CopyId, Game, GameId, InstallPreview, InstallSource, LaunchMode, Mod, ModFile, ModId, ModKind,
-  OverhaulSetup, Profile, ProfileId, ProfileSummary, SaveCopy, SaveFile, SaveId, SetupId, Settings, SettingsPatch, SlotRef,
+  Leftover, OverhaulSetup, Profile, ProfileId, ProfileSummary, SaveCopy, SaveFile, SaveId, SetupId, Settings, SettingsPatch, SlotRef,
 } from './types';
 
 /**
@@ -111,12 +111,16 @@ export interface BayleApi {
   saveConfigFile(profileId: ProfileId, id: ConfigFileId, change: { values: Record<string, ConfigValue> } | { text: string }): Promise<ActionResult>;
 
   /* overhaul setups */
-  getSetup(id: SetupId): Promise<OverhaulSetup>;
+  /** profileId: the profile the sheet is open for (a setup is read from, and written to, one profile). */
+  getSetup(id: SetupId, profileId: ProfileId): Promise<OverhaulSetup>;
   /** Profiles that use this setup and would be rebuilt on save. */
   setupUsers(id: SetupId): Promise<{ profileId: ProfileId; name: string; running: boolean }[]>;
   saveSetup(setup: OverhaulSetup): Promise<ActionResult>;
   installOverhaul(profileId: ProfileId, setup: OverhaulSetup): Promise<ActionResult>;
   removeOverhaul(profileId: ProfileId, setupId: SetupId): Promise<ActionResult>;
+  /** What overhauls' own installers left beside the profile (no screen lists them yet). */
+  listLeftovers(profileId: ProfileId): Promise<Leftover[]>;
+  cleanLeftovers(profileId: ProfileId, paths: string[]): Promise<ActionResult>;
 
   /* activity */
   listActivity(): Promise<ActivityEntry[]>;

@@ -1,20 +1,21 @@
 /**
  * The Mods page over the gateway: the mods of a profile (read, switch on/off, reorder, remove, options, rebuild, take
  * over an installer, add a Shared mod to another profile), plus the install dialog (modInstall.ts) and Share setup
- * (shareSetup.ts). Engine side: routers/mods.py, mod_library.py, mod_install.py.
+ * (shareSetup.ts) and the Overhaul sheet (overhaul.ts). Engine side: routers/mods.py, mod_library.py, mod_install.py.
  *
  * `getProfile` belongs to the shell adapter; its `mods` is `readMods(gateway, profileId)` from modsCommon.ts, which also
  * fills the id → index map the writes here use (a miss is read again).
  *
  * Not connected: renaming a mod's display name (the engine renames folders, which this field is not), upgradeMod,
- * listModFiles, copying a Separate mod to another profile, the overhaul flows, and running a rebuild tool the player has
+ * listModFiles, copying a Separate mod to another profile, and running a rebuild tool the player has
  * not allowed yet (no dialog to allow it).
  */
 import type { BayleApi } from '../../BayleApi';
 import type { ActionResult, ActivityEntry } from '../../types';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
-import { installApi } from './modInstall';
+import { installApi, type Held } from './modInstall';
+import { overhaulApi } from './overhaul';
 import { baseName, forget, guarded, notWired, OP, readFacts, rowOf, runJob, said, type EngineOptions } from './modsCommon';
 import { shareSetupApi, type Pickers } from './shareSetup';
 
@@ -37,12 +38,16 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
   const call = <T>(operation: string, params?: Record<string, unknown>) => gateway.call<T>(operation, params).catch((e: unknown) => { throw said(e); });
 
+  /** At most one install is open: the dialog shows one download at a time. */
+  const installs = new Map<string, Held>();
+
   async function rebuild(profileId: string): Promise<ActivityEntry> {
     return (await runJob(gateway, OP.rebuild, { profile: profileId }, 'rebuild')).entry;
   }
 
   return {
-    ...installApi(gateway),
+    ...installApi(gateway, installs),
+    ...overhaulApi(gateway, installs),
     ...shareSetupApi(gateway, pickers),
 
     async setModsEnabled(profileId, modIds, enabled) {

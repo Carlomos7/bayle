@@ -366,6 +366,9 @@ export interface Recipe {
   differences?: string[];
 }
 
+/** What an overhaul's own installer left beside the profile that no profile uses any more. */
+export interface Leftover { path: string; label: string; size: string; /** The installer's backup of a profile: the only copy from before it. */ backup: boolean }
+
 export interface OverhaulSetup {
   id: SetupId;
   name: string;

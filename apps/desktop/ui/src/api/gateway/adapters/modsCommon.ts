@@ -55,8 +55,10 @@ export interface EnginePageFacts {
   shared?: Record<string, number>;
   loose_dlls?: number[];
   error?: string;
+  /** The page's `overhaul` (the profile has one the launcher knows), carried here by readFacts. */
+  overhaul?: { label: string } | null;
 }
-export interface EngineModsPage { profile: string; has_profile: boolean; facts: EnginePageFacts | null }
+export interface EngineModsPage { profile: string; has_profile: boolean; facts: EnginePageFacts | null; overhaul?: { label: string } | null }
 /** mods_options (OptionsView). */
 export interface EngineOptions {
   index: number; name: string; kind: ModKind; enabled: boolean; id: string;
@@ -86,6 +88,8 @@ const inside = (child: string, folder: string) => same(child.slice(0, folder.len
 
 export const modIdOf = (profileId: string, e: Pick<EngineEntry, 'kind' | 'path'>): ModId =>
   e.kind === 'native' && COOP_DLLS.has(baseName(e.path).toLowerCase()) ? 'seamless' : resolvePath(profileId, e.path);
+
+export const bytes = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : n < 1024 ** 3 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${(n / 1024 ** 3).toFixed(1)} GB`);
 
 export const notWired = (what: string) => new GatewayError({ code: 'not_wired', message: `This part of Bayle isn't connected to the engine yet (${what}).` });
 
@@ -132,6 +136,8 @@ export function toMods(profileId: string, facts: EnginePageFacts): Mod[] {
       if (at(facts.missing, i)) mod.missing = true;
       if (String(i) in (facts.shared ?? {})) mod.shared = true;
       if (at(facts.stays_last, i)) mod.staysLast = true;
+      // The package that stays last is the profile's overhaul: the sheet and Remove address it as the profile's own.
+      if (kind === 'package' && facts.overhaul && at(facts.stays_last, i)) mod.setupId = 'overhaul';
       if (kind === 'native') {
         mod.file = file;
         mod.nameSource = 'file';
@@ -159,7 +165,7 @@ export async function readFacts(gateway: Gateway, profileId: string): Promise<En
   const map = new Map<ModId, Row>();
   for (const e of page.facts.entries) if (!page.facts.loads_nothing.includes(e.index)) map.set(modIdOf(profileId, e), { index: e.index, name: e.name, kind: e.kind, path: e.path });
   seen.set(profileId, map);
-  return page.facts;
+  return page.overhaul ? { ...page.facts, overhaul: page.overhaul } : page.facts;
 }
 
 /** The UI's Mod list for a profile (getProfile's `mods`). */

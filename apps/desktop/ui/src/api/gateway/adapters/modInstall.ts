@@ -8,14 +8,15 @@
  * dialog cancelled and never followed by another install keeps its unpacked copy until then.
  * shortcut: no cancel hook in BayleApi to close the open install at once, upgrade with a closeInstall member.
  *
- * Overhaul downloads (a recipe or an overhaul hint) install as ordinary mods here, with a warning: the overhaul flows
- * (mod_install_*overhaul*, preview) are the next batch.
+ * A download the engine matches to an overhaul (option `matched`, with the Settings switch on) opens the Overhaul sheet
+ * (detectedAs 'overhaul', setupId `install:<install id>`); overhaul.ts reads its form and finishes it. A mere hint
+ * (`suggested`) stays an ordinary install with a warning: the engine only guesses, and the dialog has no choice to make.
  */
 import type { BayleApi } from '../../BayleApi';
 import type { InstallPreview } from '../../types';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
-import { forget, runJob, said } from './modsCommon';
+import { bytes, forget, runJob, said } from './modsCommon';
 
 const OP = {
   sources: 'mod_install_sources',
@@ -38,28 +39,30 @@ interface EnginePlan {
   contents?: { name: string; group: string; size: number; on: boolean }[];
   library?: { blocked?: boolean };
   option?: 'plain' | 'suggested' | 'matched' | 'refused';
+  root?: string;
+  unpacked?: string;
 }
 interface Opened { install_id: string; plan: EnginePlan; overhaul_on: boolean; stamp: [number, number] | null }
 
-interface Held { installId: string; profile: string; plan: EnginePlan; stamp: [number, number] | null }
+export interface Held { installId: string; profile: string; plan: EnginePlan; stamp: [number, number] | null }
 
 const WHAT: Record<string, string> = {
   game: 'game files', regulation: 'game parameters', dll: 'DLL', settings: 'settings', doc: 'notes', profile: 'a me3 profile',
   loader: 'another mod loader', files: "the mod's files", other: 'not recognised',
 };
 
-const bytes = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : n < 1024 ** 3 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${(n / 1024 ** 3).toFixed(1)} GB`);
-
-function toPreview(source: string, plan: EnginePlan): InstallPreview {
+function toPreview(source: string, plan: EnginePlan, overhaulOn: boolean, installId: string): InstallPreview {
   const warnings: string[] = [];
   if (plan.name_problem) warnings.push(plan.name_problem);
   if (plan.id_taken) warnings.push(`Another mod in this profile already uses the id "${plan.id}".`);
   if (plan.already_listed?.length) warnings.push('This mod is already in the profile, so installing updates it.');
   if (plan.library?.blocked) warnings.push("A shared copy of this mod can't be updated from here.");
-  if (plan.option === 'matched' || plan.option === 'suggested') warnings.push('This download looks like an overhaul. It installs as an ordinary mod here.');
+  if (plan.option === 'suggested' || (plan.option === 'matched' && !overhaulOn)) warnings.push('This download looks like an overhaul. It installs as an ordinary mod here.');
+  const overhaul = plan.option === 'matched' && overhaulOn && !!installId;
   return {
     source,
-    detectedAs: plan.kind === 'native' ? 'native' : 'package',
+    detectedAs: overhaul ? 'overhaul' : plan.kind === 'native' ? 'native' : 'package',
+    ...(overhaul ? { setupId: `install:${installId}` } : {}),
     name: plan.name,
     // shortcut: the engine reads no version from a download, shown empty until it does.
     items: (plan.contents ?? []).map((c) => ({ path: c.name, what: WHAT[c.group] ?? c.group, include: c.on, size: bytes(c.size) })),
@@ -67,11 +70,9 @@ function toPreview(source: string, plan: EnginePlan): InstallPreview {
   };
 }
 
-export function installApi(gateway: Gateway): Partial<BayleApi> {
+/** open: the installs held now, by source path; the overhaul adapter reads and ends them too. */
+export function installApi(gateway: Gateway, open: Map<string, Held>): Partial<BayleApi> {
   const call = <T>(operation: string, params?: Record<string, unknown>) => gateway.call<T>(operation, params).catch((e: unknown) => { throw said(e); });
-  /** At most one install is open: the dialog shows one download at a time. */
-  const open = new Map<string, Held>();
-
   const closeAll = async () => {
     for (const [source, h] of [...open]) {
       open.delete(source);
@@ -87,7 +88,7 @@ export function installApi(gateway: Gateway): Partial<BayleApi> {
       await closeAll();
       const o = await call<Opened>(OP.open, { profile: source.profileId, source: source.path });
       open.set(source.path, { installId: o.install_id, profile: source.profileId, plan: o.plan, stamp: o.stamp });
-      return toPreview(source.path, o.plan);
+      return toPreview(source.path, o.plan, o.overhaul_on, o.install_id);
     },
 
     async install(profileId, preview) {

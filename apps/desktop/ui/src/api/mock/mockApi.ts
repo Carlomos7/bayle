@@ -584,6 +584,9 @@ export function createMockApi(engine?: MockEngine): BayleApi {
       return record({ kind: 'install', gameId: p.gameId, title: `Removed ${name}`, detail: p.name, scope: 'profiles', undoLabel: 'Restore', revert, undoLines: [`${name} comes back to ${p.name}, with its merged files`] });
     },
 
+    async listLeftovers() { await latency(); return []; },
+    async cleanLeftovers() { await latency(); return { message: 'Nothing to clean up' }; },
+
     async listActivity() { await latency(); return clone(db.activity); },
     async undo(entryId) {
       await latency(); const e = db.activity.find((x) => x.id === entryId);

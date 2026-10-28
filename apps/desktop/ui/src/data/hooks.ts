@@ -22,7 +22,7 @@ export const useBuild = (profileId: string | undefined) => { const api = useApi(
 export const useBuildPlan = (profileId: string | undefined) => { const api = useApi(); return useQuery({ queryKey: qk.buildPlan(profileId ?? ''), queryFn: () => api.previewBuild(profileId!), enabled: !!profileId }); };
 export const usePieceSearch = (profileId: string | undefined, query: string) => { const api = useApi(); return useQuery({ queryKey: [...qk.build(profileId ?? ''), 'search', query], queryFn: () => api.searchPieces(profileId!, query), enabled: !!profileId && query.trim().length > 0, placeholderData: (prev) => prev }); };
 export const useOrderSuggestion = (profileId: string | undefined) => { const api = useApi(); return useQuery({ queryKey: [...qk.build(profileId ?? ''), 'order'], queryFn: () => api.suggestOrder(profileId!), enabled: !!profileId }); };
-export const useSetup = (id: string | undefined) => { const api = useApi(); return useQuery({ queryKey: qk.setup(id ?? ''), queryFn: () => api.getSetup(id!), enabled: !!id }); };
+export const useSetup = (id: string | undefined, profileId: string) => { const api = useApi(); return useQuery({ queryKey: [...qk.setup(id ?? ''), profileId], queryFn: () => api.getSetup(id!, profileId), enabled: !!id }); };
 export const useSetupUsers = (id: string | undefined) => { const api = useApi(); return useQuery({ queryKey: qk.setupUsers(id ?? ''), queryFn: () => api.setupUsers(id!), enabled: !!id }); };
 export const useActivity = () => { const api = useApi(); return useQuery({ queryKey: qk.activity, queryFn: () => api.listActivity() }); };
 export const useLog = (id: string | undefined) => { const api = useApi(); return useQuery({ queryKey: qk.log(id ?? ''), queryFn: () => api.getLog(id!), enabled: !!id }); };

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NameDialog } from '@/components/bayle/name-dialog';
 import { CheckCircle2, CircleAlert } from 'lucide-react';
 import { useDialogs } from '@/state/dialogs';
+import { useRuntime } from '@/data/ApiProvider';
 import { useAction, useAppInfo, useCall, useCurrent, useProfiles, useSettings } from '@/data/hooks';
 import { Dialog, ConfirmDialog } from '@/components/bayle/overlay';
 import { Button } from '@/components/ui/button';
@@ -59,13 +60,14 @@ function SetupDialog() {
 function UpdatesDialog() {
   const close = useDialogs((s) => s.close);
   const call = useCall();
+  const { gateway } = useRuntime();
   const [state, setState] = useState<'checking' | 'done'>('checking');
   const [found, setFound] = useState<string | undefined>();
   useEffect(() => { void call((a) => a.checkForUpdates()).then((i) => { setFound(i?.update?.version); setState('done'); }); }, [call]);
   return (
     <Dialog open onOpenChange={(o) => !o && close()} title="Updates"
       description={state === 'checking' ? 'Checking GitHub…' : found ? `Bayle ${found} is available. One click, then a restart. Your settings stay.` : 'You have the latest version.'}
-      footer={<><Button variant="ghost" onClick={close}>Later</Button>{found && <Button variant="primary" onClick={close}>Update now</Button>}</>} />
+      footer={<><Button variant="ghost" onClick={close}>Later</Button>{found && gateway.app && <Button variant="primary" onClick={() => void call(() => gateway.app!.installUpdate())}>Update now</Button>}</>} />
   );
 }
 

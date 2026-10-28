@@ -3159,6 +3159,26 @@
         "title": "Me3SettingsView",
         "type": "object"
       },
+      "Me3Version": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Me3Version",
+        "type": "object"
+      },
       "ModConfigsState": {
         "description": "The page's facts: the profile they were read for (\"\" when there is none) and its mods with settings files.",
         "properties": {
@@ -14994,6 +15014,32 @@
           }
         ],
         "summary": "Settings Layout Check",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/settings/me3": {
+      "get": {
+        "operationId": "settings_me3",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me3Version"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Settings Me3",
         "tags": [
           "settings"
         ]

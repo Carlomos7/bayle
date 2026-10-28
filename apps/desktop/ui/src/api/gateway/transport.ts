@@ -1,10 +1,12 @@
-import type { AppUpdate, EngineStatus, GatewayMessage, Problem, WindowAction } from './protocol';
+import type { AppShellInfo, AppUpdate, EngineStatus, GatewayMessage, Problem, WindowAction } from './protocol';
 
 /**
  * What the desktop app does on its own, without the engine (decision 0016): updates, logs, bug reports, links.
  * They keep working when the engine is down, so the engine's failure screen can offer them.
  */
 export interface DesktopActions {
+  /* Optional so a test transport can leave it out; About then shows what the engine knows. */
+  info?(): Promise<AppShellInfo>;
   checkUpdate(): Promise<AppUpdate | null>;
   installUpdate(): Promise<void>;
   openLogs(): Promise<void>;

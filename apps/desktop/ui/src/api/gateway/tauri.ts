@@ -7,7 +7,7 @@
  * Rust workstream agrees it.
  */
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
-import { COMMANDS, type AppUpdate, type EngineStatus, type GatewayMessage } from './protocol';
+import { COMMANDS, type AppShellInfo, type AppUpdate, type EngineStatus, type GatewayMessage } from './protocol';
 import { toGatewayError, type GatewayTransport } from './transport';
 
 export { isTauri };
@@ -39,6 +39,7 @@ export function tauriTransport(): GatewayTransport {
       };
     },
     app: {
+      info: () => call<AppShellInfo>(COMMANDS.appInfo),
       checkUpdate: () => call<AppUpdate | null>(COMMANDS.updateCheck),
       installUpdate: () => call<void>(COMMANDS.updateInstall),
       openLogs: () => call<void>(COMMANDS.openLogs),

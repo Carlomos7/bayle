@@ -22,6 +22,7 @@ from bayle.modules.ports import (
     exe_dir,
     launch_target,
     load_settings,
+    me3_version,
     save_game_settings,
     save_settings,
 )
@@ -355,6 +356,11 @@ class SettingsService:
         """The folder behind an "Open ... folder" button (asking for the backups folder creates it). Raises
         unknown_folder."""
         return folder(kind, self._where()[1], make=True)
+
+    def me3_version(self) -> str | None:
+        """The installed me3's version (asks the program, so it is not part of page()); None when it is not found."""
+        loc = self._where()[1]
+        return me3_version(loc.me3_exe() if loc is not None else None)
 
     def check_names(self, draft: dict[str, str]) -> NameCheck:
         game, _loc = self._where()

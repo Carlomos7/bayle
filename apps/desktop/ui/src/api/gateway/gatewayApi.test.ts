@@ -6,7 +6,6 @@ import { fakeTransport, flush } from './fakeTransport.test-util';
 describe('production adapter', () => {
   it('refuses methods that are not wired yet instead of inventing data', async () => {
     const api = createGatewayApi(createGateway(fakeTransport({ state: 'ready', epoch: 1 })));
-    await expect(api.getAppInfo()).rejects.toMatchObject({ code: 'not_wired' });
     await expect(api.searchPieces('p1', 'dash')).rejects.toMatchObject({ code: 'not_wired' });
   });
 

@@ -148,3 +148,6 @@ mod_install_leftovers_clean
 builds
 builds_preview
 builds_accept_dropped
+
+# About and the me3 version (the app info itself is a Rust command)
+settings_me3

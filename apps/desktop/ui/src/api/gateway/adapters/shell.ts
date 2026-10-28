@@ -11,7 +11,7 @@
  * (prompt events, answered by LaunchPrompt through `answer_prompt`) and ends when Play is done; Stop is `cancel_job`
  * (the top bar). The job ref is kept in useLaunchJob so the UI can find it, because the engine marks Play quiet.
  *
- * Not connected (reject with not_wired): getAppInfo, takeOverInstaller, and the profile list's mod counts.
+ * Not connected (reject with not_wired): takeOverInstaller, and the profile list's mod counts.
  */
 import { awaitJob, useLaunchJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';

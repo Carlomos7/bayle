@@ -126,6 +126,15 @@ def defaults(s: Settings, _q: Annotated[NoParams, Query()]) -> SettingsDefaults:
     return SettingsDefaults(settings=s.defaults())
 
 
+class Me3Version(Result):
+    version: str | None  # None: me3 is not installed or cannot be asked
+
+
+@router.get("/me3", name="settings_me3")
+def me3(s: Settings, _q: Annotated[NoParams, Query()]) -> Me3Version:
+    return Me3Version(version=s.me3_version())
+
+
 @router.post("/set", name="settings_set")
 def set_setting(s: Settings, p: SetParams) -> SettingChanged:
     got = s.set(p.key, p.value)

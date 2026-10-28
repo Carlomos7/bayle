@@ -153,6 +153,8 @@ export const COMMANDS = {
   unsubscribe: 'engine_unsubscribe',
   /** ({ operation, params?, epoch? }) → the operation's JSON result, or rejects with Problem. */
   call: 'engine_call',
+  /** () → AppShellInfo. This build's version, update channel, data folder and platform. */
+  appInfo: 'app_info',
   /** () → AppUpdate | null. Rust checks this channel's signed manifest; works with the engine down. */
   updateCheck: 'app_update_check',
   /** () → void. Installs the update found by updateCheck; the app restarts on the new version. */
@@ -180,6 +182,14 @@ export const COMMANDS = {
 export type WindowAction = 'minimize' | 'toggle_maximize' | 'close';
 
 /** An update Rust found (decision 0016): signed, and only ever a newer version. */
+/** What Rust knows about this build (app_info). */
+export interface AppShellInfo {
+  version: string;
+  channel: string;
+  dataFolder: string;
+  platform: string;
+}
+
 export interface AppUpdate {
   version: string;
   current: string;

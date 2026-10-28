@@ -50,6 +50,26 @@ struct UpdateInfo {
     notes: Option<String>,
 }
 
+/// What About shows: this build, its update channel and the folder that holds Bayle's data.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppInfo {
+    version: &'static str,
+    channel: String,
+    data_folder: String,
+    platform: &'static str,
+}
+
+#[tauri::command]
+fn app_info(shell: State<'_, Shell>) -> AppInfo {
+    AppInfo {
+        version: env!("CARGO_PKG_VERSION"),
+        channel: shell.channel.clone(),
+        data_folder: shell.state_dir.to_string_lossy().into_owned(),
+        platform: std::env::consts::OS,
+    }
+}
+
 #[tauri::command]
 async fn engine_call(
     gateway: State<'_, Gateway>,
@@ -473,6 +493,7 @@ fn main() {
             app_window,
             app_window_maximized,
             app_save_support_logs,
+            app_info,
             app_update_check,
             app_update_install
         ])

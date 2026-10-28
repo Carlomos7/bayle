@@ -4,7 +4,7 @@
  *
  * Not connected (they reject with not_wired): changing the Profiles folder, Shared mods, Backups folder, Logs folder
  * and Settings file (the engine's relocate / rename-layout operations are not on the gateway allowlist yet),
- * clearBootBoostCache (no engine route) and checkForUpdates (Rust, not this adapter).
+ * clearBootBoostCache (no engine route) (checkForUpdates is adapters/appInfo.ts).
  */
 import { awaitJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';

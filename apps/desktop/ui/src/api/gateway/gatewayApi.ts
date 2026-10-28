@@ -18,6 +18,7 @@ import { GatewayError } from './transport';
 import { configsApi } from './adapters/configs';
 import { savesApi } from './adapters/saves';
 import { shellApi } from './adapters/shell';
+import { appInfoApi } from './adapters/appInfo';
 import { modsApi } from './adapters/mods';
 import { buildsApi } from './adapters/builds';
 
@@ -119,6 +120,7 @@ export function createGatewayApi(gateway: Gateway): BayleApi {
     ...configsApi(gateway),
     ...savesApi(gateway),
     ...shellApi(gateway),
+    ...appInfoApi(gateway),
     ...modsApi(gateway, { pickFile: (o) => api.pickFile(o), pickFolder: (o) => api.pickFolder(o) }),
     // shortcut: the Merge page is file-level (last in load order wins); resolveClash, setRule, confirmRule, discardPending, searchPieces and suggestOrder stay not_wired. Upgrade in Phase 2 (merger applies choices, per-piece record).
     ...buildsApi(gateway),

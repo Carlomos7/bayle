@@ -110,6 +110,8 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
     return { result: job.result, entry };
   }
 
+  /** The name people see: the engine names an me3 profile by its file. */
+  const shown = (name: string) => name.replace(/\.me3$/i, '');
   const profileList = async () => (await call<{ profiles: EngineLaunchProfile[] }>(OP.profiles)).profiles;
 
   /** The engine's way of naming the profile, found from its id (`source`). */
@@ -145,7 +147,7 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
     // shortcut: the engine lists the current game's profiles only; the UI asks for the current game's, so gameId is not checked.
     async listProfiles(gameId) {
       // shortcut: mod counts need one mods read per profile (the Mods wiring); shown as 0 until then, and the menus hide them.
-      return (await profileList()).map((p): ProfileSummary => ({ id: p.source, gameId, name: p.name, modCount: 0, enabledCount: 0 }));
+      return (await profileList()).map((p): ProfileSummary => ({ id: p.source, gameId, name: shown(p.name), modCount: 0, enabledCount: 0 }));
     },
 
     async getProfile(profileId) {
@@ -154,7 +156,7 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
       const [mods, { games }] = await Promise.all([readMods(gateway, profileId), call<{ games: EngineGame[] }>(OP.games)]);
       const enabled = mods.filter((m) => m.enabled).length;
       // shortcut: the mods page has no merge state, save, online consent or installer footprint; upgrade with engine routes for them.
-      return { id: p.source, gameId: games.find((g) => g.current)?.key ?? '', name: p.name, modCount: mods.length, enabledCount: enabled, merge: 'none', onlineAccepted: false, mods } satisfies Profile;
+      return { id: p.source, gameId: games.find((g) => g.current)?.key ?? '', name: shown(p.name), modCount: mods.length, enabledCount: enabled, merge: 'none', onlineAccepted: false, mods } satisfies Profile;
     },
 
     async setActiveProfile(_gameId, profileId) {

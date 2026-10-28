@@ -59,7 +59,7 @@ describe('games', () => {
 
 describe('profiles', () => {
   it('uses the profile source as its id, and remembers the active one by source', async () => {
-    const { api, asked } = await engine({ launch_profiles: listed, launch_set_profile: () => ({ profiles: [] }) });
+    const { api, asked } = await engine({ launch_profiles: () => ({ profiles: [profile({ name: 'Mine.me3' })] }), launch_set_profile: () => ({ profiles: [] }) });
     expect(await api.listProfiles('eldenring')).toEqual([{ id: ME3, gameId: 'eldenring', name: 'Mine', modCount: 0, enabledCount: 0 }]);
     await api.setActiveProfile('eldenring', ME3);
     expect(asked('launch_set_profile')).toEqual([{ source: ME3 }]);

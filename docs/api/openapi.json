@@ -1,6 +1,19 @@
 {
   "components": {
     "schemas": {
+      "Accepted": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "Accepted",
+        "type": "object"
+      },
       "ActivityJobs": {
         "properties": {
           "jobs": {
@@ -227,6 +240,205 @@
           "file"
         ],
         "title": "BasicNative",
+        "type": "object"
+      },
+      "BuildFacts": {
+        "properties": {
+          "built_on": {
+            "title": "Built On",
+            "type": "string"
+          },
+          "dropped": {
+            "items": {
+              "$ref": "#/components/schemas/Dropped"
+            },
+            "title": "Dropped",
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "mods": {
+            "items": {
+              "$ref": "#/components/schemas/BuildMod"
+            },
+            "title": "Mods",
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "state",
+          "reasons",
+          "built_on",
+          "mods",
+          "files",
+          "dropped"
+        ],
+        "title": "BuildFacts",
+        "type": "object"
+      },
+      "BuildFile": {
+        "properties": {
+          "clashes": {
+            "items": {
+              "$ref": "#/components/schemas/ClashPart"
+            },
+            "title": "Clashes",
+            "type": "array"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "merged": {
+            "title": "Merged",
+            "type": "boolean"
+          },
+          "mods": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mods",
+            "type": "array"
+          },
+          "parts": {
+            "default": 0,
+            "title": "Parts",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "skipped": {
+            "default": "",
+            "title": "Skipped",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "family",
+          "mods",
+          "merged"
+        ],
+        "title": "BuildFile",
+        "type": "object"
+      },
+      "BuildMod": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "name"
+        ],
+        "title": "BuildMod",
+        "type": "object"
+      },
+      "BuildPreview": {
+        "properties": {
+          "blocked": {
+            "title": "Blocked",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "needs_allow": {
+            "title": "Needs Allow",
+            "type": "boolean"
+          },
+          "packs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Packs",
+            "type": "array"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "blocked",
+          "detail",
+          "tool",
+          "needs_allow",
+          "problem",
+          "files",
+          "packs",
+          "reasons"
+        ],
+        "title": "BuildPreview",
         "type": "object"
       },
       "CancelledEvent": {
@@ -471,6 +683,27 @@
           "name"
         ],
         "title": "Choices",
+        "type": "object"
+      },
+      "ClashPart": {
+        "properties": {
+          "mods": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mods",
+            "type": "array"
+          },
+          "part": {
+            "title": "Part",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part",
+          "mods"
+        ],
+        "title": "ClashPart",
         "type": "object"
       },
       "CleanParams": {
@@ -983,6 +1216,54 @@
           "reasons"
         ],
         "title": "DragTable",
+        "type": "object"
+      },
+      "Dropped": {
+        "properties": {
+          "accepted": {
+            "default": false,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mod": {
+            "title": "Mod",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "mod",
+          "file",
+          "family",
+          "kind"
+        ],
+        "title": "Dropped",
         "type": "object"
       },
       "DuplicateParams": {
@@ -7757,6 +8038,159 @@
         "summary": "Activity Unseen",
         "tags": [
           "activity"
+        ]
+      }
+    },
+    "/v1/builds": {
+      "get": {
+        "description": "Errors: not_found, no_game.",
+        "operationId": "builds",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile",
+            "required": true,
+            "schema": {
+              "title": "Profile",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildFacts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Builds",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/v1/builds/dropped/{dropped_id}/accept": {
+      "post": {
+        "description": "Errors: not_found (the profile, or the change is not left out now), profile_write_failed.",
+        "operationId": "builds_accept_dropped",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dropped_id",
+            "required": true,
+            "schema": {
+              "title": "Dropped Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Builds Accept Dropped",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/v1/builds/preview": {
+      "post": {
+        "description": "Errors: not_found, no_game.",
+        "operationId": "builds_preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Builds Preview",
+        "tags": [
+          "builds"
         ]
       }
     },

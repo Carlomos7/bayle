@@ -12,6 +12,7 @@ from bayle.modules.activity.service import ActivityService
 from bayle.modules.games import catalog
 from bayle.modules.games.locate import Locations
 from bayle.modules.launch.service import LaunchService
+from bayle.modules.mods.builds import BuildsService
 from bayle.modules.mods.mod_configs import ModConfigsService
 from bayle.modules.mods.mod_install import ModInstallService
 from bayle.modules.mods.mods_page import ModsService
@@ -30,6 +31,7 @@ class Features:
     profile_transfer: ProfileTransferService
     mod_configs: ModConfigsService
     mods: ModsService
+    builds: BuildsService
     mod_install: ModInstallService
     mod_library: ModLibraryService
     launch: LaunchService
@@ -53,6 +55,7 @@ def build(
         profile_transfer=ProfileTransferService(jobs, locations),
         mod_configs=ModConfigsService(jobs, locations),
         mods=ModsService(jobs, locations),
+        builds=BuildsService(jobs, locations),
         mod_install=ModInstallService(jobs, locations),
         mod_library=ModLibraryService(jobs, locations),
         launch=LaunchService(jobs, locations, select_game),

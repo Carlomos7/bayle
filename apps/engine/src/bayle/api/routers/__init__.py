@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from bayle.api.routers import (
     activity,
+    builds,
     games,
     launch,
     mod_configs,
@@ -17,5 +18,17 @@ from bayle.api.routers import (
 
 ALL: list[APIRouter] = [
     m.router
-    for m in (activity, settings, saves, profile_transfer, mod_configs, mods, mod_install, mod_library, games, launch)
+    for m in (
+        activity,
+        settings,
+        saves,
+        profile_transfer,
+        mod_configs,
+        mods,
+        builds,
+        mod_install,
+        mod_library,
+        games,
+        launch,
+    )
 ]

@@ -364,10 +364,12 @@ fn engine_setup(app: &AppHandle) -> (EngineCommand, PathBuf) {
     } else {
         "bayle-engine"
     };
+    // a debug build runs the source engine: target/debug/engine is a leftover of an earlier bundle and lags the code
     let bundled = app
         .path()
         .resource_dir()
         .ok()
+        .filter(|_| !cfg!(debug_assertions))
         .map(|r| r.join("engine").join(exe));
     let command = match bundled.filter(|p| p.is_file()) {
         Some(program) => EngineCommand {

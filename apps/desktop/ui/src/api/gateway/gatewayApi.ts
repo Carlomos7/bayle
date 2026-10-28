@@ -15,6 +15,7 @@ import type { Gateway } from './hub';
 import { OPERATIONS, type EngineEvent } from './protocol';
 import { settingsAdapter } from './adapters/settings';
 import { GatewayError } from './transport';
+import { configsApi } from './adapters/configs';
 
 /* ------------------------------------------------------------------ activity (provisional mapping) */
 
@@ -106,6 +107,7 @@ const notWired = (method: string) => new GatewayError({ code: 'not_wired', messa
 export function createGatewayApi(gateway: Gateway): BayleApi {
   const wired: Partial<BayleApi> = {
     ...settingsAdapter(gateway),
+    ...configsApi(gateway),
     async getStatus(): Promise<AppStatus> {
       const s = gateway.current();
       return s?.state === 'ready' ? { state: 'ready', text: 'Ready to launch' } : { state: 'warn', text: "Bayle's engine isn't ready" };

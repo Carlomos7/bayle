@@ -143,3 +143,8 @@ mod_install_check_overhaul_remove
 mod_install_overhaul_remove
 mod_install_leftovers
 mod_install_leftovers_clean
+
+# the Merge page (file-level build report, what a rebuild needs, play without a left-out change)
+builds
+builds_preview
+builds_accept_dropped

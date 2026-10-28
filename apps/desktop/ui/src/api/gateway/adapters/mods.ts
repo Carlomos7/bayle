@@ -7,11 +7,11 @@
  * fills the id → index map the writes here use (a miss is read again).
  *
  * Not connected: renaming a mod's display name (the engine renames folders, which this field is not), upgradeMod,
- * listModFiles, copying a Separate mod to another profile, and running a rebuild tool the player has
+ * copying a Separate mod to another profile, and running a rebuild tool the player has
  * not allowed yet (no dialog to allow it).
  */
 import type { BayleApi } from '../../BayleApi';
-import type { ActionResult, ActivityEntry } from '../../types';
+import type { ActionResult, ActivityEntry, ModFile } from '../../types';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 import { installApi, type Held } from './modInstall';
@@ -25,6 +25,7 @@ const OPS = {
   takeoverChoices: 'mod_install_takeover_choices',
   checkTakeover: 'mod_install_check_takeover',
   takeover: 'mod_install_takeover',
+  files: 'mods_files',
 } as const;
 
 interface MoveResult { moved: boolean; name: string; problem: string }
@@ -33,6 +34,13 @@ interface UseChoices { name: string; profiles: { profile: string; name: string; 
 
 const INIT_KIND = { none: 0, function: 1, delay: 2 } as const;
 const stem = (p: string) => baseName(p).replace(/\.me3$/i, '');
+const KINDS: Record<string, string> = {
+  dll: 'Plugin (DLL)', ini: 'Settings file', json: 'Settings file', toml: 'Settings file', cfg: 'Settings file', txt: 'Text',
+  dcx: 'Game data (packed)', bnd: 'Game data (packed)', bdt: 'Game data (packed)', bhd: 'Game data (packed)', regulation: 'Game data',
+  xml: 'Game data (XML)', hks: 'Animation script', lua: 'Script', png: 'Image', md: 'Notes',
+};
+/** What a file is, in plain words, from its extension. */
+const describeFile = (path: string) => KINDS[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'File';
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
@@ -180,8 +188,13 @@ export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
       return { message: `Added ${modIds.length} ${plural(modIds.length, 'mod', 'mods')} to ${stem(targetProfileId)}`, ...(entry && modIds.length === 1 ? { entry } : {}) };
     },
 
-    // shortcut: no engine route lists a mod's files, upgrade when one exists (conflicts.py / profile_mods.package_tree hold the logic).
-    async listModFiles() { throw notWired('listModFiles'); },
+    // shortcut: no clash notes yet (the engine's file list carries none); add them with a per-file conflict read.
+    async listModFiles(profileId, modId) {
+      const row = await rowOf(gateway, profileId, modId);
+      const r = await guarded(profileId, () => call<{ files: string[]; truncated: boolean; native: boolean }>(OPS.files, { profile: profileId, index: row.index }));
+      const files = r.files.map((f): ModFile => ({ path: f.replaceAll('/', '\\'), what: describeFile(f), ...(r.native ? { main: true } : {}) }));
+      return r.truncated ? [...files, { path: '…', what: 'More files than are listed here' }] : files;
+    },
     // shortcut: the engine has no "newer release" for a mod, upgrade with a release source.
     async upgradeMod() { throw notWired('upgradeMod'); },
   };

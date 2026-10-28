@@ -3201,6 +3201,32 @@
         "title": "ModConfigsState",
         "type": "object"
       },
+      "ModFiles": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "native": {
+            "title": "Native",
+            "type": "boolean"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "files",
+          "truncated",
+          "native"
+        ],
+        "title": "ModFiles",
+        "type": "object"
+      },
       "ModNode": {
         "description": "One mod with settings files. key: stable across reads (seamless, or kind:path); target: what a file is attached\nto (a DLL, or a package's folder); loaded: Seamless only: the profile loads it.",
         "properties": {
@@ -11607,6 +11633,52 @@
           }
         ],
         "summary": "Mods Duplicate Profile",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/mods/files": {
+      "post": {
+        "operationId": "mods_files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mods Files",
         "tags": [
           "mods"
         ]

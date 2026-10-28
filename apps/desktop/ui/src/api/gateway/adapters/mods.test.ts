@@ -236,9 +236,18 @@ describe('mods adapter: rebuild, take over, add to profile', () => {
     await expect(sep.api.addModsToProfile(TARGET, PROFILE, [`${DIR}\\mods\\Alpha`])).rejects.toMatchObject({ code: 'not_wired' });
   });
 
+  it("lists a mod's files with backslashes and words for what they are", async () => {
+    const { api, asked } = await engine({
+      mods: () => page(),
+      mods_files: () => ({ files: ['dinput8.dll', 'cfg/mod.ini', 'x.bin'], truncated: true, native: false }),
+    });
+    const files = await api.listModFiles(PROFILE, `${DIR}\\mods\\Alpha`);
+    expect(asked().slice(1)).toEqual([['mods_files', { profile: PROFILE, index: 0 }]]);
+    expect(files.map((f) => [f.path, f.what])).toEqual([['dinput8.dll', 'Plugin (DLL)'], ['cfg\\mod.ini', 'Settings file'], ['x.bin', 'File'], ['…', 'More files than are listed here']]);
+  });
+
   it('keeps the gaps not connected', async () => {
     const { api, asked } = await engine({});
-    await expect(api.listModFiles(PROFILE, 'x')).rejects.toMatchObject({ code: 'not_wired' });
     await expect(api.upgradeMod(PROFILE, 'x')).rejects.toMatchObject({ code: 'not_wired' });
     expect(asked()).toEqual([]);
   });

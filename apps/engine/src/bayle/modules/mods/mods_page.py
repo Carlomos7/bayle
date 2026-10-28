@@ -88,6 +88,27 @@ def folder_name(profile, entry: dict) -> str:
     return (folder if entry["kind"] == "package" else folder.parent).name
 
 
+FILES_LIMIT = 2000
+
+
+def entry_files(profile, entry: dict, limit: int = FILES_LIMIT) -> tuple[list[str], bool]:
+    """The files of one entry: a package's folder, relative and in order (at most `limit`; the flag says there were
+    more), or the one DLL of a native. Reads only; a folder that is not there lists nothing."""
+    if not entry.get("path"):
+        return [], False
+    target = profile_edit.resolve(Path(profile), entry["path"])
+    if entry["kind"] != "package":
+        return ([target.name] if target.is_file() else []), False
+    out: list[str] = []
+    for root, dirs, names in os.walk(target):
+        dirs.sort()
+        for n in sorted(names):
+            if len(out) >= limit:
+                return out, True
+            out.append((Path(root) / n).relative_to(target).as_posix())
+    return out, False
+
+
 def drop_reasons(profile, kind: str, index: int, *, loc: Locations) -> dict[int, str]:
     """For a drag of entry `index`: why dropping it at each position (0-based among its kind as shown) would be refused,
     "" where it is allowed. The same rules a move applies (mods.order.move), over the profile text read once."""
@@ -581,6 +602,13 @@ class ModsService:
     def folder_name(self, profile: str | Path, index: int) -> str:
         """The entry's folder name: where the Rename dialog starts. Raises not_found."""
         return folder_name(self._profile(profile), self._entry(profile, index))
+
+    def files(self, profile: str | Path, index: int) -> tuple[list[str], bool, bool]:
+        """The entry's files (see entry_files) and whether it is a native (its one DLL is the main file). Raises
+        not_found."""
+        entry = self._entry(profile, index)
+        listed, more = entry_files(self._profile(profile), entry)
+        return listed, more, entry["kind"] != "package"
 
     def rename_preview(self, profile: str | Path, index: int, name: str) -> RenameFacts:
         """Whether renaming to the name is allowed and what it would change; nothing is written. Raises not_found."""

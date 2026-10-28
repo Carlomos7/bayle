@@ -17,6 +17,9 @@ Not shipped. The Qt app in `apps/qt-desktop` is still the product.
 Run (needs Rust, `uv` and `pnpm`): `cargo tauri dev` from this folder (or `cargo run -p bayle-desktop` with `pnpm dev` already running in `ui/`). The engine runs from source with a scratch
 data folder (`%TEMP%\bayle-gateway-dev`, or `BAYLE_GATEWAY_DATA`), never the real one. A release build bundles the
 frozen engine: run `uv run --project apps/engine python apps/desktop/scripts/build_engine.py` from the repo root first.
+`tauri.conf.json` is the development identity (Bayle Dev, `io.github.carlomos7.bayle.dev`, sandboxed, local update
+server). A real release adds `tauri.release.conf.json` (Bayle, `io.github.carlomos7.bayle`, HTTPS manifests, the release
+update key): `cargo tauri build --config tauri.release.conf.json` from `src-tauri/`, in CI only, where the signing key is.
 
 Test: `cargo test -p bayle-gateway`. The engine test starts the real engine on a temporary folder and runs ADR 0015's
 Phase 0 checks: health, Activity data, a job's ordered events and cancel, restart after a kill, and isolation.

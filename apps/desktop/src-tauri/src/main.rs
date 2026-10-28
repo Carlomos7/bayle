@@ -24,17 +24,20 @@ use tokio::sync::broadcast::error::RecvError;
 use ui::{EngineStatus, Redact, UiError, UiMessage};
 
 const ISSUES_URL: &str = "https://github.com/Carlomos7/bayle/issues/new";
-/// Where the channel manifests live (`<base>/<channel>.json`). shortcut: a local server for the installer spike;
-/// release builds set BAYLE_UPDATE_BASE to the published manifests' address at build time.
-const UPDATE_BASE: &str = match option_env!("BAYLE_UPDATE_BASE") {
-    Some(base) => base,
-    None => "http://127.0.0.1:8765",
-};
+/// Where a release's channel manifests live (`<base>/<channel>.json`, ADR 0016). Fixed, so no build setting can point a
+/// release elsewhere; the updater also refuses plain http unless the config allows it, which only the dev config does.
+const RELEASE_UPDATE_BASE: &str = "https://carlomos7.github.io/bayle/updates";
+/// A development identity's manifests: BAYLE_UPDATE_BASE, else the local server of the installer tests.
+const DEV_UPDATE_BASE: &str = "http://127.0.0.1:8765";
+const CHANNELS: [&str; 2] = ["stable", "beta"];
+/// The channel this install follows, in the state folder so it survives updates.
+const CHANNEL_FILE: &str = "update-channel";
 
 /// Where this run keeps its state, its update channel, and the update found by the last check.
 struct Shell {
     state_dir: PathBuf,
-    channel: String,
+    channel: Mutex<String>,
+    update_base: String,
     pending: Mutex<Option<Update>>,
     redact: Arc<Redact>,
 }
@@ -54,17 +57,17 @@ struct UpdateInfo {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AppInfo {
-    version: &'static str,
+    version: String,
     channel: String,
     data_folder: String,
     platform: &'static str,
 }
 
 #[tauri::command]
-fn app_info(shell: State<'_, Shell>) -> AppInfo {
+fn app_info(app: AppHandle, shell: State<'_, Shell>) -> AppInfo {
     AppInfo {
-        version: env!("CARGO_PKG_VERSION"),
-        channel: shell.channel.clone(),
+        version: app.package_info().version.to_string(),
+        channel: shell.channel.lock().unwrap().clone(),
         data_folder: shell.state_dir.to_string_lossy().into_owned(),
         platform: std::env::consts::OS,
     }
@@ -313,7 +316,11 @@ async fn app_update_check(
     app: AppHandle,
     shell: State<'_, Shell>,
 ) -> Result<Option<UpdateInfo>, UiError> {
-    let url = format!("{UPDATE_BASE}/{}.json", shell.channel);
+    let url = format!(
+        "{}/{}.json",
+        shell.update_base,
+        shell.channel.lock().unwrap()
+    );
     let updater = app
         .updater_builder()
         .endpoints(vec![url.parse().map_err(UiError::gateway)?])
@@ -328,6 +335,34 @@ async fn app_update_check(
     });
     *shell.pending.lock().unwrap() = update;
     Ok(info)
+}
+
+/// Switches the update channel and saves it; the next check uses it.
+#[tauri::command]
+fn app_set_channel(shell: State<'_, Shell>, channel: String) -> Result<(), UiError> {
+    if !CHANNELS.contains(&channel.as_str()) {
+        return Err(UiError::gateway(format!("There is no {channel} channel.")));
+    }
+    std::fs::write(shell.state_dir.join(CHANNEL_FILE), &channel).map_err(UiError::gateway)?;
+    *shell.channel.lock().unwrap() = channel;
+    *shell.pending.lock().unwrap() = None; // an update found on the other channel is not offered
+    Ok(())
+}
+
+/// The saved channel; else Beta for a pre-release version and Stable for a release.
+fn saved_channel(state: &std::path::Path, version: &str) -> String {
+    std::fs::read_to_string(state.join(CHANNEL_FILE))
+        .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|c| CHANNELS.contains(&c.as_str()))
+        .unwrap_or_else(|| {
+            if version.contains('-') {
+                "beta"
+            } else {
+                "stable"
+            }
+            .to_owned()
+        })
 }
 
 /// Installs the update found by app_update_check: the engine is stopped first, then the signed installer runs (the
@@ -365,10 +400,14 @@ fn engine_setup(app: &AppHandle) -> (EngineCommand, PathBuf) {
             .map(PathBuf::from)
             .unwrap_or_else(|| std::env::temp_dir().join("bayle-gateway-dev"))
     } else {
-        // ADR 0016: the one state folder; never app_data_dir(), which roams on Windows
-        app.path()
-            .app_local_data_dir()
-            .expect("the app's local data folder")
+        // ADR 0016: the one state folder; never app_data_dir(), which roams on Windows. Windows can fail to name it
+        // (an odd user profile); then LOCALAPPDATA, then the temp folder, rather than dying at startup.
+        app.path().app_local_data_dir().unwrap_or_else(|_| {
+            std::env::var_os("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(std::env::temp_dir)
+                .join(&app.config().identifier)
+        })
     };
     let _ = std::fs::create_dir_all(&state);
     let mut env = vec![(
@@ -452,8 +491,12 @@ fn main() {
             let (command, state_dir) = engine_setup(app.handle());
             let gateway = tauri::async_runtime::block_on(async { Gateway::start(command) });
             app.manage(gateway);
-            let channel =
-                std::env::var("BAYLE_UPDATE_CHANNEL").unwrap_or_else(|_| "beta".to_owned());
+            let channel = saved_channel(&state_dir, &app.package_info().version.to_string());
+            let update_base = if app.config().identifier.ends_with(".dev") {
+                std::env::var("BAYLE_UPDATE_BASE").unwrap_or_else(|_| DEV_UPDATE_BASE.to_owned())
+            } else {
+                RELEASE_UPDATE_BASE.to_owned()
+            };
             let home = std::env::var("USERPROFILE")
                 .or_else(|_| std::env::var("HOME"))
                 .unwrap_or_default();
@@ -471,7 +514,8 @@ fn main() {
             app.manage(Subscriptions::default());
             app.manage(Shell {
                 state_dir,
-                channel,
+                channel: Mutex::new(channel),
+                update_base,
                 pending: Mutex::new(None),
                 redact: Arc::new(redact),
             });
@@ -495,6 +539,7 @@ fn main() {
             app_save_support_logs,
             app_info,
             app_update_check,
+            app_set_channel,
             app_update_install
         ])
         .build(tauri::generate_context!())
@@ -505,4 +550,20 @@ fn main() {
             tauri::async_runtime::block_on(gateway.shutdown(Duration::from_secs(5)));
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_channel_is_the_saved_one_else_follows_the_version() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(saved_channel(dir.path(), "6.0.0-beta.1"), "beta");
+        assert_eq!(saved_channel(dir.path(), "6.0.0"), "stable");
+        std::fs::write(dir.path().join(CHANNEL_FILE), "stable\n").unwrap();
+        assert_eq!(saved_channel(dir.path(), "6.0.0-beta.1"), "stable");
+        std::fs::write(dir.path().join(CHANNEL_FILE), "nightly").unwrap();
+        assert_eq!(saved_channel(dir.path(), "6.0.0"), "stable");
+    }
 }

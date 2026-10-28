@@ -171,6 +171,8 @@ export const COMMANDS = {
   openPath: 'app_open_path',
   /** ({ action }) → void. minimize | toggle_maximize | close, on the main window. */
   window: 'app_window',
+  /** () → boolean. Whether the main window is maximized (the title bar shows Restore). */
+  windowMaximized: 'app_window_maximized',
   /** () → zip path | null (null: the save dialog was cancelled). */
   saveSupportLogs: 'app_save_support_logs',
 } as const;

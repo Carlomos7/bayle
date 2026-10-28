@@ -236,6 +236,13 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
       if (!gateway.app?.windowAction) throw notWired('windowControl');
       await gateway.app.windowAction(action === 'maximize' ? 'toggle_maximize' : action);
     },
+    async isMaximized() {
+      return (await gateway.app?.windowMaximized?.()) ?? false;
+    },
+    async openLogs() {
+      if (!gateway.app) throw notWired('openLogs');
+      await gateway.app.openLogs();
+    },
     async saveSupportLogs() {
       if (!gateway.app?.saveSupportLogs) throw notWired('saveSupportLogs');
       return gateway.app.saveSupportLogs();

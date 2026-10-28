@@ -139,4 +139,8 @@ export interface BayleApi {
   /** Open a web page in the user's browser (releases, notes, GitHub). */
   openUrl(url: string): Promise<void>;
   windowControl(action: 'minimize' | 'maximize' | 'close'): Promise<void>;
+  /** Whether the window is maximized, for the title bar's Maximise/Restore button. */
+  isMaximized(): Promise<boolean>;
+  /** Open the folder the app and engine write their logs to. */
+  openLogs(): Promise<void>;
 }

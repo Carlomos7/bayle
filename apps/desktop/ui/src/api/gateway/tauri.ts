@@ -48,6 +48,7 @@ export function tauriTransport(): GatewayTransport {
       pickFolder: ({ title }) => call<string | null>(COMMANDS.pickFolder, { title }),
       openPath: (path: string) => call<void>(COMMANDS.openPath, { path }),
       windowAction: (action) => call<void>(COMMANDS.window, { action }),
+      windowMaximized: () => call<boolean>(COMMANDS.windowMaximized),
       saveSupportLogs: () => call<string | null>(COMMANDS.saveSupportLogs),
     },
   };

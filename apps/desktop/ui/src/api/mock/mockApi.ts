@@ -618,6 +618,8 @@ export function createMockApi(engine?: MockEngine): BayleApi {
     async openPath() { await latency(); },
     async openUrl(url) { window.open(url, '_blank', 'noopener'); },
     async windowControl() { /* the mock runs in a browser tab */ },
+    async isMaximized() { return false; },
+    async openLogs() { await latency(); },
   };
 
   // Seeded entries that say they can be undone get a no-op revert so the button works in the demo.

@@ -1,5 +1,6 @@
 import { useRuntime } from '@/data/ApiProvider';
 import { Copy, Download, FileUp, FolderOpen, Info, LogOut, Minus, PenLine, Plus, RefreshCw, Save, Search, Square, Trash2, X, BookOpen, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/data/ApiProvider';
 import { useAction, useAppInfo, useCall, useCurrent, useGames, useProfiles, useSelectGame, useSettings } from '@/data/hooks';
@@ -32,6 +33,14 @@ function MenuButton({ label, items }: { label: string; items: MenuEntry[] }) {
 /** The window's own menu row: icon, menus, centred title, window buttons. */
 export function MenuBar() {
   const api = useApi();
+  // the OS, a tiling manager or a double-click can change it too, so ask again after every resize
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    const check = () => void api.isMaximized().then(setMaximized, () => {});
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [api]);
   const qc = useQueryClient();
   const call = useCall();
   const { run } = useAction();
@@ -94,7 +103,7 @@ export function MenuBar() {
     sep,
     item('Check for updates', () => show({ id: 'updates' }), { icon: <RefreshCw /> }),
     item('Save logs for support…', () => void call(async (a) => { const path = await a.saveSupportLogs(); if (path) toast({ kind: 'info', title: 'Logs saved for support', detail: path }); }), { icon: <Save /> }),
-    item('Open logs folder', () => void call(async (a) => { const s = await a.getSettings(); await a.openPath(s.paths.logs); }), { icon: <FolderOpen /> }),
+    item('Open logs folder', () => void call((a) => a.openLogs()), { icon: <FolderOpen /> }),
     sep,
     item('About Bayle', () => show({ id: 'about' }), { icon: <Info /> }),
   ];
@@ -115,7 +124,7 @@ export function MenuBar() {
       </div>
       <span data-tauri-drag-region className="flex-1 self-stretch" />
       <div className="flex h-full shrink-0">
-        {([['minimize', <Minus key="m" />, 'Minimise'], ['maximize', <Square key="s" className="size-3!" />, 'Maximise'], ['close', <X key="x" />, 'Close']] as const).map(([a, icon, label]) => (
+        {([['minimize', <Minus key="m" />, 'Minimise'], ['maximize', maximized ? <Copy key="s" className="size-3! -scale-x-100" /> : <Square key="s" className="size-3!" />, maximized ? 'Restore' : 'Maximise'], ['close', <X key="x" />, 'Close']] as const).map(([a, icon, label]) => (
           <button key={a} type="button" aria-label={label} title={label} onClick={() => void api.windowControl(a)}
             className={cn('grid h-full w-10 place-items-center text-t3 [&_svg]:size-3.5', a === 'close' ? 'hover:bg-win-close hover:text-white' : 'hover:bg-hover hover:text-t1')}>{icon}</button>
         ))}

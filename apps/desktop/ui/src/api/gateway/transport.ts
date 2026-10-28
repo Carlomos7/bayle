@@ -15,6 +15,7 @@ export interface DesktopActions {
   pickFolder?(opts: { title?: string }): Promise<string | null>;
   openPath?(path: string): Promise<void>;
   windowAction?(action: WindowAction): Promise<void>;
+  windowMaximized?(): Promise<boolean>;
   saveSupportLogs?(): Promise<string | null>;
 }
 

@@ -131,6 +131,7 @@ export function createMockEngine(opts: { scenario?: MockScenario; bootMs?: numbe
       pickFolder: async () => null,
       openPath: async () => {},
       windowAction: async () => {},
+      windowMaximized: async () => false,
       saveSupportLogs: async () => null,
     },
 

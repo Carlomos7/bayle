@@ -46,7 +46,7 @@ def stamp(path: str | Path) -> tuple[int, int] | None:
         st = Path(path).stat()
     except OSError:
         return None
-    return st.st_mtime_ns, st.st_size
+    return st.st_mtime_ns // 1000, st.st_size  # microseconds: nanoseconds pass 2**53 and JSON clients round them
 
 
 def _unchanged(now: tuple[int, int] | None, expect: Sequence[int] | None) -> bool:

@@ -115,8 +115,11 @@ function leaves(patch: SettingsPatch): { path: string[]; value: unknown }[] {
 
 export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
   const read = async () => {
-    const [p, dir] = await Promise.all([gateway.call<EngineSettingsPage>(OP.settings), gateway.call<{ path: string | null }>(OP.folder, { kind: 'settings' })]);
-    return { p, settings: toSettings(p, dir.path) };
+    const [p, dir, shell] = await Promise.all([gateway.call<EngineSettingsPage>(OP.settings), gateway.call<{ path: string | null }>(OP.folder, { kind: 'settings' }), gateway.app?.info?.()]);
+    const settings = toSettings(p, dir.path);
+    // The desktop app keeps its own update channel (the engine's launcher_channel is Qt's); the preview shows the engine's.
+    if (shell?.channel === 'stable' || shell?.channel === 'beta') settings.updates.channel = shell.channel;
+    return { p, settings };
   };
   const set = (key: string, value: boolean | number | string) => gateway.call(OP.set, { key, value });
 
@@ -151,7 +154,8 @@ export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
         } else if (g === 'paths' && f === 'games') {
           if (game !== p.game) throw notWired('the game folder of another game');
           await set('game_exe', v);
-        } else if (g === 'paths' && f in PATH_KEYS) await set(PATH_KEYS[f as keyof typeof PATH_KEYS], v);
+        } else if (g === 'updates' && f === 'channel' && gateway.app?.setChannel) await gateway.app.setChannel(v as 'stable' | 'beta');
+        else if (g === 'paths' && f in PATH_KEYS) await set(PATH_KEYS[f as keyof typeof PATH_KEYS], v);
         else if (KEYS[g as Group]?.[f]) await set(KEYS[g as Group][f]!, v);
         // shortcut: moving the profiles folder is the engine's check_relocate + relocate job (moves every profile and mod, so it needs a confirm
         // step with size and free space that the Settings row does not have); shared mods is the layout rename; backups, logs and the settings file are fixed.

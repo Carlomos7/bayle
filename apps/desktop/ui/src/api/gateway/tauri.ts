@@ -42,6 +42,7 @@ export function tauriTransport(): GatewayTransport {
       info: () => call<AppShellInfo>(COMMANDS.appInfo),
       checkUpdate: () => call<AppUpdate | null>(COMMANDS.updateCheck),
       installUpdate: () => call<void>(COMMANDS.updateInstall),
+      setChannel: (channel) => call<void>(COMMANDS.setChannel, { channel }),
       openLogs: () => call<void>(COMMANDS.openLogs),
       reportIssue: () => call<void>(COMMANDS.reportIssue),
       openUrl: (url: string) => call<void>(COMMANDS.openUrl, { url }),

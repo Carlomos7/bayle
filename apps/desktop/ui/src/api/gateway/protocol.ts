@@ -157,6 +157,8 @@ export const COMMANDS = {
   appInfo: 'app_info',
   /** () → AppUpdate | null. Rust checks this channel's signed manifest; works with the engine down. */
   updateCheck: 'app_update_check',
+  /** ({ channel: 'stable' | 'beta' }) → void. Saves the channel this install follows; the next check uses it. */
+  setChannel: 'app_set_channel',
   /** () → void. Installs the update found by updateCheck; the app restarts on the new version. */
   updateInstall: 'app_update_install',
   /** () → void. Opens the folder with Bayle's logs. */

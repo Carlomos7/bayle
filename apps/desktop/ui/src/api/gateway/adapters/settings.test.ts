@@ -69,6 +69,26 @@ describe('settings over the engine', () => {
     off();
   });
 
+  it('reads and saves the update channel in the desktop app, not the engine', async () => {
+    const t = fakeTransport({ state: 'ready', epoch: 1 });
+    const setChannel = vi.fn(async () => {});
+    Object.assign(t, { app: { info: async () => ({ version: '6.0.0-beta.1', channel: 'stable', dataFolder: '', platform: 'windows' }), setChannel } });
+    const call = t.call.bind(t);
+    t.call = (async (op: string, params?: Record<string, unknown>, o?: { epoch?: number }) => {
+      if (op in settingsReplies) { t.calls.push({ operation: op, params, epoch: o?.epoch }); return settingsReplies[op as keyof typeof settingsReplies]; }
+      return call(op, params, o);
+    }) as typeof t.call;
+    const g = createGateway(t);
+    const off = connectEngine(g, new QueryClient());
+    const api = createGatewayApi(g);
+    await settle();
+    expect((await api.getSettings()).updates.channel).toBe('stable');
+    await api.updateSettings({ updates: { channel: 'beta' } });
+    expect(setChannel).toHaveBeenCalledWith('beta');
+    expect(t.calls.filter((c) => c.operation === 'settings_set')).toEqual([]);
+    off();
+  });
+
   it('saves the repair switch and the game folder for the current game only', async () => {
     const { t, api, off } = setup(settingsReplies);
     await settle();

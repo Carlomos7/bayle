@@ -9,6 +9,8 @@ export interface DesktopActions {
   info?(): Promise<AppShellInfo>;
   checkUpdate(): Promise<AppUpdate | null>;
   installUpdate(): Promise<void>;
+  /* Optional: without it the channel is the engine's setting, as in the browser preview. */
+  setChannel?(channel: 'stable' | 'beta'): Promise<void>;
   openLogs(): Promise<void>;
   reportIssue(): Promise<void>;
   openUrl(url: string): Promise<void>;

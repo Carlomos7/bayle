@@ -676,6 +676,8 @@ export type SettingsPatch = { [K in keyof Settings]?: Partial<Settings[K]> };
 export interface AppInfo {
   version: string;
   me3Version: string;
+  /** The engine this app is talking to: "5.0.2, contract 1". */
+  engine?: string;
   me3Latest?: string;
   update?: { version: string; channel: string };
   platform: string;

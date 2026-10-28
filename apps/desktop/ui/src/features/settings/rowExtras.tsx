@@ -47,6 +47,7 @@ export function AboutCard() {
       <Wordmark width={170} className="mr-1" />
       <div className="flex min-w-0 flex-col gap-0.5 border-l border-line pl-4">
         <b className="font-semibold">Version {info?.version}</b>
+        {info?.engine && <span className="text-xs text-t3">Engine {info.engine}</span>}
         <span className="text-ui text-t3">GPLv3 · Windows, Linux and Steam Deck · by Carlomos7</span>
       </div>
       <span className="flex-1" />

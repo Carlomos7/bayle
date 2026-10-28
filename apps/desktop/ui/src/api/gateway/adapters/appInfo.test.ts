@@ -37,6 +37,15 @@ describe('app info and updates', () => {
     expect(await api.getAppInfo()).toEqual({ version: '9.9.9', me3Version: '', platform: 'Browser', dataFolder: '' });
   });
 
+  it('names the engine and its contract once it is ready', async () => {
+    const t = fakeTransport({ state: 'ready', epoch: 1, protocol: 1, engineVersion: '5.0.2', contract: '1' });
+    t.call = (async () => ({ version: null, app_version: '5.0.2' })) as typeof t.call;
+    const g = createGateway(t);
+    connectEngine(g, new QueryClient());
+    await flush(); await flush();
+    expect((await createGatewayApi(g).getAppInfo()).engine).toBe('5.0.2, contract 1');
+  });
+
   it('adds the update Rust found, with the channel', async () => {
     const api = await setup(desktop({ version: '0.2.0', current: '0.1.0' }));
     expect((await api.checkForUpdates()).update).toEqual({ version: '0.2.0', channel: 'beta' });

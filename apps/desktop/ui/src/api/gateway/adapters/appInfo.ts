@@ -22,8 +22,10 @@ export function appInfoApi(gateway: Gateway): Partial<BayleApi> {
       gateway.call<{ version: string | null }>(OP.me3).catch(() => ({ version: null })),
       gateway.app?.info ? undefined : gateway.call<{ app_version: string }>(OPERATIONS.health).catch(() => undefined),
     ]);
+    const st = gateway.current();
     return {
       version: shell?.version ?? health?.app_version ?? '',
+      engine: st?.engineVersion ? `${st.engineVersion}, contract ${st.contract}` : undefined,
       me3Version: me3.version ?? '',
       platform: shell ? (PLATFORMS[shell.platform] ?? shell.platform) : 'Browser',
       dataFolder: shell?.dataFolder ?? '',

@@ -106,3 +106,15 @@ def test_a_shared_profile_zip_meets_the_same_limits(tmp_path):
     a = _zip(tmp_path / "p.zip", ["mods/ok.dcx"], link="mods/link")
     with pytest.raises(ModError, match="link"):
         ZipSource(a, tmp_path / "root")
+
+
+def test_a_password_protected_7z_says_so_in_plain_words(tmp_path):
+    py7zr = pytest.importorskip("py7zr")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.dcx").write_bytes(b"x")
+    a = tmp_path / "m.7z"
+    with py7zr.SevenZipFile(a, "w", password="secret") as z:
+        z.writeall(tmp_path / "src", "mod")
+    with pytest.raises(ModError, match="password-protected") as e:
+        extract.extract_7z(a, tmp_path / "out")
+    assert "method" not in str(e.value) and not (tmp_path / "out").exists()

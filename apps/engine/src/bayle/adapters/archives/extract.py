@@ -86,6 +86,11 @@ def extract_7z(archive: Path, dest: Path) -> Path:
     dest = Path(dest)
     try:
         with py7zr.SevenZipFile(archive, "r") as z:
+            if z.needs_password():
+                raise ModError(
+                    "This 7z is password-protected. Unpack it with 7-Zip using the password its author gave, then "
+                    "install the folder."
+                )
             check_listing([(f.filename, f.uncompressed or 0, f.is_symlink) for f in z.list()], dest)
             dest.mkdir(parents=True, exist_ok=True)
             z.extractall(path=dest)

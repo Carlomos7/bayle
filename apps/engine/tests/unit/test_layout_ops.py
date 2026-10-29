@@ -3,6 +3,7 @@ are the safety tests. Temporary folders only."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -292,3 +293,19 @@ def test_finish_pending_also_blocks_on_a_journal_in_a_game_folder(world):
     assert "not finished" in (layout._unfinished(world.root, [world.g]) or "")
     op.discard()
     assert layout._unfinished(world.root, [world.g]) is None
+
+
+@pytest.mark.skipif(os.name != "nt", reason="the 260-character limit is Windows'")
+def test_a_copy_past_the_windows_path_limit_still_copies_and_cleans_up(tmp_path):
+    """A move to another drive copies into a staging folder one level deeper than the destination: with Windows' long
+    paths off, a deep profiles folder put the staging copy past 260 characters (WinError 3)."""
+    deep = "x" * 60
+    src = Path(layout._long(tmp_path / "src" / deep / deep))
+    src.mkdir(parents=True)
+    (src / "mod.dcx").write_bytes(b"data")
+    dst = tmp_path / "dst" / deep / deep / deep / deep
+    assert len(str(dst / "mod.dcx")) > 260
+    layout._copy_tree(tmp_path / "src", dst, lambda n: None, None)
+    assert Path(layout._long(dst / deep / deep / "mod.dcx")).read_bytes() == b"data"
+    layout._drop(tmp_path / "dst", None)
+    assert not (tmp_path / "dst").exists()

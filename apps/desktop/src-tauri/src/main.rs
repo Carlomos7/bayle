@@ -349,6 +349,41 @@ fn app_set_channel(shell: State<'_, Shell>, channel: String) -> Result<(), UiErr
     Ok(())
 }
 
+/// The state folder: the one Windows names, else LOCALAPPDATA when it is an existing absolute folder (Windows can fail
+/// to name it for an odd user profile). Never a guess such as the temp folder: data kept there would look lost on the
+/// next start, when Windows names the real folder again.
+fn state_folder(
+    known: Option<PathBuf>,
+    local: Option<PathBuf>,
+    identifier: &str,
+) -> Option<PathBuf> {
+    known.or_else(|| {
+        local
+            .filter(|l| l.is_absolute() && l.is_dir())
+            .map(|l| l.join(identifier))
+    })
+}
+
+/// Stops at startup when there is no state folder, saying why, rather than keeping the user's data somewhere else.
+fn no_state_folder() -> ! {
+    let text = "Bayle can't find this account's local app data folder (LOCALAPPDATA), so it can't open your \
+                profiles, backups and settings. Nothing was changed. Check that LOCALAPPDATA names an existing \
+                folder, or sign out and in again, then start Bayle again.";
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
+        let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+        MessageBoxW(
+            std::ptr::null_mut(),
+            wide(text).as_ptr(),
+            wide("Bayle can't start").as_ptr(),
+            MB_OK | MB_ICONERROR,
+        );
+    }
+    eprintln!("{text}");
+    std::process::exit(1)
+}
+
 /// The saved channel; else Beta for a pre-release version and Stable for a release.
 fn saved_channel(state: &std::path::Path, version: &str) -> String {
     std::fs::read_to_string(state.join(CHANNEL_FILE))
@@ -400,14 +435,10 @@ fn engine_setup(app: &AppHandle) -> (EngineCommand, PathBuf) {
             .map(PathBuf::from)
             .unwrap_or_else(|| std::env::temp_dir().join("bayle-gateway-dev"))
     } else {
-        // ADR 0016: the one state folder; never app_data_dir(), which roams on Windows. Windows can fail to name it
-        // (an odd user profile); then LOCALAPPDATA, then the temp folder, rather than dying at startup.
-        app.path().app_local_data_dir().unwrap_or_else(|_| {
-            std::env::var_os("LOCALAPPDATA")
-                .map(PathBuf::from)
-                .unwrap_or_else(std::env::temp_dir)
-                .join(&app.config().identifier)
-        })
+        // ADR 0016: the one state folder; never app_data_dir(), which roams on Windows
+        let known = app.path().app_local_data_dir().ok();
+        let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+        state_folder(known, local, &app.config().identifier).unwrap_or_else(|| no_state_folder())
     };
     let _ = std::fs::create_dir_all(&state);
     let mut env = vec![(
@@ -555,6 +586,26 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_state_folder_is_never_a_guess() {
+        let dir = tempfile::tempdir().unwrap();
+        let id = "io.github.carlomos7.bayle";
+        let known = dir.path().join("known").join(id);
+        // Windows names it: that one, whatever LOCALAPPDATA says
+        assert_eq!(
+            state_folder(Some(known.clone()), Some(dir.path().into()), id),
+            Some(known)
+        );
+        // Windows can't: LOCALAPPDATA, only when it is an existing absolute folder
+        assert_eq!(
+            state_folder(None, Some(dir.path().into()), id),
+            Some(dir.path().join(id))
+        );
+        assert_eq!(state_folder(None, Some(dir.path().join("gone")), id), None);
+        assert_eq!(state_folder(None, Some("relative".into()), id), None);
+        assert_eq!(state_folder(None, None, id), None);
+    }
 
     #[test]
     fn the_channel_is_the_saved_one_else_follows_the_version() {

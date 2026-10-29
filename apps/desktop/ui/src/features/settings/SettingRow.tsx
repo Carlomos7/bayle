@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import { useCall } from '@/data/hooks';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/bayle/badge';
 import { Segmented, Switch, UnitInput } from '@/components/bayle/controls';
+import { ConfirmDialog } from '@/components/bayle/overlay';
 import { cn } from '@/lib/utils';
 import { useSettingsCtx } from './context';
 import { getValue, isChanged, liveHelp, type RowDef, type SettingPath } from './schema';
@@ -51,18 +52,42 @@ function PathBox({ path }: { path: string }) {
   );
 }
 
+const gb = (n: number) => `${(n / 2 ** 30).toFixed(1)} GB`;
+
+interface Move { folder: string; profiles: number; size: number; free: number | null }
+
+/** Moving the Profiles folder moves every profile and mod, so it is asked first with the facts. */
+function MoveProfiles({ move, onClose }: { move: Move; onClose: () => void }) {
+  const call = useCall();
+  const go = () => { onClose(); void call((a) => a.moveProfiles(move.folder), { title: 'Profiles moved', detail: move.folder }); };
+  return (
+    <ConfirmDialog open onOpenChange={(o) => !o && onClose()} title="Move the Profiles folder?" confirmLabel="Move"
+      description={`${move.profiles} profile${move.profiles === 1 ? '' : 's'} and their mods (${gb(move.size)}) go to ${move.folder}.`} onConfirm={go}>
+      <div className="space-y-2 text-ui text-t2">
+        {move.free !== null && <p>Free on that drive: {gb(move.free)}.</p>}
+        <p>On another drive every file is copied and checked first, and the old folder is removed only once the move is done. If the move is interrupted, Bayle puts things back at the next start.</p>
+      </div>
+    </ConfirmDialog>
+  );
+}
+
 function PathControls({ row }: { row: RowDef }) {
   const { settings, set } = useSettingsCtx();
   const call = useCall();
+  const [move, setMove] = useState<Move | null>(null);
   const p = row.paths[0]!;
   const current = String(getValue(settings, p) ?? '');
   const pick = row.kind.type === 'path' ? row.kind.pick : 'none';
   const filters = row.kind.type === 'path' ? row.kind.filters : undefined;
   const change = async () => {
     const chosen = await call((a) => (pick === 'file' ? a.pickFile({ title: `Choose ${row.label}`, filters }) : a.pickFolder({ title: `Choose ${row.label}` })));
-    if (chosen) set(p, chosen);
+    if (!chosen) return;
+    if (row.id !== 'profiles') { set(p, chosen); return; }
+    const facts = await call((a) => a.checkMoveProfiles(chosen));
+    if (facts) setMove({ folder: chosen, ...facts });
   };
   return <>
+    {move && <MoveProfiles move={move} onClose={() => setMove(null)} />}
     <Button size="sm" variant="ghost" onClick={() => void call((a) => a.openPath(current))}>Open</Button>
     {pick !== 'none' && <Button size="sm" onClick={() => void change()}>Change…</Button>}
   </>;

@@ -2,8 +2,9 @@
  * The Settings page and Activity Undo over the engine: getSettings, getDefaultSettings, updateSettings
  * (settings, settings_defaults, settings_set, settings_folder) and undo (activity_undo, a job).
  *
- * Not connected (they reject with not_wired): changing the Profiles folder, Shared mods, Backups folder, Logs folder
- * and Settings file (the engine's relocate / rename-layout operations are not on the gateway allowlist yet),
+ * Moving the Profiles folder is its own pair (checkMoveProfiles, moveProfiles: settings_check_relocate + the relocate job).
+ * Not connected (they reject with not_wired): Shared mods, Backups folder, Logs folder and Settings file (the engine's
+ * rename-layout operations are not on the gateway allowlist yet),
  * clearBootBoostCache (no engine route) (checkForUpdates is adapters/appInfo.ts).
  */
 import { awaitJob } from '@/data/engine';
@@ -13,9 +14,10 @@ import type { EngineActivityRecord } from '../gatewayApi';
 import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
+import { runJob, said } from './modsCommon';
 
 // Operation ids stay local so three wiring batches don't all edit OPERATIONS in protocol.ts.
-const OP = { activity: 'activity', undo: 'activity_undo', settings: 'settings', set: 'settings_set', folder: 'settings_folder', defaults: 'settings_defaults' } as const;
+const OP = { activity: 'activity', undo: 'activity_undo', settings: 'settings', set: 'settings_set', folder: 'settings_folder', defaults: 'settings_defaults', checkRelocate: 'settings_check_relocate', relocate: 'settings_relocate' } as const;
 
 const notWired = (what: string) => new GatewayError({ code: 'not_wired', message: `This part of Bayle isn't connected to the engine yet (${what}).` });
 
@@ -152,11 +154,22 @@ export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
         } else if (g === 'updates' && f === 'channel' && gateway.app?.setChannel) await gateway.app.setChannel(v as 'stable' | 'beta');
         else if (g === 'paths' && f in PATH_KEYS) await set(PATH_KEYS[f as keyof typeof PATH_KEYS], v);
         else if (KEYS[g as Group]?.[f]) await set(KEYS[g as Group][f]!, v);
-        // shortcut: moving the profiles folder is the engine's check_relocate + relocate job (moves every profile and mod, so it needs a confirm
-        // step with size and free space that the Settings row does not have); shared mods is the layout rename; backups, logs and the settings file are fixed.
+        // the profiles folder moves through moveProfiles (it needs a confirm); shared mods is the layout rename; backups, logs and the settings file are fixed
         else throw notWired(`${g}.${f}`); // profiles, shared mods, backups, logs, settings file
       }
       return (await read()).settings;
+    },
+
+    async checkMoveProfiles(folder) {
+      const f = await gateway.call<components['schemas']['RelocateFacts']>(OP.checkRelocate, { folder }).catch((e) => { throw said(e); });
+      return { profiles: f.profiles, size: f.size, free: f.free };
+    },
+
+    async moveProfiles(folder) {
+      // expect_root: the folder this move is from as the engine stores it, so a change made meanwhile is refused as stale
+      const { settings } = await gateway.call<EngineSettingsPage>(OP.settings);
+      const { entry } = await runJob(gateway, OP.relocate, { folder, expect_root: settings.profiles_root ?? '' }, 'profile');
+      return { entry, message: `Moved the profiles to ${folder}`, detail: 'Every file was copied and checked before the old folder was removed.' };
     },
 
     // shortcut: the cache is me3's own and the engine neither knows where me3 keeps it nor has a route to clear it; needs that read of me3 first.

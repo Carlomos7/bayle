@@ -132,6 +132,10 @@ export interface BayleApi {
   getDefaultSettings(): Promise<Settings>;
   updateSettings(patch: SettingsPatch): Promise<Settings>;
   clearBootBoostCache(): Promise<void>;
+  /** What moving the Profiles folder to `folder` means: how many profiles, their size and the free space there (bytes; null when it can't be read). */
+  checkMoveProfiles(folder: string): Promise<{ profiles: number; size: number; free: number | null }>;
+  /** Move every profile and mod there (copied and checked first; the old folder goes only once the move is done). */
+  moveProfiles(folder: string): Promise<ActionResult>;
   /** Zip the logs where the user picks. Returns the path, or null when they cancel. */
   saveSupportLogs(): Promise<string | null>;
   checkForUpdates(): Promise<AppInfo>;

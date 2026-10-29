@@ -612,6 +612,11 @@ export function createMockApi(engine?: MockEngine): BayleApi {
       emit({ type: 'changed', scope: 'settings' }); return clone(db.settings);
     },
     async clearBootBoostCache() { await wait(300); },
+    async checkMoveProfiles() { await latency(); return { profiles: 3, size: 4.2 * 2 ** 30, free: 120 * 2 ** 30 }; },
+    async moveProfiles(folder) {
+      await wait(900); db.settings.paths.profiles = folder;
+      emit({ type: 'changed', scope: 'settings' }); return { message: `Moved the profiles to ${folder}` };
+    },
     async saveSupportLogs() { await wait(600); return 'C:\\Users\\you\\Desktop\\bayle-support.zip'; },
     async checkForUpdates() { await wait(700); return api.getAppInfo(); },
 

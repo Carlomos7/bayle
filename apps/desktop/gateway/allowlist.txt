@@ -22,6 +22,8 @@ activity_undo
 settings
 settings_set
 settings_folder
+settings_check_relocate
+settings_relocate
 
 # the Saves page
 saves

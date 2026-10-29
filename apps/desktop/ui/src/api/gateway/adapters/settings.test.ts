@@ -111,12 +111,29 @@ describe('settings over the engine', () => {
     off();
   });
 
-  it('leaves folder changes and the boot boost cache not connected', async () => {
+  it('leaves folder changes as a plain setting and the boot boost cache not connected', async () => {
     const { t, api, off } = setup(settingsReplies);
     await settle();
     await expect(api.updateSettings({ paths: { profiles: 'D:\\profiles' } })).rejects.toMatchObject({ code: 'not_wired' });
     await expect(api.clearBootBoostCache()).rejects.toMatchObject({ code: 'not_wired' });
     expect(asked(t, 'settings_set')).toEqual([]);
+    off();
+  });
+
+  it('moves the Profiles folder: the facts first, then the relocate job from the folder the engine stores', async () => {
+    const { t, api, off } = setup({
+      settings: { ...page, settings: { ...engineSettings, profiles_root: 'C:\\old' } },
+      settings_check_relocate: { folder: 'D:\\profiles', profiles: 3, size: 2 ** 30, free: null },
+      settings_relocate: { job_id: 'm1' },
+    });
+    await settle();
+    expect(await api.checkMoveProfiles('D:\\profiles')).toEqual({ profiles: 3, size: 2 ** 30, free: null });
+    const done = api.moveProfiles('D:\\profiles');
+    await settle();
+    expect(asked(t, 'settings_relocate')).toEqual([{ folder: 'D:\\profiles', expect_root: 'C:\\old' }]);
+    t.event({ seq: 1, type: 'started', job_id: 'm1', data: { title: 'Moving profiles and mods...' } });
+    t.event({ seq: 2, type: 'finished', job_id: 'm1', data: { result: { undo: { type: 'layout-relocate' } }, undo: null } });
+    expect(await done).toMatchObject({ message: 'Moved the profiles to D:\\profiles', entry: { undoable: true } });
     off();
   });
 

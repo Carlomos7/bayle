@@ -17,7 +17,7 @@ const engineSettings: EngineSettings = {
   check_launcher_updates: true, check_me3_updates: false, backups_keep: 12,
   me3_path: '', game_exe: 'D:\\ER\\eldenring.exe', me3_profile_dir: '', profiles_root: null,
 };
-const page: EngineSettingsPage = { game: 'eldenring', settings: engineSettings, detected: { me3_path: 'C:\\me3\\me3.exe', me3_profile_dir: 'C:\\me3\\profiles' }, backups_folder: 'C:\\data\\saves' };
+const page: EngineSettingsPage = { game: 'eldenring', settings: engineSettings, detected: { me3_path: 'C:\\me3\\me3.exe', me3_profile_dir: 'C:\\me3\\profiles' }, backups_folder: 'C:\\data\\saves', overhaul: '', layout: {}, me3_profiles: null, specs: [], steam_options: '', steam_target: '' };
 
 /** A gateway over the fake transport where the named operations answer with the given values. */
 function setup(replies: Record<string, unknown> = {}) {

@@ -20,6 +20,7 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { FileAction, Leftover, OverhaulSetup, Recipe } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 import { baseName, bytes, forget, runJob, said } from './modsCommon';
@@ -44,14 +45,15 @@ const OP = {
 
 /* ------------------------------------------------------------------ engine shapes */
 
+type S = components['schemas'];
+// The contract types the form's rows, setup and choices as dicts, so these four stay hand-written (mod_configs.py, basic.py).
 interface EngineNative { file: string; load_early: boolean; initializer: string | null; after_others: boolean }
 interface EngineFile { file: string; kind: string; action: string; choices: string[]; target: string }
 interface EngineText { file: string; table: string; tables?: string[] }
 interface EngineSetup { config: { id: string; label: string; basic?: { version?: string | null } | null }; verified: boolean; level: string; folder: string | null; path: string | null; sha: string | null }
-interface EngineForm { setup: EngineSetup; choices: { natives: EngineNative[]; files: EngineFile[]; texts: EngineText[] }; values: unknown; new: boolean }
-interface EnginePreview { mode: string; lines: string[]; notes: string[]; refusals: string[]; natives: EngineNative[]; files: EngineFile[]; texts: EngineText[]; editable: boolean }
-interface EnginePlan { label: string; lines: string[]; notes?: string[]; refusals: string[]; stamp: [number, number] | null }
-interface EngineLeftover { path: string; label: string; size: number }
+interface EngineForm extends Omit<S['OverhaulForm'], 'setup' | 'choices'> { setup: EngineSetup; choices: { natives: EngineNative[]; files: EngineFile[]; texts: EngineText[] } }
+interface EnginePreview extends Omit<S['OverhaulPreview'], 'natives' | 'files' | 'texts'> { natives: EngineNative[]; files: EngineFile[]; texts: EngineText[] }
+type EngineLeftover = S['LeftoverFolder'];
 /** SetupForm (routers/mod_install.py): what the engine takes back. `health` is left out: the sheet has no log check, so the engine keeps its own. */
 interface SetupForm { natives: EngineNative[]; files: Record<string, string>; tables: Record<string, string> }
 
@@ -204,7 +206,7 @@ export function overhaulApi(gateway: Gateway, downloads: Map<string, Held>): Par
       } else {
         const { folder, name, overhaulId } = ctx.mod!;
         const body = { profile: profileId, folder, name, overhaul_id: overhaulId, form };
-        const plan = await call<EnginePlan>(OP.checkInstallSetup, body);
+        const plan = await call<S['SetupPlan']>(OP.checkInstallSetup, body);
         if (plan.refusals.length) throw refused('cannot_set_up', plan.refusals);
         run = await runJob(gateway, OP.installSetup, { ...body, expect: plan.stamp }, 'install');
       }
@@ -217,7 +219,7 @@ export function overhaulApi(gateway: Gateway, downloads: Map<string, Held>): Par
       // The rows an installer-made overhaul offers to put back come ticked as the engine suggests; the dialog asks for none.
       const { ticked } = await call<{ ticked?: number[] }>(OP.removeChoices, { profile: profileId });
       const chosen = ticked ?? [];
-      const plan = await call<EnginePlan>(OP.checkRemove, { profile: profileId, chosen });
+      const plan = await call<S['OverhaulPlan']>(OP.checkRemove, { profile: profileId, chosen });
       if (plan.refusals.length) throw refused('cannot_remove', plan.refusals);
       const { entry } = await runJob(gateway, OP.remove, { profile: profileId, chosen, revert: false, expect: plan.stamp }, 'install');
       forget(profileId);
@@ -225,7 +227,7 @@ export function overhaulApi(gateway: Gateway, downloads: Map<string, Held>): Par
     },
 
     async listLeftovers(profileId): Promise<Leftover[]> {
-      const l = await call<{ folders: EngineLeftover[]; backups: EngineLeftover[] }>(OP.leftovers, { profile: profileId });
+      const l = await call<S['Leftovers']>(OP.leftovers, { profile: profileId });
       const row = (f: EngineLeftover, backup: boolean): Leftover => ({ path: f.path, label: f.label || baseName(f.path), size: bytes(f.size), backup });
       return [...l.folders.map((f) => row(f, false)), ...l.backups.map((f) => row(f, true))];
     },

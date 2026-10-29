@@ -10,26 +10,18 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { BuildCell, BuildChange, BuildPlan, BuildReport, Clash, DroppedChange, FileFamily, ModId, Outcome } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { modIdOf, readFacts, said } from './modsCommon';
 
 /* ------------------------------------------------------------------ engine shapes (modules/mods/builds.py) */
 
-interface EngineBuildFile {
-  path: string; family: FileFamily; mods: number[]; merged: boolean; skipped: string; parts: number;
-  clashes: { part: string; mods: number[] }[]; warnings: string[];
-}
-interface EngineDropped {
-  id: string; mod: number; file: string; family: FileFamily; kind: 'whole_copy' | 'left_out' | 'lacks'; detail: string; count: number; accepted: boolean;
-}
-export interface EngineBuild {
-  state: 'single' | 'stacked' | 'current' | 'stale' | 'failed' | null;
-  reasons: string[]; built_on: string; mods: { index: number; name: string }[]; files: EngineBuildFile[]; dropped: EngineDropped[];
-}
-export interface EnginePreview {
-  state: EngineBuild['state']; blocked: string; detail: string; tool: string; needs_allow: boolean; problem: string;
-  files: string[]; packs: string[]; reasons: string[];
-}
+type S = components['schemas'];
+type BuildState = 'single' | 'stacked' | 'current' | 'stale' | 'failed' | null;
+interface EngineBuildFile extends Omit<S['BuildFile'], 'family'> { family: FileFamily }
+interface EngineDropped extends Omit<S['Dropped'], 'family' | 'kind'> { family: FileFamily; kind: 'whole_copy' | 'left_out' | 'lacks' }
+export interface EngineBuild extends Omit<S['BuildFacts'], 'state' | 'files' | 'dropped'> { state: BuildState; files: EngineBuildFile[]; dropped: EngineDropped[] }
+export interface EnginePreview extends Omit<S['BuildPreview'], 'state'> { state: BuildState }
 
 const OP = { build: 'builds', preview: 'builds_preview', accept: 'builds_accept_dropped' } as const;
 
@@ -89,10 +81,10 @@ export function toBuildReport(profileId: string, e: EngineBuild, idOf: (index: n
       owners.forEach((m) => add(m, f.family, 'merged', 1));
       // The record keeps which mods met at a part, so a part is won by the last of them and lost by the others.
       const groups = new Map<string, number[]>();
-      for (const c of f.clashes) groups.set(c.mods.join(','), c.mods);
+      for (const c of f.clashes ?? []) groups.set(c.mods.join(','), c.mods);
       for (const [key, who] of groups) {
         const involved = mods(who);
-        const parts = f.clashes.filter((c) => c.mods.join(',') === key).length;
+        const parts = (f.clashes ?? []).filter((c) => c.mods.join(',') === key).length;
         involved.forEach((m, i) => add(m, f.family, i === involved.length - 1 ? 'won' : 'lost', parts));
         if (involved.length < 2) continue;
         const winnerId = involved[involved.length - 1]!;
@@ -101,7 +93,7 @@ export function toBuildReport(profileId: string, e: EngineBuild, idOf: (index: n
           sides: involved.map((modId) => ({ modId, value: '' })), resolution: 'order', winnerId, reason: 'order',
         });
       }
-      reportLines.push(`${f.path}: merged from ${owners.length} mods; ${f.parts} ${f.parts === 1 ? 'part' : 'parts'} changed, ${f.clashes.length} changed by more than one mod (the later one's used)`);
+      reportLines.push(`${f.path}: merged from ${owners.length} mods; ${f.parts} ${f.parts === 1 ? 'part' : 'parts'} changed, ${f.clashes?.length ?? 0} changed by more than one mod (the later one's used)`);
     } else {
       owners.forEach((m) => add(m, f.family, 'unsupported', 1));
       if (owners.length > 1) {
@@ -112,7 +104,7 @@ export function toBuildReport(profileId: string, e: EngineBuild, idOf: (index: n
       }
       reportLines.push(`${f.path}: not merged${f.skipped ? ` (${f.skipped})` : ''}; the last of ${owners.length} mods' copies is used`);
     }
-    f.warnings.forEach((w) => reportLines.push(`  warning: ${w}`));
+    f.warnings?.forEach((w) => reportLines.push(`  warning: ${w}`));
   }
 
   const dropped = e.dropped.flatMap((d) => { const m = id(d.mod); return m ? [droppedOf(d, m)] : []; });

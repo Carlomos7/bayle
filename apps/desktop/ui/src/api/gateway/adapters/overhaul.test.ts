@@ -245,6 +245,7 @@ describe('overhaul adapter: the Mods page marks the overhaul', () => {
   const facts = (overhaul: EnginePageFacts['overhaul']): EnginePageFacts => ({
     profile: PROFILE, entries: [e({ index: 0 }), e({ index: 1, path: 'mods\\Conv', id: 'conv', name: 'conv' })], display: { package: [0, 1], native: [] },
     problems: {}, loads_nothing: [], stays_last: [1], missing: [], configs: {}, overhaul,
+    shared: {}, loose_dlls: [], error: '', can_share: [], empty: {}, folder: { folder: '', kind: '', profiles: [] }, library_used: false, not_loaded: {}, online_with: '', outside: false, regulation: '',
   });
 
   it('gives only the last-loading package a setup id, and only when the engine knows an overhaul', () => {

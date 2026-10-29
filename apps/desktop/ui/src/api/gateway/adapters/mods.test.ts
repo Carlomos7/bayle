@@ -67,6 +67,7 @@ const facts = (over: Partial<EnginePageFacts> = {}): EnginePageFacts => ({
   configs: { '3': ['C:\\Profiles\\Main\\natives\\Seamless\\ersc_settings.ini'] },
   shared: { '0': 2 },
   loose_dlls: [],
+  error: '', can_share: [], empty: {}, folder: { folder: '', kind: '', profiles: [] }, library_used: false, not_loaded: {}, online_with: '', outside: false, regulation: '',
   ...over,
 });
 const page = (f: EnginePageFacts = facts()) => ({ profile: PROFILE, has_profile: true, facts: f });

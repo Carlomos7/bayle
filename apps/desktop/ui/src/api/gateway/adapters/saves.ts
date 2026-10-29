@@ -16,6 +16,7 @@
 import { awaitJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';
 import type { ActivityEntry, SaveCopy, SaveFile, Slot } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 
@@ -48,6 +49,7 @@ const OP = {
 
 /** (mtime_ns, size) of each file a check read; null: it was not there. Sent back untouched as `expect`. */
 type Stamp = ([number, number] | null)[];
+type S = components['schemas'];
 
 /** modules/saves/models.py Character (extra keys allowed). */
 interface EngineCharacter { slot: number; name: string; level: number; body?: string; where?: string; runes?: number; ok?: boolean }
@@ -79,8 +81,9 @@ interface EngineLibraryEntry {
 }
 /** modules/saves/service.py list_backups, one row. */
 interface EngineBackup { path: string; save_name: string; when: string; action: string; label: string; size: number; keep: boolean; mtime: number }
+// The contract types infos, libraries and backups (and saves_sheet's data) as dicts, so these stay hand-written.
 interface SavesFacts { infos: EngineSaveInfo[]; libraries: Record<string, { entries: EngineLibraryEntry[] }>; backups: EngineBackup[] }
-/** The job results documented on the routes (saves.py). */
+/** The job results documented on the routes (saves.py); the contract has no schema for job results. */
 interface WriteResult { file?: string; character?: string; slot?: number; save?: string | null; backup?: string | null; undo?: unknown }
 
 /* ------------------------------------------------------------------ small helpers */
@@ -184,7 +187,7 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
   }
 
   /** The engine's Library copy file: a character may be copied out of it. */
-  const copyFile = async (folder: string, entryId: string) => (await call<{ path: string }>(OP.copyEntry, { folder, entry_id: entryId })).path;
+  const copyFile = async (folder: string, entryId: string) => (await call<S['CopyEntry']>(OP.copyEntry, { folder, entry_id: entryId })).path;
 
   const readFacts = () => call<SavesFacts>(OP.saves);
 
@@ -264,22 +267,22 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
       const id = parseCopyId(copyId);
       if ('backup' in id) {
         // the name goes in the backup's note; an empty one shows the backup by its time again
-        const { text } = await call<{ text: string }>(OP.labelBackup, { backup: id.backup, name });
+        const { text } = await call<S['SavesSaid']>(OP.labelBackup, { backup: id.backup, name });
         return { message: text ? `Renamed to ${text}` : 'Shown by its time again' };
       }
-      const { text } = await call<{ text: string }>(OP.renameCopy, { folder: id.library.folder, entry_id: id.library.entryId, name });
+      const { text } = await call<S['SavesSaid']>(OP.renameCopy, { folder: id.library.folder, entry_id: id.library.entryId, name });
       return { message: `Renamed to ${text}` };
     },
 
     async removeCopy(copyId) {
       const id = parseCopyId(copyId);
       if ('backup' in id) {
-        const facts = await call<{ stamp: [number, number]; save_name: string }>(OP.checkDeleteBackup, { backup: id.backup });
+        const facts = await call<S['BackupFacts']>(OP.checkDeleteBackup, { backup: id.backup });
         await call(OP.deleteBackup, { backup: id.backup, expect: facts.stamp });
         return { message: `Removed the backup of ${facts.save_name}` };
       }
       const ref = { folder: id.library.folder, entry_id: id.library.entryId };
-      const { text } = await call<{ text: string }>(OP.checkRemoveCopy, ref);
+      const { text } = await call<S['SavesSaid']>(OP.checkRemoveCopy, ref);
       await call(OP.removeCopy, { ...ref, expect: text });
       return { message: `Removed ${text}` };
     },

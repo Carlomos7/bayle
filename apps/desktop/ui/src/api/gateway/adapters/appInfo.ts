@@ -8,6 +8,7 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { AppInfo } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { OPERATIONS } from '../protocol';
 
@@ -19,7 +20,7 @@ export function appInfoApi(gateway: Gateway): Partial<BayleApi> {
   const info = async (): Promise<AppInfo> => {
     const [shell, me3, health] = await Promise.all([
       gateway.app?.info?.(),
-      gateway.call<{ version: string | null }>(OP.me3).catch(() => ({ version: null })),
+      gateway.call<components['schemas']['Me3Version']>(OP.me3).catch(() => ({ version: null })),
       gateway.app?.info ? undefined : gateway.call<{ app_version: string }>(OPERATIONS.health).catch(() => undefined),
     ]);
     const st = gateway.current();

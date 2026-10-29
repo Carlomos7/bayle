@@ -14,6 +14,7 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { InstallPreview } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 import { bytes, forget, runJob, said } from './modsCommon';
@@ -26,7 +27,7 @@ const OP = {
   finish: 'mod_install_finish',
 } as const;
 
-/** The plan (modules/mods/install.py _plan + library facts), the parts used here. */
+/** The plan (modules/mods/install.py _plan + library facts), the parts used here; the contract has no schema for it (a dict). */
 interface EnginePlan {
   kind: 'package' | 'native' | 'me3' | 'profile' | 'unknown';
   name: string;
@@ -42,7 +43,7 @@ interface EnginePlan {
   root?: string;
   unpacked?: string;
 }
-interface Opened { install_id: string; plan: EnginePlan; overhaul_on: boolean; stamp: [number, number] | null }
+interface Opened extends Omit<components['schemas']['Opened'], 'plan'> { plan: EnginePlan }
 
 export interface Held { installId: string; profile: string; plan: EnginePlan; stamp: [number, number] | null }
 
@@ -83,7 +84,7 @@ export function installApi(gateway: Gateway, open: Map<string, Held>): Partial<B
   return {
     async previewInstall(source) {
       if (!source.profileId) throw new GatewayError({ code: 'invalid_params', message: 'Pick a profile to install into first.' });
-      const { usable } = await call<{ usable: string[]; skipped: string[] }>(OP.sources, { paths: [source.path] });
+      const { usable } = await call<components['schemas']['Sources']>(OP.sources, { paths: [source.path] });
       if (!usable.length) throw new GatewayError({ code: 'not_installable', message: 'Bayle can install a folder, a .zip, .7z or .rar, or a .dll.' });
       await closeAll();
       const o = await call<Opened>(OP.open, { profile: source.profileId, source: source.path });

@@ -16,7 +16,8 @@ const rel = (p: string) => relative(SRC, p).split(sep).join('/');
 const isTest = (p: string) => /\.test(-util)?\.(ts|tsx)$/.test(p);
 /** The development stand-ins: allowed to fake the engine, never loaded in the desktop app. */
 const isMock = (r: string) => r.startsWith('api/mock/') || r === 'api/gateway/mock.ts' || r === 'api/preview.ts';
-const app = files(SRC).filter((p) => !isTest(p) && rel(p) !== 'routeTree.gen.ts');
+// engine.gen.ts is types only (erased from the build, which is checked below); its paths name the engine's /v1/ routes.
+const app = files(SRC).filter((p) => !isTest(p) && rel(p) !== 'routeTree.gen.ts' && rel(p) !== 'api/gateway/engine.gen.ts');
 const prod = app.filter((p) => !isMock(rel(p)));
 
 /** Source without comments: docs may name engine paths; code may not. */

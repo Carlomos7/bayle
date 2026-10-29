@@ -10,6 +10,7 @@
  */
 import { awaitJob } from '@/data/engine';
 import type { ActivityEntry, ActivityKind, Mod, ModId, ModKind } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 
@@ -26,8 +27,9 @@ export const OP = {
 
 /* ------------------------------------------------------------------ engine shapes */
 
-interface EngineDependency { id: string; optional: boolean }
-/** One block of the profile (adapters/formats/me3_profile.py entries, minus `row`). */
+type S = components['schemas'];
+type EngineDependency = S['Dependency-Output'];
+/** One block of the profile (adapters/formats/me3_profile.py entries, minus `row`); the contract has no schema for it (PageFacts types `entries` as a dict). */
 export interface EngineEntry {
   kind: ModKind;
   path: string;
@@ -43,28 +45,14 @@ export interface EngineEntry {
   name: string;
 }
 /** PageFacts (profile_mods.py); a dict keyed by entry index arrives with string keys. */
-export interface EnginePageFacts {
-  profile: string;
+export interface EnginePageFacts extends Omit<S['PageFacts'], 'entries'> {
   entries: EngineEntry[];
-  display: Record<string, number[]>;
-  problems: Record<string, string[]>;
-  loads_nothing: number[];
-  stays_last: number[];
-  missing: number[];
-  configs: Record<string, string[]>;
-  shared?: Record<string, number>;
-  loose_dlls?: number[];
-  error?: string;
   /** The page's `overhaul` (the profile has one the launcher knows), carried here by readFacts. */
   overhaul?: { label: string } | null;
 }
-export interface EngineModsPage { profile: string; has_profile: boolean; facts: EnginePageFacts | null; overhaul?: { label: string } | null }
+export interface EngineModsPage extends Omit<S['ModsPageState'], 'facts' | 'overhaul'> { facts?: EnginePageFacts | null; overhaul?: { label: string } | null }
 /** mods_options (OptionsView). */
-export interface EngineOptions {
-  index: number; name: string; kind: ModKind; enabled: boolean; id: string;
-  load_after: EngineDependency[]; load_before: EngineDependency[];
-  optional: boolean; load_early: boolean; init_kind: number; init_value: string; finalizer: string; rebuild_file: string;
-}
+export interface EngineOptions extends Omit<S['OptionsView'], 'kind'> { kind: ModKind }
 
 /* ------------------------------------------------------------------ small helpers */
 

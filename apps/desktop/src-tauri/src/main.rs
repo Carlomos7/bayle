@@ -527,7 +527,18 @@ fn engine_setup(app: &AppHandle) -> (EngineCommand, PathBuf) {
         state.to_string_lossy().into_owned(),
     )];
     if dev || cfg!(debug_assertions) {
-        // a development identity sees none of the user's folders: no real saves, game data or Qt data
+        // a development identity sees none of the user's folders: no real saves, game data or Qt data. Paths written
+        // down earlier (copied settings, undo records) can still name them, so the engine refuses those folders too.
+        let protect: Vec<PathBuf> = ["LOCALAPPDATA", "APPDATA"]
+            .iter()
+            .filter_map(|v| std::env::var_os(v).map(PathBuf::from))
+            .collect();
+        if let Ok(joined) = std::env::join_paths(&protect) {
+            env.push((
+                "BAYLE_PROTECT".to_owned(),
+                joined.to_string_lossy().into_owned(),
+            ));
+        }
         for (var, sub) in [
             ("LOCALAPPDATA", "local"),
             ("APPDATA", "roaming"),

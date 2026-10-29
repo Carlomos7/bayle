@@ -59,6 +59,10 @@ def main(argv: list[str] | None = None, window: WindowHooks | None = None) -> in
         except ValueError as e:
             print(f"bayle --backend: {e}", file=sys.stderr)
             return 2
+        from bayle.adapters.system import sandbox
+
+        # Bayle Dev: before anything reads settings, which may name the player's real folders
+        sandbox.guard_from_env(data, app_paths.exe_dir().parent if app_paths.FROZEN else app_paths.exe_dir())
         os.environ[app_paths.DATA_ENV] = str(data)  # the rest of the start-up reads it there, as --self-test's does
         use_data_folder()  # the same start-up as the window, minus Qt
         run_logging.setup_logging("DEBUG" if load_settings().log_level == "verbose" else "INFO", console=False)

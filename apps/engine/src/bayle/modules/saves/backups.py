@@ -284,6 +284,28 @@ def set_keep(bak: Path, keep: bool) -> None:
         write_note(bak, note)
 
 
+LABEL_MAX = 120
+
+
+def set_label(bak: Path, label: str) -> str:
+    """Name a backup (an empty name gives it back its time); the note's other fields stay. When the note can't be
+    read, its bytes are copied aside as in set_keep and the new note keeps the backup, since whether it was kept is
+    unknown. Returns the name it got."""
+    label = " ".join(label.split())[:LABEL_MAX]
+    with account_lock(Path(bak).parent):
+        try:
+            note = read_note(bak) or {}
+        except UnreadableNote:
+            _copy_aside(Path(str(bak) + ".json"))
+            note = {"keep": True}
+        if label:
+            note["label"] = label
+        else:
+            note.pop("label", None)
+        write_note(bak, note)
+    return label
+
+
 def _remove(bak: Path) -> bool:
     """Remove a backup, then its note and set-aside notes. A backup that can't be removed (in use) keeps its notes."""
     try:

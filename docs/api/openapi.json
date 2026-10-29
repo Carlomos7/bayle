@@ -14418,6 +14418,53 @@
         ]
       }
     },
+    "/v1/saves/label_backup": {
+      "post": {
+        "description": "Name a backup (an empty name shows it by its time again); text is the name it got.",
+        "operationId": "saves_label_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepAsParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavesSaid"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Saves Label Backup",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
     "/v1/saves/post_session_repair": {
       "post": {
         "operationId": "saves_post_session_repair",

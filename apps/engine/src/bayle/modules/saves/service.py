@@ -466,7 +466,7 @@ def backup_folders(save: Path | None = None, *, loc: Locations) -> list[Path]:
 
 
 def list_backups(save: Path | None = None, *, loc: Locations) -> list:
-    """Every backup of the save(s), newest first: {path, save_name, save, when, action, changes, size, keep,
+    """Every backup of the save(s), newest first: {path, save_name, save, when, action, label, changes, size, keep,
     protected, metadata_unreadable, mtime}. keep is the user's choice; protected is whether pruning leaves it alone
     (also when its note can't be read: metadata_unreadable)."""
     assert_not_ui_thread("saves.list_backups")
@@ -494,6 +494,7 @@ def list_backups(save: Path | None = None, *, loc: Locations) -> list:
                     "save": m.get("save") or "",
                     "when": when,
                     "action": _OLD_ACTIONS.get(action, action),
+                    "label": m.get("label") or "",  # the user's name for it; empty: shown by its time
                     "changes": list(m.get("changes") or []),
                     "size": st.st_size,
                     "keep": prot == save_backups.KEPT,  # the user's own choice
@@ -509,6 +510,11 @@ def list_backups(save: Path | None = None, *, loc: Locations) -> list:
 def keep_backup(bak: Path, keep: bool = True) -> None:
     """Keep a backup whatever its age (pruning skips it), or let it age out again."""
     save_backups.set_keep(Path(bak), keep)
+
+
+def label_backup(bak: Path, label: str) -> str:
+    """Name a backup (empty: its time again). Returns the name it got."""
+    return save_backups.set_label(Path(bak), label)
 
 
 def save_for_backup(bak: Path, *, loc: Locations) -> Path:

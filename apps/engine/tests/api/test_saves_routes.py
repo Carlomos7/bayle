@@ -132,6 +132,28 @@ def test_keep_keep_as_and_rename(env):
     assert got.json() == {"text": "R"} and env.entries()[0]["name"] == "R"
 
 
+def test_a_backup_is_named_and_given_back_its_time(env):
+    bak = env.backup()
+    env.post("saves.keep_backup", {"backup": str(bak)})
+    assert env.post("saves.label_backup", {"backup": str(bak), "name": "  Before   the boss "}).json() == {
+        "text": "Before the boss"
+    }
+    [row] = env.client.get("/v1/saves").json()["backups"]
+    assert row["label"] == "Before the boss" and row["keep"] is True  # the note's other fields stay
+    assert env.post("saves.label_backup", {"backup": str(bak), "name": ""}).json() == {"text": ""}
+    assert env.client.get("/v1/saves").json()["backups"][0]["label"] == ""
+
+
+def test_naming_a_backup_with_an_unreadable_note_keeps_it(env):
+    bak = env.backup()
+    note = bak.with_name(bak.name + ".json")
+    note.write_text("{half", encoding="utf-8")
+    env.post("saves.label_backup", {"backup": str(bak), "name": "Mine"})
+    [row] = env.client.get("/v1/saves").json()["backups"]
+    assert row["label"] == "Mine" and row["keep"] is True
+    assert note.with_name(note.name + ".unreadable").read_text(encoding="utf-8") == "{half"
+
+
 def test_removing_a_copy_is_a_check_then_a_start(env):
     entry = env.copy()
     ref = {"folder": str(env.folder), "entry_id": entry["id"]}
@@ -197,6 +219,7 @@ def test_not_found_is_a_404_and_touches_nothing(env):
             ("saves.delete_backup", {**ref, "expect": [1, 1.0]}),
             ("saves.keep_backup", ref),
             ("saves.keep_as", {**ref, "name": "X"}),
+            ("saves.label_backup", {**ref, "name": "X"}),
         ):
             got = env.post(name, body)
             assert got.status_code == 404 and got.json()["code"] == "not_found", name

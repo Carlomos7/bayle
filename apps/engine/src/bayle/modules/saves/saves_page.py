@@ -537,6 +537,14 @@ class SavesService:
         except OSError as e:
             raise OperationError("failed", str(e)) from e
 
+    def label_backup(self, backup: str | Path, name: str) -> str:
+        """Name a backup (empty: shown by its time again). Returns the name it got. Raises not_found, failed."""
+        b = self._backup(backup)
+        try:
+            return saves_service.label_backup(b["path"], name)
+        except OSError as e:
+            raise OperationError("failed", str(e)) from e
+
     def keep_as(self, backup: str | Path, name: str) -> str:
         """Copy a backup into the Library under name (the backup stays and ages out as usual). Returns the name it got.
         Raises not_found, failed."""

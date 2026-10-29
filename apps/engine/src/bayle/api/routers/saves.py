@@ -259,6 +259,12 @@ def keep_backup(s: Saves, p: KeepParams) -> SavesSaid:
     return SavesSaid(text="")
 
 
+@router.post("/label_backup", name="saves_label_backup")
+def label_backup(s: Saves, p: KeepAsParams) -> SavesSaid:
+    """Name a backup (an empty name shows it by its time again); text is the name it got."""
+    return SavesSaid(text=s.label_backup(p.backup, p.name))
+
+
 @router.post("/rename_copy", name="saves_rename_copy")
 def rename_copy(s: Saves, p: RenameCopyParams) -> SavesSaid:
     return SavesSaid(text=s.rename_copy(p.folder, p.entry_id, p.name))

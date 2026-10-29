@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ApiProvider } from '@/data/ApiProvider';
 import { resetEngineState } from '@/data/engine';
 import { createGateway } from '@/api/gateway/hub';
@@ -31,7 +31,8 @@ describe('Welcome: Just look around', () => {
   it('makes an empty profile and picks it when the game has none', async () => {
     const api = await lookAround(0);
     expect(api.createProfile).toHaveBeenCalledWith('er', 'My mods');
-    expect(api.setActiveProfile).toHaveBeenCalledWith('er', 'new1');
+    // picking it waits for the refresh that follows the create
+    await waitFor(() => expect(api.setActiveProfile).toHaveBeenCalledWith('er', 'new1'));
   });
 
   it('makes nothing when there are profiles already', async () => {

@@ -16,6 +16,7 @@
 import { awaitJob, useLaunchJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';
 import type { ActivityEntry, Game, LaunchMode, Profile, ProfileSummary } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 import { readMods } from './modsCommon';
@@ -31,13 +32,13 @@ const OP = {
 
 /* ------------------------------------------------------------------ engine shapes (routers/games.py, routers/launch.py, routers/mods.py) */
 
-export interface EngineGame { key: string; name: string; ready: boolean; installed: string | null; current: boolean; profile: string | null; last_run_build: string | null }
-interface EngineProblem { code: string; path: string; detail: string }
-export interface EngineLaunchProfile { profile: string; kind: string; source: string; name: string; active: boolean; problems: EngineProblem[] }
-interface EngineChecked { problems: EngineProblem[]; warnings: EngineProblem[]; game_running: boolean; busy: boolean; installed: boolean }
+type S = components['schemas'];
+export type EngineGame = S['GameItem'];
+type EngineProblem = S['LaunchProblem'];
+export type EngineLaunchProfile = S['LaunchProfile'];
+type EngineChecked = S['LaunchChecked'];
 /** How the engine addresses a profile in the mods routes. */
 interface ProfileRef { profile: string; kind: string; source: string }
-type Stamp = [number, number] | null;
 
 const MODES: Record<LaunchMode, 'profile' | 'offline' | 'vanilla'> = { Profile: 'profile', Offline: 'offline', Vanilla: 'vanilla' };
 
@@ -112,7 +113,7 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
 
   /** The name people see: the engine names an me3 profile by its file. */
   const shown = (name: string) => name.replace(/\.me3$/i, '');
-  const profileList = async () => (await call<{ profiles: EngineLaunchProfile[] }>(OP.profiles)).profiles;
+  const profileList = async () => (await call<S['LaunchProfiles']>(OP.profiles)).profiles;
 
   /** The engine's way of naming the profile, found from its id (`source`). */
   async function refOf(profileId: string): Promise<ProfileRef & { name: string }> {
@@ -124,20 +125,20 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
   /** Rename, duplicate and move in are refused while the profile is run by an installer, a job is running or the game is. */
   async function unblocked(profileId: string) {
     const { name, ...ref } = await refOf(profileId);
-    const { reason } = await call<{ reason: string }>(OP.block, ref);
+    const { reason } = await call<S['ProfileBlock']>(OP.block, ref);
     if (reason) throw problem('profile_blocked', BLOCKS[reason] ?? "This profile can't be changed right now.");
     return { ref, name };
   }
 
   const rename = async (ref: ProfileRef, name: string) => {
-    const { code, reason } = await call<{ code: string; reason: string }>(OP.nameCheck, { ...ref, name });
+    const { code, reason } = await call<S['NameCheck']>(OP.nameCheck, { ...ref, name });
     if (code) throw problem('invalid_name', NAMES[code] ?? (reason || 'That name can not be used.'));
     return runJob(OP.rename, { ...ref, name });
   };
 
   return {
     async getGames() {
-      return (await call<{ games: EngineGame[] }>(OP.games)).games.map(toGame);
+      return (await call<S['GamesPage']>(OP.games)).games.map(toGame);
     },
 
     async selectGame(gameId) {
@@ -156,7 +157,7 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
     async getProfile(profileId) {
       const p = (await profileList()).find((x) => x.source === profileId);
       if (!p) throw problem('not_found', "That profile isn't there any more.");
-      const [mods, { games }] = await Promise.all([readMods(gateway, profileId), call<{ games: EngineGame[] }>(OP.games)]);
+      const [mods, { games }] = await Promise.all([readMods(gateway, profileId), call<S['GamesPage']>(OP.games)]);
       const enabled = mods.filter((m) => m.enabled).length;
       // shortcut: the mods page has no merge state, save, online consent or installer footprint; upgrade with engine routes for them.
       return { id: p.source, gameId: games.find((g) => g.current)?.key ?? '', name: shown(p.name), modCount: mods.length, enabledCount: enabled, merge: 'none', onlineAccepted: false, mods } satisfies Profile;
@@ -168,7 +169,7 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
 
     async createProfile(_gameId, name, copyFrom) {
       if (!copyFrom) {
-        const { profile } = await call<{ profile: string }>(OP.createProfile, { name });
+        const { profile } = await call<S['ProfileCreated']>(OP.createProfile, { name });
         return { message: `Created ${name}`, profileId: profile };
       }
       const from = await unblocked(copyFrom);
@@ -189,14 +190,14 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
     async deleteProfile(profileId) {
       const { profile, kind, source } = await refOf(profileId);
       const params = { profile, kind, source };
-      const plan = await call<{ name: string; keeps: string; stamp: Stamp }>(OP.checkDelete, params);
+      const plan = await call<S['DeletePlan']>(OP.checkDelete, params);
       const { entry } = await runJob(OP.delete, { ...params, expect: plan.stamp });
       return { entry, message: `Deleted ${plan.name}`, detail: plan.keeps ? `${plan.keeps} keeps its shared files.` : 'It is in Deleted profiles; restore it from Activity.' };
     },
 
     async moveProfileIn(profileId) {
       const { ref, name } = await unblocked(profileId);
-      const plan = await call<{ refusals: string[]; stamp: Stamp }>(OP.checkMoveIn, ref);
+      const plan = await call<S['FolderPlan']>(OP.checkMoveIn, ref);
       if (plan.refusals.length) throw problem('cannot_move_in', plan.refusals[0]!);
       const { entry } = await runJob(OP.moveIn, { ...ref, expect: plan.stamp });
       return { entry, message: `Moved ${name} into Bayle's folder` };
@@ -212,7 +213,7 @@ export function shellApi(gateway: Gateway): Partial<BayleApi> {
       if (got.problems.length) throw problem('cannot_launch', playProblem(got.problems[0]!));
       const epoch = gateway.current()?.epoch;
       if (epoch === undefined) throw problem('engine_unavailable', "Bayle's engine isn't ready.");
-      const { job_id } = await gateway.call<{ job_id: string }>(OP.play, { mode: way, source }, { epoch });
+      const { job_id } = await gateway.call<S['JobStarted']>(OP.play, { mode: way, source }, { epoch });
       useLaunchJob.setState({ ref: { epoch, id: job_id } });
       try {
         await awaitJob({ epoch, id: job_id });

@@ -10,6 +10,7 @@ import { awaitJob } from '@/data/engine';
 import type { BayleApi } from '../../BayleApi';
 import type { Settings, SettingsPatch } from '../../types';
 import type { EngineActivityRecord } from '../gatewayApi';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 
@@ -34,13 +35,7 @@ export interface EngineSettings {
   me3_path: string; game_exe: string; me3_profile_dir: string; profiles_root: string | null;
 }
 
-export interface EngineSettingsPage {
-  game: string;
-  settings: EngineSettings;
-  /** location key → the path found when the setting is left blank */
-  detected: Record<string, string | null>;
-  backups_folder: string;
-}
+export interface EngineSettingsPage extends Omit<components['schemas']['SettingsPage'], 'settings'> { settings: EngineSettings }
 
 /* ------------------------------------------------------------------ the key table: UI setting → engine key */
 
@@ -115,7 +110,7 @@ function leaves(patch: SettingsPatch): { path: string[]; value: unknown }[] {
 
 export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
   const read = async () => {
-    const [p, dir, shell] = await Promise.all([gateway.call<EngineSettingsPage>(OP.settings), gateway.call<{ path: string | null }>(OP.folder, { kind: 'settings' }), gateway.app?.info?.()]);
+    const [p, dir, shell] = await Promise.all([gateway.call<EngineSettingsPage>(OP.settings), gateway.call<components['schemas']['FolderPath']>(OP.folder, { kind: 'settings' }), gateway.app?.info?.()]);
     const settings = toSettings(p, dir.path);
     // The desktop app keeps its own update channel (the engine's launcher_channel is Qt's); the preview shows the engine's.
     if (shell?.channel === 'stable' || shell?.channel === 'beta') settings.updates.channel = shell.channel;
@@ -174,7 +169,7 @@ export function settingsAdapter(gateway: Gateway): Partial<BayleApi> {
       if (!rec?.undo || rec.undone) throw new GatewayError({ code: 'not_undoable', message: 'This can no longer be undone.' });
       const epoch = gateway.current()?.epoch;
       if (epoch === undefined) throw new GatewayError({ code: 'engine_unavailable', message: "Bayle's engine isn't ready." });
-      const { job_id } = await gateway.call<{ job_id: string }>(OP.undo, { job_id: entryId, expect: rec.undo }, { epoch });
+      const { job_id } = await gateway.call<components['schemas']['Started']>(OP.undo, { job_id: entryId, expect: rec.undo }, { epoch });
       const job = await awaitJob({ epoch, id: job_id });
       return { message: (job.result as { said?: string } | undefined)?.said || 'Undone' };
     },

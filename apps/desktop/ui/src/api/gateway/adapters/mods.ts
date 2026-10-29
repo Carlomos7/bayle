@@ -12,6 +12,7 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { ActionResult, ActivityEntry, ModFile } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 import { installApi, type Held } from './modInstall';
@@ -28,9 +29,7 @@ const OPS = {
   files: 'mods_files',
 } as const;
 
-interface MoveResult { moved: boolean; name: string; problem: string }
-interface Plan { label: string; refusals: string[]; stamp: [number, number] | null }
-interface UseChoices { name: string; profiles: { profile: string; name: string; has_copy: boolean; uses: boolean }[] }
+type S = components['schemas'];
 
 const INIT_KIND = { none: 0, function: 1, delay: 2 } as const;
 const stem = (p: string) => baseName(p).replace(/\.me3$/i, '');
@@ -80,7 +79,7 @@ export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
         const at = target.findIndex((i, k) => shown[k] !== i);
         if (at < 0) break;
         const row = wanted.find((r) => r.index === target[at])!;
-        const moved = await guarded(profileId, () => call<MoveResult>(OP.move, { profile: profileId, index: row.index, to: at, expect: row.name }));
+        const moved = await guarded(profileId, () => call<S['MoveResult']>(OP.move, { profile: profileId, index: row.index, to: at, expect: row.name }));
         forget(profileId);
         if (!moved.moved) throw new GatewayError({ code: 'move_refused', message: moved.problem || `${moved.name} can't go there.` });
         const after = shown.filter((i) => i !== row.index);
@@ -159,9 +158,9 @@ export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
     },
 
     async takeOverInstaller(profileId) {
-      const choices = await call<{ label: string; ticked: number[] }>(OPS.takeoverChoices, { profile: profileId });
+      const choices = await call<S['OverhaulChoices']>(OPS.takeoverChoices, { profile: profileId });
       // The UI has no choice step: the rows the installer copied come ticked, and those are what is taken over.
-      const plan = await call<Plan>(OPS.checkTakeover, { profile: profileId, chosen: choices.ticked });
+      const plan = await call<S['OverhaulPlan']>(OPS.checkTakeover, { profile: profileId, chosen: choices.ticked });
       if (plan.refusals.length) throw new GatewayError({ code: 'cannot_take_over', message: plan.refusals[0]! });
       const { entry } = await runJob(gateway, OPS.takeover, { profile: profileId, chosen: choices.ticked, revert: false, expect: plan.stamp }, 'profile');
       forget(profileId);
@@ -173,7 +172,7 @@ export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
       let entry: ActivityEntry | undefined;
       for (const id of modIds) {
         const row = await rowOf(gateway, fromProfileId, id);
-        const choices = await call<UseChoices>(OPS.useChoices, { profile: fromProfileId, index: row.index }).catch((e: unknown) => {
+        const choices = await call<S['UseChoices']>(OPS.useChoices, { profile: fromProfileId, index: row.index }).catch((e: unknown) => {
           // shortcut: a Separate mod is not copied between profiles, upgrade when the engine can (share it first, then add).
           if (e instanceof GatewayError && e.code === 'not_shared') throw notWired("add a mod that isn't shared to another profile");
           throw e;
@@ -191,7 +190,7 @@ export function modsApi(gateway: Gateway, pickers: Pickers): Partial<BayleApi> {
     // shortcut: no clash notes yet (the engine's file list carries none); add them with a per-file conflict read.
     async listModFiles(profileId, modId) {
       const row = await rowOf(gateway, profileId, modId);
-      const r = await guarded(profileId, () => call<{ files: string[]; truncated: boolean; native: boolean }>(OPS.files, { profile: profileId, index: row.index }));
+      const r = await guarded(profileId, () => call<S['ModFiles']>(OPS.files, { profile: profileId, index: row.index }));
       const files = r.files.map((f): ModFile => ({ path: f.replaceAll('/', '\\'), what: describeFile(f), ...(r.native ? { main: true } : {}) }));
       return r.truncated ? [...files, { path: '…', what: 'More files than are listed here' }] : files;
     },

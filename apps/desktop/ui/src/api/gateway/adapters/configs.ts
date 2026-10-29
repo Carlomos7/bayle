@@ -10,6 +10,7 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { ActionResult, ConfigFile, ConfigFileRef, ConfigFormat } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { GatewayError } from '../transport';
 import { langOf, parseForm, valueText, type FieldSpot } from './configForm';
@@ -25,11 +26,12 @@ const OP = {
 
 /* ------------------------------------------------------------------ what the engine sends (ModConfigsState, ConfigFileRead) */
 
-export interface EngineConfigFile { path: string; how: string; exists: boolean; kind: string }
-export interface EngineConfigNode { key: string; name: string; kind: string; enabled: boolean; loaded: boolean; target: string | null; files: EngineConfigFile[]; setup?: Record<string, unknown> | null }
-export interface EngineConfigState { profile: string; nodes: EngineConfigNode[] }
-export interface EngineConfigRead { path: string; text: string; encoding: string; crlf: boolean; sha: string; stamp: [number, number] | null }
-interface EngineSaved { name: string; saved: number; missing?: string[] }
+type S = components['schemas'];
+export type EngineConfigFile = S['ConfigFile'];
+export type EngineConfigNode = S['ModNode'];
+export type EngineConfigState = S['ModConfigsState'];
+export type EngineConfigRead = S['ConfigFileRead'];
+type EngineSaved = S['ConfigSaved'];
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const same = (a: string, b: string) => a.replaceAll('\\', '/').toLowerCase() === b.replaceAll('\\', '/').toLowerCase();

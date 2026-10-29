@@ -8,6 +8,7 @@
  */
 import type { BayleApi } from '../../BayleApi';
 import type { SetupManifest } from '../../types';
+import type { components } from '../engine.gen';
 import type { Gateway } from '../hub';
 import { baseName, notWired, runJob, said } from './modsCommon';
 
@@ -16,7 +17,7 @@ const OP = { listing: 'profile_transfer', checkExport: 'profile_transfer_check_e
 /** The two pickers of the desktop adapter (BayleApi.pickFolder), passed in because this adapter does not own them. */
 export type Pickers = Pick<BayleApi, 'pickFile' | 'pickFolder'>;
 
-interface Listing { mods: { key: string; name: string; enabled: boolean; size: number }[]; save_name: string }
+type Listing = components['schemas']['ExportListing'];
 
 const stem = (p: string) => baseName(p).replace(/\.me3$/i, '');
 
@@ -44,7 +45,7 @@ export function shareSetupApi(gateway: Gateway, pickers: Pickers): Partial<Bayle
       const folder = await pickers.pickFolder({ title: 'Save the setup file' });
       if (!folder) return null;
       const chosen = (await listing(profileId)).mods.map((m) => m.key);
-      const check = await call<{ size: number }>(OP.checkExport, { profile: profileId, kind: 'list', chosen });
+      const check = await call<components['schemas']['ExportChecked']>(OP.checkExport, { profile: profileId, kind: 'list', chosen });
       const { result } = await runJob(gateway, OP.export, { profile: profileId, kind: 'list', name: stem(profileId), folder, chosen, with_configs: false, with_save: false, password: false, expect: check.size }, 'profile');
       return (result as { path: string }).path;
     },

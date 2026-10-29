@@ -1,4 +1,6 @@
-"""Unpacking a mod download: .zip, .7z and .rar archives (paths that would land outside the target refused), or a folder used where it is, into a staging folder."""
+"""Unpacking a mod download: .zip, .7z and .rar archives, or a folder used where it is, into a staging folder. Every
+archive's list is checked before anything is written (check_listing): no path outside the target, no link, no
+alternate data stream, and caps on entries, size and depth."""
 
 from __future__ import annotations
 
@@ -17,10 +19,16 @@ ARCHIVE_EXTENSIONS = (
     ".rar",
 )  # .7z via py7zr (bundled), .rar via an extractor on the PC
 
+# far above any real mod (the largest overhauls are a few GB in tens of thousands of files), far below a full disk
+MAX_ENTRIES = 200_000
+MAX_TOTAL = 64 * 2**30
+MAX_DEPTH = 40
+
 
 def _unsafe(name: str) -> bool:
-    name = name.replace("\\", "/")
-    return name.startswith("/") or ".." in name.split("/") or (len(name) > 1 and name[1] == ":")
+    """Lands outside the folder, names a drive or an alternate data stream (any ':'), or nests absurdly deep."""
+    parts = name.replace("\\", "/").split("/")
+    return name.startswith(("/", "\\")) or ".." in parts or ":" in name or "\0" in name or len(parts) > MAX_DEPTH
 
 
 def check_entry(name: str) -> None:
@@ -29,14 +37,41 @@ def check_entry(name: str) -> None:
         raise ModError(f"archive entry escapes the folder: {name}")
 
 
+def check_listing(entries: list[tuple[str, int, bool]], dest: Path) -> None:
+    """Refuse an archive from its list, before anything is written. entries: (name, unpacked size, is a link)."""
+    if len(entries) > MAX_ENTRIES:
+        raise ModError(f"the archive has {len(entries):,} entries, more than any mod ({MAX_ENTRIES:,}); refused")
+    total = 0
+    for name, size, link in entries:
+        check_entry(name)
+        if link:
+            raise ModError(f"the archive holds a link ({name}); refused, a mod needs none")
+        total += max(size, 0)
+    if total > MAX_TOTAL:
+        raise ModError(f"the archive unpacks to {total / 2**30:.1f} GB, more than any mod; refused")
+    probe = Path(dest)
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    free = shutil.disk_usage(probe).free
+    if total > free:
+        raise ModError(
+            f"the archive unpacks to {total / 2**30:.1f} GB and the drive has {free / 2**30:.1f} GB free; "
+            "nothing was unpacked"
+        )
+
+
+def is_link(info: zipfile.ZipInfo) -> bool:
+    return (info.external_attr >> 16) & 0o170000 == 0o120000
+
+
 def extract_zip(archive: Path, dest: Path) -> Path:
     """Extract a .zip into dest, refusing entries that would escape it."""
     archive = Path(archive)
     dest = Path(dest)
-    dest.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as z:
-        for info in z.infolist():
-            check_entry(info.filename)
+        # zipfile never writes more than a member's listed size, so the listed sizes bound what lands on disk
+        check_listing([(i.filename, i.file_size, is_link(i)) for i in z.infolist()], dest)
+        dest.mkdir(parents=True, exist_ok=True)
         z.extractall(dest)
     return dest
 
@@ -49,12 +84,10 @@ def extract_7z(archive: Path, dest: Path) -> Path:
         raise ModError("7z support is missing from this build") from e
     archive = Path(archive)
     dest = Path(dest)
-    dest.mkdir(parents=True, exist_ok=True)
     try:
         with py7zr.SevenZipFile(archive, "r") as z:
-            for name in z.getnames():
-                if _unsafe(name):
-                    raise ModError(f"archive entry escapes the folder: {name}")
+            check_listing([(f.filename, f.uncompressed or 0, f.is_symlink) for f in z.list()], dest)
+            dest.mkdir(parents=True, exist_ok=True)
             z.extractall(path=dest)
     except ModError:
         raise
@@ -86,17 +119,71 @@ def rar_tools() -> list[list[str]]:
     return tools
 
 
+def parse_bsdtar_listing(text: str) -> list[tuple[str, int, bool]]:
+    """`tar -tvf` lines ("-rw-r--r--  0 0 0  1234 Jan 01  2020 name", a link "lrwx... name -> target", a hard link
+    "... name link to target") as check_listing entries."""
+    entries = []
+    for line in text.splitlines():
+        f = line.split(maxsplit=8)
+        if len(f) < 9 or not f[4].isdigit():
+            raise ModError(f"could not read the .rar's list: {line[:120]}")
+        link = f[0].startswith(("l", "h")) or " -> " in f[8] or " link to " in f[8]
+        entries.append((f[8], int(f[4]), link))
+    return entries
+
+
+def _rar_listing(archive: Path) -> list[tuple[str, int, bool]]:
+    """The .rar's list from Windows' bsdtar, read before anything is unpacked. Without it the archive is refused."""
+    tools = [t for t in rar_tools() if t[1] == "-xf"]
+    if not tools:
+        raise ModError(
+            "can't check the .rar before unpacking it (Windows' tar.exe is missing); unpack it yourself and install "
+            "the folder"
+        )
+    try:
+        r = subprocess.run(
+            [tools[0][0], "-tvf", str(archive)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+            creationflags=_no_window(),
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise ModError(f"could not read the .rar's list: {e}") from e
+    if r.returncode != 0:
+        why = (r.stderr or r.stdout or "").strip()[:200] or f"exit {r.returncode}"
+        raise ModError(f"could not unpack the .rar: {why}")
+    return parse_bsdtar_listing(r.stdout)
+
+
+def _check_unpacked(dest: Path) -> None:
+    """What an outside extractor wrote, checked again: inside dest, no link or junction, within the caps."""
+    root = dest.resolve()
+    count = total = 0
+    for p in dest.rglob("*"):
+        count += 1
+        if p.is_symlink() or p.is_junction() or root not in p.resolve().parents:
+            raise ModError("archive tried to write outside the folder or make a link; refused")
+        if p.is_file():
+            total += p.stat().st_size
+    if count > MAX_ENTRIES or total > MAX_TOTAL:
+        raise ModError("the archive unpacked to more than any mod; refused")
+
+
 def extract_rar(archive: Path, dest: Path) -> Path:
-    """.rar through whichever extractor the PC has. bsdtar refuses absolute and .. paths on its own; the others
-    are followed by a check that nothing landed outside dest."""
+    """.rar through whichever extractor the PC has, once its list (from bsdtar) passed check_listing; what it wrote is
+    checked again, since the extractor is not ours."""
     archive = Path(archive)
     dest = Path(dest)
-    dest.mkdir(parents=True, exist_ok=True)
     tools = rar_tools()
     if not tools:
         raise ModError(
             "no .rar extractor found: Windows' tar.exe, 7-Zip or WinRAR is needed, or unpack it first and install the folder"
         )
+    check_listing(_rar_listing(archive), dest)
+    dest.mkdir(parents=True, exist_ok=True)
     errors = []
     for tool in tools:
         if tool[1] == "-xf":
@@ -117,11 +204,11 @@ def extract_rar(archive: Path, dest: Path) -> Path:
             errors.append(f"{Path(tool[0]).name}: {e}")
             continue
         if r.returncode == 0 and any(dest.iterdir()):
-            root = dest.resolve()
-            for p in dest.rglob("*"):
-                if root not in p.resolve().parents and p.resolve() != root:
-                    shutil.rmtree(dest, ignore_errors=True)
-                    raise ModError("archive tried to write outside the folder; refused")
+            try:
+                _check_unpacked(dest)
+            except ModError:
+                shutil.rmtree(dest, ignore_errors=True)
+                raise
             return dest
         errors.append(
             f"{Path(tool[0]).name}: {(r.stderr or r.stdout or '').strip()[:200] or 'exit ' + str(r.returncode)}"

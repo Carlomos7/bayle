@@ -66,20 +66,20 @@ describe('saves adapter: reads', () => {
       saves: () => ({
         infos: [],
         libraries: { [FOLDER]: { entries: [{ id: 'abc123abc123', name: 'Before DLC', from: 'ER0000.sl2', added: '2026-10-20T10:00:00', size: 2097152, characters: [{ slot: 1, name: 'Ash', level: 30, seconds: 7200 }] }] } },
-        backups: [{ path: BAK, save_name: 'ER0000.sl2', when: '2026-10-26 09:30:00', action: 'Before a repair', size: 1048576, keep: true, mtime: 1 }],
+        backups: [{ path: BAK, save_name: 'ER0000.sl2', when: '2026-10-26 09:30:00', action: 'Before a repair', label: 'Before the boss', size: 1048576, keep: true, mtime: 1 }],
       }),
       saves_sheet: () => ({ data: info() }),
     });
     const [lib, bak] = (await api.listCopies('eldenring')) as [SaveCopy, SaveCopy];
     expect(lib).toMatchObject({ id: LIB_ID, kind: 'library', name: 'Before DLC', size: '2.0 MB', slots: [{ n: 1, character: { name: 'Ash', playtime: '2.0 h' } }] });
-    expect(bak).toMatchObject({ id: BAK, kind: 'backup', note: 'Before a repair', pinned: true, size: '1.0 MB' });
+    expect(bak).toMatchObject({ id: BAK, kind: 'backup', name: 'Before the boss', note: 'Before a repair', pinned: true, size: '1.0 MB' });
     expect(bak.slots.map((s) => s.n)).toEqual([2]);
     expect(asked()).toContainEqual(['saves_sheet', { path: BAK, slot: 1 }]);
   });
 
   it('lists a backup without characters when its sheet cannot be read', async () => {
     const { api } = await engine({
-      saves: () => ({ infos: [], libraries: {}, backups: [{ path: 'b', save_name: 'x', when: 'bad', action: 'a', size: 5, keep: false, mtime: 1 }] }),
+      saves: () => ({ infos: [], libraries: {}, backups: [{ path: 'b', save_name: 'x', when: 'bad', action: 'a', label: '', size: 5, keep: false, mtime: 1 }] }),
       saves_sheet: () => { throw new GatewayError({ code: 'not_found', message: 'no' }); },
     });
     expect((await api.listCopies('g'))[0]).toMatchObject({ slots: [], pinned: false, when: 'bad' });
@@ -225,6 +225,13 @@ describe('saves adapter: quick writes (no entry)', () => {
     await expect(api.removeCopy(LIB_ID)).rejects.toMatchObject({ code: 'stale' });
   });
 
+  it('names a backup, and an empty name shows it by its time again', async () => {
+    const { api, asked } = await engine({ saves_label_backup: (p) => ({ text: String(p?.name ?? '').trim() }) });
+    expect(await api.renameCopy(BAK, 'Before the boss')).toEqual({ message: 'Renamed to Before the boss' });
+    expect(await api.renameCopy(BAK, '')).toEqual({ message: 'Shown by its time again' });
+    expect(asked()).toEqual([['saves_label_backup', { backup: BAK, name: 'Before the boss' }], ['saves_label_backup', { backup: BAK, name: '' }]]);
+  });
+
   it('keeps and releases a backup', async () => {
     const { api, asked } = await engine({ saves_keep_backup: () => ({ text: '' }) });
     await api.pinBackup(BAK, true);
@@ -237,7 +244,6 @@ describe('saves adapter: left not connected', () => {
   it('keeps the features the engine cannot do yet, with the usual not-connected error and no engine call', async () => {
     const { api, asked } = await engine({});
     await expect(api.deleteCharacter(SAVE, 1)).rejects.toMatchObject({ code: 'not_wired' });
-    await expect(api.renameCopy(BAK, 'n')).rejects.toMatchObject({ code: 'not_wired' });
     expect(asked()).toEqual([]);
   });
 });

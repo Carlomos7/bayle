@@ -78,7 +78,7 @@ export function CopyCard({ copy, saves, onPlan, onOpenChar, onRemoved }: CopyCar
         title={`Restore ${copy.name} over ${restoreTo?.label}?`}
         description={`Every slot in ${restoreTo?.fileName} is replaced by this copy. The save is backed up first, and Undo in Activity puts it back.`}
         onConfirm={() => { if (restoreTo) void run((a) => a.restoreCopy(copy.id, restoreTo.id)); }} />
-      {renaming && <NameDialog onOpenChange={setRenaming} title="Rename copy" initial={copy.name} submitLabel="Rename" rename
+      {renaming && <NameDialog onOpenChange={setRenaming} title={backup ? 'Rename backup' : 'Rename copy'} initial={copy.name} submitLabel="Rename" rename
         onSubmit={(name) => void run((a) => a.renameCopy(copy.id, name))} />}
       <ConfirmDialog open={removing} onOpenChange={setRemoving} danger confirmLabel="Remove" title={`Remove ${copy.name}?`}
         description="Its file goes to the Recycle Bin. Restore in Activity brings it back."

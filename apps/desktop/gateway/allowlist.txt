@@ -32,6 +32,7 @@ saves_default_name
 saves_save_copy
 saves_keep_as
 saves_keep_backup
+saves_label_backup
 saves_rename_copy
 saves_check_remove_copy
 saves_remove_copy

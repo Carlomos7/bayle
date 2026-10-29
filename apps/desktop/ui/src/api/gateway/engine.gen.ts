@@ -2702,6 +2702,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/saves/label_backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Saves Label Backup
+         * @description Name a backup (an empty name shows it by its time again); text is the name it got.
+         */
+        post: operations["saves_label_backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/saves/post_session_repair": {
         parameters: {
             query?: never;
@@ -10788,6 +10808,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["KeepParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavesSaid"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saves_label_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeepAsParams"];
             };
         };
         responses: {

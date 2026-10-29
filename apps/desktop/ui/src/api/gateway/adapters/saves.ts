@@ -29,6 +29,7 @@ const OP = {
   saveCopy: 'saves_save_copy',
   renameCopy: 'saves_rename_copy',
   keepBackup: 'saves_keep_backup',
+  labelBackup: 'saves_label_backup',
   checkRemoveCopy: 'saves_check_remove_copy',
   removeCopy: 'saves_remove_copy',
   checkDeleteBackup: 'saves_check_delete_backup',
@@ -77,7 +78,7 @@ interface EngineLibraryEntry {
   characters?: { slot: number; name: string; level: number; seconds: number }[];
 }
 /** modules/saves/service.py list_backups, one row. */
-interface EngineBackup { path: string; save_name: string; when: string; action: string; size: number; keep: boolean; mtime: number }
+interface EngineBackup { path: string; save_name: string; when: string; action: string; label: string; size: number; keep: boolean; mtime: number }
 interface SavesFacts { infos: EngineSaveInfo[]; libraries: Record<string, { entries: EngineLibraryEntry[] }>; backups: EngineBackup[] }
 /** The job results documented on the routes (saves.py). */
 interface WriteResult { file?: string; character?: string; slot?: number; save?: string | null; backup?: string | null; undo?: unknown }
@@ -205,7 +206,7 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
         id: b.path,
         gameId,
         kind: 'backup',
-        name: when(b.when) || b.save_name,
+        name: b.label || when(b.when) || b.save_name,
         fromFile: b.save_name,
         note: b.action,
         when: when(b.when),
@@ -261,8 +262,11 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
 
     async renameCopy(copyId, name) {
       const id = parseCopyId(copyId);
-      // shortcut: a backup has no name of its own (the page shows its time), so renaming one needs a label in its notes file; upgrade when the engine stores one.
-      if ('backup' in id) throw notWired('rename a backup');
+      if ('backup' in id) {
+        // the name goes in the backup's note; an empty one shows the backup by its time again
+        const { text } = await call<{ text: string }>(OP.labelBackup, { backup: id.backup, name });
+        return { message: text ? `Renamed to ${text}` : 'Shown by its time again' };
+      }
       const { text } = await call<{ text: string }>(OP.renameCopy, { folder: id.library.folder, entry_id: id.library.entryId, name });
       return { message: `Renamed to ${text}` };
     },

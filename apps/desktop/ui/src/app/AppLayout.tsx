@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCurrent, useSettings } from '@/data/hooks';
 import { useUi } from '@/state/ui';
 import { useDialogs } from '@/state/dialogs';
+import { clearErrors } from '@/state/toasts';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/bayle/overlay';
 import { MenuBar } from './shell/MenuBar';
@@ -47,8 +48,8 @@ export function AppLayout() {
   }), [setCommandOpen, launch, show, qc, go]);
   useShortcuts(shortcuts);
 
-  // Each page opens at its top, not where the previous page was scrolled to.
-  useEffect(() => { document.getElementById('scroll')?.scrollTo({ top: 0 }); }, [page]);
+  // Each page opens at its top, not where the previous page was scrolled to, and without the last page's errors.
+  useEffect(() => { document.getElementById('scroll')?.scrollTo({ top: 0 }); clearErrors(); }, [page]);
 
   const gamePage = page === 'mods' || page === 'merge' || page === 'configs' || page === 'saves';
 

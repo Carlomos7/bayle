@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CheckCircle2, Download, FolderOpen, Package, Search } from 'lucide-react';
 import { useDialogs } from '@/state/dialogs';
 import { useUi } from '@/state/ui';
-import { useAppInfo, useCall, useGames, useSettings } from '@/data/hooks';
+import { useAppInfo, useCall, useCurrent, useGames, useProfiles, useSettings } from '@/data/hooks';
 import { Dialog } from '@/components/bayle/overlay';
 import { Button } from '@/components/ui/button';
 import { Wordmark } from '@/components/bayle/layout';
@@ -27,7 +27,15 @@ export function Welcome() {
   const supported = (games.data ?? []).filter((g) => g.supported);
   const folderOf = (id: string) => settings.data?.paths.games[id];
 
+  const { game } = useCurrent();
+  const profiles = useProfiles(game?.id ?? '');
   const finish = (then?: () => void) => { setOnboarded(true); close(); setStep(0); then?.(); };
+  // Look around: Mods needs a profile to show; one is made only when the game has none yet.
+  const lookAround = async () => {
+    if (!game?.supported || !profiles.data || profiles.data.length) return;
+    const r = await call((a) => a.createProfile(game.id, 'My mods'), { title: 'Made an empty profile, My mods', detail: 'Add mods to it when you like.' });
+    if (r) await call((a) => a.setActiveProfile(game.id, r.profileId));
+  };
   // The engine wants the game's program, not its folder.
   const pickGame = async (gameId: string, name: string) => {
     const p = await call((a) => a.pickFile({ title: `Where is ${name} installed?`, filters: [{ name: 'Game program', extensions: ['exe'] }] }));
@@ -76,7 +84,7 @@ export function Welcome() {
           {[
             { icon: <Download />, title: 'Add a mod', hint: 'From a download: a .zip, .7z, .rar, a .dll or a folder.', run: () => finish(() => show({ id: 'install' })) },
             { icon: <Package />, title: 'Import a modpack', hint: 'A recipe someone shared. Everything in it is set up for you.', run: () => finish(() => toast({ kind: 'info', title: 'Import a modpack', detail: 'Pick a .bayle-pack file. Coming with the modpack feature.' })) },
-            { icon: <Search />, title: 'Just look around', hint: 'Start on Mods with an empty profile. Add things when you like.', run: () => finish() },
+            { icon: <Search />, title: 'Just look around', hint: 'Start on Mods with an empty profile. Add things when you like.', run: () => finish(() => void lookAround()) },
           ].map((c) => (
             <button key={c.title} type="button" onClick={c.run} className="flex flex-col items-start gap-2 rounded-lg border border-line2 bg-panel p-4 text-left transition-colors hover:border-t4 hover:bg-hover">
               <span className="text-accent [&_svg]:size-5">{c.icon}</span>

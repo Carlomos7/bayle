@@ -283,9 +283,9 @@ def check_delete_backup(s: Saves, p: BackupRef) -> BackupFacts:
 
 
 @router.post("/delete_backup", name="saves_delete_backup")
-def delete_backup(s: Saves, p: DeleteBackupParams) -> SavesSaid:
-    s.delete_backup(p.backup, p.expect)
-    return SavesSaid(text="")
+def delete_backup(s: Saves, p: DeleteBackupParams) -> JobStarted:
+    """A job: the backup goes to the Recycle Bin; its result is {"save_name", "in_bin", "save", "backup", "undo"}."""
+    return JobStarted(job_id=s.remove_backup(p.backup, p.expect))
 
 
 @router.post("/check_remove_copy", name="saves_check_remove_copy")

@@ -51,6 +51,7 @@ LABEL = {
     "folder-split": "Undo split",
     "dll-folders": "Undo move",
     "save-restore": "Undo",
+    "backup-remove": "Restore",
     "library-share": "Undo share",
     "library-use": "Undo",
     "library-separate": "Undo",

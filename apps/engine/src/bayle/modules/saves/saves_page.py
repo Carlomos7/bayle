@@ -103,6 +103,21 @@ def logged_write(log_title: str, progress: str, loc: Locations, body: Callable[[
     raise OperationError.from_info(done.error)
 
 
+def remove_backup(bak: Path, save_name: str, *, loc: Locations) -> Written:
+    """Send a backup and its notes to the Recycle Bin, with an Undo that puts them back (none when a drive has no bin
+    and Windows deleted them for good)."""
+
+    def body(loc: Locations) -> Written:
+        items = save_backups.to_trash(bak)
+        in_bin = bool(items) and all(r.get("kind") != "gone" for r in items)
+        if in_bin:
+            run_logging.set_undo({"type": "backup-remove", "name": save_name, "items": items})
+        text = f"the backup of {save_name} is in the Recycle Bin" if in_bin else f"the backup of {save_name} is deleted"
+        return Written(text, {"save_name": save_name, "in_bin": in_bin})
+
+    return logged_write(f"remove backup {Path(bak).name}", f"Removing the backup of {save_name}...", loc, body)
+
+
 # ----------------------------------------------------------------------------- reading
 def retention_limits() -> tuple[int, int]:
     """How many backups of each save are kept, and for how many days (what the Backups tab says)."""
@@ -672,6 +687,21 @@ class SavesService:
             saves_service.delete_backup(got.path)
         except Exception as e:
             raise OperationError("failed", str(e)) from e
+
+    def remove_backup(self, backup: str | Path, expect: tuple[int, float], title: str = "") -> str:
+        """The React Saves page's Remove: a writing job that sends the backup to the Recycle Bin, with a Restore in
+        Activity (delete_backup, Qt's, deletes for good); returns its id. expect: the stamp check_delete_backup gave.
+        Raises not_found, stale."""
+        got = self.check_delete_backup(backup)
+        if got.stamp != (int(expect[0]), float(expect[1])):
+            raise OperationError("stale", "That backup changed since you were asked. Ask again.")
+        loc = self._loc()
+        return self._jobs.start(
+            lambda _ctx: remove_backup(got.path, got.save_name, loc=loc).result(),
+            title=title or "Removing a backup...",
+            while_game_runs=True,  # a backup is not a game file
+            quiet=True,
+        )
 
     # ---- the writes to live saves: each a check (facts and stamp) and a start (refused as stale), then a writing job
     def _source(self, path: str | Path) -> Path:

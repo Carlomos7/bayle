@@ -278,8 +278,11 @@ export function savesApi(gateway: Gateway): Partial<BayleApi> {
       const id = parseCopyId(copyId);
       if ('backup' in id) {
         const facts = await call<S['BackupFacts']>(OP.checkDeleteBackup, { backup: id.backup });
-        await call(OP.deleteBackup, { backup: id.backup, expect: facts.stamp });
-        return { message: `Removed the backup of ${facts.save_name}` };
+        const { result, entry } = await runJob(OP.deleteBackup, { backup: id.backup, expect: facts.stamp });
+        // a drive without a Recycle Bin: Windows deleted it for good, and there is nothing to restore
+        return (result as { in_bin: boolean }).in_bin
+          ? { entry, message: `Removed the backup of ${facts.save_name}`, detail: 'It is in the Recycle Bin. Restore in Activity brings it back.' }
+          : { message: `Deleted the backup of ${facts.save_name}`, detail: 'Its drive has no Recycle Bin.' };
       }
       const ref = { folder: id.library.folder, entry_id: id.library.entryId };
       const { text } = await call<S['SavesSaid']>(OP.checkRemoveCopy, ref);

@@ -2580,7 +2580,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Saves Delete Backup */
+        /**
+         * Saves Delete Backup
+         * @description A job: the backup goes to the Recycle Bin; its result is {"save_name", "in_bin", "save", "backup", "undo"}.
+         */
         post: operations["saves_delete_backup"];
         delete?: never;
         options?: never;
@@ -10619,7 +10622,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SavesSaid"];
+                    "application/json": components["schemas"]["JobStarted"];
                 };
             };
             /** @description Validation Error */

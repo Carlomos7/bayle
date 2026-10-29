@@ -14094,6 +14094,7 @@
     },
     "/v1/saves/delete_backup": {
       "post": {
+        "description": "A job: the backup goes to the Recycle Bin; its result is {\"save_name\", \"in_bin\", \"save\", \"backup\", \"undo\"}.",
         "operationId": "saves_delete_backup",
         "requestBody": {
           "content": {
@@ -14110,7 +14111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SavesSaid"
+                  "$ref": "#/components/schemas/JobStarted"
                 }
               }
             },

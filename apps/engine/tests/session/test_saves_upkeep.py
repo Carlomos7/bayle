@@ -18,7 +18,7 @@ from bayle.modules.saves import service as saves_service
 from bayle.modules.saves.saves_page import SavesService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
-from support import Direct
+from support import Direct, fake_bin
 
 OLD, OTHER = b"old save " * 40, b"other save " * 40
 
@@ -63,6 +63,7 @@ class World:
 
 @pytest.fixture
 def world(tmp_path, monkeypatch):
+    fake_bin(monkeypatch, tmp_path / "bin")
     monkeypatch.setattr(save_regulation, "is_pc_save", lambda data: True)
     monkeypatch.setattr(save_library, "check_whole", lambda data, game: None)
     monkeypatch.setattr(save_library, "signed_for_account", lambda data, target, game: (data, False))

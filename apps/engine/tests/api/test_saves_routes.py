@@ -1,6 +1,8 @@
 """The Saves page and its reads and upkeep over HTTP, on a session whose Saves service is the real one. Invented saves
 in the test's own folders; every request shape the OpenAPI declares goes through JSON (the removals' `expect` too)."""
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,6 +19,7 @@ from bayle.modules.saves import transfer as save_transfer
 from bayle.modules.saves.saves_page import SavesService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
+from support import fake_bin
 
 TOKEN = "t" * 32
 OLD, OTHER = b"old save " * 40, b"other save " * 40
@@ -175,13 +178,27 @@ def test_removing_a_copy_that_changed_is_stale(env):
     assert [e["name"] for e in env.entries()] == ["Other"]
 
 
-def test_deleting_a_backup_is_a_check_then_a_start_and_the_stamp_round_trips_json(env):
+@pytest.fixture
+def bin_(tmp_path, monkeypatch):
+    return fake_bin(monkeypatch, tmp_path / "bin")
+
+
+def test_removing_a_backup_is_a_check_then_a_job_and_restore_in_activity_brings_it_back(env, bin_):
+    from bayle.modules.mods import undo as mod_undo
+
     bak = env.backup()
+    note = Path(str(bak) + ".json")
     facts = env.post("saves.check_delete_backup", {"backup": str(bak)}).json()
     assert facts["path"] == str(bak) and facts["save_name"] == "ER0000.sl2" and len(facts["stamp"]) == 2
     assert bak.exists()
-    done = env.post("saves.delete_backup", {"backup": str(bak), "expect": facts["stamp"]})
-    assert done.status_code == 200 and done.json() == {"text": ""} and not bak.exists()
+    result = start(env, "saves.delete_backup", {"backup": str(bak), "expect": facts["stamp"]})
+    assert not bak.exists() and not note.exists() and any(bin_.iterdir())
+    assert (
+        result["in_bin"] and result["undo"]["type"] == "backup-remove" and mod_undo.label(result["undo"]) == "Restore"
+    )
+    assert mod_undo.available(result["undo"])
+    assert mod_undo.run(result["undo"], print, loc=env.loc) == "put the backup of ER0000.sl2 back"
+    assert bak.exists() and not list(bin_.iterdir()) and not mod_undo.available(result["undo"])
 
 
 def test_deleting_a_rewritten_backup_is_stale(env):

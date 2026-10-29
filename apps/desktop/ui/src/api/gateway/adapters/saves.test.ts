@@ -211,10 +211,23 @@ describe('saves adapter: quick writes (no entry)', () => {
     expect(asked()[1]).toEqual(['saves_remove_copy', { folder: FOLDER, entry_id: 'abc123abc123', expect: 'Before DLC' }]);
   });
 
-  it('removes a backup: the check gives its stamp, the delete confirms it', async () => {
-    const { api, asked } = await engine({ saves_check_delete_backup: () => ({ path: BAK, save_name: 'ER0000.sl2', stamp: [10, 20.5] }), saves_delete_backup: () => ({ text: '' }) });
-    expect(await api.removeCopy(BAK)).toMatchObject({ message: 'Removed the backup of ER0000.sl2' });
+  it('removes a backup to the Recycle Bin as a job: the check gives its stamp, Restore in Activity takes it back', async () => {
+    const binned = { type: 'backup-remove', name: 'ER0000.sl2', items: [] };
+    const { api, asked } = await engine({
+      saves_check_delete_backup: () => ({ path: BAK, save_name: 'ER0000.sl2', stamp: [10, 20.5] }),
+      saves_delete_backup: { job: 'j9', title: 'Removing a backup...', result: { save_name: 'ER0000.sl2', in_bin: true, undo: binned }, undo: binned },
+    });
+    expect(await api.removeCopy(BAK)).toMatchObject({ message: 'Removed the backup of ER0000.sl2', entry: { undoable: true } });
     expect(asked()[1]).toEqual(['saves_delete_backup', { backup: BAK, expect: [10, 20.5] }]);
+  });
+
+  it('says so when a backup was deleted for good (no Recycle Bin on its drive)', async () => {
+    const { api } = await engine({
+      saves_check_delete_backup: () => ({ path: BAK, save_name: 'ER0000.sl2', stamp: [10, 20.5] }),
+      saves_delete_backup: { job: 'j9', title: 'Removing a backup...', result: { save_name: 'ER0000.sl2', in_bin: false, undo: null } },
+    });
+    const r = await api.removeCopy(BAK);
+    expect(r).toEqual({ message: 'Deleted the backup of ER0000.sl2', detail: 'Its drive has no Recycle Bin.' });
   });
 
   it('refuses a stale removal', async () => {

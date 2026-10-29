@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from bayle.adapters.filesystem import trash as fs_trash
 from bayle.adapters.filesystem.files import durable_write
 from bayle.adapters.saves import container as save_container
 from bayle.adapters.saves import layout as save_layout_check
@@ -772,3 +773,20 @@ def _restore_run(undo: dict, log, loc: Locations) -> str:
 kinds.register_undo(
     ("save-restore",), _restore_available, _restore_run
 )  # mods sits below this layer: it registers here
+
+
+def _unbin_available(undo: dict) -> bool:
+    items = undo.get("items") or []
+    return bool(items) and all(fs_trash.exists(r) and not Path(r["original"]).exists() for r in items)
+
+
+def _unbin_run(undo: dict, log, loc: Locations) -> str:
+    name = undo.get("name") or "the save"
+    if not _unbin_available(undo):
+        raise mod_models.UndoError(f"The backup of {name} is no longer in the Recycle Bin.")
+    for r in undo["items"]:
+        fs_trash.restore(r)
+    return f"put the backup of {name} back"
+
+
+kinds.register_undo(("backup-remove",), _unbin_available, _unbin_run)

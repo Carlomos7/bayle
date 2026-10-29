@@ -103,6 +103,23 @@ MODS_PROFILE = (
 )
 
 
+def fake_bin(monkeypatch, where: Path) -> Path:
+    """A stand-in Recycle Bin in where: a test never touches the real one."""
+    from bayle.adapters.filesystem import trash
+
+    where.mkdir(exist_ok=True)
+
+    def send(path):
+        item = where / f"{len(list(where.iterdir()))}-{Path(path).name}"
+        Path(path).rename(item)
+        return {"kind": "test", "item": str(item), "info": "", "original": str(path)}
+
+    monkeypatch.setattr(trash, "send", send)
+    monkeypatch.setattr(trash, "exists", lambda r: Path(r["item"]).exists())
+    monkeypatch.setattr(trash, "restore", lambda r: Path(r["item"]).rename(r["original"]))
+    return where
+
+
 def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
     """A small me3 profile on disk (two packages, one DLL) with its folders: what the Mods operations are run over."""
     root.mkdir(parents=True, exist_ok=True)

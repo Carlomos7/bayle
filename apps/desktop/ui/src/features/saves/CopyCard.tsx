@@ -81,7 +81,7 @@ export function CopyCard({ copy, saves, onPlan, onOpenChar, onRemoved }: CopyCar
       {renaming && <NameDialog onOpenChange={setRenaming} title={backup ? 'Rename backup' : 'Rename copy'} initial={copy.name} submitLabel="Rename" rename
         onSubmit={(name) => void run((a) => a.renameCopy(copy.id, name))} />}
       <ConfirmDialog open={removing} onOpenChange={setRemoving} danger confirmLabel="Remove" title={`Remove ${copy.name}?`}
-        description="Its file goes to the Recycle Bin. Restore in Activity brings it back."
+        description={backup ? 'Its file goes to the Recycle Bin. Restore in Activity brings it back.' : "It leaves the Library. Its file is kept in the Library's removed folder."}
         onConfirm={() => { onRemoved(); void run((a) => a.removeCopy(copy.id)); }} />
     </section>
   );

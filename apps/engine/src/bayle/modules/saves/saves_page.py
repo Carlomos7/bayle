@@ -404,12 +404,12 @@ def undo_change(save: Path, backup: Path, *, loc: Locations) -> dict:
 
 
 def stamp_of(path: Path) -> tuple[int, int] | None:
-    """A cheap read of a file for a write's staleness: (mtime_ns, size), None when it cannot be read."""
+    """A cheap read of a file for a write's staleness: (mtime in microseconds, size), None when it cannot be read."""
     try:
         st = os.stat(path)
     except OSError:
         return None
-    return st.st_mtime_ns, st.st_size
+    return st.st_mtime_ns // 1000, st.st_size  # microseconds: nanoseconds pass 2**53 and JSON clients round them
 
 
 @dataclass(frozen=True)

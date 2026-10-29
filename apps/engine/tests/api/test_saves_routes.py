@@ -381,6 +381,16 @@ def test_restore_is_a_check_then_a_start_and_undo_takes_it_back(env):
     assert undone == {"file": "ER0000.sl2"} and env.save.read_bytes() == NEW
 
 
+def test_a_stamp_survives_a_javascript_client(env):
+    """The web view holds JSON numbers as doubles: a stamp must come back from it unchanged, or every write is stale."""
+    bak = env.backup()
+    ref = {"backup": str(bak), "target": str(env.save)}
+    stamp = env.post("saves.check_restore_backup", ref).json()["stamp"]
+    as_js = [[int(float(n)) for n in pair] for pair in stamp]
+    assert as_js == stamp
+    assert start(env, "saves.restore_backup", {**ref, "expect": as_js})["file"] == "ER0000.sl2"
+
+
 def test_replace_from_file_and_from_library_are_a_check_then_a_start(env):
     picked = env.tmp / "picked.co2"
     picked.write_bytes(OTHER)

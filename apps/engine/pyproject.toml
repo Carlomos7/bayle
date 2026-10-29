@@ -135,7 +135,8 @@ ignore_imports = [
 # The database, the settings file, other programs, this machine and the tool backends are reached through the ports
 # the runtime binds (modules/ports.py, modules/*/ports.py). Called directly, as documented exceptions: file formats,
 # the game's own files, merging, the filesystem primitives every save and profile write goes through
-# (adapters/filesystem), and the job log (adapters/system/logging) and the UI-thread guard (adapters/system/threads).
+# (adapters/filesystem), the job log (adapters/system/logging), the UI-thread guard (adapters/system/threads) and
+# Bayle Dev's folder guard (adapters/system/sandbox), which Activity asks why an Undo is refused.
 [[tool.importlinter.contracts]]
 name = "Features reach stateful infrastructure only through ports"
 type = "forbidden"
@@ -163,6 +164,7 @@ allow_indirect_imports = true
 ignore_imports = [
     "bayle.modules.** -> bayle.adapters.system.logging",
     "bayle.modules.** -> bayle.adapters.system.threads",
+    "bayle.modules.** -> bayle.adapters.system.sandbox",
 ]
 
 # The features, top to bottom. The Settings page and the settings model sit at opposite ends: the page composes other

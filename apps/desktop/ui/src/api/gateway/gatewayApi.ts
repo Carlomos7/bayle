@@ -43,6 +43,8 @@ export interface EngineActivityRecord {
   problem?: string;
   log?: string | null;
   undo?: Record<string, unknown> | null;
+  /** The Undo button's words for this record (Restore, Roll back...). */
+  undo_label?: string;
   undone?: boolean;
 }
 
@@ -79,6 +81,7 @@ export function toActivityEntry(r: EngineActivityRecord, now = new Date()): Acti
     duration: durationOf(r.seconds, outcome),
     hasLog: !!r.log,
     undoable: !!r.undo && !r.undone,
+    undoLabel: r.undo_label || undefined,
     undone: !!r.undone,
     // Undo through the engine (activity_undo with the confirmed record) is not wired yet.
   };

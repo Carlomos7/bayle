@@ -28,6 +28,7 @@ describe('production adapter', () => {
     expect(toActivityEntry({ id: 'x', outcome: 'failed', problem: 'The file is in use.', start: '2026-10-26T09:00:00', seconds: 0.2 }, now))
       .toMatchObject({ ok: false, detail: 'The file is in use.', day: 'Yesterday', duration: 'under a second', kind: 'profile', title: 'Job' });
     expect(toActivityEntry({ id: 'y', undo: { type: 'rebuild' } }, now)).toMatchObject({ undoable: true, hasLog: false });
+    expect(toActivityEntry({ id: 'z', undo: { type: 'backup-remove' }, undo_label: 'Restore' }, now)).toMatchObject({ undoable: true, undoLabel: 'Restore' });
     expect(toActivityEntry({ id: 'z', undo: { type: 'rebuild' }, undone: true }, now)).toMatchObject({ undoable: false, undone: true });
   });
 

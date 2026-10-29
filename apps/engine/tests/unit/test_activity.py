@@ -78,3 +78,15 @@ def test_kinds_fall_into_the_filter_groups():
     assert rl.group_of("play") == "Play" and rl.group_of("repair") == "Saves"
     assert rl.group_of("rebuild") == "Mods" and rl.group_of("install") == "Mods"
     assert rl.group_of("check") == "Other" and rl.group_of("anything") == "Other"
+
+
+def test_a_job_that_can_be_taken_back_names_its_button(tmp_path):
+    from bayle.modules.activity.service import ActivityService
+
+    job = rl.begin_job("remove backup ER0000.sl2.bak")
+    rl.set_undo({"type": "backup-remove", "name": "ER0000.sl2", "items": []})
+    rl.end_job(job)
+    make_job("check")
+    jobs = {j["title"]: j for j in ActivityService(None, None, lambda: None).jobs()}
+    assert jobs["remove backup ER0000.sl2.bak"]["undo_label"] == "Restore"
+    assert "undo_label" not in jobs["check"]

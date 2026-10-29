@@ -49,8 +49,11 @@ class ActivityService:
 
     # ---- reads
     def jobs(self) -> list[dict]:
-        """Every job, newest first."""
-        return run_logging.read_jobs_from(self._store)
+        """Every job, newest first; one that can be taken back also names its button (undo_label: Restore, Roll back...)."""
+        return [
+            {**r, "undo_label": mod_undo.label(r["undo"])} if r.get("undo") else r
+            for r in run_logging.read_jobs_from(self._store)
+        ]
 
     def undo_available(self, undo: dict) -> bool:
         return mod_undo.available(undo)

@@ -82,10 +82,14 @@ export function SavesPage() {
   const openSave = current?.kind === 'save' ? saveList.find((s) => s.id === current.id) : undefined;
   const openCopy = current?.kind === 'copy' ? copyList.find((c) => c.id === current.id) : undefined;
 
+  // the Steam account is the save folder's name (17 digits); shown only when every live save is under one
+  const accounts = [...new Set(saveList.map((s) => /[\\/](\d{17})[\\/][^\\/]+$/.exec(s.id)?.[1]).filter(Boolean))];
+  const account = accounts.length === 1 ? accounts[0]! : null;
+
   return (
     <Page>
       <PageHeader
-        eyebrow={<>{game?.name}<span aria-hidden>·</span>Steam account 7656…4421</>}
+        eyebrow={<>{game?.name}{account && <><span aria-hidden>·</span>Steam account {account.slice(0, 4)}…{account.slice(-4)}</>}</>}
         title="Saves"
         subtitle="Drag a character onto a live save, or open a copy to compare and restore. Every write is backed up first and can be undone."
         actions={<>

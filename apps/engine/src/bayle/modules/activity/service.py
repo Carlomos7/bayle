@@ -13,6 +13,7 @@ from pathlib import Path
 
 from bayle.adapters.filesystem import trash
 from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system import sandbox
 from bayle.errors import Cancelled, OperationError
 from bayle.modules.games.locate import Locations
 from bayle.modules.mods import kinds
@@ -115,6 +116,10 @@ class ActivityService:
         if self._jobs.busy:
             raise OperationError("busy", "Another operation is running.", {"job_id": job_id})
         if not self.undo_available(undo):
+            if kept := sandbox.refused_in(undo):  # Bayle Dev: not gone, out of bounds
+                raise OperationError(
+                    "sandboxed", f"Bayle Dev keeps out of your real folders: {kept}", {"job_id": job_id}
+                )
             raise OperationError("gone", "It cannot be taken back any more.", {"job_id": job_id})
         if undo.get("type") == "rebuild" and self._jobs.game_running:
             raise OperationError("game_running", "The game is running.", {"job_id": job_id})

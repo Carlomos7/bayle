@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 PROTECT_ENV = "BAYLE_PROTECT"
@@ -44,6 +44,24 @@ class SandboxRefused(PermissionError):
     pass
 
 
+_refuses: Callable[[object, bool], bool] | None = None  # set by guard(): whether a path is out of bounds
+
+
+def refused_in(record: object) -> str | None:
+    """The first absolute path in record (a dict, list or string, as an undo record holds them) that the guard keeps
+    out, or None (always None without a guard). A refused read looks like a missing file to whoever asked, so a caller
+    that is about to say "it is gone" asks here first and can say why instead."""
+    if _refuses is None:
+        return None
+    if isinstance(record, dict):
+        record = list(record.values())
+    if isinstance(record, list):
+        return next((p for p in (refused_in(v) for v in record) if p), None)
+    if isinstance(record, str) and os.path.isabs(record) and _refuses(record, False):
+        return record
+    return None
+
+
 def _norm(path: object) -> str | None:
     if path is None or isinstance(path, int):
         return None  # a file descriptor: it was checked when it was opened
@@ -67,13 +85,16 @@ def guard(protect: Iterable[str | Path], allowed: Iterable[str | Path], readable
 
     protect_n, allowed_n, readable_n = norm(protect), norm(allowed), norm(readable)
 
-    def check(path: object, writes: bool) -> None:
+    def refuses(path: object, writes: bool) -> bool:
         p = _norm(path)
         if p is None or _under(p, allowed_n):
-            return
+            return False
         if not writes and (_under(p, readable_n) or not _under(p, protect_n)):
-            return
-        if p.startswith("\\\\.\\pipe\\") or "__pycache__" in p:
+            return False
+        return not (p.startswith("\\\\.\\pipe\\") or "__pycache__" in p)
+
+    def check(path: object, writes: bool) -> None:
+        if not refuses(path, writes):
             return
         raise SandboxRefused(f"Bayle Dev keeps out of your real folders: {os.fsdecode(path)}")  # type: ignore[arg-type]
 
@@ -88,6 +109,8 @@ def guard(protect: Iterable[str | Path], allowed: Iterable[str | Path], readable
                 if i < len(args):
                     check(args[i], writes)
 
+    global _refuses
+    _refuses = refuses
     sys.addaudithook(hook)
 
 

@@ -36,6 +36,8 @@ SCRIPT = textwrap.dedent(
         "write other": tried(lambda: (other / "new.txt").write_text("x")),
         "copy into other": tried(lambda: shutil.copyfile(data / "settings.json", other / "copy.json")),
         "write allowed": tried(lambda: (extra / "moved.txt").write_text("x")),
+        "undo record names": sandbox.refused_in({"type": "install", "folders": [str(other), str(real / "RoundtableSouls" / "p")]}),
+        "undo record clean": sandbox.refused_in({"type": "install", "folder": str(data / "p")}),
     }))
     """
 )
@@ -69,6 +71,8 @@ def test_bayle_dev_reaches_nothing_in_the_real_folders_and_writes_only_where_all
         "write other": "refused",
         "copy into other": "refused",
         "write allowed": "ok",
+        "undo record names": str(real / "RoundtableSouls" / "p"),  # so Activity can say why, not "gone"
+        "undo record clean": None,
     }
     assert (real / "RoundtableSouls" / "launcher_settings.json").exists()
     assert not (other / "new.txt").exists() and not (other / "copy.json").exists()

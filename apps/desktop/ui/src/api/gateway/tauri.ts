@@ -12,6 +12,11 @@ import { toGatewayError, type GatewayTransport } from './transport';
 
 export { isTauri };
 
+/** Tells the shell the window is drawn; without it the shell offers its own way out after a while (main.rs watch_ui). */
+export function uiReady(): void {
+  if (isTauri()) invoke('app_ui_ready').catch(() => {});
+}
+
 export function tauriTransport(): GatewayTransport {
   const call = async <T,>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
     try {

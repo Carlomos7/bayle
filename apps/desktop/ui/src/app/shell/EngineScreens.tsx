@@ -7,6 +7,7 @@ import { useRuntime } from '@/data/ApiProvider';
 import { useEngine } from '@/data/engine';
 import { toast } from '@/state/toasts';
 import { cn } from '@/lib/utils';
+import { uiReady } from '@/api';
 
 /**
  * What the window shows about Bayle's engine (the Python process Rust runs):
@@ -166,4 +167,10 @@ export function OutsideDesktop() {
       <p className="m-0">This page is Bayle's interface without its engine. It only works inside the Bayle app, which runs the engine for it.</p>
     </Screen>
   );
+}
+
+/** Tells the shell the window is drawn, once the tree has rendered (a render that throws never gets here). */
+export function Drawn() {
+  useEffect(uiReady, []);
+  return null;
 }

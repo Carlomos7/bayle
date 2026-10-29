@@ -8,7 +8,10 @@ mod ui;
 use std::{
     collections::HashMap,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -40,6 +43,8 @@ struct Shell {
     update_base: String,
     pending: Mutex<Option<Update>>,
     redact: Arc<Redact>,
+    /// React drew the window (app_ui_ready); until then watch_ui may show the shell's own fallback.
+    ui_ready: AtomicBool,
 }
 
 /// The forwarding task of each open event channel, by channel id, so `engine_unsubscribe` can end it.
@@ -151,6 +156,82 @@ fn dev_kill_engine(gateway: State<'_, Gateway>) {
     gateway.kill_engine();
     #[cfg(not(debug_assertions))]
     let _ = gateway;
+}
+
+/// React calls this once it has drawn the window.
+#[tauri::command]
+fn app_ui_ready(shell: State<'_, Shell>) {
+    shell.ui_ready.store(true, Ordering::SeqCst);
+}
+
+/// How long the UI gets to draw itself before the shell offers its own way out (ADR 0016, criterion 7).
+const UI_GRACE: Duration = Duration::from_secs(20);
+const FALLBACK_UPDATE: &str = "Install the latest update";
+const FALLBACK_REPORT: &str = "Open logs and report";
+
+/// A UI that never draws (a broken release) leaves a blank, frameless window: give it a frame and offer, natively,
+/// the recovery screen's actions that need no UI.
+fn watch_ui(app: AppHandle) {
+    std::thread::spawn(move || {
+        std::thread::sleep(UI_GRACE);
+        if app.state::<Shell>().ui_ready.load(Ordering::SeqCst) {
+            return;
+        }
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.set_decorations(true);
+        }
+        ui_fallback(app, "");
+    });
+}
+
+fn ui_fallback(app: AppHandle, said: &str) {
+    use tauri_plugin_dialog::{MessageDialogButtons, MessageDialogKind, MessageDialogResult};
+    let text = format!(
+        "{said}Bayle's window didn't load. Your profiles, mods and saves are not affected.\n\nInstall the latest \
+         update to fix it, or open the logs and report it. Reinstalling Bayle from its installer also fixes it."
+    );
+    let handle = app.clone();
+    app.dialog()
+        .message(text)
+        .title("Bayle")
+        .kind(MessageDialogKind::Error)
+        .buttons(MessageDialogButtons::YesNoCancelCustom(
+            FALLBACK_UPDATE.into(),
+            FALLBACK_REPORT.into(),
+            "Close Bayle".into(),
+        ))
+        .show_with_result(move |r| match r {
+            MessageDialogResult::Yes => fallback_update(handle),
+            MessageDialogResult::Custom(l) if l == FALLBACK_UPDATE => fallback_update(handle),
+            MessageDialogResult::No => fallback_report(handle),
+            MessageDialogResult::Custom(l) if l == FALLBACK_REPORT => fallback_report(handle),
+            _ => handle.exit(0),
+        });
+}
+
+fn fallback_report(app: AppHandle) {
+    let _ = app_open_logs(app.clone(), app.state::<Shell>());
+    let _ = app_report_issue(app.clone());
+    ui_fallback(app, "");
+}
+
+fn fallback_update(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        // the same signed path as Settings: an install restarts the app; anything else comes back here
+        let said = match app_update_check(app.clone(), app.state::<Shell>()).await {
+            Ok(Some(_)) => {
+                match app_update_install(app.clone(), app.state::<Gateway>(), app.state::<Shell>())
+                    .await
+                {
+                    Ok(()) => return,
+                    Err(e) => format!("The update didn't install: {}\n\n", e.message),
+                }
+            }
+            Ok(None) => "There is no newer version yet.\n\n".to_owned(),
+            Err(e) => format!("Bayle couldn't check for updates: {}\n\n", e.message),
+        };
+        ui_fallback(app, &said);
+    });
 }
 
 /// The recovery screen's Open logs: the engine writes its logs in the state folder.
@@ -549,7 +630,9 @@ fn main() {
                 update_base,
                 pending: Mutex::new(None),
                 redact: Arc::new(redact),
+                ui_ready: AtomicBool::new(false),
             });
+            watch_ui(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -571,7 +654,8 @@ fn main() {
             app_info,
             app_update_check,
             app_set_channel,
-            app_update_install
+            app_update_install,
+            app_ui_ready
         ])
         .build(tauri::generate_context!())
         .expect("the Tauri app");

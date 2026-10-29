@@ -6,7 +6,7 @@ import { createRuntime } from './api';
 import { ApiProvider } from './data/ApiProvider';
 import { router } from './router';
 import { applyCachedTheme } from './app/theme';
-import { EngineGate, OutsideDesktop } from './app/shell/EngineScreens';
+import { Drawn, EngineGate, OutsideDesktop } from './app/shell/EngineScreens';
 
 applyCachedTheme();
 const root = createRoot(document.getElementById('root')!);
@@ -14,6 +14,7 @@ const root = createRoot(document.getElementById('root')!);
 void createRuntime().then((runtime) => {
   root.render(
     <StrictMode>
+      <Drawn />
       {runtime.mode === 'outside-desktop' ? <OutsideDesktop /> : (
         <ApiProvider runtime={runtime}>
           <EngineGate>

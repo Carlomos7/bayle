@@ -51,3 +51,4 @@ export async function createRuntime(): Promise<Runtime | { mode: 'outside-deskto
 
 export type { BayleApi } from './BayleApi';
 export * from './types';
+export { uiReady } from './gateway/tauri';

@@ -89,6 +89,20 @@ def test_relocate_moves_everything_and_undo_is_identical(world, monkeypatch, cro
     assert ops_left(world) == []
 
 
+def test_the_settings_move_to_another_drive_copies_without_a_progress_callback(world, monkeypatch):
+    """The Settings page's move goes through settings.locations, which gave the copy loop a one-argument logger."""
+    from bayle.modules.settings import locations
+
+    monkeypatch.setattr(layout, "_same_drive", lambda a, b: False)
+    monkeypatch.setattr(locations.run_logging, "start_log", lambda *a, **k: None)
+    monkeypatch.setattr(world.loc, "game", SimpleNamespace(key="eldenring"), raising=False)
+    monkeypatch.setattr(locations, "_record", lambda out: None)
+    before = tree(world.root)
+    new = world.tmp / "other-drive"
+    locations.relocate(world.loc, new)
+    assert tree(new).keys() == before.keys() and not (world.root / "b-eldenring").exists()
+
+
 def test_relocate_cancel_mid_copy_cleans_up(world, monkeypatch):
     monkeypatch.setattr(layout, "_same_drive", lambda a, b: False)
     before = tree(world.root)

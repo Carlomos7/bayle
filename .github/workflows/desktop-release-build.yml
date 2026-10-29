@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
+    # The signing key lives only in this environment's secrets: every run waits for the owner's approval.
+    environment: release-signing
     defaults:
       run:
         working-directory: apps/desktop

@@ -408,7 +408,7 @@ async fn app_update_check(
         .map_err(UiError::gateway)?
         .build()
         .map_err(UiError::gateway)?;
-    let update = updater.check().await.map_err(UiError::gateway)?;
+    let update = updater.check().await.map_err(update_error)?;
     let info = update.as_ref().map(|u| UpdateInfo {
         version: u.version.clone(),
         current: u.current_version.clone(),
@@ -499,13 +499,43 @@ async fn app_update_install(
     let bytes = update
         .download(|_, _| {}, || {})
         .await
-        .map_err(UiError::gateway)?;
+        .map_err(update_error)?;
     gateway.shutdown(Duration::from_secs(10)).await;
     if let Err(e) = update.install(bytes) {
         gateway.restart(); // nothing was installed: bring the engine back
-        return Err(UiError::gateway(e));
+        return Err(update_error(e));
     }
     app.restart();
+}
+
+/// An updater failure in words a player can act on; the updater's own text stays in details.reason.
+fn update_error(e: tauri_plugin_updater::Error) -> UiError {
+    use tauri_plugin_updater::Error as E;
+    let (code, message) = match &e {
+        E::Reqwest(_) | E::Network(_) => (
+            "update_offline",
+            "Bayle couldn't reach the update server. Check your internet connection and try again.",
+        ),
+        E::ReleaseNotFound
+        | E::Serialization(_)
+        | E::Semver(_)
+        | E::TargetNotFound(_)
+        | E::TargetsNotFound(_) => (
+            "update_unreadable",
+            "The update information couldn't be read right now. Try again later.",
+        ),
+        E::Minisign(_) => (
+            "update_untrusted",
+            "An update was found, but its signature didn't match Bayle's, so it was not installed.",
+        ),
+        _ => (
+            "update_failed",
+            "The update didn't work. Bayle is unchanged; try again later.",
+        ),
+    };
+    let mut err = UiError::new(code, message);
+    err.details = serde_json::json!({ "reason": e.to_string() });
+    err
 }
 
 /// The engine command and the state folder for this build.
@@ -681,6 +711,19 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_update_failure_is_said_in_plain_words_with_the_reason_kept() {
+        use tauri_plugin_updater::Error as E;
+        let e = update_error(E::Network(
+            "error sending request for url (https://x/beta.json)".into(),
+        ));
+        assert_eq!(e.code, "update_offline");
+        assert!(e.message.contains("internet connection") && !e.message.contains("url"));
+        assert!(e.details["reason"].as_str().unwrap().contains("beta.json"));
+        assert_eq!(update_error(E::ReleaseNotFound).code, "update_unreadable");
+        assert_eq!(update_error(E::EmptyEndpoints).code, "update_failed");
+    }
 
     #[test]
     fn the_state_folder_is_never_a_guess() {

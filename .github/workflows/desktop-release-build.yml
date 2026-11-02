@@ -6,7 +6,7 @@ name: Desktop release build
 
 on:
   push:
-    branches: [ "feat/react-ui-integration" ]
+    branches: [ "main" ]
     paths: [ "apps/desktop/**", "apps/engine/src/**", "apps/engine/uv.lock", ".github/workflows/desktop-release-build.yml" ]
   workflow_dispatch:
     inputs:
@@ -86,11 +86,11 @@ jobs:
     if: inputs.publish
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # the release and its tag; made with this token, the tag does not start release.yml (Qt)
+      contents: write  # the release; its tag v<version> is made beforehand by an admin (the Release tags rule)
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Version, notes and no earlier release of it
+    - name: Version, notes, the tag on this commit and no earlier release of it
       id: v
       env:
         GH_TOKEN: ${{ github.token }}
@@ -101,9 +101,13 @@ jobs:
         case "$version" in 6.*-*) ;; *) echo "::error::$version is not a 6.x pre-release; a stable release needs its own decision"; exit 1 ;; esac
         notes="apps/desktop/release-notes/$version.md"
         [ -s "$notes" ] || { echo "::error::no release notes: $notes"; exit 1; }
-        if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
-          echo "::error::v$version is already released or tagged"; exit 1
+        if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          echo "::error::v$version is already released"; exit 1
         fi
+        # the commit the tag names (an annotated tag's ^{} line, else the tag itself)
+        tagged=$(git ls-remote --tags origin "refs/tags/v$version" "refs/tags/v$version^{}" | sort -k2 | tail -1 | cut -f1)
+        [ -n "$tagged" ] || { echo "::error::create the tag v$version on $GITHUB_SHA first (only admins may create v* tags)"; exit 1; }
+        [ "$tagged" = "$GITHUB_SHA" ] || { echo "::error::v$version names $tagged, not this build's commit $GITHUB_SHA"; exit 1; }
         echo "version=$version" >> "$GITHUB_OUTPUT"
         echo "notes=$notes" >> "$GITHUB_OUTPUT"
 
@@ -119,6 +123,6 @@ jobs:
       run: |
         exe="dist/Bayle_${VERSION}_x64-setup.exe"
         [ -s "$exe" ] && [ -s "$exe.sig" ] || { echo "::error::the signed installer of $VERSION is missing"; ls -la dist; exit 1; }
-        gh release create "v$VERSION" "$exe" "$exe.sig" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-          --prerelease --title "Bayle $VERSION" --notes-file "${{ steps.v.outputs.notes }}"
+        gh release create "v$VERSION" "$exe" "$exe.sig" --repo "$GITHUB_REPOSITORY" --verify-tag \
+          --prerelease --latest=false --title "Bayle $VERSION" --notes-file "${{ steps.v.outputs.notes }}"
         echo "Published v$VERSION at $GITHUB_SHA (pre-release). Next: the Beta manifest on the updates branch." >> "$GITHUB_STEP_SUMMARY"

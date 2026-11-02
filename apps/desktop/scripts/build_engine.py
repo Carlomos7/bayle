@@ -22,9 +22,7 @@ DESKTOP = HERE.parent
 REPO = DESKTOP.parents[1]
 ENGINE = REPO / "apps" / "engine"
 OUT = DESKTOP / "target" / "engine-dist"
-PYINSTALLER = (
-    "pyinstaller==6.22.3"  # the version the Qt build resolves (apps/qt-desktop/uv.lock)
-)
+PYINSTALLER = "pyinstaller==6.22.3"  # pinned so every engine freeze is the same
 
 
 def freeze() -> Path:

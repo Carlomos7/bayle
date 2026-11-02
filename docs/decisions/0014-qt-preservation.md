@@ -1,6 +1,19 @@
 # 0014 The Qt app is kept on `legacy/qt-desktop` and a `qt-final-v*` tag before it leaves `main`
 
-**Status:** Proposed. Phase 0 of the Tauri migration; nothing is preserved or removed yet.
+**Status:** Accepted and carried out on 2 November 2026. Qt is preserved (record below) and removed from `main`.
+
+**Record.** Commit `33c3673a72476191315c7cb478bfae41c42c12f8` (`chore(main): release 5.0.2 (#24)`), released as
+`v5.0.2` by release run 40568818195 (green: verify, windows, linux, publish). The three later commits on `main` were
+docs and an engine fix, none Qt-only, so the tagged commit is the one preserved. Re-checked in a clean worktree at that
+commit: engine 2162 passed, 28 skipped; Qt 729 passed, 3 skipped (offscreen); `scripts/build.py --no-test --no-pack`
+built `dist/RoundtableSouls`; the headless smoke test passed. `qt-final-v5.0.2` (annotated, `114e7ae5`) and
+`legacy/qt-desktop` both resolve to that commit on GitHub. Rulesets "Qt final tags" (no update, no deletion) and
+"Legacy branches" (no deletion, no force push, pull requests only) protect them.
+
+**Cutover criteria, as met.** 1: the gaps are accepted in writing (decision O10). 3: holds (ADR 0016's state folder;
+the Tauri app never writes Qt's data folder). 5: the record above. Waived by the owner on 2 November 2026: 2, Linux
+(the installer and updater pass on Windows; Linux is deferred), and 4, a Beta release with no data-loss or update
+reports (6.0.0-beta.1 shipped to Beta the same day, so there has been no time for reports).
 
 ## Context
 

@@ -45,26 +45,18 @@ requests.
 
 ## Versions and releases
 
-Versions follow [SemVer 2.0](https://semver.org): `MAJOR.MINOR.PATCH`; a pre-release is `X.Y.Z-rc.N` (older versions
-used `-beta.N`, which the launcher still reads). A pre-release is offered on the Beta channel only; a plain `X.Y.Z` on
-both. Never edit the version or `CHANGELOG.md` by hand: [release-please](https://github.com/googleapis/release-please)
-does it.
+Versions follow [SemVer 2.0](https://semver.org): `MAJOR.MINOR.PATCH`; a pre-release such as `6.0.0-beta.1` is offered on
+the Beta channel only, a plain `X.Y.Z` on both. The version lives in `apps/desktop/src-tauri/tauri.conf.json` and
+`apps/desktop/src-tauri/Cargo.toml` (they must match); the engine keeps its own in `apps/engine`.
 
-1. Commits land on `main` by squash-merged pull requests.
-2. Each push to `main` opens or updates the **release pull request**: the next version (from the commit types), the
-   `CHANGELOG.md` entry, both projects' `pyproject.toml` and `uv.lock`, and `apps/engine/src/bayle/__init__.py`
-   (one version for the product).
-3. Merging that pull request makes release-please tag `vX.Y.Z` and create a draft GitHub release holding the
-   changelog entry. The same workflow then starts `release.yml` on the tag (a tag made by `GITHUB_TOKEN` does not
-   trigger workflows by itself, so it is dispatched explicitly).
-4. `release.yml` checks the tag is on `main` and matches the version, builds Windows and Linux, signs the feeds,
-   uploads into the draft, verifies it, and publishes (a pre-release for `-rc.N`, the latest release for `X.Y.Z`).
+1. Commits land on `main` by squash-merged pull requests; `CHANGELOG.md` gets an entry for each release.
+2. Every push to `main` that touches the app builds the signed installer and checks its signature
+   (`.github/workflows/desktop-release-build.yml`, after the owner's approval). Nothing is published.
+3. To release: write `apps/desktop/release-notes/<version>.md`, create the tag `v<version>` on the release commit (only
+   admins may create `v*` tags), then start Desktop release build by hand with **publish**. It makes the GitHub
+   pre-release with the signed installer and its `.sig`.
+4. Add the channel manifest (`site/updates/beta.json`, or `stable.json` for a stable release) on the `updates` branch,
+   pointing at that installer with its signature. Its Pages deploy waits for the owner's approval.
 
-**A release candidate:** merge a commit with a `Release-As` footer, for example an empty one from a branch:
-
-```
-git commit --allow-empty -m "chore: release 4.1.0-rc.1" -m "Release-As: 4.1.0-rc.1"
-```
-
-The release pull request then proposes `4.1.0-rc.1`. After testing it, merge another `Release-As: 4.1.0` commit for the
-stable release. `apps/qt-desktop/scripts/bump_version.py` remains as a manual fallback.
+Bayle 5 (the Qt app) is kept on `legacy/qt-desktop` and the tag `qt-final-v5.0.2` (ADR 0014); it is not released from
+`main` any more.

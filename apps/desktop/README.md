@@ -1,6 +1,6 @@
-# Bayle desktop (Tauri), Phase 0
+# Bayle desktop (Tauri)
 
-Not shipped. The Qt app in `apps/qt-desktop` is still the product.
+The Bayle app (Bayle 6). The Qt app before it is kept on `legacy/qt-desktop` (ADR 0014).
 
 - `gateway/`: the Rust gateway of [ADR 0015](../../docs/decisions/0015-rust-gateway.md). It starts and supervises the engine,
   holds its port and token, forwards only operations listed in `gateway/allowlist.txt` (checked against

@@ -60,7 +60,7 @@ export function Notice({ tone = 'info', icon, title, children, actions }: { tone
 
 /** Wordmark image ("BAYLE · FromSoft Mod Manager"), themed. */
 export function Wordmark({ width = 240, className }: { width?: number; className?: string }) {
-  return <div role="img" aria-label="Bayle, FromSoft Mod Manager" className={cn('shrink-0 bg-[image:var(--wordmark)] bg-contain bg-left bg-no-repeat', className)} style={{ width, aspectRatio: '640 / 307' }} />;
+  return <div role="img" aria-label="Bayle, FromSoft Mod Manager" className={cn('shrink-0 bg-[image:var(--wordmark)] bg-contain bg-left bg-no-repeat', className)} style={{ width, aspectRatio: '640 / 234' }} />;
 }
 
 export function LogoMark({ size = 20, className }: { size?: number; className?: string }) {

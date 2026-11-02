@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="docs/assets/brand/bayle-wordmark.png" alt="Bayle Modding Suite" width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/bayle-wordmark-dark.png">
+  <img src="docs/assets/brand/bayle-wordmark.png" alt="Bayle, FromSoft Mod Manager" width="480">
+</picture>
 
 **An all-in-one toolkit for managing mods, profiles, and saves, with tools for resolving compatibility issues and merging mod changes.**
 

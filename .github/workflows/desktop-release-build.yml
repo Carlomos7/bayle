@@ -1,6 +1,7 @@
 # Builds Bayle's Windows installer exactly as a release would (the official identity, signed with the release update
-# key) and checks the signature against the release public key, the way the updater will. Publishes nothing: no
-# release, no tag, no manifest, no uploaded installer. ADR 0016.
+# key) and checks the signature against the release public key, the way the updater will. A push publishes nothing.
+# Started by hand with "publish", it also makes the GitHub pre-release v<version> with the installer and its
+# signature (the update manifest is added on the updates branch afterwards, behind its own approval). ADR 0016.
 name: Desktop release build
 
 on:
@@ -8,6 +9,11 @@ on:
     branches: [ "feat/react-ui-integration" ]
     paths: [ "apps/desktop/**", "apps/engine/src/**", "apps/engine/uv.lock", ".github/workflows/desktop-release-build.yml" ]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the GitHub pre-release v<version> with the signed installer (needs apps/desktop/release-notes/<version>.md)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -63,3 +69,56 @@ jobs:
         exe=$(ls target/release/bundle/nsis/Bayle_*_x64-setup.exe)
         echo "built: $exe ($(stat -c %s "$exe") bytes)"
         BAYLE_SIGNED_FILE="$PWD/$exe" cargo test --locked -p bayle-desktop --test release_signature -- --ignored
+
+    # only when publishing: the next job, which never sees the key, puts these on the release
+    - if: inputs.publish
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: signed-installer
+        path: |
+          apps/desktop/target/release/bundle/nsis/Bayle_*_x64-setup.exe
+          apps/desktop/target/release/bundle/nsis/Bayle_*_x64-setup.exe.sig
+        if-no-files-found: error
+        retention-days: 1
+
+  publish:
+    needs: build
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # the release and its tag; made with this token, the tag does not start release.yml (Qt)
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Version, notes and no earlier release of it
+      id: v
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        version=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
+        cargo=$(sed -n 's/^version = "\(.*\)"/\1/p' apps/desktop/src-tauri/Cargo.toml)
+        [ "$version" = "$cargo" ] || { echo "::error::tauri.conf.json says $version, Cargo.toml $cargo"; exit 1; }
+        case "$version" in 6.*-*) ;; *) echo "::error::$version is not a 6.x pre-release; a stable release needs its own decision"; exit 1 ;; esac
+        notes="apps/desktop/release-notes/$version.md"
+        [ -s "$notes" ] || { echo "::error::no release notes: $notes"; exit 1; }
+        if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+          echo "::error::v$version is already released or tagged"; exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "notes=$notes" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: signed-installer
+        path: dist
+
+    - name: The pre-release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.v.outputs.version }}
+      run: |
+        exe="dist/Bayle_${VERSION}_x64-setup.exe"
+        [ -s "$exe" ] && [ -s "$exe.sig" ] || { echo "::error::the signed installer of $VERSION is missing"; ls -la dist; exit 1; }
+        gh release create "v$VERSION" "$exe" "$exe.sig" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+          --prerelease --title "Bayle $VERSION" --notes-file "${{ steps.v.outputs.notes }}"
+        echo "Published v$VERSION at $GITHUB_SHA (pre-release). Next: the Beta manifest on the updates branch." >> "$GITHUB_STEP_SUMMARY"

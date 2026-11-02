@@ -24,7 +24,8 @@
   --info: #8CC4E8; --info-bg: rgb(140 196 232 / .12);
   --vio: #B7A2F2; --vio-bg: rgb(183 162 242 / .13);
   --shadow: 0 12px 40px rgb(0 0 0 / .5);
-  /* the asset pack's red art, colour lifted for dark backgrounds (*l.png); light uses the ice emblem */
+  /* letter emblem and wordmark: the pack's red art, lifted for dark backgrounds (*l.png); light uses the ice emblem.
+     The app icon tiles (Bayle_Final_App_Icons) are only for Windows: src-tauri/icons/icon.ico and the favicon. */
   --logo: url("../assets/icon64l.png"); --logo-lg: url("../assets/icon192l.png"); --wordmark: url("../assets/wordl.png");
   color-scheme: dark;
 }

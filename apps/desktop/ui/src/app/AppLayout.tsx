@@ -5,7 +5,6 @@ import { useCurrent, useSettings } from '@/data/hooks';
 import { useUi } from '@/state/ui';
 import { useDialogs } from '@/state/dialogs';
 import { clearErrors } from '@/state/toasts';
-import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/bayle/overlay';
 import { MenuBar } from './shell/MenuBar';
 import { TopBar } from './shell/TopBar';
@@ -72,7 +71,6 @@ export function AppLayout() {
       <HealthSheet />
       <Welcome />
       <Glossary />
-      <Toaster />
     </TooltipProvider>
   );
 }

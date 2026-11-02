@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Bug, Copy, Download, FolderOpen, LoaderCircle, MonitorSmartphone, PlugZap, RefreshCw, TriangleAlert } from 'lucide-react';
 import type { AppUpdate, EngineStatus } from '@/api/gateway/protocol';
 import { Button } from '@/components/ui/button';
+import { Toaster } from '@/components/ui/sonner';
 import { Wordmark } from '@/components/bayle/layout';
 import { useRuntime } from '@/data/ApiProvider';
 import { useEngine } from '@/data/engine';
@@ -128,8 +129,15 @@ function Incompatible({ status }: { status: EngineStatus }) {
   );
 }
 
-/** Shows the app once the engine is ready, and a screen until then. After the first ready, outages are a banner (EngineBanner). */
+/**
+ * Shows the app once the engine is ready, and a screen until then. After the first ready, outages are a banner
+ * (EngineBanner). The toasts sit here, outside the screens, so a recovery screen's actions can still say what happened.
+ */
 export function EngineGate({ children }: { children: ReactNode }) {
+  return <><Gated>{children}</Gated><Toaster /></>;
+}
+
+function Gated({ children }: { children: ReactNode }) {
   const status = useEngine((s) => s.status);
   const everReady = useEngine((s) => s.everReady);
   if (status.state === 'incompatible') return <Incompatible status={status} />;

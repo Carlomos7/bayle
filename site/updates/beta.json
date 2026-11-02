@@ -1,0 +1,11 @@
+{
+  "version": "6.0.0-beta.1",
+  "notes": "The first beta of Bayle 6. Coming from Bayle 5: uninstall it first, then run the Bayle 6 setup. Full notes: https://github.com/Carlomos7/bayle/releases/tag/v6.0.0-beta.1",
+  "pub_date": "2026-11-02T22:17:45Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRdzVsaGdhSTRaTjMyYk9pVUluNWNZTnYwZ3czei95UDdxNWpMcXZGRGc2bXN1OHVkeEtrRjkvYWFwWnphUmVSMEo3YTJ2L3JReGNRS1BLUXpKSVNoZ2dsK3ZRbHJQeUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjU3Mzg0CWZpbGU6QmF5bGVfNi4wLjAtYmV0YS4xX3g2NC1zZXR1cC5leGUJdmVyc2lvbjo2LjAuMC1iZXRhLjEKUHRBS1QvNXg1UVFzNmJpdmhtdVpEM1ZZc21Pd2Fja28rMHo5MVg5blBldUxsY2xTbE9FT0h3OHlzVGdLQXpabldHM1J2MEdVbSsxVXJMSi9qaU5pRGc9PQo=",
+      "url": "https://github.com/Carlomos7/bayle/releases/download/v6.0.0-beta.1/Bayle_6.0.0-beta.1_x64-setup.exe"
+    }
+  }
+}

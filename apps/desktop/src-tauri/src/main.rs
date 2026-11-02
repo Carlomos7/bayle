@@ -637,6 +637,15 @@ fn main() {
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     }
     let app = tauri::Builder::default()
+        // first, so a second start of the same identity (Bayle and Bayle Dev are separate) exits before setup starts
+        // a second engine on the same data, and brings the open window to the front instead
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

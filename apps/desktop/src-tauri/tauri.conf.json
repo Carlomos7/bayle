@@ -37,7 +37,10 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../target/engine-dist/bayle-engine/": "engine/"
+      "../target/engine-dist/bayle-engine/": "engine/",
+      "../../../LICENSE": "LICENSE.txt",
+      "../../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+      "../THIRD_PARTY_LICENSES.md": "THIRD_PARTY_LICENSES.md"
     },
     "windows": {
       "nsis": {

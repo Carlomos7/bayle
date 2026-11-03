@@ -130,6 +130,10 @@ jobs:
     - name: Typecheck, lint, build and test
       run: pnpm verify
 
+    # A dependency change without a regenerated apps/desktop/THIRD_PARTY_LICENSES.md fails here.
+    - name: Third-party licenses are current
+      run: python3 ../scripts/notices.py --check
+
   # The Tauri shell and the Rust gateway (ADR 0015): both compile, and the gateway's tests pass, including the one that
   # starts the real engine from source on a temporary data folder.
   desktop:

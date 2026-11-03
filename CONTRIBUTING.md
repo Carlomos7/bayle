@@ -54,9 +54,10 @@ the Beta channel only, a plain `X.Y.Z` on both. The version lives in `apps/deskt
    (`.github/workflows/desktop-release-build.yml`, after the owner's approval). Nothing is published.
 3. To release: write `apps/desktop/release-notes/<version>.md`, create the tag `v<version>` on the release commit (only
    admins may create `v*` tags), then start Desktop release build by hand with **publish**. It makes the GitHub
-   pre-release with the signed installer and its `.sig`.
-4. Add the channel manifest (`site/updates/beta.json`, or `stable.json` for a stable release) on the `updates` branch,
-   pointing at that installer with its signature. Its Pages deploy waits for the owner's approval.
+   release with the signed installer and its `.sig`: a pre-release for `X.Y.Z-…`, the Latest release for `X.Y.Z`.
+4. Add the channel manifest on the `updates` branch (`site/updates/beta.json`; a stable release goes in both
+   `stable.json` and `beta.json`), pointing at that installer with its signature. Its Pages deploy waits for the
+   owner's approval.
 
 Bayle 5 (the Qt app) is kept on `legacy/qt-desktop` and the tag `qt-final-v5.0.2` (ADR 0014); it is not released from
 `main` any more.

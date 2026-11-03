@@ -44,7 +44,7 @@ Dark Souls III and Sekiro have placeholder pages until their support lands.
 ## Download
 
 Get Bayle 6 from [Releases](https://github.com/Carlomos7/bayle/releases): `Bayle_<version>_x64-setup.exe`, installed
-per user. Bayle 6 is in beta, so it is a pre-release there.
+per user.
 
 **Requirements:** Windows 10 or 11; Steam with Elden Ring or Nightreign; and
 [me3](https://github.com/garyttierney/me3). Setup installs Microsoft Edge WebView2 Runtime if it is missing (Windows 11

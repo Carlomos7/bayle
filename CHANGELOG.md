@@ -5,7 +5,11 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [6.0.0](https://github.com/Carlomos7/bayle/releases/tag/v6.0.0) (2026-11-02)
+
+Bayle 6 leaves beta: the same app as 6.0.0-beta.1, now on the Stable channel too. The release notes are
+`apps/desktop/release-notes/6.0.0.md`. Earlier versions' downloads are removed from Releases; their source stays under
+their tags and on `legacy/qt-desktop`.
 
 ### Added
 

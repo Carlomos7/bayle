@@ -1,2 +1,0 @@
-module App
-singleton AppState 1.0 AppState.qml

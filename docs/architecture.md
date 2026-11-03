@@ -1,12 +1,16 @@
 # Architecture
 
-Bayle is two Python applications in one repository, each its own uv project:
+Bayle is two parts in one repository:
 
-- `apps/engine` (distribution `bayle-engine`, import `bayle`): every feature, its rules and its infrastructure, the
-  job runner and a local HTTP API. No Qt.
-- `apps/qt-desktop` (distribution `bayle-qt`, import `bayle_qt`): the Qt Quick window, its presenters (all the
-  wording, through `bayle_qt.text.tr`), the desktop controller (`bayle_qt.shell`), the updater and the build. It uses
-  the engine directly, as an editable path dependency, never through HTTP.
+- `apps/engine` (a uv project; distribution `bayle-engine`, import `bayle`): every feature, its rules and its
+  infrastructure, the job runner and a local HTTP API. No UI.
+- `apps/desktop`: the Tauri app. Its Rust gateway (`gateway/`, [ADR 0015](decisions/0015-rust-gateway.md)) starts the
+  frozen engine, holds its port and token and forwards only allowlisted operations; the shell (`src-tauri/`) adds the
+  window, the updater and the recovery screen ([ADR 0016](decisions/0016-identity-and-updater.md)); the React
+  interface (`ui/`) words everything and reaches the engine only through the gateway.
+
+The Qt app that came before (`bayle_qt`, Bayle 5) is kept on `legacy/qt-desktop` and the tag `qt-final-v5.0.2`
+([ADR 0014](decisions/0014-qt-preservation.md)).
 
 ## The engine
 
@@ -25,14 +29,15 @@ bayle/
 ```
 
 Each feature exposes a typed interface (`modules/<feature>/service.py` or `*_page.py`, composed once in
-`runtime/features.py`). The window and the HTTP routers call the same interfaces; work runs on one `JobManager`.
+`runtime/features.py`). The HTTP routers call those interfaces; work runs on one `JobManager`.
 
 ### The rules, and what enforces them
 
 `uv run lint-imports` (apps/engine/pyproject.toml) checks every rule below on each CI run.
 
-1. **The engine has no Qt and knows no app.** `PySide6`, `bayle_qt` and `velopack` are never imported, and the engine's
-   environment does not install PySide6 (`tests/unit/test_engine_has_no_qt.py`, `scripts/ci/headless-smoke.py`).
+1. **The engine has no UI toolkit and knows no app.** `PySide6`, `bayle_qt` and `velopack` are never imported, and the
+   engine's environment does not install PySide6 (`tests/unit/test_engine_has_no_qt.py`,
+   `scripts/ci/headless-smoke.py`).
 2. **Adapters use the features' models and ports, never their workflows.** An adapter may import a feature's `ports`
    and `models`, and the value types named in the contract (the game catalog and config, `Locations`, the overhaul
    recipe models, the game folder pattern, the overhaul manifest names). It never imports a workflow, the runtime or

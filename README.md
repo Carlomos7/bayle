@@ -7,10 +7,10 @@
 
 **An all-in-one toolkit for managing mods, profiles, and saves, with tools for resolving compatibility issues and merging mod changes.**
 
-[![Release](https://img.shields.io/github/v/release/Carlomos7/roundtable-souls?include_prereleases&sort=semver)](https://github.com/Carlomos7/roundtable-souls/releases/latest)
-[![Tests](https://github.com/Carlomos7/roundtable-souls/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/Carlomos7/roundtable-souls/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/Carlomos7/bayle?include_prereleases&sort=semver)](https://github.com/Carlomos7/bayle/releases/latest)
+[![Tests](https://github.com/Carlomos7/bayle/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/Carlomos7/bayle/actions/workflows/test.yml)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
-![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Steam%20Deck-lightgrey)
+![Platforms](https://img.shields.io/badge/platform-Windows-lightgrey)
 
 </div>
 
@@ -36,99 +36,81 @@ Bayle is an unofficial fan project and is not affiliated with or endorsed by Fro
   import a profile to share it with friends.
 - **Launch.** Launch with mods, offline or vanilla. The launcher checks for problems first, rebuilds merged mods that
   are out of date, and warns before you play online with changed game data.
-- **Updates.** Signed updates through Velopack, a Stable and a Beta channel, and an automatic rollback if a new version
-  fails to start.
-- **Steam and Steam Deck.** `--game er --play` runs a full session without the window, for a Steam shortcut or
-  Gaming Mode.
+- **Updates.** Signed updates in the app, on a Stable or a Beta channel. If a version can't start, Bayle still offers
+  the next update, its logs and a way to report it.
 
 Dark Souls III and Sekiro have placeholder pages until their support lands.
 
 ## Download
 
-Get the latest version from [Releases](https://github.com/Carlomos7/roundtable-souls/releases/latest).
+Get Bayle 6 from [Releases](https://github.com/Carlomos7/bayle/releases): `Bayle_<version>_x64-setup.exe`, installed
+per user. Bayle 6 is in beta, so it is a pre-release there.
 
-| File | For |
-| --- | --- |
-| `RoundtableSouls-Setup.exe` | Windows, installed per user (recommended) |
-| `RoundtableSouls-win-Portable.zip` | Windows, portable |
-| `RoundtableSouls-linux-x86_64.AppImage` | Linux and Steam Deck |
-| `SHA256SUMS.txt` (+ `.minisig`) | Signed checksums for every file |
+**Requirements:** Windows 10 or 11; Steam with Elden Ring or Nightreign; and
+[me3](https://github.com/garyttierney/me3). Setup installs Microsoft Edge WebView2 Runtime if it is missing (Windows 11
+includes it). Linux and the Steam Deck come later.
 
-**Requirements:** Windows 10 or 11, or Linux (including SteamOS); Steam with Elden Ring or Nightreign; and
-[me3](https://github.com/garyttierney/me3).
+**Coming from Bayle 5?** Uninstall it first, then install Bayle 6: your mods, profiles, saves and Bayle 5's data stay
+on your PC. The release notes say how to bring Bayle 5's settings and backups over. Bayle 5 (the Qt app) is kept on the
+[`legacy/qt-desktop`](https://github.com/Carlomos7/bayle/tree/legacy/qt-desktop) branch.
 
-The full guide is in [docs/How to use.txt](docs/How%20to%20use.txt).
+Bayle explains itself in the app: **Help › How to use** (F1). The Bayle 5 guide stays on `legacy/qt-desktop`.
 
 <details>
-<summary><b>Windows Defender blocked the install or an update</b></summary>
+<summary><b>Windows blocked the install</b></summary>
 
-The launcher isn't code-signed yet, so Defender can wrongly flag it. Setup may say *"Install Partially Succeeded"* or
-show error `-2147024671`.
-
-1. Open **Windows Security â†’ Virus & threat protection â†’ Protection history**, find the Bayle entry, and
-   choose **Restore** (or **Allow on device**).
-2. Under **Manage settings â†’ Exclusions**, add the folder `%LOCALAPPDATA%\Carlomos7.RoundtableSouls`.
-3. Run `RoundtableSouls-Setup.exe` again and choose **Repair**. Your settings and data are kept.
+The installer isn't code-signed yet, so SmartScreen or Defender can wrongly flag it. In SmartScreen choose **More
+info**, then **Run anyway**. If Defender removed it, open **Windows Security → Virus & threat protection → Protection
+history**, find the Bayle entry, and choose **Restore** (or **Allow on device**), then run the setup again. Your
+settings and data are kept.
 
 If you can, please share the detection name from Protection history, so we can report the false positive.
 
 </details>
 
-## Command line
-
-```bash
-RoundtableSouls                       # the window, on the game used last
-RoundtableSouls --game nr             # the window, on Nightreign (this run only)
-RoundtableSouls --game er --play      # Launch Elden Ring without the window (Steam shortcut)
-RoundtableSouls --game nr --check     # print what was detected for Nightreign
-RoundtableSouls --update              # update without the window, then restart
-```
-
 ## Building from source
 
-You need [uv](https://docs.astral.sh/uv/); it installs Python 3.14 for you.
+You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.14 for you), [Rust](https://rustup.rs),
+[Node.js](https://nodejs.org) 22 and [pnpm](https://pnpm.io).
 
 ```bash
-git clone https://github.com/Carlomos7/roundtable-souls.git
-cd roundtable-souls
-cd apps/qt-desktop
-uv sync
-uv run python -m bayle_qt           # the window
+git clone https://github.com/Carlomos7/bayle.git
+cd bayle/apps/desktop/ui && pnpm install && cd ..
+npx @tauri-apps/cli@2.12.4 dev     # the app (Bayle Dev), with the engine from source and a scratch data folder
 ```
 
-The repository holds two independent uv projects, each with its own `uv.lock` and virtual environment:
-`apps/engine` (`bayle-engine`, import `bayle`, no Qt) and `apps/qt-desktop` (`bayle-qt`, import `bayle_qt`; it uses the
-engine as an editable path dependency). The engine's headless modes run from `apps/engine`: `uv run python -m bayle`.
+The repository holds the engine, `apps/engine` (a uv project: `bayle-engine`, import `bayle`, no UI), and the desktop
+app, `apps/desktop`: the Rust gateway and Tauri shell (a Cargo workspace) and the React UI in `ui/` (pnpm). The
+engine's headless modes run from `apps/engine`: `uv run python -m bayle`. `apps/desktop/README.md` has the details.
 
 ### Tests and checks
 
-Run these in `apps/engine` and in `apps/qt-desktop` (the Qt tests run offscreen).
-
 ```bash
+# in apps/engine
 uv run pytest                     # tests
 uv run ruff check . && uv run ruff format --check .
 uv run pyright                    # type checking
-uv run lint-imports --no-cache    # import layers (contracts in the project's pyproject.toml)
-uv run pre-commit install --hook-type pre-commit --hook-type commit-msg   # the same checks and the commit message check before every commit
+uv run lint-imports --no-cache    # import layers (contracts in pyproject.toml)
+# in apps/desktop/ui
+pnpm verify                       # API types, typecheck, lint, build and tests
+# in apps/desktop
+cargo test -p bayle-gateway -p bayle-desktop
 ```
 
-`apps/engine/tests/integration` works on temporary copies of a real save; it skips when none is available.
+`uvx pre-commit install --hook-type pre-commit --hook-type commit-msg` (from the repository root) runs the same checks
+and the commit message check before every commit. `apps/engine/tests/integration` works on temporary copies of a real
+save; it skips when none is available.
 
 ### Building a release
 
-In `apps/qt-desktop`:
-
-```bash
-uv run python scripts/build.py                       # PyInstaller, then vpk pack into dist/
-uv run python scripts/build.py --identity test.json  # an isolated test build (own app ID, data folder and feed)
-```
-
-`vpk` comes from `dotnet tool install -g vpk --version 1.2.161`.
+Releases are built and signed in CI only, where the update key is (`.github/workflows/desktop-release-build.yml`).
+Locally, `uv run --project apps/engine python apps/desktop/scripts/build_engine.py` freezes the engine, and
+`npx @tauri-apps/cli@2.12.4 build` in `apps/desktop/src-tauri` makes an unsigned Bayle Dev installer.
 
 ## Project layout
 
 ```text
-apps/engine/src/bayle/        the engine: no Qt (the window, pages and updater are apps/qt-desktop/src/bayle_qt/)
+apps/engine/src/bayle/        the engine: no UI (the app is apps/desktop: gateway/, src-tauri/, ui/)
 ├── modules/     the features: activity, coop, games, launch, mods, overhauls, saves, settings
 ├── adapters/    infrastructure: formats, filesystem, persistence, games, saves, merging, overhauls,
 │                archives, integrations (Steam, me3), system
@@ -148,9 +130,9 @@ the features' models and ports, never their workflows. `lint-imports` enforces t
 `chore/...` branches, merged into `main` by pull request (squash merge, the PR title in Conventional Commit form).
 Every pull request and push to `main` runs lint, type checks and tests on Windows and Linux.
 
-Versions follow [SemVer 2.0](https://semver.org) (`X.Y.Z`, pre-releases `X.Y.Z-rc.N` on the Beta channel). Releases are
-cut by release-please from the Conventional Commits; merging its release pull request tags `vX.Y.Z`, and the tag builds,
-tests, signs and publishes the release (`.github/workflows/release.yml`). See [CONTRIBUTING.md](CONTRIBUTING.md) and
+Versions follow [SemVer 2.0](https://semver.org) (`X.Y.Z`; pre-releases such as `6.0.0-beta.1` on the Beta channel).
+A release is built, signed and published by `.github/workflows/desktop-release-build.yml`, and its update manifest is
+deployed from the `updates` branch; both wait for the owner's approval. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CHANGELOG.md](CHANGELOG.md) for the version history.
 
 Issues and pull requests are welcome.
@@ -172,8 +154,7 @@ Issues and pull requests are welcome.
 - [UXM Selective Unpack](https://github.com/Nordgaren/UXM-Selective-Unpack) by Nordgaren, after TKGP's UXM: the game
   archive keys.
 - [me3-manager](https://github.com/2Pz/me3-manager) by 2Pz.
-- [Velopack](https://github.com/velopack/velopack): installs and updates.
-- Fonts (Cormorant Garamond, EB Garamond, Inter) and
-  [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons).
+- [Tauri](https://tauri.app): the desktop shell, installer and updater.
+- Fonts: Cormorant Garamond and Geist.
 
 Full license texts and every bundled library are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0-beta.1](https://github.com/Carlomos7/bayle/releases/tag/v6.0.0-beta.1) (2026-11-02)
+
+Bayle 6: a new app on Tauri 2 and React, with the same engine as 5.0.2 behind a Rust gateway. Windows only. It installs
+fresh under its own identity (`io.github.carlomos7.bayle`): uninstall Bayle 5 first; its data stays on the PC. Signed
+in-app updates on a Stable or a Beta channel, and a recovery screen that still offers the next update, the logs and a
+report when the engine or the window fails. The release notes are `apps/desktop/release-notes/6.0.0-beta.1.md`.
+
+### Removed
+
+* the Qt app (Bayle 5) and its release tooling (Velopack builds, release-please) leave `main`; Bayle 5 is kept on
+  `legacy/qt-desktop` and `qt-final-v5.0.2` ([ADR 0014](docs/decisions/0014-qt-preservation.md))
+
 ## [5.0.2](https://github.com/Carlomos7/bayle/compare/v5.0.1...v5.0.2) (2026-10-27)
 
 

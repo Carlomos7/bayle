@@ -1,6 +1,6 @@
 # Third-party notices
 
-Roundtable Souls is licensed under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)), and it builds on the work below; none of it is endorsed by
+Bayle is licensed under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)), and it builds on the work below; none of it is endorsed by
 those authors, and each part keeps its own license.
 
 ## SoulsFormats (GPL-3.0)
@@ -122,45 +122,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Velopack (MIT)
-
-- [Velopack](https://github.com/velopack/velopack), the installer and update framework. Every release ships its
-  setup, `Update.exe`, the launcher stub beside them (Windows) or its AppImage runtime parts (Linux), and the
-  `velopack` Python package (version 1.2.161, pinned with the `vpk` tool that packs releases).
-
-```
-Copyright © 2021 Caelan Sayler
-Copyright © 2024 Velopack Ltd.
-
-Permission is hereby granted,  free of charge,  to any person obtaining a
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to  use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-```
-
 ## Fonts (SIL OFL 1.1)
 
-Three font families ship with the program (`src/bayle_qt/assets/fonts/`): Cormorant Garamond and
-EB Garamond for titles and names, Inter for controls and small text. All three are licensed under the SIL Open Font
-License, Version 1.1; each family's licence file ships beside its `.ttf` files, as the licence requires. The fonts
-are not sold on their own, and no Reserved Font Name is used in a renamed form.
+Two font families ship inside the app's interface (bundled from the `@fontsource` packages): Cormorant Garamond for
+titles, Geist and Geist Mono for text and code. Both are licensed under the SIL Open Font License, Version 1.1, whose
+text follows. The fonts are not sold on their own, and no Reserved Font Name is used in a renamed form.
 
 - Cormorant Garamond: Copyright 2015 The Cormorant Project Authors (github.com/CatharsisFonts/Cormorant). Source: https://github.com/CatharsisFonts/Cormorant.
-- EB Garamond: Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12). Source: https://github.com/octaviopardo/EBGaramond12.
-- Inter: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter). Source: https://github.com/rsms/inter.
+- Geist and Geist Mono: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font). Source: https://github.com/vercel/geist-font.
 
 ```
 -----------------------------------------------------------
@@ -251,36 +220,6 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
-## Fluent UI System Icons (MIT)
-
-- [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) by Microsoft: the interface icons
-  (`src/bayle_qt/assets/icons/*.svg`, about fifty of them) are its SVG files with their embedded
-  metadata removed, tinted at run time. An asset, not a dependency.
-
-```
-MIT License
-
-Copyright (c) 2020 Microsoft Corporation
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ## tomlkit (MIT)
 
 - [tomlkit](https://github.com/python-poetry/tomlkit) by Sébastien Eustace, a style-preserving TOML library. A
@@ -346,11 +285,10 @@ THE SOFTWARE.
 
 ## Libraries
 
-Bundled into the release exe (with the license each package declares):
+Bundled into the frozen engine, the `engine` folder of the installed app (with the license each package declares):
 
 | Package | License |
 | --- | --- |
-| PySide6, PySide6-Essentials, PySide6-Addons, Shiboken6 and Qt | LGPL-3.0 |
 | pydantic, pydantic-core, annotated-types, typing-inspection | MIT |
 | typing-extensions | PSF-2.0 |
 | SQLAlchemy, Alembic, Mako | MIT |
@@ -366,11 +304,27 @@ Bundled into the release exe (with the license each package declares):
 | lupa | MIT |
 | tomlkit | MIT |
 | constrata | MIT (above) |
-| velopack | MIT (above) |
 
-Their license texts ship inside the installed packages; the complete source of this program is the repository it was
-built from. Releases are signed with [minisign](https://github.com/jedisct1/minisign) (ISC) in CI; it is not
-bundled.
+Their license texts ship inside the frozen packages; the complete source of this program is the repository it was
+built from.
+
+The desktop app (the Tauri shell, the gateway and the interface) is built from these, with the license each declares:
+
+| Package | License |
+| --- | --- |
+| Tauri and its dialog, opener, single-instance and updater plugins | MIT OR Apache-2.0 |
+| tokio, serde, serde_json, windows-sys | MIT OR Apache-2.0 (tokio: MIT) |
+| zip | MIT |
+| React, React DOM | MIT |
+| TanStack Query, TanStack Router | MIT |
+| Radix UI, cmdk, dnd-kit, React Hook Form, Zod, Zustand, Sonner, clsx, tailwind-merge | MIT |
+| class-variance-authority | Apache-2.0 |
+| Lucide (lucide-react), the interface icons | ISC |
+| Tailwind CSS (build only) | MIT |
+
+The complete lists, with versions, are `apps/desktop/Cargo.lock` and `apps/desktop/ui/pnpm-lock.yaml`. Microsoft Edge
+WebView2 Runtime, which draws the window, is installed by the setup from Microsoft and is not bundled. Update
+signatures use [minisign](https://github.com/jedisct1/minisign)'s format (ISC); the signing tool is not bundled.
 
 ## Apache License 2.0
 

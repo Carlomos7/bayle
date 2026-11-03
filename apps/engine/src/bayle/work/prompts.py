@@ -129,7 +129,7 @@ class PromptBroker:
 
     def wait(
         self,
-        words: Choose,
+        words: Choose | Question,
         timeout: float | None = None,
         default: str = "cancel",
         job_id: str | None = None,

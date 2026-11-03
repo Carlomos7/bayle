@@ -38,6 +38,11 @@ def test_the_page_a_change_and_a_refusal(client):
     assert bad.status_code == 400 and bad.json()["code"] == "invalid_choice"
 
 
+def test_me3_version(client, monkeypatch):
+    monkeypatch.setattr("bayle.modules.settings.service.me3_version", lambda exe: "1.2.3")
+    assert client.get("/v1/settings/me3").json() == {"version": "1.2.3"}
+
+
 def test_folders_and_the_name_check(client):
     assert client.post("/v1/settings/folder", json={"kind": "settings"}).json() == {"path": str(data_dir())}
     assert client.post("/v1/settings/folder", json={"kind": "attic"}).json()["code"] == "unknown_folder"
@@ -95,6 +100,11 @@ def test_no_settings_route_carries_wording():
     from bayle.api.routers import settings as router
 
     routes = router.router.routes
-    assert len(routes) == 11
+    assert len(routes) == 13
     for r in routes:
         assert "said" not in r.response_model.model_fields, r.path
+
+
+def test_the_defaults_are_a_fresh_settings_file(client):
+    got = client.get("/v1/settings/defaults").json()["settings"]
+    assert got["play_boot_boost"] is True and got["backups_keep"] == 20 and got["me3_path"] == ""

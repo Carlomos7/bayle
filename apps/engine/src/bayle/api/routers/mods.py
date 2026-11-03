@@ -197,6 +197,18 @@ def rename_start(m: Mods, p: EntryRef) -> RenameStart:
     return RenameStart(name=m.folder_name(p.profile, p.index))
 
 
+class ModFiles(Result):
+    files: list[str]  # relative to the mod's folder, "/" separated, in order
+    truncated: bool  # there are more files than were listed
+    native: bool  # the mod is one DLL
+
+
+@router.post("/files", name="mods_files")
+def files(m: Mods, p: EntryRef) -> ModFiles:
+    listed, more, native = m.files(p.profile, p.index)
+    return ModFiles(files=listed, truncated=more, native=native)
+
+
 class RenameParams(EntryRef):
     name: str
     expect: str | None = None

@@ -18,6 +18,7 @@ records are not rewritten afterwards.
 | 0010 | [The backend is separate from Qt; the session is the one seam](0010-backend-separation.md) | accepted |
 | 0011 | [The interface talks to the backend over loopback HTTP and server-sent events](0011-transport.md) | proposed; the web-view side superseded by 0015 |
 | 0012 | [The backend process dies with the app: onedir, stdin watchdog, Job Object, startup sweep](0012-process-lifecycle.md) | proposed |
-| 0013 | [Velopack stays the updater; the desktop app and the API package live in this repository](0013-updater-and-repo-layout.md) | proposed |
+| 0013 | [Velopack stays the updater; the desktop app and the API package live in this repository](0013-updater-and-repo-layout.md) | proposed; updater and identity superseded by 0016 |
 | 0014 | [The Qt app is kept on `legacy/qt-desktop` and a `qt-final-v*` tag before it leaves `main`](0014-qt-preservation.md) | proposed |
 | 0015 | [The web view reaches the engine only through an allowlisted Rust gateway](0015-rust-gateway.md) | accepted (architecture); libraries and code generation open |
+| 0016 | [Bayle ships as a clean install under its own identity, with Tauri's installer and updater](0016-identity-and-updater.md) | direction accepted; the updater is committed once the installer spike passes |

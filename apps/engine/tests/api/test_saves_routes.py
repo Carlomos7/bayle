@@ -1,6 +1,8 @@
 """The Saves page and its reads and upkeep over HTTP, on a session whose Saves service is the real one. Invented saves
 in the test's own folders; every request shape the OpenAPI declares goes through JSON (the removals' `expect` too)."""
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,6 +19,7 @@ from bayle.modules.saves import transfer as save_transfer
 from bayle.modules.saves.saves_page import SavesService
 from bayle.work.events import EventBus
 from bayle.work.jobs import JobManager
+from support import fake_bin
 
 TOKEN = "t" * 32
 OLD, OTHER = b"old save " * 40, b"other save " * 40
@@ -132,6 +135,28 @@ def test_keep_keep_as_and_rename(env):
     assert got.json() == {"text": "R"} and env.entries()[0]["name"] == "R"
 
 
+def test_a_backup_is_named_and_given_back_its_time(env):
+    bak = env.backup()
+    env.post("saves.keep_backup", {"backup": str(bak)})
+    assert env.post("saves.label_backup", {"backup": str(bak), "name": "  Before   the boss "}).json() == {
+        "text": "Before the boss"
+    }
+    [row] = env.client.get("/v1/saves").json()["backups"]
+    assert row["label"] == "Before the boss" and row["keep"] is True  # the note's other fields stay
+    assert env.post("saves.label_backup", {"backup": str(bak), "name": ""}).json() == {"text": ""}
+    assert env.client.get("/v1/saves").json()["backups"][0]["label"] == ""
+
+
+def test_naming_a_backup_with_an_unreadable_note_keeps_it(env):
+    bak = env.backup()
+    note = bak.with_name(bak.name + ".json")
+    note.write_text("{half", encoding="utf-8")
+    env.post("saves.label_backup", {"backup": str(bak), "name": "Mine"})
+    [row] = env.client.get("/v1/saves").json()["backups"]
+    assert row["label"] == "Mine" and row["keep"] is True
+    assert note.with_name(note.name + ".unreadable").read_text(encoding="utf-8") == "{half"
+
+
 def test_removing_a_copy_is_a_check_then_a_start(env):
     entry = env.copy()
     ref = {"folder": str(env.folder), "entry_id": entry["id"]}
@@ -153,13 +178,27 @@ def test_removing_a_copy_that_changed_is_stale(env):
     assert [e["name"] for e in env.entries()] == ["Other"]
 
 
-def test_deleting_a_backup_is_a_check_then_a_start_and_the_stamp_round_trips_json(env):
+@pytest.fixture
+def bin_(tmp_path, monkeypatch):
+    return fake_bin(monkeypatch, tmp_path / "bin")
+
+
+def test_removing_a_backup_is_a_check_then_a_job_and_restore_in_activity_brings_it_back(env, bin_):
+    from bayle.modules.mods import undo as mod_undo
+
     bak = env.backup()
+    note = Path(str(bak) + ".json")
     facts = env.post("saves.check_delete_backup", {"backup": str(bak)}).json()
     assert facts["path"] == str(bak) and facts["save_name"] == "ER0000.sl2" and len(facts["stamp"]) == 2
     assert bak.exists()
-    done = env.post("saves.delete_backup", {"backup": str(bak), "expect": facts["stamp"]})
-    assert done.status_code == 200 and done.json() == {"text": ""} and not bak.exists()
+    result = start(env, "saves.delete_backup", {"backup": str(bak), "expect": facts["stamp"]})
+    assert not bak.exists() and not note.exists() and any(bin_.iterdir())
+    assert (
+        result["in_bin"] and result["undo"]["type"] == "backup-remove" and mod_undo.label(result["undo"]) == "Restore"
+    )
+    assert mod_undo.available(result["undo"])
+    assert mod_undo.run(result["undo"], print, loc=env.loc) == "put the backup of ER0000.sl2 back"
+    assert bak.exists() and not list(bin_.iterdir()) and not mod_undo.available(result["undo"])
 
 
 def test_deleting_a_rewritten_backup_is_stale(env):
@@ -197,6 +236,7 @@ def test_not_found_is_a_404_and_touches_nothing(env):
             ("saves.delete_backup", {**ref, "expect": [1, 1.0]}),
             ("saves.keep_backup", ref),
             ("saves.keep_as", {**ref, "name": "X"}),
+            ("saves.label_backup", {**ref, "name": "X"}),
         ):
             got = env.post(name, body)
             assert got.status_code == 404 and got.json()["code"] == "not_found", name
@@ -358,6 +398,16 @@ def test_restore_is_a_check_then_a_start_and_undo_takes_it_back(env):
     assert undone == {"file": "ER0000.sl2"} and env.save.read_bytes() == NEW
 
 
+def test_a_stamp_survives_a_javascript_client(env):
+    """The web view holds JSON numbers as doubles: a stamp must come back from it unchanged, or every write is stale."""
+    bak = env.backup()
+    ref = {"backup": str(bak), "target": str(env.save)}
+    stamp = env.post("saves.check_restore_backup", ref).json()["stamp"]
+    as_js = [[int(float(n)) for n in pair] for pair in stamp]
+    assert as_js == stamp
+    assert start(env, "saves.restore_backup", {**ref, "expect": as_js})["file"] == "ER0000.sl2"
+
+
 def test_replace_from_file_and_from_library_are_a_check_then_a_start(env):
     picked = env.tmp / "picked.co2"
     picked.write_bytes(OTHER)
@@ -408,6 +458,16 @@ def test_repair_copy_character_and_post_session_repair_over_http(env, monkeypatc
     assert start(env, "saves.post_session_repair", {}) == {"save": None, "backup": None, "undo": None} and ran == [
         env.loc
     ]
+
+
+def test_a_character_may_be_copied_out_of_a_backup(env, monkeypatch):
+    plan = {"character": {"name": "Ann", "level": 10}, "replaces": None, "steam_id_changes": False}
+    seen = []
+    monkeypatch.setattr(save_transfer, "plan_character_copy", lambda src, *a: seen.append(src) or plan)
+    bak = env.backup()
+    ref = {"source": str(bak), "src_slot": 1, "target": str(env.save), "dst_slot": 2}
+    checked = env.post("saves.check_copy_character", ref)
+    assert checked.status_code == 200 and checked.json()["same_file"] is False and seen == [bak]
 
 
 def test_a_write_over_a_changed_file_is_stale_409_and_writes_nothing(env):

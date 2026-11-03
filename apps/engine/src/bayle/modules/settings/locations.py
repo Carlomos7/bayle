@@ -50,7 +50,7 @@ def relocate(loc, new_root, progress=None, cancel=None) -> dict:
     """Move the profiles and mods to a new profiles folder, as a logged job with an undo record."""
     run_logging.start_log(f"launcher: move profiles and mods to {new_root}", loc.game.key)
     with _as_operation_error():
-        out = _fn("relocate")(loc, Path(new_root), progress=progress or run_logging.log, cancel=cancel)
+        out = _fn("relocate")(loc, Path(new_root), progress=progress, cancel=cancel)
     _record(out)
     return out
 

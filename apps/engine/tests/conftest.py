@@ -53,6 +53,7 @@ def _refuse_outside(path) -> None:
         return
     if os.path.normcase(text) == os.path.normcase(os.devnull):  # output thrown away: no file changes
         return
+    text = text.removeprefix("\\\\?\\")  # Windows' long form names the same file
     for candidate in (os.path.abspath(text), os.path.realpath(text)):
         p = os.path.normcase(candidate)
         if "__pycache__" in p or any(p == root or p.startswith(root + os.sep) for root in _WRITABLE):

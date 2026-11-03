@@ -57,6 +57,15 @@ def test_a_command_a_refusal_with_a_code_and_a_job_over_http(client, profile):
     assert snap["state"] == "done" and snap["result"] == {"name": "cloud", "to": "cloud2"}
 
 
+def test_the_files_of_a_mod_are_listed_relative_to_its_folder(client, profile):
+    pkg = post(client, "mods.files", {"profile": str(profile), "index": 0}).json()
+    assert pkg["native"] is False and pkg["truncated"] is False and all("\\" not in f for f in pkg["files"])
+    dll = post(client, "mods.files", {"profile": str(profile), "index": 2}).json()
+    assert dll == {"files": ["a.dll"], "truncated": False, "native": True}
+    gone = post(client, "mods.files", {"profile": str(profile), "index": 99})
+    assert gone.status_code == 404 and gone.json()["code"] == "not_found"
+
+
 def test_a_plan_over_http_is_a_check_then_a_start_with_its_stamp(client, profile):
     ref = {"profile": str(profile)}
     plan = post(client, "mods.check_dll_folders", ref).json()

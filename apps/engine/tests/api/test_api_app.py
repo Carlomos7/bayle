@@ -117,7 +117,8 @@ def test_openapi_snapshot_is_current():
 
 
 def _spawn(env_extra, data):
-    env = {k: v for k, v in os.environ.items() if k != "BAYLE_API_TOKEN"} | {"ROUNDTABLE_SOULS_DATA": str(data)}
+    drop = {"BAYLE_API_TOKEN", "BAYLE_DATA", "ROUNDTABLE_SOULS_DATA"}
+    env = {k: v for k, v in os.environ.items() if k not in drop} | {"BAYLE_DATA": str(data)}
     env |= env_extra  # the backend sets up its data folder and logs; keep them out of the repo
     return subprocess.Popen(
         [sys.executable, "-m", "bayle", "--backend"],
@@ -153,6 +154,41 @@ def test_backend_with_a_bad_token_says_so_and_exits_2(tmp_path, token):
     out, err = proc.communicate(timeout=30)
     assert proc.returncode == 2 and out == b""
     assert b"BAYLE_API_TOKEN" in err and b"Traceback" not in err
+
+
+def _data_refused(env):
+    """Run --backend with this data environment; it must stop before its handshake."""
+    drop = {"BAYLE_API_TOKEN", "BAYLE_DATA", "ROUNDTABLE_SOULS_DATA"}
+    full = {k: v for k, v in os.environ.items() if k not in drop} | {"BAYLE_API_TOKEN": TOKEN} | env
+    r = subprocess.run(
+        [sys.executable, "-m", "bayle", "--backend"],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        env=full,
+        cwd=ROOT,
+        timeout=30,
+    )
+    return r.returncode, r.stdout, r.stderr
+
+
+def test_backend_without_bayle_data_refuses_to_guess_a_data_folder():
+    code, out, err = _data_refused({})
+    assert code == 2 and out == b"" and b"BAYLE_DATA" in err
+
+
+def test_backend_refuses_a_data_folder_inside_the_program_or_repository():
+    code, out, err = _data_refused({"BAYLE_DATA": str(ROOT / "bayle-data-here")})
+    assert code == 2 and out == b"" and b"program folder" in err
+    assert not (ROOT / "bayle-data-here").exists()
+
+
+def test_backend_refuses_the_qt_apps_data_folder(tmp_path):
+    local = tmp_path / "local"
+    qt_data = local / "RoundtableSouls"
+    env = {"BAYLE_DATA": str(qt_data), "LOCALAPPDATA": str(local), "XDG_DATA_HOME": str(local)}
+    code, out, err = _data_refused(env)
+    assert code == 2 and out == b"" and b"Qt app's data folder" in err
+    assert not qt_data.exists()
 
 
 def test_backend_whose_parent_closed_stdin_before_it_was_ready_exits_quietly(tmp_path):

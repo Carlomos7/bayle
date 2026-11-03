@@ -592,12 +592,9 @@ def save_overhaul_setup(config, *, expect: str | None, path=None, folder=None) -
     return out
 
 
-def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list[str]:
-    """After the setup overhaul_id is saved: install it again in every profile that uses that overhaul (the profile
-    first), from each one's copy of the download, so their entries (DLL options, package) follow it. One Undo for
-    the job takes back every profile it changed (run inside a logged job). A profile that refuses, has no copy of
-    the download or has another overhaul is skipped and said. Returns the names of the profiles changed; raises
-    OverhaulError when none was (the job must not look like a success)."""
+def _setup_users(profile, overhaul_id: str, *, loc: Locations):
+    """The saved setup overhaul_id and the profiles using it (the profile itself first). Raises OverhaulError when the
+    setup is not saved or the profile does not use it."""
     from bayle.adapters.overhauls import recipes
     from bayle.modules.overhauls import requirements
 
@@ -612,11 +609,26 @@ def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list
         raise overhaul_install.OverhaulError(
             f"{Path(profile).name} doesn't use {config.label}, so nothing was applied."
         )
+    return config, overhaul_install.users_of(Path(profile), config, entries[config.id])
+
+
+def overhaul_setup_users(profile, overhaul_id: str, *, loc: Locations) -> list[Path]:
+    """The profiles a saved setup would be applied to (reads only)."""
+    return _setup_users(profile, overhaul_id, loc=loc)[1]
+
+
+def reapply_overhaul_setup(profile, overhaul_id: str, *, loc: Locations) -> list[str]:
+    """After the setup overhaul_id is saved: install it again in every profile that uses that overhaul (the profile
+    first), from each one's copy of the download, so their entries (DLL options, package) follow it. One Undo for
+    the job takes back every profile it changed (run inside a logged job). A profile that refuses, has no copy of
+    the download or has another overhaul is skipped and said. Returns the names of the profiles changed; raises
+    OverhaulError when none was (the job must not look like a success)."""
+    config, users = _setup_users(profile, overhaul_id, loc=loc)
     done: list[str] = []
     skipped: list[str] = []
     first: dict | None = None
     others: list[dict] = []
-    for p in overhaul_install.users_of(Path(profile), config, entries[config.id]):
+    for p in users:
         where = overhaul_install.places(p, config.id, loc)
         if where is None or not where.sources.is_dir():
             skipped.append(f"{p.name}: the launcher has no copy of the download there")

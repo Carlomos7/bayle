@@ -3,7 +3,7 @@ profile and mods invented in the test's own folders; every request shape the Ope
 
 import pytest
 from fastapi.testclient import TestClient
-from test_overhaul_install import PROFILE, World, mixed_mod
+from test_overhaul_install import PROFILE, World, mixed_mod, set_up
 
 from bayle.api.app import create_app
 from bayle.api.settings import ApiSettings
@@ -115,6 +115,16 @@ def test_sharing_and_pasting_over_http(env, tmp_path):
     assert nothing.json()["code"] == "not_settings"
     stale = env.post("mod_configs.paste", {**body, "text": "allow_invaders = 1\n", "expect": plan["stamp"]})
     assert stale.json()["code"] == "stale"
+
+
+def test_the_profiles_using_a_setup_are_listed_without_writing(env):
+    set_up(env.world)
+    before = env.world.profile.read_text(encoding="utf-8")
+    got = env.post("mod_configs.setup_users", {"profile": env.profile, "overhaul_id": "mixed-mod"})
+    assert got.json() == {"profiles": [env.profile]}
+    none = env.post("mod_configs.setup_users", {"profile": env.profile, "overhaul_id": "nope"})
+    assert none.status_code == 400 and none.json()["code"] == "cannot_apply"
+    assert env.world.profile.read_text(encoding="utf-8") == before
 
 
 def test_the_overhaul_plans_over_http(env):

@@ -22,11 +22,12 @@ from bayle.modules.ports import (
     exe_dir,
     launch_target,
     load_settings,
+    me3_version,
     save_game_settings,
     save_settings,
 )
 from bayle.modules.settings import locations as layout_service
-from bayle.modules.settings.models import game_setting
+from bayle.modules.settings.models import LauncherSettings, game_setting
 from bayle.work.jobs import JobContext, JobManager
 from bayle.work.runner import run_job_value
 
@@ -321,6 +322,10 @@ class SettingsService:
     def __init__(self, jobs: JobManager, locations: Callable[[], Locations | None]) -> None:
         self._jobs, self._locations = jobs, locations
 
+    def defaults(self) -> dict[str, Any]:
+        """Every setting as a fresh settings file has it."""
+        return LauncherSettings().model_dump(mode="json")
+
     def _where(self) -> tuple[Any, Locations | None]:
         try:
             loc = self._locations()
@@ -351,6 +356,11 @@ class SettingsService:
         """The folder behind an "Open ... folder" button (asking for the backups folder creates it). Raises
         unknown_folder."""
         return folder(kind, self._where()[1], make=True)
+
+    def me3_version(self) -> str | None:
+        """The installed me3's version (asks the program, so it is not part of page()); None when it is not found."""
+        loc = self._where()[1]
+        return me3_version(loc.me3_exe() if loc is not None else None)
 
     def check_names(self, draft: dict[str, str]) -> NameCheck:
         game, _loc = self._where()

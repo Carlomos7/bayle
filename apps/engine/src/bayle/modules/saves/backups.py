@@ -31,6 +31,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from bayle.adapters.filesystem import filelock
+from bayle.adapters.filesystem import trash as fs_trash
 from bayle.adapters.filesystem.files import atomic_write, move_into
 from bayle.modules import ports
 from bayle.modules.games import catalog as games
@@ -284,6 +285,28 @@ def set_keep(bak: Path, keep: bool) -> None:
         write_note(bak, note)
 
 
+LABEL_MAX = 120
+
+
+def set_label(bak: Path, label: str) -> str:
+    """Name a backup (an empty name gives it back its time); the note's other fields stay. When the note can't be
+    read, its bytes are copied aside as in set_keep and the new note keeps the backup, since whether it was kept is
+    unknown. Returns the name it got."""
+    label = " ".join(label.split())[:LABEL_MAX]
+    with account_lock(Path(bak).parent):
+        try:
+            note = read_note(bak) or {}
+        except UnreadableNote:
+            _copy_aside(Path(str(bak) + ".json"))
+            note = {"keep": True}
+        if label:
+            note["label"] = label
+        else:
+            note.pop("label", None)
+        write_note(bak, note)
+    return label
+
+
 def _remove(bak: Path) -> bool:
     """Remove a backup, then its note and set-aside notes. A backup that can't be removed (in use) keeps its notes."""
     try:
@@ -309,6 +332,17 @@ def delete(bak: Path) -> None:
         for p in note_files(bak):
             p.unlink(missing_ok=True)
         ports.forget(ports.BACKUP_NOTE, Path(str(bak) + ".json"))
+
+
+def to_trash(bak: Path) -> list[dict]:
+    """Send one backup and its notes to the Recycle Bin (the React Saves page's Remove), under the account lock.
+    Returns the bin's records, the backup's first: what Restore in Activity puts back. Raises TrashError when the
+    backup itself did not go (it is then where it was)."""
+    bak = Path(bak)
+    with account_lock(bak.parent):
+        records = [fs_trash.send(p) for p in [bak, *note_files(bak)] if p.exists()]
+        ports.forget(ports.BACKUP_NOTE, Path(str(bak) + ".json"))
+    return records
 
 
 def prune(folder: Path, save_name: str, now: float | None = None) -> list[Path]:

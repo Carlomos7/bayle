@@ -251,6 +251,16 @@ def save_setup(s: Configs, p: SaveSetupParams) -> SetupSaved:
     return SetupSaved(name=got.name, overhaul_id=got.overhaul_id)
 
 
+class SetupUsers(Result):
+    profiles: list[str]  # the .me3 paths, the given profile first
+
+
+@router.post("/setup_users", name="mod_configs_setup_users")
+def setup_users(s: Configs, p: ApplyParams) -> SetupUsers:
+    """The profiles a saved setup would be applied to; nothing is written."""
+    return SetupUsers(profiles=[str(x) for x in s.setup_users(p.profile, p.overhaul_id)])
+
+
 @router.post("/apply_setup", name="mod_configs_apply_setup")
 def apply_setup(s: Configs, p: ApplyParams) -> JobStarted:
     """A job (one Undo in Activity takes back every profile); its result is {"profiles": [names]}."""

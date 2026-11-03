@@ -13,6 +13,7 @@ from pathlib import Path
 
 from bayle.adapters.filesystem import trash
 from bayle.adapters.system import logging as run_logging
+from bayle.adapters.system import sandbox
 from bayle.errors import Cancelled, OperationError
 from bayle.modules.games.locate import Locations
 from bayle.modules.mods import kinds
@@ -49,8 +50,11 @@ class ActivityService:
 
     # ---- reads
     def jobs(self) -> list[dict]:
-        """Every job, newest first."""
-        return run_logging.read_jobs_from(self._store)
+        """Every job, newest first; one that can be taken back also names its button (undo_label: Restore, Roll back...)."""
+        return [
+            {**r, "undo_label": mod_undo.label(r["undo"])} if r.get("undo") else r
+            for r in run_logging.read_jobs_from(self._store)
+        ]
 
     def undo_available(self, undo: dict) -> bool:
         return mod_undo.available(undo)
@@ -112,6 +116,10 @@ class ActivityService:
         if self._jobs.busy:
             raise OperationError("busy", "Another operation is running.", {"job_id": job_id})
         if not self.undo_available(undo):
+            if kept := sandbox.refused_in(undo):  # Bayle Dev: not gone, out of bounds
+                raise OperationError(
+                    "sandboxed", f"Bayle Dev keeps out of your real folders: {kept}", {"job_id": job_id}
+                )
             raise OperationError("gone", "It cannot be taken back any more.", {"job_id": job_id})
         if undo.get("type") == "rebuild" and self._jobs.game_running:
             raise OperationError("game_running", "The game is running.", {"job_id": job_id})

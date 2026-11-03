@@ -1,6 +1,19 @@
 {
   "components": {
     "schemas": {
+      "Accepted": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "Accepted",
+        "type": "object"
+      },
       "ActivityJobs": {
         "properties": {
           "jobs": {
@@ -227,6 +240,205 @@
           "file"
         ],
         "title": "BasicNative",
+        "type": "object"
+      },
+      "BuildFacts": {
+        "properties": {
+          "built_on": {
+            "title": "Built On",
+            "type": "string"
+          },
+          "dropped": {
+            "items": {
+              "$ref": "#/components/schemas/Dropped"
+            },
+            "title": "Dropped",
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "mods": {
+            "items": {
+              "$ref": "#/components/schemas/BuildMod"
+            },
+            "title": "Mods",
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "state",
+          "reasons",
+          "built_on",
+          "mods",
+          "files",
+          "dropped"
+        ],
+        "title": "BuildFacts",
+        "type": "object"
+      },
+      "BuildFile": {
+        "properties": {
+          "clashes": {
+            "items": {
+              "$ref": "#/components/schemas/ClashPart"
+            },
+            "title": "Clashes",
+            "type": "array"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "merged": {
+            "title": "Merged",
+            "type": "boolean"
+          },
+          "mods": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mods",
+            "type": "array"
+          },
+          "parts": {
+            "default": 0,
+            "title": "Parts",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "skipped": {
+            "default": "",
+            "title": "Skipped",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "family",
+          "mods",
+          "merged"
+        ],
+        "title": "BuildFile",
+        "type": "object"
+      },
+      "BuildMod": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "name"
+        ],
+        "title": "BuildMod",
+        "type": "object"
+      },
+      "BuildPreview": {
+        "properties": {
+          "blocked": {
+            "title": "Blocked",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "needs_allow": {
+            "title": "Needs Allow",
+            "type": "boolean"
+          },
+          "packs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Packs",
+            "type": "array"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "blocked",
+          "detail",
+          "tool",
+          "needs_allow",
+          "problem",
+          "files",
+          "packs",
+          "reasons"
+        ],
+        "title": "BuildPreview",
         "type": "object"
       },
       "CancelledEvent": {
@@ -471,6 +683,27 @@
           "name"
         ],
         "title": "Choices",
+        "type": "object"
+      },
+      "ClashPart": {
+        "properties": {
+          "mods": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mods",
+            "type": "array"
+          },
+          "part": {
+            "title": "Part",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part",
+          "mods"
+        ],
+        "title": "ClashPart",
         "type": "object"
       },
       "CleanParams": {
@@ -844,6 +1077,20 @@
         "title": "CopyRef",
         "type": "object"
       },
+      "CreateProfileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateProfileParams",
+        "type": "object"
+      },
       "DeleteBackupParams": {
         "additionalProperties": false,
         "properties": {
@@ -969,6 +1216,54 @@
           "reasons"
         ],
         "title": "DragTable",
+        "type": "object"
+      },
+      "Dropped": {
+        "properties": {
+          "accepted": {
+            "default": false,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mod": {
+            "title": "Mod",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "mod",
+          "file",
+          "family",
+          "kind"
+        ],
+        "title": "Dropped",
         "type": "object"
       },
       "DuplicateParams": {
@@ -1565,6 +1860,70 @@
         "title": "FormParams",
         "type": "object"
       },
+      "GameItem": {
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_run_build": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Build"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "ready",
+          "installed",
+          "current",
+          "profile",
+          "last_run_build"
+        ],
+        "title": "GameItem",
+        "type": "object"
+      },
       "GameStateData": {
         "properties": {
           "dead_shells": {
@@ -1625,6 +1984,22 @@
           "data"
         ],
         "title": "GameStateEvent",
+        "type": "object"
+      },
+      "GamesPage": {
+        "properties": {
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/GameItem"
+            },
+            "title": "Games",
+            "type": "array"
+          }
+        },
+        "required": [
+          "games"
+        ],
+        "title": "GamesPage",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2107,6 +2482,178 @@
           "kind"
         ],
         "title": "KindParams",
+        "type": "object"
+      },
+      "LaunchCheckParams": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "profile",
+              "offline",
+              "vanilla"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "LaunchCheckParams",
+        "type": "object"
+      },
+      "LaunchChecked": {
+        "properties": {
+          "busy": {
+            "title": "Busy",
+            "type": "boolean"
+          },
+          "game_running": {
+            "title": "Game Running",
+            "type": "boolean"
+          },
+          "installed": {
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProblem"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "problems",
+          "warnings",
+          "game_running",
+          "busy",
+          "installed"
+        ],
+        "title": "LaunchChecked",
+        "type": "object"
+      },
+      "LaunchPlayParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_without_backup": {
+            "default": false,
+            "title": "Allow Without Backup",
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "profile",
+              "offline",
+              "vanilla"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "LaunchPlayParams",
+        "type": "object"
+      },
+      "LaunchProblem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "LaunchProblem",
+        "type": "object"
+      },
+      "LaunchProfile": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "kind",
+          "source",
+          "name",
+          "active",
+          "problems"
+        ],
+        "title": "LaunchProfile",
+        "type": "object"
+      },
+      "LaunchProfiles": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchProfile"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profiles"
+        ],
+        "title": "LaunchProfiles",
         "type": "object"
       },
       "LaunchRef": {
@@ -2612,6 +3159,26 @@
         "title": "Me3SettingsView",
         "type": "object"
       },
+      "Me3Version": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Me3Version",
+        "type": "object"
+      },
       "ModConfigsState": {
         "description": "The page's facts: the profile they were read for (\"\" when there is none) and its mods with settings files.",
         "properties": {
@@ -2632,6 +3199,32 @@
           "nodes"
         ],
         "title": "ModConfigsState",
+        "type": "object"
+      },
+      "ModFiles": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "native": {
+            "title": "Native",
+            "type": "boolean"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "files",
+          "truncated",
+          "native"
+        ],
+        "title": "ModFiles",
         "type": "object"
       },
       "ModNode": {
@@ -4167,6 +4760,19 @@
           "reason"
         ],
         "title": "ProfileBlock",
+        "type": "object"
+      },
+      "ProfileCreated": {
+        "properties": {
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ProfileCreated",
         "type": "object"
       },
       "ProfileParams": {
@@ -5852,6 +6458,20 @@
         "title": "Seen",
         "type": "object"
       },
+      "SelectGameParams": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "SelectGameParams",
+        "type": "object"
+      },
       "SetParams": {
         "additionalProperties": false,
         "properties": {
@@ -5879,6 +6499,20 @@
           "value"
         ],
         "title": "SetParams",
+        "type": "object"
+      },
+      "SetProfileParams": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "SetProfileParams",
         "type": "object"
       },
       "SettingChanged": {
@@ -6058,6 +6692,20 @@
           "kind"
         ],
         "title": "SettingSpec",
+        "type": "object"
+      },
+      "SettingsDefaults": {
+        "properties": {
+          "settings": {
+            "additionalProperties": true,
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "SettingsDefaults",
         "type": "object"
       },
       "SettingsFolderParams": {
@@ -6295,6 +6943,22 @@
           "overhaul_id"
         ],
         "title": "SetupSaved",
+        "type": "object"
+      },
+      "SetupUsers": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profiles"
+        ],
+        "title": "SetupUsers",
         "type": "object"
       },
       "SharePlan": {
@@ -7439,6 +8103,159 @@
         ]
       }
     },
+    "/v1/builds": {
+      "get": {
+        "description": "Errors: not_found, no_game.",
+        "operationId": "builds",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile",
+            "required": true,
+            "schema": {
+              "title": "Profile",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildFacts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Builds",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/v1/builds/dropped/{dropped_id}/accept": {
+      "post": {
+        "description": "Errors: not_found (the profile, or the change is not left out now), profile_write_failed.",
+        "operationId": "builds_accept_dropped",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dropped_id",
+            "required": true,
+            "schema": {
+              "title": "Dropped Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Builds Accept Dropped",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/v1/builds/preview": {
+      "post": {
+        "description": "Errors: not_found, no_game.",
+        "operationId": "builds_preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Builds Preview",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
     "/v1/events": {
       "get": {
         "description": "Ordered job events. `id` is the seq, `event` the type. Reconnect with Last-Event-ID to continue.",
@@ -7568,6 +8385,79 @@
         "summary": "Events"
       }
     },
+    "/v1/games": {
+      "get": {
+        "operationId": "games",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamesPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Games",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/v1/games/select": {
+      "post": {
+        "description": "Make the game current (and the one the next start opens on). Errors: unknown_game, busy.",
+        "operationId": "games_select",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectGameParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamesPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Games Select",
+        "tags": [
+          "games"
+        ]
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health",
@@ -7678,6 +8568,220 @@
           }
         ],
         "summary": "Cancel Job"
+      }
+    },
+    "/v1/launch/check": {
+      "post": {
+        "description": "What would stop Play now, read fresh from the disk. Error: not_found.",
+        "operationId": "launch_check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchCheckParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchChecked"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Check",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/create_profile": {
+      "post": {
+        "description": "An empty profile for the current game in me3's folder. Errors: invalid_value, create_failed, busy.",
+        "operationId": "launch_create_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Create Profile",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/play": {
+      "post": {
+        "description": "Start Play as a job; its result is {\"mode\"} (offline when the player chose it at the online question). Prompts\n(question codes backup_failed, stale_blocked, stale_rebuild, rebuild_failed, online_risk, offline_confirm) go\nout as prompt events; the answer key `cancel` ends the job as cancelled. Errors: not_found, cannot_launch\n(details.reason game_unsupported | not_installed | game_running | problems), busy.",
+        "operationId": "launch_play",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchPlayParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Play",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/profiles": {
+      "get": {
+        "operationId": "launch_profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchProfiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Profiles",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/v1/launch/set_profile": {
+      "post": {
+        "description": "Remember the profile Play uses next for the current game. Error: not_found.",
+        "operationId": "launch_set_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProfileParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchProfiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Launch Set Profile",
+        "tags": [
+          "launch"
+        ]
       }
     },
     "/v1/mod_configs": {
@@ -8377,6 +9481,53 @@
           }
         ],
         "summary": "Mod Configs Setup Candidates",
+        "tags": [
+          "mod_configs"
+        ]
+      }
+    },
+    "/v1/mod_configs/setup_users": {
+      "post": {
+        "description": "The profiles a saved setup would be applied to; nothing is written.",
+        "operationId": "mod_configs_setup_users",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupUsers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mod Configs Setup Users",
         "tags": [
           "mod_configs"
         ]
@@ -10545,6 +11696,52 @@
           }
         ],
         "summary": "Mods Duplicate Profile",
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/v1/mods/files": {
+      "post": {
+        "operationId": "mods_files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mods Files",
         "tags": [
           "mods"
         ]
@@ -12897,6 +14094,7 @@
     },
     "/v1/saves/delete_backup": {
       "post": {
+        "description": "A job: the backup goes to the Recycle Bin; its result is {\"save_name\", \"in_bin\", \"save\", \"backup\", \"undo\"}.",
         "operationId": "saves_delete_backup",
         "requestBody": {
           "content": {
@@ -12913,7 +14111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SavesSaid"
+                  "$ref": "#/components/schemas/JobStarted"
                 }
               }
             },
@@ -13216,6 +14414,53 @@
           }
         ],
         "summary": "Saves Keep Backup",
+        "tags": [
+          "saves"
+        ]
+      }
+    },
+    "/v1/saves/label_backup": {
+      "post": {
+        "description": "Name a backup (an empty name shows it by its time again); text is the name it got.",
+        "operationId": "saves_label_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepAsParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavesSaid"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Saves Label Backup",
         "tags": [
           "saves"
         ]
@@ -13838,6 +15083,33 @@
         ]
       }
     },
+    "/v1/settings/defaults": {
+      "get": {
+        "description": "The value each setting has in a fresh settings file (for Reset).",
+        "operationId": "settings_defaults",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsDefaults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Settings Defaults",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/v1/settings/folder": {
       "post": {
         "operationId": "settings_folder",
@@ -13925,6 +15197,32 @@
           }
         ],
         "summary": "Settings Layout Check",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/settings/me3": {
+      "get": {
+        "operationId": "settings_me3",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me3Version"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Settings Me3",
         "tags": [
           "settings"
         ]

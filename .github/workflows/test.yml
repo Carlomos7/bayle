@@ -2,7 +2,8 @@ name: Tests
 
 on:
   push:
-    branches: [ "main" ]
+    # the two Tauri branches run here too until they reach main through a pull request
+    branches: [ "main", "feat/tauri-foundation", "feat/react-ui-integration" ]
   pull_request:
     branches: [ "main" ]
 
@@ -168,9 +169,68 @@ jobs:
         path: apps/qt-desktop/htmlcov/
         retention-days: 14
 
+  # The React desktop UI: typecheck, lint, production build and its Vitest suite.
+  ui:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/ui
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    # pnpm's version comes from "packageManager" in apps/desktop/ui/package.json
+    - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      with:
+        package_json_file: apps/desktop/ui/package.json
+
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        cache: pnpm
+        cache-dependency-path: apps/desktop/ui/pnpm-lock.yaml
+
+    - name: Install dependencies (exactly as locked)
+      run: pnpm install --frozen-lockfile
+
+    - name: Typecheck, lint, build and test
+      run: pnpm verify
+
+  # The Tauri shell and the Rust gateway (ADR 0015): both compile, and the gateway's tests pass, including the one that
+  # starts the real engine from source on a temporary data folder.
+  desktop:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-latest
+    env:
+      # Compile against the throwaway dev page, which every branch has; the React UI is built and checked on its own.
+      TAURI_CONFIG: '{"build":{"frontendDist":"../dev-ui"}}'
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+        cache-dependency-glob: apps/engine/uv.lock
+
+    - name: Engine environment (exactly as locked)
+      run: uv sync --locked --project ../engine
+
+    - name: Build the shell and the gateway
+      run: cargo build --locked --workspace
+
+    - name: Gateway tests (with the real engine)
+      run: cargo test --locked -p bayle-gateway
+      env:
+        BAYLE_GATEWAY_DATA: ${{ runner.temp }}\bayle-gateway-dev  # the runner context exists only inside steps
+
   # The one check main requires: passes when the tests passed, or were skipped because only docs changed.
   tests-passed:
-    needs: [changes, engine, test]
+    needs: [changes, engine, test, ui, desktop]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -179,8 +239,12 @@ jobs:
         CHANGES: ${{ needs.changes.result }}
         ENGINE: ${{ needs.engine.result }}
         TESTS: ${{ needs.test.result }}
+        UI: ${{ needs.ui.result }}
+        DESKTOP: ${{ needs.desktop.result }}
       run: |
-        echo "changes: $CHANGES, engine: $ENGINE, tests: $TESTS"
+        echo "changes: $CHANGES, engine: $ENGINE, tests: $TESTS, ui: $UI, desktop: $DESKTOP"
         [ "$CHANGES" = "success" ] || exit 1
         [ "$TESTS" = "success" ] || [ "$TESTS" = "skipped" ] || exit 1
         [ "$ENGINE" = "success" ] || [ "$ENGINE" = "skipped" ] || exit 1
+        [ "$UI" = "success" ] || [ "$UI" = "skipped" ] || exit 1
+        [ "$DESKTOP" = "success" ] || [ "$DESKTOP" = "skipped" ] || exit 1

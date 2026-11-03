@@ -1,0 +1,162 @@
+# Engine operations the web view may call through the gateway (ADR 0015), one OpenAPI operationId per line.
+# The build reads them from docs/api/openapi.json and fails on an id the contract does not have. Add a screen's
+# operations here when the screen moves to the React front end; nothing else is callable.
+
+# the gateway itself
+health
+
+# jobs
+get_job
+cancel_job
+
+# Phase 0: the Activity page and one job that is harmless on an empty data folder
+activity
+saves_back_up
+
+# the Activity page and prompts (the React front end)
+activity_log
+answer_prompt
+
+# Activity undo and the Settings page
+activity_undo
+settings
+settings_set
+settings_folder
+settings_check_relocate
+settings_relocate
+
+# the Saves page
+saves
+saves_health_report
+saves_sheet
+saves_folder
+saves_default_name
+saves_save_copy
+saves_keep_as
+saves_keep_backup
+saves_label_backup
+saves_rename_copy
+saves_check_remove_copy
+saves_remove_copy
+saves_check_delete_backup
+saves_delete_backup
+saves_import_files
+saves_check_copy_character
+saves_copy_character
+saves_check_replace_from_library
+saves_replace_from_library
+saves_check_restore_backup
+saves_restore_backup
+saves_check_repair
+saves_repair
+saves_undo_change
+saves_copy_entry
+
+# the Mod Configs page
+mod_configs
+mod_configs_open
+mod_configs_stamp
+mod_configs_save
+mod_configs_attach
+mod_configs_detach
+mod_configs_share
+mod_configs_export_share
+mod_configs_check_paste
+mod_configs_paste
+
+# games, profiles and Launch (the top bar and the Play button), and the Settings defaults
+games
+games_select
+launch_profiles
+launch_set_profile
+launch_create_profile
+launch_check
+launch_play
+settings_defaults
+
+# profiles in the shell (rename, duplicate, delete, move in)
+mods_profile_block
+mods_profile_name_check
+mods_rename_profile
+mods_duplicate_profile
+mods_check_delete_profile
+mods_delete_profile
+mods_check_move_in
+mods_move_in
+
+# the Mods page, the install dialog and the library
+mods
+mods_set_enabled
+mods_undo_change
+mods_remove
+mods_undo_removal
+mods_check_remove_holder
+mods_remove_holder
+mods_drag
+mods_move
+mods_fix_order
+mods_options
+mods_save_options
+mods_rename_preview
+mods_rename
+mods_rebuild
+mods_check_allow_tool
+mods_allow_tool
+mod_install_sources
+mod_install_open
+mod_install_replan
+mod_install_close
+mod_install_finish
+mod_install_import
+mod_install_takeover_choices
+mod_install_check_takeover
+mod_install_takeover
+mod_library_rows
+mod_library_check_share
+mod_library_share
+mod_library_check_separate
+mod_library_separate
+mod_library_use_choices
+mod_library_use
+
+# Share setup (profile transfer)
+profile_transfer
+profile_transfer_check_export
+profile_transfer_export
+profile_transfer_open_file
+profile_transfer_open_bundled
+profile_transfer_preview
+profile_transfer_import
+profile_transfer_discard
+
+# the Overhaul sheet (setups and overhaul installs)
+mod_configs_setup_candidates
+mod_configs_overhaul_form
+mod_configs_save_setup
+mod_configs_apply_setup
+mod_configs_check_install_setup
+mod_configs_install_setup
+mod_configs_check_turn_off
+mod_configs_turn_off
+mod_install_preview
+mod_install_check_overhaul_install
+mod_install_overhaul_install
+mod_install_overhaul_remove_choices
+mod_install_check_overhaul_remove
+mod_install_overhaul_remove
+mod_install_leftovers
+mod_install_leftovers_clean
+
+# the Merge page (file-level build report, what a rebuild needs, play without a left-out change)
+builds
+builds_preview
+builds_accept_dropped
+
+# About and the me3 version (the app info itself is a Rust command)
+settings_me3
+
+# the Mods page: the Files tab
+mods_files
+
+# the Overhaul sheet: which profiles a saved setup reaches
+mod_configs_setup_users

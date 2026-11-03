@@ -103,6 +103,23 @@ MODS_PROFILE = (
 )
 
 
+def fake_bin(monkeypatch, where: Path) -> Path:
+    """A stand-in Recycle Bin in where: a test never touches the real one."""
+    from bayle.adapters.filesystem import trash
+
+    where.mkdir(exist_ok=True)
+
+    def send(path):
+        item = where / f"{len(list(where.iterdir()))}-{Path(path).name}"
+        Path(path).rename(item)
+        return {"kind": "test", "item": str(item), "info": "", "original": str(path)}
+
+    monkeypatch.setattr(trash, "send", send)
+    monkeypatch.setattr(trash, "exists", lambda r: Path(r["item"]).exists())
+    monkeypatch.setattr(trash, "restore", lambda r: Path(r["item"]).rename(r["original"]))
+    return where
+
+
 def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
     """A small me3 profile on disk (two packages, one DLL) with its folders: what the Mods operations are run over."""
     root.mkdir(parents=True, exist_ok=True)
@@ -115,8 +132,15 @@ def mods_profile(root: Path, text: str = MODS_PROFILE) -> Path:
 
 
 def tree_state(*roots: Path) -> dict:
-    """(mtime, size) of every file and folder under the roots: a read must leave it as it was."""
-    return {str(p): (p.stat().st_mtime_ns, p.stat().st_size) for r in roots for p in [r, *r.rglob("*")]}
+    """(mtime, size) of every file and folder under the roots: a read must leave it as it was. From source the data
+    folder is the repository, so node_modules (pnpm paths too long to stat on Windows) is left out."""
+    out: dict = {}
+    for r in roots:
+        for here, dirs, names in os.walk(r):
+            dirs[:] = [d for d in dirs if d != "node_modules"]
+            for p in [Path(here), *(Path(here) / n for n in [*dirs, *names])]:
+                out[str(p)] = (p.stat().st_mtime_ns, p.stat().st_size)
+    return out
 
 
 class FakeShellContext:

@@ -70,8 +70,9 @@ class ZipSource:
         self.dirs: list[str] = []
         self._z: zipfile.ZipFile | None = None
         with zipfile.ZipFile(self.archive) as z:
+            # a shared profile comes from the internet too: the same limits as a mod download
+            extract.check_listing([(i.filename, i.file_size, extract.is_link(i)) for i in z.infolist()], self.root)
             for info in z.infolist():
-                extract.check_entry(info.filename)
                 name = info.filename.replace("\\", "/")
                 if JUNK.intersection(name.split("/")):
                     continue

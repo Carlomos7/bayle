@@ -259,6 +259,12 @@ def keep_backup(s: Saves, p: KeepParams) -> SavesSaid:
     return SavesSaid(text="")
 
 
+@router.post("/label_backup", name="saves_label_backup")
+def label_backup(s: Saves, p: KeepAsParams) -> SavesSaid:
+    """Name a backup (an empty name shows it by its time again); text is the name it got."""
+    return SavesSaid(text=s.label_backup(p.backup, p.name))
+
+
 @router.post("/rename_copy", name="saves_rename_copy")
 def rename_copy(s: Saves, p: RenameCopyParams) -> SavesSaid:
     return SavesSaid(text=s.rename_copy(p.folder, p.entry_id, p.name))
@@ -277,9 +283,9 @@ def check_delete_backup(s: Saves, p: BackupRef) -> BackupFacts:
 
 
 @router.post("/delete_backup", name="saves_delete_backup")
-def delete_backup(s: Saves, p: DeleteBackupParams) -> SavesSaid:
-    s.delete_backup(p.backup, p.expect)
-    return SavesSaid(text="")
+def delete_backup(s: Saves, p: DeleteBackupParams) -> JobStarted:
+    """A job: the backup goes to the Recycle Bin; its result is {"save_name", "in_bin", "save", "backup", "undo"}."""
+    return JobStarted(job_id=s.remove_backup(p.backup, p.expect))
 
 
 @router.post("/check_remove_copy", name="saves_check_remove_copy")

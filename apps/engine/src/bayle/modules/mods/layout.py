@@ -349,9 +349,17 @@ def _move_root(
     }
 
 
+def _long(p: Path | str) -> str:
+    """p in Windows' long form (\\\\?\\C:\\...), which passes the 260-character limit when long paths are off. A move to
+    another drive copies one level deeper than its destination, so a deep profiles folder can go past it."""
+    s = os.path.abspath(p)
+    # shortcut: a UNC share (\\server\...) keeps the plain form; it would need \\?\UNC\ if one ever goes this deep
+    return "\\\\?\\" + s if os.name == "nt" and not s.startswith("\\\\") else s
+
+
 def _drop(stage: Path | None, made_root: Path | None) -> None:
     if stage:
-        shutil.rmtree(stage, ignore_errors=True)
+        shutil.rmtree(_long(stage), ignore_errors=True)
     if made_root is not None:
         try:
             made_root.rmdir()  # only when empty
@@ -360,7 +368,9 @@ def _drop(stage: Path | None, made_root: Path | None) -> None:
 
 
 def _copy_tree(src: Path, dst: Path, tick: Callable[[int], None], cancel: Callable[[], bool] | None) -> None:
-    """src copied to dst, every file read back (size and sha256). Raises Cancelled, or LayoutError on a mismatch."""
+    """src copied to dst, every file read back (size and sha256). Raises Cancelled, or LayoutError on a mismatch or a
+    file that could not be copied."""
+    src, dst = Path(_long(src)), Path(_long(dst))
     for dirpath, dirnames, names in os.walk(src):
         here = dst / Path(dirpath).relative_to(src)
         here.mkdir(parents=True, exist_ok=True)
@@ -371,7 +381,10 @@ def _copy_tree(src: Path, dst: Path, tick: Callable[[int], None], cancel: Callab
             if cancel and cancel():
                 raise Cancelled("Cancelled: nothing was moved.")
             a, b = Path(dirpath) / n, here / n
-            shutil.copy2(a, b)
+            try:
+                shutil.copy2(a, b)
+            except OSError as e:
+                raise LayoutError(f"{n} could not be copied ({e.strerror}), so nothing was moved.") from e
             if a.stat().st_size != b.stat().st_size or _sha_file(a) != _sha_file(b):
                 raise LayoutError(f"The copy of {n} does not match the original, so nothing was moved.")
             tick(b.stat().st_size)
@@ -393,11 +406,11 @@ def _finish(op: build.Operation) -> list[str]:
         notes += migrate._apply_state({"pairs": info["pairs"], "profiles": g["profiles"], "game": g["game"]})
     if info["kind"] == RELOCATE:
         for f in info.get("cleanup") or []:
-            shutil.rmtree(f, ignore_errors=True)
+            shutil.rmtree(_long(f), ignore_errors=True)
             if Path(f).exists():
                 notes.append(f"{f} could not be deleted; the files are copied, you can delete it yourself")
         if info.get("stage"):
-            shutil.rmtree(info["stage"], ignore_errors=True)
+            shutil.rmtree(_long(info["stage"]), ignore_errors=True)
     op.note(state_done=True)
     return notes
 

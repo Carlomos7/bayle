@@ -1,6 +1,6 @@
 # Builds Bayle's Windows installer exactly as a release would (the official identity, signed with the release update
 # key) and checks the signature against the release public key, the way the updater will. A push publishes nothing.
-# Started by hand with "publish", it also makes the GitHub pre-release v<version> with the installer and its
+# Started by hand with "publish", it also makes the GitHub release v<version> (a pre-release for X.Y.Z-…) with the installer and its
 # signature (the update manifest is added on the updates branch afterwards, behind its own approval). ADR 0016.
 name: Desktop release build
 
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Publish the GitHub pre-release v<version> with the signed installer (needs apps/desktop/release-notes/<version>.md)"
+        description: "Publish the GitHub release v<version> with the signed installer (needs apps/desktop/release-notes/<version>.md)"
         type: boolean
         default: false
 
@@ -98,7 +98,7 @@ jobs:
         version=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
         cargo=$(sed -n 's/^version = "\(.*\)"/\1/p' apps/desktop/src-tauri/Cargo.toml)
         [ "$version" = "$cargo" ] || { echo "::error::tauri.conf.json says $version, Cargo.toml $cargo"; exit 1; }
-        case "$version" in 6.*-*) ;; *) echo "::error::$version is not a 6.x pre-release; a stable release needs its own decision"; exit 1 ;; esac
+        case "$version" in 6.*-*) kind=--prerelease ;; 6.*) kind=--latest ;; *) echo "::error::$version is not a 6.x version"; exit 1 ;; esac
         notes="apps/desktop/release-notes/$version.md"
         [ -s "$notes" ] || { echo "::error::no release notes: $notes"; exit 1; }
         if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -110,19 +110,21 @@ jobs:
         [ "$tagged" = "$GITHUB_SHA" ] || { echo "::error::v$version names $tagged, not this build's commit $GITHUB_SHA"; exit 1; }
         echo "version=$version" >> "$GITHUB_OUTPUT"
         echo "notes=$notes" >> "$GITHUB_OUTPUT"
+        echo "kind=$kind" >> "$GITHUB_OUTPUT"
 
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: signed-installer
         path: dist
 
-    - name: The pre-release
+    - name: The release
       env:
         GH_TOKEN: ${{ github.token }}
         VERSION: ${{ steps.v.outputs.version }}
+        KIND: ${{ steps.v.outputs.kind }}  # --prerelease (Beta only), or --latest for a stable release
       run: |
         exe="dist/Bayle_${VERSION}_x64-setup.exe"
         [ -s "$exe" ] && [ -s "$exe.sig" ] || { echo "::error::the signed installer of $VERSION is missing"; ls -la dist; exit 1; }
         gh release create "v$VERSION" "$exe" "$exe.sig" --repo "$GITHUB_REPOSITORY" --verify-tag \
-          --prerelease --latest=false --title "Bayle $VERSION" --notes-file "${{ steps.v.outputs.notes }}"
-        echo "Published v$VERSION at $GITHUB_SHA (pre-release). Next: the Beta manifest on the updates branch." >> "$GITHUB_STEP_SUMMARY"
+          "$KIND" --title "Bayle $VERSION" --notes-file "${{ steps.v.outputs.notes }}"
+        echo "Published v$VERSION at $GITHUB_SHA ($KIND). Next: its manifests on the updates branch." >> "$GITHUB_STEP_SUMMARY"

@@ -5,6 +5,84 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0](https://github.com/Carlomos7/bayle/compare/v5.0.2...v5.1.0) (2026-11-03)
+
+
+### Added
+
+* **api:** getProfile on the engine (profile list, its mods, the current game) ([4a98a2a](https://github.com/Carlomos7/bayle/commit/4a98a2a0c1b5787951105b2c80a13d3b052c9739))
+* **api:** wire Mod Configs to the engine (list, open, save, attach, detach) with a TS form parser ([aee12f0](https://github.com/Carlomos7/bayle/commit/aee12f0d7ef8e65521acc9f5a222946959c06129))
+* **api:** wire Settings and Activity Undo to the engine ([002afbd](https://github.com/Carlomos7/bayle/commit/002afbdb1ddeaa978fcd749c8c912548d0f8ead0))
+* **api:** wire the Mods page and Share setup to the engine's mods operations ([afd9be3](https://github.com/Carlomos7/bayle/commit/afd9be33a22f1b9bb1f8442e0a474ca48f4e8d6e))
+* **api:** wire the Overhaul sheet to the engine (setup form, save/apply, install, remove, leftovers) ([b7bc701](https://github.com/Carlomos7/bayle/commit/b7bc701924917fc3c700d40a385fc53afd634e11))
+* **api:** wire the Saves page to the engine's saves operations ([ef92dee](https://github.com/Carlomos7/bayle/commit/ef92dee202b3684343b3978b2799cd181385010e))
+* Bayle 6, the Tauri desktop app (6.0.0-beta.1) ([c436f5d](https://github.com/Carlomos7/bayle/commit/c436f5db676933e313aa9e7ac725031e639c75c7))
+* Bayle 6, the Tauri desktop app (6.0.0-beta.1) ([#32](https://github.com/Carlomos7/bayle/issues/32)) ([c436f5d](https://github.com/Carlomos7/bayle/commit/c436f5db676933e313aa9e7ac725031e639c75c7))
+* **desktop:** About and Updates read the build from Rust and me3's version from the engine ([4469ce7](https://github.com/Carlomos7/bayle/commit/4469ce75b3dbd832adea02ba6536816d73b8cc39))
+* **desktop:** app_window_maximized for the title bar's Restore button ([126d4e3](https://github.com/Carlomos7/bayle/commit/126d4e31e6be0651d890087899c36be84944fe6d))
+* **desktop:** frameless main window for the React title bar; allow the profile, Mods and Share setup operations ([9b33d6f](https://github.com/Carlomos7/bayle/commit/9b33d6faf378205773f7cdb1788f96bb85cfd935))
+* **desktop:** pickers, open path, window buttons and the support-logs bundle; allow the games, Launch and defaults operations ([6f070f1](https://github.com/Carlomos7/bayle/commit/6f070f1b337d8242b8a021d596cf694b62a1f045))
+* **desktop:** release identity config, fixed HTTPS update address and a saved update channel ([ff7c5c9](https://github.com/Carlomos7/bayle/commit/ff7c5c9492fd8de7f97ebb099e3c3bd8aef85806))
+* **desktop:** the approved Bayle asset pack in the app, installer and README ([683ebd3](https://github.com/Carlomos7/bayle/commit/683ebd388f898f3df1acabaa9bc1aa0e6d3d38df))
+* **desktop:** the shell speaks the React UI's gateway contract ([0ab0f0b](https://github.com/Carlomos7/bayle/commit/0ab0f0bb49e113fafe6191538951ed12b5024c1c))
+* **engine:** file-level build report, preview and accept-dropped routes ([c81a2df](https://github.com/Carlomos7/bayle/commit/c81a2df80422bc5a10309e65179fc71e2b99fada))
+* **engine:** routes for games, profiles, Launch and the Settings defaults ([21bffea](https://github.com/Carlomos7/bayle/commit/21bffea647abc3b81eca020cb01700cf7e0995fa))
+* **gateway:** allow the build operations ([babfaff](https://github.com/Carlomos7/bayle/commit/babfaff7fc54a930f83f5568b0bdddebc74f7589))
+* **gateway:** allow the Overhaul sheet operations ([2862056](https://github.com/Carlomos7/bayle/commit/2862056d50d119ea0b2fe7993c61b0d0afcc7a26))
+* **gateway:** allow the Settings, Saves, Mod Configs and Activity undo operations for the React pages ([fc9041c](https://github.com/Carlomos7/bayle/commit/fc9041c14b02c100b3327aabc98b1b76365fae81))
+* **mods:** judge every archive from its list before unpacking it (E1) ([dbc69d9](https://github.com/Carlomos7/bayle/commit/dbc69d90be81980636a7111d380682d360a62999))
+* **mods:** list a mod's files for the Files tab (mods_files) ([338ecc1](https://github.com/Carlomos7/bayle/commit/338ecc1da1485533f37801e5c3adb03f815eac78))
+* **overhaul:** the setup sheet lists the profiles that use the setup (mod_configs_setup_users) ([a79420e](https://github.com/Carlomos7/bayle/commit/a79420e1980d81f280715fa74f2daec7b1ac9fcc))
+* **saves:** copy a character out of a backup ([6d315ac](https://github.com/Carlomos7/bayle/commit/6d315acef635e398b0f60a97ab6868de9be0084d))
+* **saves:** name a backup; the name lives in its note beside keep (O10) ([f24a514](https://github.com/Carlomos7/bayle/commit/f24a514e1594c61ba8076b57bf01fbb98c25d9d0))
+* **shell:** Restore icon while maximized; Open logs folder uses the shell's logs command ([0c40eb6](https://github.com/Carlomos7/bayle/commit/0c40eb660a53e0282bbea90741fd2c7aa2ccfeb3))
+* **shell:** the profile list shows each profile's mod count ([ee521f3](https://github.com/Carlomos7/bayle/commit/ee521f3ae2a4d6b176f40fba88f4bd335c85f7a8))
+* **shell:** wire games, profiles, Launch with prompts and Stop, and the desktop actions to the engine ([5bef9a8](https://github.com/Carlomos7/bayle/commit/5bef9a80b1b1ed11887543a575749b2782e61de4))
+* **ui:** About names the engine version and its contract ([6b0ccb5](https://github.com/Carlomos7/bayle/commit/6b0ccb5114bb49aeecfc2053542ad05c550bed22))
+* **ui:** import the React desktop UI ([0d34e83](https://github.com/Carlomos7/bayle/commit/0d34e83947df71877df0c1a12f65db755089880c))
+* **ui:** Merge page on the engine's file-level build report ([08e738c](https://github.com/Carlomos7/bayle/commit/08e738ccd9ad92dc3c9f729a473eb65eaa5ebe33))
+* **ui:** move the Profiles folder from Settings through the gateway (O10) ([4b8efad](https://github.com/Carlomos7/bayle/commit/4b8efad7a752b46b4fbcb22c7bb325a6cbc4302a))
+* **ui:** read the engine's file-level build report, plan and accept ([1ec7f86](https://github.com/Carlomos7/bayle/commit/1ec7f861ad96dbf5aeab77212cd9a571f3ddd210))
+* **ui:** rename a backup from the Saves page through the gateway (O10) ([f19a957](https://github.com/Carlomos7/bayle/commit/f19a957d31bccb5eb361187b964f95091226c08b))
+* **ui:** the Settings update channel is the desktop app's own ([cc1a0bd](https://github.com/Carlomos7/bayle/commit/cc1a0bd25128cc7d92b75aba2019d082f8119ed5))
+
+
+### Fixed
+
+* **activity:** Bayle Dev says why an Undo is refused (a real folder it keeps out of), not that it is gone ([d0d2b4d](https://github.com/Carlomos7/bayle/commit/d0d2b4de21e3d3bd84b94199f980623f34feb8fb))
+* **activity:** the Undo button says what it does (Restore, Undo install, Roll back...) ([9149544](https://github.com/Carlomos7/bayle/commit/91495446150faa225be7bd1f9c3910af9a4fba86))
+* **api:** profiles show their name without the .me3 extension ([18ecc96](https://github.com/Carlomos7/bayle/commit/18ecc9691c0ae917ec140fbff322b0eff069eacf))
+* **ci:** set the gateway test's data folder in its step ([1dd4025](https://github.com/Carlomos7/bayle/commit/1dd40258235589ff3cd439ae4c65e5f3a5e639c6))
+* **desktop:** a debug build runs the source engine, never a stale bundled copy in target/debug ([f532c96](https://github.com/Carlomos7/bayle/commit/f532c969fe38d7e4eeed0edbcfaeefce71e88579))
+* **desktop:** a second start brings the open window forward instead of starting a second engine ([3e41852](https://github.com/Carlomos7/bayle/commit/3e41852cce5fe6d4b7b1e6328d5bef3bb9312425))
+* **desktop:** a UI that never draws gets the shell's own way out (ADR 0016 criterion 7) ([9b369c0](https://github.com/Carlomos7/bayle/commit/9b369c0c92074f325cd2bd152012bcfeab204aa1))
+* **desktop:** Bayle Dev reaches nothing in the real data folders, even through copied settings ([d9e1f36](https://github.com/Carlomos7/bayle/commit/d9e1f365008742cd1497e2695be00c51c2390dd1))
+* **desktop:** never keep app data in a guessed folder at startup ([1bf949f](https://github.com/Carlomos7/bayle/commit/1bf949ff91c9bedd60193a70b6bbc230c4feec89))
+* **desktop:** the engine recovery screens show their toasts ([31d0deb](https://github.com/Carlomos7/bayle/commit/31d0deb9d1314d0b4dae879ab6bbb39c8da761fb))
+* **desktop:** the Windows icon is the final crimson app icon again ([9f4beca](https://github.com/Carlomos7/bayle/commit/9f4becaa9783fd9b1257cea887bbf09ea0d7cb24))
+* **desktop:** update check and install failures are said in plain words ([e1db5a2](https://github.com/Carlomos7/bayle/commit/e1db5a20a33d445977546e883bb1386737b2c66c))
+* **engine:** --backend runs only on an explicit BAYLE_DATA, never the program folder, the repository or the Qt data ([b6bf7a6](https://github.com/Carlomos7/bayle/commit/b6bf7a659ed51bc5a9cdbfb29952c983bc24b688))
+* **engine:** a copy that leaves parts out is one left-out change, not two ([95b83fb](https://github.com/Carlomos7/bayle/commit/95b83fbc08f7b4ce263d8f1960232ae5a6934f5d))
+* **engine:** page stamps in microseconds so the web view sends them back exactly ([64686e4](https://github.com/Carlomos7/bayle/commit/64686e4438271c409dfd659cab29b4734f2b72ac))
+* **gateway:** use an operation that is really off the allowlist in the isolation tests ([8c90969](https://github.com/Carlomos7/bayle/commit/8c909699844108d4fc19d5e5e18b79618049ad82))
+* **mods:** a move of the profiles folder to another drive works past Windows' 260-character limit ([fcad8ef](https://github.com/Carlomos7/bayle/commit/fcad8efd24d493b372812b7bf84f6d545a4a7bb0))
+* **mods:** a password-protected 7z says so in plain words instead of py7zr's internals ([403f663](https://github.com/Carlomos7/bayle/commit/403f66334d1022bdb18ac71768000c20b98b7fd4))
+* **saves:** file stamps in microseconds, so restore and copy writes are no longer always stale ([d47a50c](https://github.com/Carlomos7/bayle/commit/d47a50cdc59b7e8d2e7be179c7d2b479c7a91ca8))
+* **saves:** removing a backup sends it to the Recycle Bin, and Restore in Activity brings it back ([d9d39ee](https://github.com/Carlomos7/bayle/commit/d9d39ee601cb58ae2cdfbef7f82c5791458cc00f))
+* **settings:** moving the Profiles folder to another drive no longer fails at once ([dddd05e](https://github.com/Carlomos7/bayle/commit/dddd05ebc7980321a6f2fb96da2c093ea5a8baf9))
+* the backend exits cleanly when its parent leaves early, explains a bad token, and refuses a data folder in use ([#27](https://github.com/Carlomos7/bayle/issues/27)) ([54643bc](https://github.com/Carlomos7/bayle/commit/54643bc5b1c25b30759ee446853970e37f85c068))
+* **ui:** error toasts close when you change pages ([7783d85](https://github.com/Carlomos7/bayle/commit/7783d85d6b7ae2cfe4341df715e2f0e2525c20d0))
+* **ui:** Merge counts only the build's mods and names the real winner ([564700f](https://github.com/Carlomos7/bayle/commit/564700f9dbd2d84931597a1e9a6311ad3b6f7abf))
+* **ui:** Merge says it isn't connected yet instead of loading forever ([15bdba4](https://github.com/Carlomos7/bayle/commit/15bdba4e6ba92f0b5dd08463b25a09e2d6cf2204))
+* **ui:** Merge says there is no profile instead of loading forever ([f7dec95](https://github.com/Carlomos7/bayle/commit/f7dec9554e0256b5c367c101bafd865aa07deaf1))
+* **ui:** onboarding's Just look around makes the empty profile it promises, when the game has none ([b5b0425](https://github.com/Carlomos7/bayle/commit/b5b04250dfb6894048fe7576d3faa902fa48c883))
+* **ui:** the Saves page names the save folder's Steam account, not a placeholder ([82c9e6f](https://github.com/Carlomos7/bayle/commit/82c9e6f235f9a0089497938d0473177efd9098af))
+
+
+### Changed
+
+* **ui:** derive the gateway adapters' engine types from the OpenAPI schemas (D2) ([b1fe3e8](https://github.com/Carlomos7/bayle/commit/b1fe3e86464a39b823ccedf18651cf8bdbea2acd))
+
 ## [5.0.2](https://github.com/Carlomos7/bayle/compare/v5.0.1...v5.0.2) (2026-10-27)
 
 
